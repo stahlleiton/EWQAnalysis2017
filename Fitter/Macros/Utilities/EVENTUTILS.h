@@ -15,6 +15,9 @@ namespace PA {
     HLT_PAL3Mu12 = 5,
     HLT_PAL3Mu15 = 6,
   };
+
+  double Lumi_pPb = 115.28;
+  double Lumi_Pbp = 64.41;
 };
 
 #endif /* EVENTUTILS_H_ */

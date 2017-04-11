@@ -14,7 +14,7 @@ bool setParameters     ( const StringMap& row , GlobalInfo& info , const std::st
 bool addParameters     ( std::string InputFile , std::vector< GlobalInfo >& infoVector , const std::string& Analysis );
 
 void fitter(
-            const std::string workDirName = "Test",     // Working directory
+            const std::string workDirName = "Test_TEMPMC",     // Working directory
             const std::bitset<1> useExt   = 0,          // Use external: (bit 0) Input DataSets
             // Select the type of datasets to fit
             const std::bitset<2> fitData  = 1,          // Fit Sample: (bit 0) Data , (bit 1) MC
@@ -25,6 +25,7 @@ void fitter(
             // Select the fitting options
             const unsigned int   numCores = 32,         // Number of cores used for fitting
             const std::bitset<1> fitVar   = 1,          // Fit Variable: 1: MET
+            const uint           varType  = 1,          // Type of MET to Fit: (0) PF Raw, (1) PF Type1, (2) NoHF Raw, (3) NoHF Type 1
             const std::string    Analysis = "WToMuNu",  // Type of Analysis
             // Select the drawing options
             const bool setLogScale  = true              // Draw plot with log scale
@@ -55,6 +56,7 @@ void fitter(
   userInput.Par["extDSDir_DATA"]      = "";
   userInput.Par["extDSDir_MC"]        = "";
   if (Analysis.find("Nu")!=std::string::npos) {
+    userInput.Var["MET"]["type"]        = varType;
     userInput.Var["MET"]["binWidth"]    = 2.0;
     userInput.Par["extFitDir_MET"]      = "";
     userInput.Par["extInitFileDir_MET"] = "";
@@ -68,7 +70,11 @@ void fitter(
   for (uint i=0; i<userInput.StrV.at("system").size(); i++) { userInput.Flag["fit"+userInput.StrV.at("system")[i]] = fitColl[i]; }
   if (userInput.Flag.at("fitPA")) { userInput.Flag.at("fitpPb") = true; userInput.Flag.at("fitPbp") = true; }
   userInput.Flag["doPA"] = (userInput.Flag.at("fitpPb") || userInput.Flag.at("fitPbp"));
-  if (Analysis.find("Nu")!=std::string::npos) { userInput.StrV["variable"] = std::vector<std::string>({"MET"}); }
+  if (Analysis.find("Nu")!=std::string::npos) { 
+    userInput.StrV["variable"] = std::vector<std::string>({"MET"});
+    userInput.StrV["METType"] = std::vector<std::string>({"PFRaw","PFType1","NoHFRaw","NoHFType1"});
+    userInput.Par["METType"] = userInput.StrV.at("METType").at(varType);
+  }
   if (Analysis.find("W")!=std::string::npos) {
     userInput.StrV["charge"] = std::vector<std::string>({"Plus","Minus","ChgInc"});
     userInput.StrV["object"] = std::vector<std::string>({"W", "QCD", "DYZ"});
@@ -237,6 +243,7 @@ void fitter(
       FileInfo["InputFileNames"] = InputFileNames;
       FileInfo["OutputFileDir"].push_back(dir);
       FileInfo["OutputFileDir"].push_back(DIR["dataset"][0]);
+      FileInfo["VarType"].push_back(userInput.Par.at("METType"));
       if (FILETAG.find("PA")==std::string::npos) { FileInfo["DSNames"].push_back(FILETAG); }
       else {
         std::string NAMETAG = FILETAG; NAMETAG.erase(NAMETAG.find("PA"),string("PA").length());

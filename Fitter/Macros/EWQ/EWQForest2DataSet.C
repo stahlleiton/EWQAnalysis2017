@@ -22,7 +22,7 @@
 
 
 bool checkEWQDS          ( RooDataSet* DS              , const std::string& DSName       , const std::string& Analysis );
-bool EWQForest_WToMuNu   ( RooWorkspaceMap& Workspaces    , const StringVectorMap& FileInfo , const GlobalInfo&  info     );
+bool EWQForest_WToMuNu   ( RooWorkspaceMap& Workspaces    , const StringVectorMap& FileInfo , const GlobalInfo&  info  );
 
 
 bool EWQForest2DataSet(RooWorkspaceMap& Workspaces, const StringVectorMap& FileInfo, const GlobalInfo& info)
@@ -36,13 +36,15 @@ bool EWQForest_WToMuNu(RooWorkspaceMap& Workspaces, const StringVectorMap& FileI
 {
   StringVector OutputFileNames;
   std::string  chaDir = "Muon";
+  std::string  metTAG = "MET" + info.Par.at("VarType") + "_";
   StringVector OutputFileDir   = FileInfo.at("OutputFileDir");
   StringVector InputFileNames  = FileInfo.at("InputFileNames");
   StringVector DSNames         = FileInfo.at("DSNames");
   bool isData = (DSNames[0].find("DATA")!=std::string::npos);
+  bool useNoHFMET = (metTAG.find("NoHF")!=std::string::npos);
   for (auto& tag : DSNames) { 
-    std::string o = (OutputFileDir[0] + chaDir + "/") + "DATASET_" + tag + ".root"; 
-    if (gSystem->AccessPathName(o.c_str())) { makeDir(OutputFileDir[1] + chaDir + "/"); o = (OutputFileDir[1] + chaDir + "/") + "DATASET_" + tag + ".root"; }
+    std::string o = (OutputFileDir[0] + chaDir + "/") + "DATASET_" + metTAG + tag + ".root"; 
+    if (gSystem->AccessPathName(o.c_str())) { makeDir(OutputFileDir[1] + chaDir + "/"); o = (OutputFileDir[1] + chaDir + "/") + "DATASET_" + metTAG + tag + ".root"; }
     OutputFileNames.push_back(o);
   }
   // Extract Input Information
@@ -73,19 +75,20 @@ bool EWQForest_WToMuNu(RooWorkspaceMap& Workspaces, const StringVectorMap& FileI
     if (!muonTree->GetTree(InputFileNames[0])) return false;
     Long64_t nentries = muonTree->GetEntries();
     std::unique_ptr<HiMETTree> metTree = std::unique_ptr<HiMETTree>(new HiMETTree());
-    if (!metTree->GetTree(InputFileNames[0])) return false;
+    if (useNoHFMET) { if (!metTree->GetTree(InputFileNames[0], 0, "metAnaNoHF")) return false; }
+    else { if (!metTree->GetTree(InputFileNames[0], 0, "metAna")) return false; }
     if (metTree->GetEntries() != nentries) { std::cout << "[ERROR] Inconsistent number of entries!" << std::endl; return false; }
     muonTree->Tree()->AddFriend(metTree->Tree());
     ///// RooDataSet Variables
-    RooRealVar   met    = RooRealVar ( "MET",         "|#slash{E}_{T}|",   0.0, 10000.0,    "GeV/c"     );
-    RooRealVar   muPt   = RooRealVar ( "Muon_Pt",     "#mu p_{T}",         0.0, 10000.0,    "GeV/c"     );
-    RooRealVar   muEta  = RooRealVar ( "Muon_Eta",    "#mu #eta",         -2.6, 2.6,        ""          );
-    RooRealVar   muIso  = RooRealVar ( "Muon_Iso",    "#mu Isolation",     0.0, 10.0,       ""          );
-    RooRealVar   muMT   = RooRealVar ( "Muon_MT",     "W Transverse Mass", 0.0, 10000.0,    "GeV/c^{2}" );
-    RooRealVar   cent   = RooRealVar ( "Centrality",  "Centrality",        0.0, 1000.0,     ""          );
-    RooRealVar   weight = RooRealVar ( "Weight",      "Weight",            0.0, 10000.0,    ""          );
+    RooRealVar   met    = RooRealVar ( "MET",         "|#slash{E}_{T}|",   -1.0, 100000.0,  "GeV/c"     );
+    RooRealVar   muPt   = RooRealVar ( "Muon_Pt",     "#mu p_{T}",         -1.0, 100000.0,  "GeV/c"     );
+    RooRealVar   muEta  = RooRealVar ( "Muon_Eta",    "#mu #eta",          -2.6, 2.6,       ""          );
+    RooRealVar   muIso  = RooRealVar ( "Muon_Iso",    "#mu Isolation",     -1.0, 100000.0,  ""          );
+    RooRealVar   muMT   = RooRealVar ( "Muon_MT",     "W Transverse Mass", -1.0, 100000.0,  "GeV/c^{2}" );
+    RooRealVar   cent   = RooRealVar ( "Centrality",  "Centrality",        -1.0, 100000.0,  ""          );
+    RooRealVar   weight = RooRealVar ( "Weight",      "Weight",            -1.0, 100000.0,  ""          );
     RooCategory  type   = RooCategory( "Event_Type",  "Event Type");
-    type.defineType("Other", -1); type.defineType("DYZToMuMu", 1);
+    type.defineType("Other", -1); type.defineType("DYToMuMu", 1); type.defineType("ZToMuMu", 2);
     RooArgSet cols = RooArgSet(met, muPt, muEta, muIso, muMT, cent, weight);
     cols.add(type);
     ///// Initiliaze RooDataSets
@@ -116,17 +119,20 @@ bool EWQForest_WToMuNu(RooWorkspaceMap& Workspaces, const StringVectorMap& FileI
       if (isData && muonTree->Event_Trig_Fired()[triggerIndex]==false) continue;  // DOES NOT CURRENTLY WORK ON MC
       // Find the Leading Pt Muon
       float maxPt = -99.; int maxIdx = -1;
+      float minPt = 999999999.; int minIdx = -1;
       for (uint imu=0; imu<muonTree->PF_Muon_Mom().size(); imu++) {
         ushort imuR = muonTree->PF_Muon_Reco_Idx()[imu];
+        if (isData && muonTree->Pat_Muon_Trig().at(imuR)[triggerIndex]==false) continue;  // DOES NOT CURRENTLY WORK ON MC
         if (muonTree->Reco_Muon_isTight()[imuR]==false) continue;  // Only consider Tight Muons
         TLorentzVector p4 = muonTree->PF_Muon_Mom()[imu];
-        if (abs(p4.Eta())>2.4) continue;                           // Only consider Muons within the ETA acceptance
+        if (abs(p4.Eta())>=2.5) continue;                          // Only consider Muons within the ETA acceptance
         if (maxPt < p4.Pt()) { maxPt = p4.Pt(); maxIdx = imu; }
-      }     
+        if (minPt > p4.Pt()) { minPt = p4.Pt(); minIdx = imu; }
+      }
       if (maxIdx==-1) continue;                                    // Only consider events with at least one good muon
       // Apply PT Cut
       TLorentzVector muP4 = muonTree->PF_Muon_Mom()[maxIdx];
-      if (muP4.Pt() <= 20.) continue;                              // Consider only leading muons with pT larger than 20 GeV
+      if (muP4.Pt() < 25.) continue;                              // Consider only leading muons with pT larger or equal than 25 GeV
       // Classify the events
       //
       std::string eventType = "Other";
@@ -139,26 +145,42 @@ bool EWQForest_WToMuNu(RooWorkspaceMap& Workspaces, const StringVectorMap& FileI
           ushort idx2R = muonTree->PF_Muon_Reco_Idx()[idx2];
           TLorentzVector p4_Mu1 = muonTree->PF_Muon_Mom()[idx1];
           TLorentzVector p4_Mu2 = muonTree->PF_Muon_Mom()[idx2];
-          if ( 
-              (muonTree->PF_DiMuon_Charge()[iQQ] == 0         ) &&   // Select opposite sign dimuons
-              (muonTree->PF_DiMuon_VtxProb()[iQQ] > 0.01      ) &&   // Select dimuons with Vertex Probability > 1%
-              (abs(p4_Mu1.Eta())<2.4 && abs(p4_Mu2.Eta())<2.4 ) &&   // Check that both muons are within the ETA acceptance
+          if (
+              (abs(p4_Mu1.Eta())<2.5 && abs(p4_Mu2.Eta())<2.5 ) &&   // Check that both muons are within the ETA acceptance
               (p4_Mu1.Pt()>15. && p4_Mu2.Pt()>15.             ) &&   // Check that both muons have pt larger than 15
-              (muonTree->Reco_Muon_isLoose()[idx1R] && muonTree->Reco_Muon_isLoose()[idx2R]) &&  // Require that both pass Loose Muon ID
-              (muonTree->Reco_Muon_isTight()[idx1R] || muonTree->Reco_Muon_isTight()[idx2R]) &&  // Require at least one muon to pass Tight ID
+              (muonTree->Reco_Muon_isTight()[idx1R] && muonTree->Reco_Muon_isTight()[idx2R]) &&  // Require both muons to pass Tight ID
               (muonTree->PF_Muon_IsoPFR03NoPUCorr()[idx1]<0.15 && muonTree->PF_Muon_IsoPFR03NoPUCorr()[idx2]<0.15)  // Select isolated muons
-               ) 
+               )
             {
-              eventType = "DYZToMuMu"; break;  // Found a Drell-Yan / Z candidate
+              eventType = "DYToMuMu";
+              if (
+                  (muonTree->PF_DiMuon_Charge()[iQQ] == 0     ) &&   // Select opposite sign dimuons
+                  (abs(muonTree->PF_DiMuon_Mom()[iQQ].M()-90.)<20.)      // Select invariant mass within [70. , 110.] GeV/c^2
+                  )
+                {
+                  eventType = "ZToMuMu";
+                }
+              break;  // Found a Drell-Yan / Z candidate
             }
         }
       }
+      // Choose which Type of MET we want to use
+      TVector2 MET = TVector2();
+      if (info.Par.at("VarType") == "PFRaw"    ) { MET = metTree->PF_MET_NoShift_Mom();    }
+      if (info.Par.at("VarType") == "PFType1"  ) { MET = metTree->Type1_MET_NoShift_Mom(); }
+      if (info.Par.at("VarType") == "NoHFRaw"  ) { MET = metTree->PF_MET_NoShift_Mom();    }
+      if (info.Par.at("VarType") == "NoHFType1") { MET = metTree->Type1_MET_NoShift_Mom(); }
+      // Recompute the Transver Mass based on the chosen MET
+      TLorentzVector pfMuonP4T = TLorentzVector(), METP4 = TLorentzVector();
+      pfMuonP4T.SetPtEtaPhiM(muP4.Pt(), 0.0, muP4.Phi(), muP4.M());
+      METP4.SetPtEtaPhiM( MET.Mod(), 0.0, MET.Phi(), 0.0 );
+      TLorentzVector muT = TLorentzVector( pfMuonP4T + METP4 );
+
       //// Set the variables
       uint runNumber = muonTree->Event_Run();
-      TLorentzVector muT    = muonTree->PF_MuonMET_TransMom()[maxIdx];
       Float_t        muIsoV = muonTree->PF_Muon_IsoPFR03NoPUCorr()[maxIdx];
       Int_t          muChgV = int(muonTree->PF_Muon_Charge()[maxIdx]);
-      met.setVal    ( metTree->PF_MET_Mom().Mod());
+      met.setVal    ( MET.Mod()  );
       muPt.setVal   ( muP4.Pt()  );
       muEta.setVal  ( muP4.Eta() );
       muIso.setVal  ( muIsoV     );
@@ -198,6 +220,7 @@ bool EWQForest_WToMuNu(RooWorkspaceMap& Workspaces, const StringVectorMap& FileI
     if(dataMi[i]->numEntries()==0) { cout << "[WARNING] " << DSNames[i] << " minus dataset is empty!" << endl; return false; }
     Workspaces[DSNames[i]].import(*dataPl[i]);
     Workspaces[DSNames[i]].import(*dataMi[i]);
+    TObjString tmp; tmp.SetString(info.Par.at("VarType").c_str()); Workspaces[DSNames[i]].import(*((TObject*)&tmp), "METType");
     // delete the local datasets
     delete dataPl[i];
     delete dataMi[i];

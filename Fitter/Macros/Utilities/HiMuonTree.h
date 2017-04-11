@@ -39,8 +39,8 @@ public :
   UInt_t               Event_Run()                        { SetBranch("Event_Run");                        return Event_Run_;                             }
   UShort_t             Event_Lumi()                       { SetBranch("Event_Lumi");                       return Event_Lumi_;                            }
   UInt_t               Event_Bx()                         { SetBranch("Event_Bx");                         return Event_Bx_;                              }
-  ULong_t              Event_Orbit()                      { SetBranch("Event_Orbit");                      return Event_Orbit_;                           }
-  ULong_t              Event_Number()                     { SetBranch("Event_Number");                     return Event_Number_;                          }
+  ULong64_t            Event_Orbit()                      { SetBranch("Event_Orbit");                      return Event_Orbit_;                           }
+  ULong64_t            Event_Number()                     { SetBranch("Event_Number");                     return Event_Number_;                          }
   UChar_t              Event_nPV()                        { SetBranch("Event_nPV");                        return Event_nPV_;                             }
   TVector3             Event_PriVtx_Pos()                 { SetBranch("Event_PriVtx_Pos");                 return GET(Event_PriVtx_Pos_);                 }
   TVector3             Event_PriVtx_Err()                 { SetBranch("Event_PriVtx_Err");                 return GET(Event_PriVtx_Err_);                 }
@@ -52,9 +52,9 @@ public :
   VTLorentzVector      Reco_Muon_Mom()                    { SetBranch("Reco_Muon_Mom");                    return EXTRACTLV("Reco_Muon_Mom");             }
   std::vector<char>    Reco_Muon_Charge()                 { SetBranch("Reco_Muon_Charge");                 return GET(Reco_Muon_Charge_);                 }
   std::vector<char>    Reco_Muon_Gen_Idx()                { SetBranch("Reco_Muon_Gen_Idx");                return GET(Reco_Muon_Gen_Idx_);                }
-  std::vector<char>    Reco_Muon_PF_Idx()                 { SetBranch("Reco_Muon_PF_Idx");                 return GET(Reco_Muon_PF_Idx_ );                }
-  UCharVecVec          Pat_Muon_Trig()                    { SetBranch("Pat_Muon_Trig");                    return GET(Pat_Muon_Trig_ );                   }
-  std::vector<float>   Pat_Muon_dB()                      { SetBranch("Pat_Muon_dB");                      return GET(Pat_Muon_dB_ );                     }
+  std::vector<char>    Reco_Muon_PF_Idx()                 { SetBranch("Reco_Muon_PF_Idx");                 return GET(Reco_Muon_PF_Idx_);                 }
+  UCharVecVec          Pat_Muon_Trig()                    { SetBranch("Pat_Muon_Trig");                    return GET(Pat_Muon_Trig_) ;                   }
+  std::vector<float>   Pat_Muon_dB()                      { SetBranch("Pat_Muon_dB");                      return GET(Pat_Muon_dB_);                      }
   std::vector<float>   Pat_Muon_dBErr()                   { SetBranch("Pat_Muon_dBErr");                   return GET(Pat_Muon_dBErr_ );                  }
   std::vector<bool>    Reco_Muon_isPF()                   { SetBranch("Reco_Muon_isPF");                   return GET(Reco_Muon_isPF_);                   }
   std::vector<bool>    Reco_Muon_isGlobal()               { SetBranch("Reco_Muon_isGlobal");               return GET(Reco_Muon_isGlobal_);               }
@@ -235,8 +235,8 @@ public :
   UInt_t               Event_Run_    = 0;
   UShort_t             Event_Lumi_   = 0;
   UInt_t               Event_Bx_     = 0;
-  ULong_t              Event_Orbit_  = 0;
-  ULong_t              Event_Number_ = 0;
+  ULong64_t            Event_Orbit_  = 0;
+  ULong64_t            Event_Number_ = 0;
   UChar_t              Event_nPV_    = 0;
   TVector3             *Event_PriVtx_Pos_;
   TVector3             *Event_PriVtx_Err_;
@@ -557,6 +557,7 @@ Bool_t HiMuonTree::GetTree(const std::string& fileName, TTree* tree)
   if (dir->GetListOfKeys()->Contains("Muon_Reco"))  dir->GetObject("Muon_Reco", fChainM_["Reco"]);
   if (dir->GetListOfKeys()->Contains("Muon_PF") )   dir->GetObject("Muon_PF",   fChainM_["PF"]  );
   if (dir->GetListOfKeys()->Contains("Muon_Gen") )  dir->GetObject("Muon_Gen",  fChainM_["Gen"] );
+  if (fChainM_.count("Reco")) fChainM_["Pat"] = fChainM_.at("Reco");
   if (fChainM_.size()==0) return false;
   // Initialize the input TTrees (set their branches)
   InitTree();
@@ -594,15 +595,15 @@ Long64_t HiMuonTree::LoadTree(Long64_t entry)
 char HiMuonTree::GetBranchStatus(const std::string& n)
 {
   std::string type = n.substr(0, n.find("_"));
-  if ( !(fChainM_[type.c_str()]) || !(fChainM_[type.c_str()]->GetBranch(n.c_str())) ) return -1;
-  return fChainM_[type.c_str()]->GetBranchStatus(n.c_str());
+  if ( !(fChainM_.at(type)) || !(fChainM_.at(type)->GetBranch(n.c_str())) ) return -1;
+  return fChainM_.at(type)->GetBranchStatus(n.c_str());
 }
 
 void HiMuonTree::SetBranch(const std::string& n)
 {
   std::string type = n.substr(0, n.find("_"));
   if (GetBranchStatus(n) == 0) {
-    fChainM_[type.c_str()]->SetBranchStatus(n.c_str(), 1);
+    fChainM_.at(type)->SetBranchStatus(n.c_str(), 1);
     LoadEntry(); // Needed for the first entry
   }
 }

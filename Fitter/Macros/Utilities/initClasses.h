@@ -14,6 +14,7 @@
 #include "TH1.h"
 #include "TLine.h"
 #include "TPad.h"
+#include "TObjString.h"
 
 #include "RooWorkspace.h"
 #include "RooDataSet.h"
@@ -30,7 +31,6 @@
 #include "RooArgList.h"
 #include "RooPlot.h"
 #include "RooHist.h"
-#include "RooStringVar.h"
 
 #include "../CMS/tdrstyle.C"
 #include "../CMS/CMS_lumi.C"
@@ -321,6 +321,8 @@ std::string formatCut(const std::string& cut, const StringMap& map = StringMap()
 {
   std::string str = cut;
   str.erase(std::remove(str.begin(), str.end(), ' '), str.end());
+  stringReplace( str, "<=MET", " GeV/c<=MET" ); stringReplace( str, "<MET", " GeV/c<MET" );
+  stringReplace( str, "<=Muon_MT", " GeV/c^{2}<=Muon_MT" ); stringReplace( str, "<Muon_MT", " GeV/c^{2}<Muon_MT" );
   for (auto& elem : map) { stringReplace( str, elem.first, elem.second ); }
   stringReplace( str, "Pl", "^{+}+x" ); stringReplace( str, "Mi", "^{-}+x" );
   stringReplace( str, "Mu", "#mu" ); stringReplace( str, "Tau", "#tau" ); stringReplace( str, "DYZ", "Z/#gamma" );
@@ -349,7 +351,7 @@ void printChi2(TPad* pad, RooWorkspace& ws, const RooPlot& frame, const string& 
   t.DrawLatex(0.78, 0.85, Form("#chi^{2}/ndof = %.0f / %d ", chi2, ndof));
   RooRealVar chi2Var((string("chi2_")+varLabel).c_str(),(string("chi2_")+varLabel).c_str(),chi2);
   RooRealVar ndofVar((string("ndof_")+varLabel).c_str(),(string("ndof_")+varLabel).c_str(),ndof);
-  ws.import(chi2Var); ws.import(ndofVar);
+  ws.import(chi2Var, kTRUE); ws.import(ndofVar, kTRUE);
   delete hdatact;
   delete hpull;
 };

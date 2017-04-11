@@ -21,7 +21,7 @@ class HiMETTree {
 
   HiMETTree();
   virtual ~HiMETTree();
-  virtual Bool_t       GetTree    (const std::string&, TTree* tree = 0);
+  virtual Bool_t       GetTree    (const std::string&, TTree* tree = 0, const std::string& treeName="metAna");
   virtual Int_t        GetEntry   (Long64_t);
   virtual Long64_t     GetEntries (void) { return fChain_->GetEntries(); }
   virtual TTree*       Tree       (void) { return fChain_; }
@@ -727,7 +727,7 @@ HiMETTree::~HiMETTree()
   if (fChain_) fChain_->GetCurrentFile();
 }
 
-Bool_t HiMETTree::GetTree(const std::string& fileName, TTree* tree)
+Bool_t HiMETTree::GetTree(const std::string& fileName, TTree* tree, const std::string& treeName)
 {
   // Open the input files
   TFile *f = TFile::Open(fileName.c_str());
@@ -735,8 +735,8 @@ Bool_t HiMETTree::GetTree(const std::string& fileName, TTree* tree)
   // Extract the input TTrees
   fChainM_.clear();
   TDirectory * dir;
-  if (fileName.find("root://")!=std::string::npos) dir = (TDirectory*)f->Get("metAna");
-  else dir = (TDirectory*)f->Get((fileName+":/metAna").c_str());
+  if (fileName.find("root://")!=std::string::npos) dir = (TDirectory*)f->Get(treeName.c_str());
+  else dir = (TDirectory*)f->Get((fileName+":/"+treeName).c_str());
   if (!dir) return false;
   if (dir->GetListOfKeys()->Contains("MET_Event")  ) dir->GetObject("MET_Event",  fChainM_["Event"]  );
   if (dir->GetListOfKeys()->Contains("MET_Reco")   ) dir->GetObject("MET_Reco",   fChainM_["Reco"]   );

@@ -4,13 +4,14 @@
 #include "./drawElectroWeakMETPlot.C"
 #include "./buildElectroWeakMETModel.C"
 #include "../Utilities/initClasses.h"
-
+#include "../Utilities/EVENTUTILS.h"
 
 void   setMETGlobalParameterRange ( RooWorkspace& myws , GlobalInfo& info );
 void   setEWQCutParameters  ( GlobalInfo& info );
 bool   setEWQModel          ( StrMapMap& model, GlobalInfo&  info );
 int    importDataset        ( RooWorkspace& myws  , const std::map<string, RooWorkspace>& inputWS , const GlobalInfo& info);
 void   setMETFileName       ( string& fileName, string& outputDir, const string& DSTAG, const string& plotLabel, const GlobalInfo& info );
+void   addLuminosity        ( GlobalInfo& info );
 
 
 bool fitElectroWeakMETModel( const RooWorkspaceMap& inputWorkspaces,    // Workspace with all the input RooDatasets
@@ -31,11 +32,15 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap& inputWorkspaces,    // Works
 
   // Check the input settings
   // Figure out the collision system to fit
+  info.Flag["fitMC"]  = (DSTAG.find("MC")!=std::string::npos);
   info.Flag["fitpPb"] = (DSTAG.find("pPb")!=std::string::npos);
   info.Flag["fitPbp"] = (DSTAG.find("Pbp")!=std::string::npos);
   info.Flag["fitPA"]  = (DSTAG.find("PA")!=std::string::npos);
   info.Flag["doPA"]   = (info.Flag.at("fitPbp") && info.Flag.at("fitpPb"));
   for (auto& col : info.StrV.at("system")  ) { if (info.Flag.at("fit"+col)) { info.StrV["fitSystem"].clear(); info.StrV.at("fitSystem").push_back(col); } }
+
+  // Add Luminosity Variables
+  addLuminosity(info);
 
   // Set the range of all the parameters
   setEWQCutParameters(info);
@@ -43,14 +48,6 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap& inputWorkspaces,    // Works
   // Set models based on input files
   StrMapMap model;
   if (!setEWQModel(model, info)) { return false; }
-  if (model["Model_WToMuMi_pPb"].count("W")) std::cout << "INSIDE: Model W PL: " << model["Model_WToMuMi_pPb"]["W"] << std::endl;
-  if (model["Model_WToMuMi_pPb"].count("W")) std::cout << "INSIDE: Model W MI: " << model["Model_WToMuPl_pPb"]["W"] << std::endl;
-  if (model["Model_WToMuMi_pPb"].count("QCD")) std::cout << "INSIDE: Model W (QCD) PL: " << model["Model_WToMuMi_pPb"]["QCD"] << std::endl;
-  if (model["Model_WToMuMi_pPb"].count("QCD")) std::cout << "INSIDE: Model W (QCD) MI: " << model["Model_WToMuPl_pPb"]["QCD"] << std::endl;
-  if (model["Model_WToMuMi_pPb"].count("DYZ")) std::cout << "INSIDE: Model W (DYZ) PL: " << model["Model_WToMuMi_pPb"]["DYZ"] << std::endl;
-  if (model["Model_WToMuMi_pPb"].count("DYZ")) std::cout << "INSIDE: Model W (DYZ) MI: " << model["Model_WToMuPl_pPb"]["DYZ"] << std::endl;
-  if (model["Model_QCDToMuMi_pPb"].count("QCD")) std::cout << "INSIDE: Model QCD PL: " << model["Model_QCDToMuMi_pPb"]["QCD"] << std::endl;
-  if (model["Model_QCDToMuMi_pPb"].count("QCD")) std::cout << "INSIDE: Model QCD MI: " << model["Model_QCDToMuPl_pPb"]["QCD"] << std::endl;
   
   // Import the all the datasets needed for the fit
   bool doFit = false;
@@ -89,6 +86,18 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap& inputWorkspaces,    // Works
   for (auto& col : info.StrV.at("fitSystem")) {
     for (auto& chg : info.StrV.at("fitCharge")) {
       for (auto& obj : info.StrV.at("fitObject")) {
+        // Save the info in the workspace
+        TObjString tmp = TObjString();
+        if (myws.obj("DSTAG")) { ((TObjString*)myws.obj("DSTAG"))->SetString(DSTAG.c_str()); }
+        else { tmp.SetString(DSTAG.c_str()); myws.import(*((TObject*)&tmp), "DSTAG"); }
+        if (myws.obj("channel")) { ((TObjString*)myws.obj("channel"))->SetString(cha.c_str()); }
+        else { tmp.SetString(cha.c_str()); myws.import(*((TObject*)&tmp), "channel"); }
+        if (myws.obj("fitSystem")) { ((TObjString*)myws.obj("fitSystem"))->SetString(col.c_str()); }
+        else { tmp.SetString(col.c_str()); myws.import(*((TObject*)&tmp), "fitSystem"); }
+        if (myws.obj("fitCharge")) { ((TObjString*)myws.obj("fitCharge"))->SetString(chg.c_str()); }
+        else { tmp.SetString(chg.c_str()); myws.import(*((TObject*)&tmp), "fitCharge"); }
+        if (myws.obj("fitObject")) { ((TObjString*)myws.obj("fitObject"))->SetString(obj.c_str()); }
+        else { tmp.SetString(obj.c_str()); myws.import(*((TObject*)&tmp), "fitObject"); }
         // Total PDF Name
         std::string label = obj + cha + chg + "_" + col;
         std::string pdfName = ( "pdfMET_Tot" + label );
@@ -96,19 +105,21 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap& inputWorkspaces,    // Works
         std::string modelN = info.Par.at("Model_"+label);
         modelN.erase(std::remove(modelN.begin(), modelN.end(), ' '), modelN.end());
         stringReplace( modelN, "[", "_" ); stringReplace( modelN, "]", "" ); stringReplace( modelN, "+", "_" ); stringReplace( modelN, ",", "" ); stringReplace( modelN, ";", "" );
+        if (myws.obj("modelName")) { ((TObjString*)myws.obj("modelName"))->SetString(modelN.c_str()); }
+        else { tmp.SetString(modelN.c_str()); myws.import(*((TObject*)&tmp), "modelName"); }
         std::string plotLabel = label + "_Model_" + modelN;
         // Output File Name
         std::string fileName = "";
         std::string outDir = outputDir;
         setMETFileName(fileName, outDir, DSTAG, plotLabel, info);
         // Dataset Name
-        string dsName = ( "d" + chg + "_" + DSTAG );
+        std::string dsName = ( "d" + chg + "_" + DSTAG );
         // check if we have already done this fit. If yes, do nothing and return true.
         bool found =  true; bool skipFit = false;
         RooArgSet newpars;
         if (myws.pdf(pdfName.c_str())) { newpars = *(myws.pdf(pdfName.c_str())->getParameters(*myws.data(dsName.c_str()))); }
         else { newpars = myws.allVars(); }
-        found = found && isFitAlreadyFound(newpars, Form("%sresult/%s.root", outDir.c_str(), fileName.c_str()), pdfName.c_str());
+        found = found && isFitAlreadyFound(newpars, Form("%sresult/%s.root", outDir.c_str(), ("FIT_"+fileName).c_str()), pdfName.c_str());
         if (found) {
           cout << "[INFO] This fit was already done, so I'll just go to the next one." << endl;
           return true;
@@ -143,16 +154,15 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap& inputWorkspaces,    // Works
           else {
             std::cout << "[ERROR] The PDF " << pdfName << " was not found!" << std::endl; return false;
           }
-          int nBins = min(int( round((info.Var.at("MET").at("Max") - info.Var.at("MET").at("Min"))/userInput.Var.at("MET").at("binWidth")) ), 1000);
-          if (!drawElectroWeakMETPlot(myws, col, chg, cha, obj, DSTAG, fileName, outDir, nBins)) { return false; }
+          int nBins = min(int( round((info.Var.at("MET").at("Max") - info.Var.at("MET").at("Min"))/info.Var.at("MET").at("binWidth")) ), 1000);
+          if (!drawElectroWeakMETPlot(myws, ("PLOT_"+fileName), outDir, nBins)) { return false; }
           myws.saveSnapshot("fittedParameters",myws.allVars(),kTRUE);
           // Save the results
-          saveWorkSpace(myws, Form("%sresult/", outDir.c_str()), Form("%s.root", fileName.c_str()));
+          saveWorkSpace(myws, Form("%sresult/", outDir.c_str()), Form("%s.root", ("FIT_"+fileName).c_str()));
         }
       }
     }
   }
-  myws.Print("v");
   return true;
 };
 
@@ -276,22 +286,23 @@ int importDataset(RooWorkspace& myws  , const std::map<string, RooWorkspace>& in
     cutDS += "&&";
   }
   cutDS.erase(cutDS.size()-string("&&").length(), cutDS.size());
-  myws.import(RooStringVar("Cut_DataSet","",cutDS.c_str())); // Save the cut expression for bookkeeping
-  cout << "[INFO] Importing local RooDataSet with cuts: " << cutDS << endl;
+  TObjString tmp; tmp.SetString(cutDS.c_str()); myws.import(*((TObject*)&tmp), "Cut_DataSet"); // Save the cut expression for bookkeeping
+  std::cout << "[INFO] Importing local RooDataSet with cuts: " << cutDS << std::endl;
   // Reduce and import the datasets
   for (auto& label : info.StrV.at("DSList")) {
     for (auto& chg : info.StrV.at("fitCharge")) {
       if ( inputWS.count(label)==0 || !(inputWS.at(label).data(Form("d%s_%s", chg.c_str(), label.c_str())))){ 
-        cout << "[ERROR] The dataset " <<  Form("d%s_%s", chg.c_str(), label.c_str()) << " was not found!" << endl;
+        std::cout << "[ERROR] The dataset " <<  Form("d%s_%s", chg.c_str(), label.c_str()) << " was not found!" << std::endl;
         return -1;
       }
       RooDataSet* data = (RooDataSet*)inputWS.at(label).data(Form("d%s_%s", chg.c_str(), label.c_str()))->reduce(cutDS.c_str());
       if (data->sumEntries()==0){ 
-        cout << "[ERROR] No events from dataset " <<  Form("d%s_%s", chg.c_str(), label.c_str()) << " passed the kinematic cuts!" << endl; return -1;
+        std::cout << "[ERROR] No events from dataset " <<  Form("d%s_%s", chg.c_str(), label.c_str()) << " passed the kinematic cuts!" << std::endl; return -1;
       }
       else { myws.import(*data); }
-      cout << "[INFO] " << data->numEntries() << " entries imported from local RooDataSet " << Form("d%s_%s", chg.c_str(), label.c_str()) << endl;
+      std::cout << "[INFO] " << data->numEntries() << " entries imported from local RooDataSet " << Form("d%s_%s", chg.c_str(), label.c_str()) << std::endl;
       delete data;
+      myws.import(*((TObjString*)inputWS.at(label).obj("METType")), kTRUE);
       // Set the range of each global parameter in the local roodataset
       const RooArgSet* row = myws.data(Form("d%s_%s", chg.c_str(), label.c_str()))->get();
       for(auto& var : info.Var) {
@@ -309,7 +320,7 @@ int importDataset(RooWorkspace& myws  , const std::map<string, RooWorkspace>& in
       myws.var(Form("%s", var.first.c_str()))->setMax(var.second.at("Max"));
     }
   }
-  cout << "[INFO] Analyzing bin: " << Form("%.3f < Muon_Eta < %.3f", myws.var("Muon_Eta")->getMin(), myws.var("Muon_Eta")->getMax()) << endl;
+  std::cout << "[INFO] Analyzing bin: " << Form("%.3f < Muon_Eta < %.3f", myws.var("Muon_Eta")->getMin(), myws.var("Muon_Eta")->getMax()) << std::endl;
   return 1;
 };
 
@@ -324,8 +335,9 @@ void setMETGlobalParameterRange(RooWorkspace& myws, GlobalInfo& info)
 void setMETFileName(string& fileName, string& outputDir, const string& DSTAG, const string& plotLabel, const GlobalInfo& info)
 {
   std::string dsTag = DSTAG; dsTag.erase(dsTag.find("_MUON"), dsTag.length());
-  outputDir = Form("%sMET/%s/", outputDir.c_str(), dsTag.c_str());
-  fileName = Form("PLOT_%s_%s_%s_MuEta_%.0f_%.0f_MuIso_%.0f_%.0f", "MET", 
+  std::string  metTAG = "MET" + info.Par.at("METType");
+  outputDir = Form("%s%s/%s/", outputDir.c_str(), metTAG.c_str(), dsTag.c_str());
+  fileName = Form("%s_%s_%s_MuEta_%.0f_%.0f_MuIso_%.0f_%.0f", "MET", 
                   dsTag.c_str(),
                   plotLabel.c_str(), 
                   (info.Var.at("Muon_Eta").at("Min")*10.0), (info.Var.at("Muon_Eta").at("Max")*10.0),
@@ -334,5 +346,18 @@ void setMETFileName(string& fileName, string& outputDir, const string& DSTAG, co
   return;
 };
 
+void addLuminosity(GlobalInfo& info)
+{
+  if (info.Flag.at("fitMC")) {
+    info.Par["Lumi_pPb"] = Form("%s[%.4f]", "Lumi_pPb", 1.0);
+    info.Par["Lumi_Pbp"] = Form("%s[%.4f]", "Lumi_Pbp", 1.0);
+    info.Par["Lumi_PA"] = Form("%s[%.4f]", "Lumi_PA", 1.0);
+  }
+  else {
+    if (info.Par.count("Lumi_pPb")==0 || info.Par.at("Lumi_pPb")=="") { info.Par["Lumi_pPb"] = Form("%s[%.4f]", "Lumi_pPb", PA::Lumi_pPb); }
+    if (info.Par.count("Lumi_Pbp")==0 || info.Par.at("Lumi_Pbp")=="") { info.Par["Lumi_Pbp"] = Form("%s[%.4f]", "Lumi_Pbp", PA::Lumi_Pbp); }
+    if (info.Par.count("Lumi_PA")==0  || info.Par.at("Lumi_PA")=="" ) { info.Par["Lumi_PA"] = Form("%s[%.4f]", "Lumi_PA", (PA::Lumi_pPb+PA::Lumi_Pbp)); }
+  }
+}
 
 #endif // #ifndef fitElectroWeakMETModel_C

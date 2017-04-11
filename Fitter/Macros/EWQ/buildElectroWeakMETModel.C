@@ -35,7 +35,16 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StrMapMap& mo
         for (auto& model : models.at("Model_"+mainLabel)) {
           std::string tag = model.first + cha + chg;
           std::string label = tag + "_" + col;
-          ws.import(RooStringVar(("Model_"+label).c_str(),"",model.second.c_str())); // Save the model name for bookkeeping
+          TObjString tmp; tmp.SetString(model.second.c_str()); ws.import(*((TObject*)&tmp), ("Model_"+label).c_str()); // Save the model name for bookkeeping
+          // Create Lumi variable
+          if (!ws.var(("Lumi_"+col).c_str())) { ws.factory( info.Par.at("Lumi_"+col).c_str() ); }
+          if (ws.var(("Lumi_"+col).c_str())) { ws.var(("Lumi_"+col).c_str())->setConstant(kTRUE); }
+          // Create AccXEff variable
+          if (!ws.var(("AccXEff_"+label).c_str())) { ws.factory( info.Par.at("AccXEff_"+label).c_str() ); }
+          if (ws.var(("AccXEff_"+label).c_str())) { ws.var(("AccXEff_"+label).c_str())->setConstant(kTRUE); }
+          if (!ws.var(("sigAccXEff_"+label).c_str())) { ws.factory( info.Par.at("sigAccXEff_"+label).c_str() ); }
+          if (ws.var(("sigAccXEff_"+label).c_str())) { ws.var(("AccXEff_"+label).c_str())->setError(ws.var(("sigAccXEff_"+label).c_str())->getVal()); }
+          // Create Models
           switch(ModelDictionary["MET"][model.second])
             {
             case (int(METModel::CutAndCount)):
@@ -50,7 +59,7 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StrMapMap& mo
                 // create the variables for this model
                 ws.factory( info.Par.at("N_"+label).c_str() );
                 std::string cut = info.Par.at("Cut_"+label);
-                ws.import(RooStringVar(("CutAndCount_"+label).c_str(),"",cut.c_str()));
+                TObjString tmp; tmp.SetString(cut.c_str()); ws.import(*((TObject*)&tmp), ("CutAndCount_"+label).c_str());
                 cout << Form("[INFO] %s in %s added for CutAndCount!", tag.c_str(), col.c_str()) << endl; break;
               }
             case (int(METModel::MultiJetBkg)):
@@ -65,31 +74,16 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StrMapMap& mo
                   cout << Form("[ERROR] Initial parameters where not found for %s MultiJetBkg Model in %s", tag.c_str(), col.c_str()) << endl; return false;
                 }
                 // create the variables for this model
-                /*
-                std::string N = info.Par.at("N_"+label);
-                if (model.second!=obj) { 
-                  N = Form("RooFormulaVar::%s('@0*@1',{%s,%s})", ("N_"+label).c_str(), ("N_"+mainLabel).c_str(), Form("f_%s[0.2, 0.0, 10.0]", label.c_str()));
-                  if (!ws.var(("N_"+mainLabel).c_str())) { ws.factory(info.Par.at("N_"+mainLabel).c_str()); }
-                }
-                ws.factory(N.c_str());
-                */
-                ws.factory( info.Par.at("N_"+label).c_str()     );
-                ws.factory( info.Par.at("Alpha_"+label).c_str() );
-                ws.factory( info.Par.at("Beta_"+label).c_str()  );
-                ws.factory( info.Par.at("x0_"+label).c_str()    );
-                // create the Gaussian PDFs for Constrain fits
+                ws.factory( info.Par.at("N_"+label).c_str() );
                 RooArgList pdfConstrains;
-                if (info.Par.count("valAlpha_"+label) && info.Par.count("sigAlpha_"+label)) {
-                  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", Form("Alpha_%s", label.c_str()), Form("Alpha_%s", label.c_str()), info.Par.at("valAlpha_"+label).c_str(), info.Par.at("sigAlpha_"+label).c_str()));
-                  pdfConstrains.add( *ws.pdf(Form("ConstrAlpha_%s", label.c_str())) );
-                }
-                if (info.Par.count("valBeta_"+label) && info.Par.count("sigBeta_"+label)) {
-                  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", Form("Beta_%s", label.c_str()), Form("Beta_%s", label.c_str()), info.Par.at("valBeta_"+label).c_str(), info.Par.at("sigBeta_"+label).c_str()));
-                  pdfConstrains.add( *ws.pdf(Form("ConstrBeta_%s", label.c_str())) );
-                }
-                if (info.Par.count("valx0_"+label) && info.Par.count("sigx0_"+label)) {
-                  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", Form("x0_%s", label.c_str()), Form("x0_%s", label.c_str()), info.Par.at("valx0_"+label).c_str(), info.Par.at("sigx0_"+label).c_str()));
-                  pdfConstrains.add( *ws.pdf(Form("Constrx0_%s", label.c_str())) );
+                std::vector< std::string > varNames = {"Alpha", "Beta", "x0"};
+                for (auto v : varNames) {
+                  ws.factory( info.Par.at(v+"_"+label).c_str() );
+                  // create the Gaussian PDFs for Constrain fits
+                  if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+                    ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
+                    pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
+                  }
                 }
                 if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
                 // create the PDF
@@ -115,14 +109,6 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StrMapMap& mo
                   cout << Form("[ERROR] Initial parameters where not found for %s Template Model in %s", obj.c_str(), col.c_str()) << endl; return false;
                 }
                 // create the variables for this model
-                /*
-                std::string N = info.Par.at("N_"+label);
-                if (model.second!=obj) { 
-                  N = Form("RooFormulaVar::%s('@0*@1',{%s,%s})", ("N_"+label).c_str(), ("N_"+mainLabel).c_str(), Form("f_%s[0.2, 0.0, 10.0]", label.c_str()));
-                  if (!ws.var(("N_"+mainLabel).c_str())) { ws.factory(info.Par.at("N_"+mainLabel).c_str()); }
-                }
-                ws.factory(N.c_str());
-                */
                 ws.factory( info.Par.at("N_"+label).c_str() );
                 // create the PDF
                 std::string dsName = ( "d" + chg + "_" + "MC_" + model.first + "_" + info.Par.at("channelDS") + "_" + col );
@@ -146,7 +132,7 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StrMapMap& mo
         }
         if (pdfList.getSize()>0) {
           std::string pdfName = ( "pdfMET_Tot" + mainLabel );
-          RooAbsPdf *themodel = new RooAddPdf(pdfName.c_str(), pdfName.c_str(), pdfList/*, yieldList*/ );
+          RooAbsPdf *themodel = new RooAddPdf(pdfName.c_str(), pdfName.c_str(), pdfList);
           ws.import(*themodel);
           delete themodel;
         }
@@ -252,9 +238,22 @@ void setMETModelParameters(GlobalInfo& info)
             if (trySuccess) break;
           }
         }
+        // Luminosity
+        if (info.Par.count("Lumi_"+col)==0 || info.Par.at("Lumi_"+col)=="") {
+          info.Par["Lumi_"+col] = Form("%s[%.4f]", ("Lumi_"+col).c_str(), 1.0);
+        }
+        // AcceptanceXEfficiency
+        if (info.Par.count("AccXEff_"+label)==0 || info.Par.at("AccXEff_"+label)=="") {
+          info.Par["AccXEff_"+label] = Form("%s[%.4f]", ("AccXEff_"+label).c_str(), 1.0);
+          info.Par["sigAccXEff_"+label] = Form("%s[%.4f]", ("sigAccXEff_"+label).c_str(), 0.0);
+        }
+        // Cross-Section
+        if (info.Par.count("XSection_"+label)==0 || info.Par.at("XSection_"+label)=="") {
+          info.Par["XSection_"+label] = Form("%s[%.4f,%.4f,%.4f]", ("XSection_"+label).c_str(), numEntries, 0.0, 2.0*numEntries);
+        }
         // NUMBER OF EVENTS
         if (info.Par.count("N_"+label)==0 || info.Par.at("N_"+label)=="") {
-          info.Par["N_"+label] = Form("%s[%.4f,%.4f,%.4f]", ("N_"+label).c_str(), numEntries, /*-2.0*numEntries*/0.0, 2.0*numEntries);
+          info.Par["N_"+label] = Form("RooFormulaVar::%s('@0*@1*@2',{%s,%s,%s})", ("N_"+label).c_str(), ("Lumi_"+col).c_str(), ("AccXEff_"+label).c_str(), info.Par.at("XSection_"+label).c_str());
         }
         // CUTS FOR CUT AND COUNT ALGO
         if (info.Par.count("Cut_"+label)==0 || info.Par.at("Cut_"+label)=="") {

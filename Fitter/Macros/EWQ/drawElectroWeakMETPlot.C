@@ -4,27 +4,28 @@
 #include "../Utilities/initClasses.h"
 #include "TGaxis.h"
 
-void printElectroWeakMETParameters ( TPad* pad, const RooWorkspace& ws, const std::string& pdfName, const uint& drawMode );
-void printElectroWeakBinning       ( TPad* pad, const RooWorkspace& ws, const std::string& dsName, const std::vector< std::string >& text, const uint& drawMode );
-void printElectroWeakLegend        ( TPad* pad, const RooPlot& frame, const StrMapMap& legInfo, const uint& drawMode );
-
-RooHist* makeRatioHist(RooPlot* frame, const char* histname, const char* curvename, bool normalize, bool useAverage);
+void       printElectroWeakMETParameters ( TPad* pad, const RooWorkspace& ws, const std::string& pdfName, const uint& drawMode );
+void       printElectroWeakBinning       ( TPad* pad, const RooWorkspace& ws, const std::string& dsName, const std::vector< std::string >& text, const uint& drawMode );
+void       printElectroWeakLegend        ( TPad* pad, const RooPlot& frame, const StrMapMap& legInfo, const uint& drawMode );
+RooHist*   makeRatioHist ( RooPlot* frame, const char* histname, const char* curvename, bool normalize, bool useAverage );
+bool       getVar        ( std::vector<RooRealVar*>& varVec, const RooWorkspace& ws, const std::string& name, const std::string& pdfName );
+void       parseVarName  ( const std::string& name, std::string& label );
 
 bool drawElectroWeakMETPlot( RooWorkspace& ws,            // Local Workspace
-                             std::string col,
-                             std::string chg,
-                             std::string cha,
-                             std::string obj,
                              // Select the type of datasets to fit
-                             const string& DSTAG,                  // Specifies the name of the dataset to fit
-                             const string& fileName,
-                             const string& outputDir,
-                             int nBins
+                             const std::string& fileName,
+                             const std::string& outputDir,
+                             const int& nBins
                              )
 {
- 
   // set the CMS style
   setTDRStyle();
+
+  const std::string DSTAG = (ws.obj("DSTAG"))     ? ((TObjString*)ws.obj("DSTAG"))->GetString().Data()     : "";
+  const std::string cha   = (ws.obj("channel"))   ? ((TObjString*)ws.obj("channel"))->GetString().Data()   : "";
+  const std::string col   = (ws.obj("fitSystem")) ? ((TObjString*)ws.obj("fitSystem"))->GetString().Data() : "";
+  const std::string chg   = (ws.obj("fitCharge")) ? ((TObjString*)ws.obj("fitCharge"))->GetString().Data() : "";
+  const std::string obj   = (ws.obj("fitObject")) ? ((TObjString*)ws.obj("fitObject"))->GetString().Data() : "";
 
   std::string tag = ( obj + cha + chg + "_" + col );
   std::string dsName = ( "d" + chg + "_" + DSTAG );
@@ -33,7 +34,6 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,            // Local Workspace
   bool setLogScale = false;
   std::vector< double > range = { ws.var("MET")->getMin(), ws.var("MET")->getMax() };
 
-  std::cout << "INSIDE DRAW: " << dsName << std::endl;
   bool isMC = (DSTAG.find("MC")!=std::string::npos);
   bool isWeighted = ws.data(dsName.c_str())->isWeighted();
   int drawMode = 0;
@@ -229,8 +229,8 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,            // Local Workspace
 
   printElectroWeakMETParameters(pad["MAIN"], ws, pdfName, drawMode);
   std::vector< std::string > text = { process };
-  if ( ((RooStringVar*)ws.obj(("CutAndCount_"+tag).c_str())) ) {
-    text.push_back( formatCut( ((RooStringVar*)ws.obj(("CutAndCount_"+tag).c_str()))->getVal(), varEWQLabel ) );
+  if (ws.obj(("CutAndCount_"+tag).c_str())) {
+    text.push_back( formatCut( ((TObjString*)ws.obj(("CutAndCount_"+tag).c_str()))->GetString().Data(), varEWQLabel ) );
   }
   printElectroWeakBinning(pad["MAIN"], ws, dsName, text, drawMode);
   printElectroWeakLegend(pad["MAIN"], *frame["MAIN"], legInfo, drawMode);
@@ -253,38 +253,77 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,            // Local Workspace
   return true;
 };
 
+
+bool getVar(std::vector<RooRealVar*>& varVec, const RooWorkspace& ws, const std::string& name, const std::string& pdfName)
+{
+  varVec.clear();
+  TIterator* parIt  = ws.allVars().selectByAttrib("Constant", kFALSE)->createIterator();
+  for (RooRealVar* it = (RooRealVar*)parIt->Next(); it!=NULL; it = (RooRealVar*)parIt->Next() ) {
+    std::string s(it->GetName());
+    if((s.find("Pl")!=std::string::npos)!=(pdfName.find("Pl")!=std::string::npos)){ continue; }
+    if (s.find(name)!=std::string::npos) { varVec.push_back(it);}
+  }
+  if (varVec.size()>0) return true;
+  parIt = ws.allFunctions().selectByAttrib("Constant", kFALSE)->createIterator();
+  for (RooRealVar* it = (RooRealVar*)parIt->Next(); it!=NULL; it = (RooRealVar*)parIt->Next() ) {
+    std::string s(it->GetName());
+    if((s.find("Pl")!=std::string::npos)!=(pdfName.find("Pl")!=std::string::npos)){ continue; }
+    if (s.find(name)!=std::string::npos) { varVec.push_back(it); }
+  }
+  return (varVec.size()>0);
+};
+
+
+void parseVarName(const std::string& name, std::string& label)
+{
+  label = "";
+  // Parse the parameter's labels
+  stringstream ss(name); std::string s1, s2, s3;
+  getline(ss, s1, '_'); getline(ss, s2, '_'); getline(ss, s3, '_');
+  // Format QCD MET model parameters
+  if (s1=="Alpha"){ s1="#alpha"; } else if (s1=="Beta"){ s1="#beta"; } 
+  else if (s1=="XSection"){ s1="#sigma"; } else if (s1=="AccXEff"){ s1="#alphax#epsilon"; }
+  // Format Object name
+  std::string chg = ""; if (s2.find("Pl")!=std::string::npos) { chg = "+"; } else if (s2.find("Mi")!=std::string::npos) { chg = "-"; }
+  if (s2.find("WToTau")!=std::string::npos) { s2 = "W#rightarrow#tau"; } else if (s2.find("W")!=std::string::npos) { s2 = "W"; } 
+  else if (s2.find("DYZ")!=std::string::npos) { s2 = "Z/#gamma"; } else if (s2.find("QCD")!=std::string::npos) { s2 = "QCD"; }
+  s2 = ( s2 + chg );
+  if(s3!=""){ label = Form("%s_{%s}^{%s}", s1.c_str(), s2.c_str(), s3.c_str()); } else { label = Form("%s^{%s}", s1.c_str(), s2.c_str()); }
+  return;
+};
+
+
 void printElectroWeakMETParameters(TPad* pad, const RooWorkspace& ws, const std::string& pdfName, const uint& drawMode)
 {
   pad->cd();
   float xPos = 0.7, yPos = 0.74, dYPos = 0.045, dy = 0.025;
   TLatex t = TLatex(); t.SetNDC(); t.SetTextSize(0.023);
   if (drawMode>0) { dy = 0.065; dYPos *= (1./0.8); t.SetTextSize(0.023*(1./0.8)); }
-  for (int i=0; i<2; i++) {
-    TIterator* parIt;
-    if (ws.pdf(pdfName.c_str())) { parIt = ws.pdf(pdfName.c_str())->getParameters(RooArgSet(*ws.var("MET")))->selectByAttrib("Constant", kFALSE)->createIterator(); }
-    else { parIt = ws.allVars().selectByAttrib("Constant", kFALSE)->createIterator(); }
-    for (RooRealVar* it = (RooRealVar*)parIt->Next(); it!=NULL; it = (RooRealVar*)parIt->Next() ) {
-      // Parse the parameter's labels
-      stringstream ss(it->GetName()); std::string s1, s2, s3, label, s(it->GetName());
-      // Ignore dataset variables
-      if(s=="MET" || s=="Muon_Pt" || s=="Muon_Eta" || s=="Muon_Iso" || s=="Muon_MT" || s=="Event_Type" || s=="Centrality"){ continue; }
-      if((s.find("Pl")!=std::string::npos)!=(pdfName.find("Pl")!=std::string::npos)){ continue; }
-      getline(ss, s1, '_'); getline(ss, s2, '_'); getline(ss, s3, '_');
-      if ((i==0 && s1!="N") || (i!=0 && s1=="N")) continue; // Draw first the Yields (N)
-      // Format QCD MET model parameters
-      if (s1=="Alpha"){ s1="#alpha"; } else if (s1=="Beta"){ s1="#beta"; }
-      // Format Object name
-      std::string chg = ""; if (s2.find("Pl")!=std::string::npos) { chg = "+"; } else if (s2.find("Mi")!=std::string::npos) { chg = "-"; }
-      if (s2.find("WToTau")!=std::string::npos) { s2 = "W#rightarrow#tau"; } else if (s2.find("W")!=std::string::npos) { s2 = "W"; } 
-      else if (s2.find("DYZ")!=std::string::npos) { s2 = "Z/#gamma"; } else if (s2.find("QCD")!=std::string::npos) { s2 = "QCD"; }
-      s2 = ( s2 + chg );
-      if(s3!=""){ label = Form("%s_{%s}^{%s}", s1.c_str(), s2.c_str(), s3.c_str()); } else { label = Form("%s^{%s}", s1.c_str(), s2.c_str()); }
-      // Print the parameter's results
-      if(s1=="N"){ t.DrawLatex(xPos, yPos-dy, Form("%s = %.0f#pm%.0f", label.c_str(), it->getValV(), it->getError())); dy+=dYPos; }
-      else       { t.DrawLatex(xPos, yPos-dy, Form("%s = %.3f#pm%.3f", label.c_str(), it->getValV(), it->getError())); dy+=dYPos; }
-    }
-    delete parIt;
+  std::vector<RooRealVar*> vars; std::string label;
+  if (getVar(vars, ws, "XSection_", pdfName)) {
+    for (auto& v : vars) { parseVarName(v->GetName(),label); if(label!="") { t.DrawLatex(xPos, yPos-dy, Form("%s = %.3f#pm%.3f", label.c_str(), v->getValV(), v->getError())); dy+=dYPos; } }
   }
+  if (vars.size()==0) {
+    if (getVar(vars, ws, "N_", pdfName)) {
+      for (auto& v : vars) { parseVarName(v->GetName(),label); if(label!="") { t.DrawLatex(xPos, yPos-dy, Form("%s = %.0f#pm%.0f", label.c_str(), v->getValV(), v->getError())); dy+=dYPos; } }
+    }
+  }
+  TIterator* parIt;
+  if (ws.pdf(pdfName.c_str())) { parIt = ws.pdf(pdfName.c_str())->getParameters(RooArgSet(*ws.var("MET")))->selectByAttrib("Constant", kFALSE)->createIterator(); }
+  else { parIt = ws.allVars().selectByAttrib("Constant", kFALSE)->createIterator(); }
+  for (RooRealVar* it = (RooRealVar*)parIt->Next(); it!=NULL; it = (RooRealVar*)parIt->Next() ) {
+    // Parse the parameter's labels
+    std::string label="", s(it->GetName());
+    // Ignore dataset variables
+    if(s=="MET" || s=="Muon_Pt" || s=="Muon_Eta" || s=="Muon_Iso" || s=="Muon_MT" || s=="Event_Type" || s=="Centrality"){ continue; }
+    if((s.find("Pl")!=std::string::npos)!=(pdfName.find("Pl")!=std::string::npos)){ continue; }
+    if(s.find("N")!=std::string::npos || s.find("AccXEff")!=std::string::npos || s.find("XSection")!=std::string::npos) { continue; }
+    parseVarName(it->GetName(), label); if (label=="") continue;
+    // Print the parameter's results
+    if(s.find("N")!=std::string::npos){ t.DrawLatex(xPos, yPos-dy, Form("%s = %.0f#pm%.0f", label.c_str(), it->getValV(), it->getError())); dy+=dYPos; }
+    else { t.DrawLatex(xPos, yPos-dy, Form("%s = %.3f#pm%.3f", label.c_str(), it->getValV(), it->getError())); dy+=dYPos; }
+  }
+  delete parIt;
   pad->Update();
   return;
 };

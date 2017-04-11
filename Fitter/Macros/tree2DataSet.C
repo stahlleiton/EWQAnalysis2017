@@ -33,6 +33,7 @@ bool tree2DataSet(RooWorkspaceMap& Workspaces, const StringVectorMap& FileInfo, 
   info.Flag["applyWeight"] = false;
   info.Flag["updateDS"] = UpdateDS;
   info.Par["Analysis"] = Analysis;
+  info.Par["VarType"] = FileInfo.at("VarType")[0];
   // Check if Analysis type is supported
   if (!checkAnalysis(Analysis, info)) return false;
   // Make RooDatasets
