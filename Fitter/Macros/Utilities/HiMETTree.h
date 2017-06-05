@@ -23,6 +23,7 @@ class HiMETTree {
   virtual ~HiMETTree();
   virtual Bool_t       GetTree    (const std::string&, TTree* tree = 0, const std::string& treeName="metAna");
   virtual Int_t        GetEntry   (Long64_t);
+  virtual void         SetEntry   (Long64_t entry) { entry_ = entry; }
   virtual Long64_t     GetEntries (void) { return fChain_->GetEntries(); }
   virtual TTree*       Tree       (void) { return fChain_; }
   virtual void         Clear      (void);
@@ -32,7 +33,7 @@ class HiMETTree {
   UInt_t          Event_Run()                        { SetBranch("Event_Run");                        return Event_Run_;                             }
   UShort_t        Event_Lumi()                       { SetBranch("Event_Lumi");                       return Event_Lumi_;                            }
   UInt_t          Event_Bx()                         { SetBranch("Event_Bx");                         return Event_Bx_;                              }
-  UInt_t          Event_Number()                     { SetBranch("Event_Number");                     return Event_Number_;                          }
+  ULong64_t       Event_Number()                     { SetBranch("Event_Number");                     return Event_Number_;                          }
 
   // RECO MET POINTERS
   TVector2        Reco_MET_Mom()                     { SetBranch("Reco_MET_Mom");                     return GET(Reco_MET_Mom_);                     }
@@ -271,7 +272,7 @@ class HiMETTree {
   UInt_t          Event_Run_    = 0;
   UShort_t        Event_Lumi_   = 0;
   UInt_t          Event_Bx_     = 0;
-  UInt_t          Event_Number_ = 0;
+  ULong64_t       Event_Number_ = 0;
 
   // RECO MET POINTERS
   TVector2        *Reco_MET_Mom_;

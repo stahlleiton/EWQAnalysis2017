@@ -4,6 +4,7 @@
 // Header file for ROOT classes
 #include <TROOT.h>
 #include <TChain.h>
+#include <TInterpreter.h>
 #include <TFile.h>
 
 // Header file for c++ classes
@@ -20,6 +21,7 @@
 
 typedef std::vector<TLorentzVector>           VTLorentzVector;
 typedef std::vector<TVector3>                 VTVector3;
+typedef std::vector<TVector2>                 VTVector2;
 typedef std::vector< std::vector<UChar_t> >   UCharVecVec;
 typedef std::vector< std::vector<UShort_t> >  UShortVecVec;
 
@@ -175,7 +177,7 @@ public :
   std::vector<float>   PF_DiMuon_VtxProb()                { SetBranch("PF_DiMuon_VtxProb");                return GET(PF_DiMuon_VtxProb_);                }
   std::vector<float>   PF_DiMuon_DCA()                    { SetBranch("PF_DiMuon_DCA");                    return GET(PF_DiMuon_DCA_);                    }
   std::vector<float>   PF_DiMuon_MassErr()                { SetBranch("PF_DiMuon_MassErr");                return GET(PF_DiMuon_MassErr_);                }
-  TVector2             PF_MET_Mom()                       { SetBranch("PF_MET_Mom");                       return GET(PF_MET_Mom_);                       }
+  VTVector2            PF_MET_Mom()                       { SetBranch("PF_MET_Mom");                       return EXTRACTV2("PF_MET_Mom");                }
   VTLorentzVector      PF_MuonMET_TransMom()              { SetBranch("PF_MuonMET_TransMom");              return EXTRACTLV("PF_MuonMET_TransMom");       }
 
   // GEN PARTICLE VARIABLES
@@ -220,6 +222,13 @@ public :
     }
     return VTVector3();
   }
+  VTVector2 EXTRACTV2(std::string name) { 
+    if (GetBranchStatus(name)==1) { 
+      if (VTVector2_[name].size()==0) { GETV(TClonesArray_[name], VTVector2_[name]); } 
+      return VTVector2_[name]; 
+    }
+    return VTVector2();
+  }
 
 
   TTree*                    fChain_;
@@ -230,6 +239,7 @@ public :
   std::map< std::string , TClonesArray*   > TClonesArray_;
   std::map< std::string , std::vector<TLorentzVector> > VTLorentzVector_;
   std::map< std::string , VTVector3       > VTVector3_;
+  std::map< std::string , VTVector2       > VTVector2_;
 
   // EVENT INFO POINTERS
   UInt_t               Event_Run_    = 0;
@@ -361,7 +371,6 @@ public :
   std::vector<float>   *PF_DiMuon_VtxProb_;
   std::vector<float>   *PF_DiMuon_DCA_;
   std::vector<float>   *PF_DiMuon_MassErr_;
-  TVector2             *PF_MET_Mom_;
 
   // GEN PARTICLE POINTERS
   std::vector<int>     *Gen_Particle_PdgId_;
@@ -737,7 +746,6 @@ void HiMuonTree::InitTree(void)
   PF_DiMuon_VtxProb_ = 0;
   PF_DiMuon_DCA_ = 0;
   PF_DiMuon_MassErr_ = 0;
-  PF_MET_Mom_ = 0;
 
   // INITIALIZE GEN PARTICLE POINTERS
   Gen_Particle_PdgId_ = 0;
@@ -901,7 +909,7 @@ void HiMuonTree::InitTree(void)
     if (fChainM_["PF"]->GetBranch("PF_DiMuon_VtxProb"))                  fChainM_["PF"]->SetBranchAddress("PF_DiMuon_VtxProb", &PF_DiMuon_VtxProb_, &b_PF_DiMuon_VtxProb);
     if (fChainM_["PF"]->GetBranch("PF_DiMuon_DCA"))                      fChainM_["PF"]->SetBranchAddress("PF_DiMuon_DCA", &PF_DiMuon_DCA_, &b_PF_DiMuon_DCA);
     if (fChainM_["PF"]->GetBranch("PF_DiMuon_MassErr"))                  fChainM_["PF"]->SetBranchAddress("PF_DiMuon_MassErr", &PF_DiMuon_MassErr_, &b_PF_DiMuon_MassErr);
-    if (fChainM_["PF"]->GetBranch("PF_MET_Mom"))                         fChainM_["PF"]->SetBranchAddress("PF_MET_Mom", &PF_MET_Mom_, &b_PF_MET_Mom);
+    if (fChainM_["PF"]->GetBranch("PF_MET_Mom"))                         fChainM_["PF"]->SetBranchAddress("PF_MET_Mom", &(TClonesArray_["PF_MET_Mom"]), &b_PF_MET_Mom);
     if (fChainM_["PF"]->GetBranch("PF_MuonMET_TransMom"))                fChainM_["PF"]->SetBranchAddress("PF_MuonMET_TransMom", &(TClonesArray_["PF_MuonMET_TransMom"]), &b_PF_MuonMET_TransMom);
     // Set All Branches to Status 0
     fChainM_["PF"]->SetBranchStatus("*",0);
@@ -933,6 +941,7 @@ void HiMuonTree::Clear(void)
   for(auto const &array : TClonesArray_) { if (array.second) { (array.second)->Clear(); } }
   VTLorentzVector_.clear();
   VTVector3_.clear();
+  VTVector2_.clear();
 
   // CLEAR EVENT INFO VARIABLES
   Event_Run_    = 0;
@@ -1064,7 +1073,6 @@ void HiMuonTree::Clear(void)
   if (PF_DiMuon_VtxProb_)                PF_DiMuon_VtxProb_->clear();
   if (PF_DiMuon_DCA_)                    PF_DiMuon_DCA_->clear();
   if (PF_DiMuon_MassErr_)                PF_DiMuon_MassErr_->clear();
-  if (PF_MET_Mom_)                      *PF_MET_Mom_ = TVector2();
 
   // CLEAR GEN PARTICLE VARIABLES
   if (Gen_Particle_PdgId_)               Gen_Particle_PdgId_->clear();
@@ -1074,7 +1082,7 @@ void HiMuonTree::Clear(void)
   // CLEAR GEN MUON VARIABLES
   Gen_Muon_N_    = 0;
   if (Gen_Muon_Charge_)                  Gen_Muon_Charge_->clear();
-  if (Gen_Muon_Particle_Idx_)                Gen_Muon_Particle_Idx_->clear();
+  if (Gen_Muon_Particle_Idx_)            Gen_Muon_Particle_Idx_->clear();
   if (Gen_Muon_Reco_Idx_)                Gen_Muon_Reco_Idx_->clear();
   if (Gen_Muon_PF_Idx_)                  Gen_Muon_PF_Idx_->clear();
 }
