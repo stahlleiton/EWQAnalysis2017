@@ -1,14 +1,14 @@
 # Data Input Files
 
-DATA_MUON_PA             ,   root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20170322.root
+DATA_MUON_PA             ,   root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20170514.root
 
 # Monte Carlo Input Files
 
-MC_DYZ_MUON_pPb          ,   root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/HiEWQForest_DYToMuMu_pPb_8160GeV_20170323.root
-MC_DYZ_MUON_Pbp          ,   root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/HiEWQForest_DYToMuMu_Pbp_8160GeV_20170323.root
-MC_W_MUON_pPb            ,   root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/HiEWQForest_WToMuNu_pPb_8160GeV_20170323.root
-MC_W_MUON_Pbp            ,   root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/HiEWQForest_WToMuNu_Pbp_8160GeV_20170323.root
-MC_WToTau_MUON_pPb       ,   root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/HiEWQForest_WToTauNu_pPb_8160GeV_20170323.root
-MC_WToTau_MUON_Pbp       ,   root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/HiEWQForest_WToTauNu_Pbp_8160GeV_20170323.root
-MC_QCD_MUON_pPb          ,   root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/HiEWQForest_QCDToMu_pPb_8160GeV_20170323.root
-MC_QCD_MUON_Pbp          ,   root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/HiEWQForest_QCDToMu_Pbp_8160GeV_20170323.root
+MC_DYZ_MUON_pPb          ,   root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/HiEWQForest_Embedded_DYToMuMu_pPb_8160GeV_20170518.root
+MC_DYZ_MUON_Pbp          ,   root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/HiEWQForest_Embedded_DYToMuMu_Pbp_8160GeV_20170518.root
+MC_W_MUON_pPb            ,   root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/HiEWQForest_Embedded_WToMuNu_pPb_8160GeV_20170518.root
+MC_W_MUON_Pbp            ,   root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/HiEWQForest_Embedded_WToMuNu_Pbp_8160GeV_20170518.root
+MC_WToTau_MUON_pPb       ,   root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/HiEWQForest_Embedded_WToTauNu_pPb_8160GeV_20170518.root
+MC_WToTau_MUON_Pbp       ,   root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/HiEWQForest_Embedded_WToTauNu_Pbp_8160GeV_20170518.root
+MC_QCD_MUON_pPb          ,   root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/HiEWQForest_Embedded_QCDToMu_pPb_8160GeV_20170518.root
+MC_QCD_MUON_Pbp          ,   root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/HiEWQForest_Embedded_QCDToMu_Pbp_8160GeV_20170518.root
