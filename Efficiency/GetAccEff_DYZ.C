@@ -8,34 +8,32 @@
 ////////// M A I N ///////////////////
 //////////////////////////////////////
 void GetAccEff_DYZ(
-    const string muIDType="Tight",
     const string beamDir="pPb"
     ) {
 
   // Input/Output files
   string inputFile;
-  if (beamDir.compare("pPb")==0) inputFile="root://eoscms//eos/cms/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/HiEWQForest_DYToMuMu_pPb_8160GeV_20170323.root";
-  else if (beamDir.compare("Pbp")==0) inputFile="root://eoscms//eos/cms/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/HiEWQForest_DYToMuMu_Pbp_8160GeV_20170323.root";
-  string outputFile=Form("AccEff_%s_%s.root",muIDType.c_str(),beamDir.c_str());
+  if (beamDir.compare("pPb")==0) inputFile="root://eoscms//eos/cms/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/HiEWQForest_Embedded_DYToMuMu_pPb_8160GeV_20170518.root";
+  else if (beamDir.compare("Pbp")==0) inputFile="root://eoscms//eos/cms/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/HiEWQForest_Embedded_DYToMuMu_Pbp_8160GeV_20170518.root";
+  string outputFile=Form("DYZveto_%s.root",beamDir.c_str());
 
   // Define efficiency histograms
-  // CombineAccEff == true:  acc*eff
-  // num[0]: normal
-  // num[1]: veto eff
-  TH1D hden_eta, hnum_eta[2];
-  TGraphAsymmErrors heff_eta[2];
+  // den[0]: all generated candidates
+  // den[1]: all reconstructed candidates before applying veto cuts
+  // num[0]: all reconstructed candidates before applying veto cuts
+  // num[1]: all reconstructed candidates after veto cuts applied
+  // num[2]: all reconstructed candidates after veto cuts applied and failed
+  TH1D hden_eta[2], hnum_eta[3];
+  TGraphAsymmErrors heff_eta[3];
 
-  string suffix_ = beamDir + "_" + muIDType;
-  string suffix = suffix_;
-  hden_eta = TH1D(Form("hden_eta_%s",suffix.c_str()),";#eta_{lab};",nbins_eta,bins_eta);
-  for (int i=0; i<2; i++) {
-    if (i==0) suffix = suffix_ + "_normal";
-    if (i==1) suffix = suffix_ + "_veto";
-    hnum_eta[i] = TH1D(Form("hnum_eta_%s",suffix.c_str()),";#eta_{lab};",nbins_eta,bins_eta);
+  string suffix = beamDir;
+  for (int i=0; i<3; i++) {
+    if (i<2) hden_eta[i] = TH1D(Form("hden_eta_%s_%d",suffix.c_str(),i),";#eta_{lab};",nbins_eta,bins_eta);
+    hnum_eta[i] = TH1D(Form("hnum_eta_%s_%d",suffix.c_str(),i),";#eta_{lab};",nbins_eta,bins_eta);
     heff_eta[i] = TGraphAsymmErrors();
-    heff_eta[i].SetName(Form("heff_eta_%s",suffix.c_str()));
+    heff_eta[i].SetName(Form("heff_eta_%s_%d",suffix.c_str(),i));
     heff_eta[i].GetXaxis()->SetTitle("#eta_{lab}");
-    heff_eta[i].GetYaxis()->SetTitle("Efficiency");
+    heff_eta[i].GetYaxis()->SetTitle("");
   }
 
   // Read TTree, check default selection conditions
@@ -49,8 +47,7 @@ void GetAccEff_DYZ(
   cout << "GetAccEff:: after HiMETTree GetTree " << endl;
 
   // Loop over events
-  vector<Long64_t> skip_event;
-  for (Long64_t evt=763; evt<nentries; evt++) {
+  for (Long64_t evt=0; evt<50000; evt++) {
     if (mutree.GetEntry(evt)<0) break;
 
     /////// ###### GEN objects will be proceed!
@@ -60,6 +57,7 @@ void GetAccEff_DYZ(
     vector<unsigned char> v_Gen_Particle_Status = mutree.Gen_Particle_Status();
     vector < vector < UShort_t > > vv_Gen_Particle_Mother_Idx = mutree.Gen_Particle_Mother_Idx();
     vector<char> v_Gen_Muon_Reco_Idx = mutree.Gen_Muon_Reco_Idx();
+    vector<char> v_Gen_Muon_PF_Idx = mutree.Gen_Muon_PF_Idx();
     vector<unsigned short> v_Gen_Muon_Particle_Idx = mutree.Gen_Muon_Particle_Idx();
     vector<TLorentzVector> Gen_Muon_Mom = mutree.Gen_Muon_Mom();
 
@@ -119,24 +117,21 @@ void GetAccEff_DYZ(
     } // end of 2 muons have same mother
 
     // Fill denominator with the highest pT gen muon
+    char highest_pt_genmu = -1;
     if (igenmu_keep[0] != -1 && igenmu_keep[1] != -1) {
       pair<int, unsigned short> igenmu1 = v_GenMother.at(igenmu_keep[0]);
       pair<int, unsigned short> igenmu2 = v_GenMother.at(igenmu_keep[1]);
       TLorentzVector mu1 = Gen_Muon_Mom.at(igenmu1.first);
       TLorentzVector mu2 = Gen_Muon_Mom.at(igenmu2.first);
-      if (mu1.Pt() > mu2.Pt()) hden_eta.Fill(mu1.Eta());
-      else hden_eta.Fill(mu2.Eta());
+      highest_pt_genmu = (mu1.Pt()>mu2.Pt()) ? igenmu1.first : igenmu2.first ;
+      
+      if (mu1.Pt() > mu2.Pt()) hden_eta[0].Fill(mu1.Eta());
+      else hden_eta[0].Fill(mu2.Eta());
+    
     } else continue; // skip the event if this doesn't have 2 muons from a same mother
 
 
-
-
     /////// ###### RECO objects will be proceed!
-    
-    // Is this event fine at gen level? if not, skip the event
-    auto skip_evt_idx = find(skip_event.begin(),skip_event.end(),evt);
-    if (skip_evt_idx != skip_event.end()) continue;
-    
     if (mettree.GetEntry(evt)<0) {
       cout << "Cannot retrieve MET tree, break" << endl;
       break;
@@ -157,17 +152,6 @@ void GetAccEff_DYZ(
     bool Flag_duplicateMuons = mettree.Flag_duplicateMuons();
     bool Flag_badMuons = mettree.Flag_badMuons();
     
-        cout<<Flag_collisionEventSelectionPA<<" "
-        <<Flag_goodVertices<<" "
-        <<Flag_CSCTightHaloFilter<<" "
-        <<Flag_HBHENoiseFilter<<" "
-        <<Flag_HBHENoiseIsoFilter<<" "
-        <<Flag_EcalDeadCellTriggerPrimitiveFilter<<" "
-        <<Flag_chargedHadronTrackResolutionFilter<<" "
-        <<Flag_muonBadTrackFilter<<" "
-        <<Flag_duplicateMuons<<" "
-        <<Flag_badMuons<<endl;
-
     if (Flag_collisionEventSelectionPA != 1 ||
         Flag_goodVertices != 1 ||
         Flag_CSCTightHaloFilter != 1 ||
@@ -180,6 +164,14 @@ void GetAccEff_DYZ(
         Flag_duplicateMuons != 1 ||
         Flag_badMuons != 1 ) continue;
 
+    // Check if trigger is fired
+    vector<bool> v_Event_Trig_Fired = mutree.Event_Trig_Fired();
+    if (v_Event_Trig_Fired.size()<=0) continue;
+    cout << "after v_Event_Trig_Fired " << endl;
+    vector< vector< UChar_t > > vv_Pat_Muon_Trig = mutree.Pat_Muon_Trig();
+    if (vv_Pat_Muon_Trig.size()<=0) continue;
+    cout << "after vv_Pat_Muon_Trig " << endl;
+    
     // RECO muons to be checked
     vector<TLorentzVector> Reco_Muon_Mom = mutree.Reco_Muon_Mom();
     vector<char> v_Reco_Muon_Gen_Idx = mutree.Reco_Muon_Gen_Idx();
@@ -187,89 +179,96 @@ void GetAccEff_DYZ(
     vector<char>  v_Reco_Muon_PF_Idx = mutree.Reco_Muon_PF_Idx();
     vector<float> v_PF_Muon_IsoPFR03NoPUCorr = mutree.PF_Muon_IsoPFR03NoPUCorr();
 
+    // Check the highest pT reco muon and fill den[1] and num[0]
+    char irecmu0 = v_Gen_Muon_Reco_Idx.at(highest_pt_genmu);
+    char ipfmu0 = v_Gen_Muon_PF_Idx.at(highest_pt_genmu);
+    cout << "irecmu0, ipfmu0: " << static_cast<short>(irecmu0) << " " << static_cast<short>(ipfmu0) << endl;
+ 
     // gen-reco matching with v_GenMother
-    if (igenmu_keep[0] != -1 && igenmu_keep[1] != -1) {
-      pair<int, unsigned short> p_igenmu1 = v_GenMother.at(igenmu_keep[0]);
-      pair<int, unsigned short> p_igenmu2 = v_GenMother.at(igenmu_keep[1]);
-      int igenmu1 = p_igenmu1.first;
-      int igenmu2 = p_igenmu2.first;
+    pair<int, unsigned short> p_igenmu1 = v_GenMother.at(igenmu_keep[0]);
+    pair<int, unsigned short> p_igenmu2 = v_GenMother.at(igenmu_keep[1]);
+    int igenmu1 = p_igenmu1.first;
+    int igenmu2 = p_igenmu2.first;
+    char irecmu1 = v_Gen_Muon_Reco_Idx.at(igenmu1);
+    char irecmu2 = v_Gen_Muon_Reco_Idx.at(igenmu2);
+    char ipfmu1 = v_Gen_Muon_PF_Idx.at(igenmu1);
+    char ipfmu2 = v_Gen_Muon_PF_Idx.at(igenmu2);
+    cout << "irecmu: " << static_cast<short>(irecmu1) << " " << static_cast<short>(irecmu2) << endl;
+    cout << "ipfmu: " << static_cast<short>(ipfmu1) << " " << static_cast<short>(ipfmu2) << endl;
+    
+    if ((irecmu1<0 && irecmu2>=0) && highest_pt_genmu == igenmu1) {
+      irecmu0 = irecmu2;
+      ipfmu0 = ipfmu2;
+    } else if ((irecmu1>=0 && irecmu2<0) && highest_pt_genmu == igenmu2) {
+      irecmu0 = irecmu1;
+      ipfmu0 = ipfmu1;
+    }
+    if (irecmu0<0) continue;
 
-      // use reco muons only when there's matched gen muon
-      cout << "RECO : v_GenMother" << endl;
+    vector< UChar_t > v_Pat_Muon_Trig0 = vv_Pat_Muon_Trig.at(irecmu0);
+    //5th trigger is L3Mu12
+    if (!v_Pat_Muon_Trig0.at(5)) continue;
+    cout << "after v_Pat_Muon_Trig " << endl;
 
-      char irecmu1 = v_Gen_Muon_Reco_Idx.at(igenmu1);
-      char irecmu2 = v_Gen_Muon_Reco_Idx.at(igenmu2);
-      cout << "irecmu: " << static_cast<short>(irecmu1) << " " << static_cast<short>(irecmu2) << endl;
-      if (irecmu1<0 || irecmu2<0) {
-        cout << "DY,Z eff: skip recmu cause both of reco muons have to be found" << endl;
-        continue; // no matched gen-reco muon pair, skip reco step
+    TLorentzVector recmu0= Reco_Muon_Mom.at(irecmu0);
+    if ( TMath::Abs(recmu0.Eta())>bins_eta[nbins_eta] || recmu0.Pt()<25 ||
+         !v_Reco_Muon_isTight.at(irecmu0) ||
+         (v_Reco_Muon_isTight.at(irecmu0) && v_PF_Muon_IsoPFR03NoPUCorr.at(ipfmu0)>0.15)
+       ) continue;
+
+    TLorentzVector genmu0 = Gen_Muon_Mom.at(highest_pt_genmu);
+    // all reconstructed candidates before applying veto cuts
+    hnum_eta[0].Fill(genmu0.Eta());
+    hden_eta[1].Fill(genmu0.Eta());
+
+    // Check if both muons pass veto contidions, kinematic selections
+    if (irecmu1<0 || irecmu2<0) { // when only 1 muon survived, fill up num[2]
+      hnum_eta[2].Fill(genmu0.Eta());
+      continue;
+    }
+    
+    bool passed_event = false;
+    
+    TLorentzVector recmu1 = Reco_Muon_Mom.at(irecmu1);
+    TLorentzVector recmu2 = Reco_Muon_Mom.at(irecmu2);
+    cout << "recmu1: " << recmu1.Eta() << " " << recmu1.Pt() << endl;
+    cout << "recmu2: " << recmu2.Eta() << " " << recmu2.Pt() << endl;
+  
+    if ( (TMath::Abs(recmu1.Eta())<bins_eta[nbins_eta] && TMath::Abs(recmu2.Eta())<bins_eta[nbins_eta]) &&
+         (recmu1.Pt()>=15 && recmu2.Pt()>=15) &&
+         (v_Reco_Muon_isTight.at(irecmu1) && v_Reco_Muon_isTight.at(irecmu2))
+       )
+    { 
+      if (v_PF_Muon_IsoPFR03NoPUCorr.at(ipfmu1)<0.15 && v_PF_Muon_IsoPFR03NoPUCorr.at(ipfmu2)<0.15) {
+        // events that will be vetoed
+        cout << "pass veto cuts" << endl;
+        passed_event = true;
       }
+    } 
 
-      char ipfmu1 = v_Reco_Muon_PF_Idx.at(irecmu1);
-      char ipfmu2 = v_Reco_Muon_PF_Idx.at(irecmu2);
-      cout << "ipfmu: " << static_cast<short>(ipfmu1) << " " << static_cast<short>(ipfmu2) << endl;
-      if (ipfmu1<0 || ipfmu2<0) {
-        cout << "DY,Z eff: skip pfmu cause both of pf muons have to be found" << endl;
-        continue; // no matched gen-reco muon pair, skip reco step
-      }
+    if (passed_event) hnum_eta[1].Fill(genmu0.Eta());
+    else hnum_eta[2].Fill(genmu0.Eta());
 
-      // Check if trigger is fired
-//      vector<bool> v_Event_Trig_Fired = mutree.Event_Trig_Fired();
-//      cout << "after v_Event_Trig_Fired " << endl;
-//      vector< vector< UChar_t > > vv_Pat_Muon_Trig = mutree.Pat_Muon_Trig();
-//      cout << "after vv_Pat_Muon_Trig " << endl;
-//      vector< UChar_t > v_Pat_Muon_Trig1 = vv_Pat_Muon_Trig.at(irecmu1);
-//      vector< UChar_t > v_Pat_Muon_Trig2 = vv_Pat_Muon_Trig.at(irecmu2);
-//      cout << "after v_Pat_Muon_Trig " << endl;
-//
-//      //5th trigger is L3Mu12
-//      if (!v_Event_Trig_Fired.at(5) || !v_Pat_Muon_Trig1.at(5) || !v_Pat_Muon_Trig2.at(5)) continue;
-     
-      // Check if this muon passes quality cuts, kinematic selections
-      TLorentzVector recmu1 = Reco_Muon_Mom.at(irecmu1);
-      TLorentzVector recmu2 = Reco_Muon_Mom.at(irecmu2);
-      TLorentzVector genmu1 = Gen_Muon_Mom.at(igenmu1);
-      TLorentzVector genmu2 = Gen_Muon_Mom.at(igenmu2);
-      cout << "At numerator, genmu1: " << igenmu1 << " " << genmu1.Eta() << " " << genmu1.Pt() << endl;
-      cout << "At numerator, genmu2: " << igenmu2 << " " << genmu2.Eta() << " " << genmu2.Pt() << endl;
-
-      // check the pT,eta of the highest pT muon only, not both of them 
-      double highest_pt  = (recmu1.Pt()>recmu2.Pt()) ? recmu1.Pt()  : recmu2.Pt() ;
-      double highest_eta = (recmu1.Pt()>recmu2.Pt()) ? recmu1.Eta() : recmu2.Eta() ;
-
-      if ( (TMath::Abs(recmu1.Eta())<bins_eta[nbins_eta] && TMath::Abs(recmu2.Eta())<bins_eta[nbins_eta]) &&
-           (v_PF_Muon_IsoPFR03NoPUCorr.at(ipfmu1)<0.15 && v_PF_Muon_IsoPFR03NoPUCorr.at(ipfmu2)<0.15) &&
-           (recmu1.Pt()>=15 && recmu2.Pt()>=15 && highest_pt>=25) &&
-           (v_Reco_Muon_isTight.at(irecmu1) && v_Reco_Muon_isTight.at(irecmu2))
-         )
-      { // events that will be vetoed
-        cout << "pass analysis cut" << endl;
-        hnum_eta[0].Fill(highest_eta);
-      } else { // events that will NOT be vetoed
-        cout << "DONT pass analysis cut" << endl;
-        hnum_eta[1].Fill(highest_eta);
-      }
-
-    } // end of gen-reco matching with v_GenMother
   } // end of evt loop
 
 
 
   // Calculate efficiency
-  CheckUnderFlow(hnum_eta[0],hden_eta);
-  heff_eta[0].Divide(&hnum_eta[0],&hden_eta);
-  CheckUnderFlow(hnum_eta[1],hden_eta);
-  heff_eta[1].Divide(&hnum_eta[1],&hden_eta);
-
+  for (int i=0; i<2; i++) {
+    CheckUnderFlow(hnum_eta[i],hden_eta[i]);
+    heff_eta[i].Divide(&hnum_eta[i],&hden_eta[i]);
+  }
+  CheckUnderFlow(hnum_eta[2],hden_eta[1]);
+  heff_eta[2].Divide(&hnum_eta[2],&hden_eta[1]);
 
   // Write histograms into output file
   TFile foutput(outputFile.c_str(),"recreate");
   foutput.cd();
-  hden_eta.Write();
-  hnum_eta[0].Write();
-  hnum_eta[1].Write();
-  heff_eta[0].Write();
-  heff_eta[1].Write();
+  for (int i=0; i<3; i++) {
+    if (i<2) hden_eta[i].Write();
+    hnum_eta[i].Write();
+    heff_eta[i].Write();
+  }
   foutput.Close();
 
 

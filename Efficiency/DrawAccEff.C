@@ -5,12 +5,11 @@
 
 
 void DrawAccEff (
-    const string muIDType="Tight",
     const string beamDir="Pbp",
     const int CombineAccEff=0
     ) {
 
-  string inputFile=Form("AccEff_%s_%s.root",muIDType.c_str(),beamDir.c_str());
+  string inputFile=Form("AccEff_%s.root",beamDir.c_str());
   TFile finput(inputFile.c_str());
 
   // Define efficiency histograms
@@ -30,11 +29,10 @@ void DrawAccEff (
   TGraphAsymmErrors *heff_acc_pt[2][nbins_eta];
 
   // Load efficiency histograms
-  string suffix_ = beamDir + "_" + muIDType;
-  string suffix;
+  string suffix = beamDir;
   for (int i=0; i<2; i++) {
-    if (i==0) suffix = suffix_ + "_muPlus";
-    if (i==1) suffix = suffix_ + "_muMinus";
+    if (i==0) suffix = beamDir + "_muPlus";
+    if (i==1) suffix = beamDir + "_muMinus";
     hden_eta[i] = static_cast<TH1D*>(finput.Get(Form("hden_eta_%s",suffix.c_str())));
     hnum_eta[i] = static_cast<TH1D*>(finput.Get(Form("hnum_eta_%s",suffix.c_str())));
     heff_eta[i] = static_cast<TGraphAsymmErrors*>(finput.Get(Form("heff_eta_%s",suffix.c_str())));
@@ -118,8 +116,8 @@ void DrawAccEff (
   heff_eta[0]->GetYaxis()->SetTitleOffset(1.3);
   canv.Update();
   leg.Draw();
-  canv.SaveAs(Form("heff_eta_%s_%s.png",muIDType.c_str(),beamDir.c_str()));
-  canv.SaveAs(Form("heff_eta_%s_%s.pdf",muIDType.c_str(),beamDir.c_str()));
+  canv.SaveAs(Form("heff_eta_%s.png",beamDir.c_str()));
+  canv.SaveAs(Form("heff_eta_%s.pdf",beamDir.c_str()));
   canv.Clear();
 
   if (CombineAccEff>0) {
@@ -128,8 +126,8 @@ void DrawAccEff (
     heff_acc_eta[0]->GetYaxis()->SetTitleOffset(1.3);
     canv.Update();
     leg.Draw();
-    canv.SaveAs(Form("heff_acc_eta_%s_%s.png",muIDType.c_str(),beamDir.c_str()));
-    canv.SaveAs(Form("heff_acc_eta_%s_%s.pdf",muIDType.c_str(),beamDir.c_str()));
+    canv.SaveAs(Form("heff_acc_eta_%s.png",beamDir.c_str()));
+    canv.SaveAs(Form("heff_acc_eta_%s.pdf",beamDir.c_str()));
     canv.Clear();
   }
 

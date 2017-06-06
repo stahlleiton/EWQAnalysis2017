@@ -8,16 +8,15 @@
 ////////// M A I N ///////////////////
 //////////////////////////////////////
 void GetAccEff(
-    const string muIDType="Tight",
     const string beamDir="pPb",
     const int CombineAccEff=0
     ) {
 
   // Input/Output files
   string inputFile;
-  if (beamDir.compare("pPb")==0) inputFile="root://eoscms//eos/cms/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/HiEWQForest_WToMuNu_pPb_8160GeV_20170323.root";
-  else if (beamDir.compare("Pbp")==0) inputFile="root://eoscms//eos/cms/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/HiEWQForest_WToMuNu_Pbp_8160GeV_20170323.root";
-  string outputFile=Form("AccEff_%s_%s.root",muIDType.c_str(),beamDir.c_str());
+  if (beamDir.compare("pPb")==0) inputFile="root://eoscms//eos/cms/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/HiEWQForest_Embedded_WToMuNu_pPb_8160GeV_20170518.root";
+  else if (beamDir.compare("Pbp")==0) inputFile="root://eoscms//eos/cms/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/HiEWQForest_Embedded_WToMuNu_Pbp_8160GeV_20170518.root";
+  string outputFile=Form("AccEff_%s.root",beamDir.c_str());
 
   // Define efficiency histograms
   //[0]: mu+
@@ -35,11 +34,10 @@ void GetAccEff(
   TGraphAsymmErrors heff_acc_eta[2];
   TGraphAsymmErrors heff_acc_pt[2][nbins_eta];
 
-  string suffix_ = beamDir + "_" + muIDType;
-  string suffix;
+  string suffix = beamDir;
   for (int i=0; i<2; i++) {
-    if (i==0) suffix = suffix_ + "_muPlus";
-    if (i==1) suffix = suffix_ + "_muMinus";
+    if (i==0) suffix = beamDir + "_muPlus";
+    if (i==1) suffix = beamDir + "_muMinus";
     hden_eta[i] = TH1D(Form("hden_eta_%s",suffix.c_str()),";#eta_{lab};",nbins_eta,bins_eta);
     hnum_eta[i] = TH1D(Form("hnum_eta_%s",suffix.c_str()),";#eta_{lab};",nbins_eta,bins_eta);
     heff_eta[i] = TGraphAsymmErrors();
@@ -105,7 +103,7 @@ void GetAccEff(
       int pdgid = v_Gen_Particle_PdgId.at(ipar);
       unsigned char status = v_Gen_Particle_Status.at(ipar);
       vector <UShort_t> v_Gen_Particle_Mother_Idx = vv_Gen_Particle_Mother_Idx.at(ipar);
-      if (pdgid!=22) {
+      if (pdgid!=24) {
       cout << "\tin the main, the pre-mother vector size "
            << " " << evt << " " << ipar << ": " << pdgid << " " << static_cast<unsigned short>(status) << " "
            << vv_Gen_Particle_Mother_Idx.at(ipar).size() << "==" << v_Gen_Particle_Mother_Idx.size() << "/" << vv_Gen_Particle_Mother_Idx.size() << endl;
@@ -134,12 +132,15 @@ void GetAccEff(
     } // end of W mother muon & genmu matching
 
     // who's the highest pT gen muon?
+    cout << "v_GenMother: " << v_GenMother.size() << endl;
+
     int igenmu_keep = -1;
     double highest_pt = -1;
     for (auto v_genidx=v_GenMother.begin(); v_genidx!=v_GenMother.end(); ++v_genidx) {
       pair<int, unsigned short> pair = *v_genidx;
       int igenmu = pair.first;
       TLorentzVector genmu = Gen_Muon_Mom.at(igenmu);
+      cout << "igenmu: " << igenmu << ", " << genmu.Eta() << ", " << genmu.Pt() << endl;
       if (genmu.Pt()>highest_pt) {
         highest_pt = genmu.Pt();
         igenmu_keep = distance(v_GenMother.begin(),v_genidx);
@@ -237,17 +238,6 @@ void GetAccEff(
     bool Flag_duplicateMuons = mettree.Flag_duplicateMuons();
     bool Flag_badMuons = mettree.Flag_badMuons();
     
-        cout<<Flag_collisionEventSelectionPA<<" "
-        <<Flag_goodVertices<<" "
-        <<Flag_CSCTightHaloFilter<<" "
-        <<Flag_HBHENoiseFilter<<" "
-        <<Flag_HBHENoiseIsoFilter<<" "
-        <<Flag_EcalDeadCellTriggerPrimitiveFilter<<" "
-        <<Flag_chargedHadronTrackResolutionFilter<<" "
-        <<Flag_muonBadTrackFilter<<" "
-        <<Flag_duplicateMuons<<" "
-        <<Flag_badMuons<<endl;
-
     if (Flag_collisionEventSelectionPA != 1 ||
         Flag_goodVertices != 1 ||
         Flag_CSCTightHaloFilter != 1 ||
@@ -266,7 +256,7 @@ void GetAccEff(
     vector<char> v_Reco_Muon_Charge = mutree.Reco_Muon_Charge();
     vector<bool> v_Reco_Muon_isTight = mutree.Reco_Muon_isTight();
     vector<bool> v_Reco_Muon_isMedium = mutree.Reco_Muon_isMedium();
-    vector<char>  v_Reco_Muon_PF_Idx = mutree.Reco_Muon_PF_Idx();
+    vector<char>  v_Gen_Muon_PF_Idx = mutree.Gen_Muon_PF_Idx();
     vector<float> v_PF_Muon_IsoPFR03NoPUCorr = mutree.PF_Muon_IsoPFR03NoPUCorr();
 
     // gen-reco matching with v_GenMother
@@ -275,7 +265,7 @@ void GetAccEff(
       int igenmu = p_igenmu.first;
 
       // use reco muons only when there's matched gen muon
-      cout << "RECO : v_GenMother" << endl;
+      cout << "RECO" << endl;
 
       char irecmu = v_Gen_Muon_Reco_Idx.at(igenmu);
       cout << "irecmu: " << static_cast<short>(irecmu) << endl;
@@ -284,29 +274,25 @@ void GetAccEff(
         continue; // no matched gen-reco muon pair, skip reco step
       }
 
-      char ipfmu = v_Reco_Muon_PF_Idx.at(irecmu);
-
+      // Check if this muon passes quality cuts
+      if (!v_Reco_Muon_isTight.at(irecmu)) continue;
+      
       // Check if trigger is fired (Currently, trigger isn't working in sample)
-//      vector<bool> v_Event_Trig_Fired = mutree.Event_Trig_Fired();
-//      cout << "after v_Event_Trig_Fired " << endl;
-//      vector< vector< UChar_t > > vv_Pat_Muon_Trig = mutree.Pat_Muon_Trig();
-//      cout << "after vv_Pat_Muon_Trig " << endl;
-//      vector< UChar_t > v_Pat_Muon_Trig = vv_Pat_Muon_Trig.at(irecmu);
-//      cout << "after v_Pat_Muon_Trig " << endl;
+      vector<bool> v_Event_Trig_Fired = mutree.Event_Trig_Fired();
+      cout << "after v_Event_Trig_Fired " << endl;
+      vector< vector< UChar_t > > vv_Pat_Muon_Trig = mutree.Pat_Muon_Trig();
+      cout << "after vv_Pat_Muon_Trig " << endl;
+      vector< UChar_t > v_Pat_Muon_Trig = vv_Pat_Muon_Trig.at(irecmu);
+      cout << "after v_Pat_Muon_Trig " << endl;
 
       //5th trigger is L3Mu12
-//      if (!v_Event_Trig_Fired.at(5) || !v_Pat_Muon_Trig.at(5)) continue;
+      if (!v_Event_Trig_Fired.at(5) || !v_Pat_Muon_Trig.at(5)) continue;
      
-      // Check if this muon passes quality cuts
-      if (muIDType.compare("Tight")==0 || muIDType.compare("tight")==0) {
-        if (!v_Reco_Muon_isTight.at(irecmu)) continue;
-      } else if (muIDType.compare("Medium")==0 || muIDType.compare("medium")==0) {
-        if (!v_Reco_Muon_isMedium.at(irecmu)) continue;
-      }
+      char ipfmu = v_Gen_Muon_PF_Idx.at(igenmu);
       
       TLorentzVector recmu = Reco_Muon_Mom.at(irecmu);
       TLorentzVector genmu = Gen_Muon_Mom.at(igenmu);
-      cout << "At numerator, genmu: " << igenmu << " " << genmu.Eta() << " " << genmu.Pt() << endl;
+      cout << "At numerator, " << static_cast<short>(ipfmu) << " , genmu: " << igenmu << " " << genmu.Eta() << " " << genmu.Pt() << endl;
       // Check if this muon pass kinematic selections
       if (recmu.Pt()>=25 && TMath::Abs(recmu.Eta())<bins_eta[nbins_eta] && v_PF_Muon_IsoPFR03NoPUCorr.at(ipfmu)<0.15) {
         char charge = v_Reco_Muon_Charge.at(irecmu);
