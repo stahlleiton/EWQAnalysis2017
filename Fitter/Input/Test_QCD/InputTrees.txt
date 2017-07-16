@@ -1,6 +1,6 @@
 # Data Input Files
 
-DATA_MUON_PA             ,   root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20170514.root
+DATA_MUON_PA             ,   root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20170613.root
 
 # Monte Carlo Input Files
 

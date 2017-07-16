@@ -317,7 +317,7 @@ void printElectroWeakMETParameters(TPad* pad, const RooWorkspace& ws, const std:
     // Ignore dataset variables
     if(s=="MET" || s=="Muon_Pt" || s=="Muon_Eta" || s=="Muon_Iso" || s=="Muon_MT" || s=="Event_Type" || s=="Centrality"){ continue; }
     if((s.find("Pl")!=std::string::npos)!=(pdfName.find("Pl")!=std::string::npos)){ continue; }
-    if(s.find("N")!=std::string::npos || s.find("AccXEff")!=std::string::npos || s.find("XSection")!=std::string::npos) { continue; }
+    if(s.find("AccXEff")!=std::string::npos || s.find("XSection")!=std::string::npos) { continue; }
     parseVarName(it->GetName(), label); if (label=="") continue;
     // Print the parameter's results
     if(s.find("N")!=std::string::npos){ t.DrawLatex(xPos, yPos-dy, Form("%s = %.0f#pm%.0f", label.c_str(), it->getValV(), it->getError())); dy+=dYPos; }

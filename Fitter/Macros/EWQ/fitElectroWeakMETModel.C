@@ -11,7 +11,8 @@ void   setEWQCutParameters  ( GlobalInfo& info );
 bool   setEWQModel          ( StrMapMap& model, GlobalInfo&  info );
 int    importDataset        ( RooWorkspace& myws  , const std::map<string, RooWorkspace>& inputWS , const GlobalInfo& info);
 void   setMETFileName       ( string& fileName, string& outputDir, const string& DSTAG, const string& plotLabel, const GlobalInfo& info );
-void   addLuminosity        ( GlobalInfo& info );
+void   setLuminosity        ( GlobalInfo& info );
+void   setCrossSection      ( GlobalInfo& info );
 
 
 bool fitElectroWeakMETModel( const RooWorkspaceMap& inputWorkspaces,    // Workspace with all the input RooDatasets
@@ -39,8 +40,11 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap& inputWorkspaces,    // Works
   info.Flag["doPA"]   = (info.Flag.at("fitPbp") && info.Flag.at("fitpPb"));
   for (auto& col : info.StrV.at("system")  ) { if (info.Flag.at("fit"+col)) { info.StrV["fitSystem"].clear(); info.StrV.at("fitSystem").push_back(col); } }
 
-  // Add Luminosity Variables
-  addLuminosity(info);
+  // Set Luminosity Variables
+  setLuminosity(info);
+
+  // Set Cross-Section Variables
+  setCrossSection(info);
 
   // Set the range of all the parameters
   setEWQCutParameters(info);
@@ -74,6 +78,22 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap& inputWorkspaces,    // Works
   }
   info.Var["numEntries"]["Pl"] = myws.data(info.Par.at("dsName_Pl").c_str())->sumEntries(); if (info.Var.at("numEntries").at("Pl")<=0) { doFit = false; }
   info.Var["numEntries"]["Mi"] = myws.data(info.Par.at("dsName_Mi").c_str())->sumEntries(); if (info.Var.at("numEntries").at("Mi")<=0) { doFit = false; }
+
+  // Compute Acceptance x Efficiency
+  for (auto& col : info.StrV.at("fitSystem")) {
+    for (auto& obj : (info.Flag.at("incMCTemp") ? info.StrV.at("template") : info.StrV.at("fitObject"))) {
+      std::string dsLabel = "MC_" + obj + "_" + info.Par.at("channelDS") + "_" + col;
+      for (auto& chg : info.StrV.at("fitCharge")) {
+        if (myws.data(Form("d%s_%s", chg.c_str(), dsLabel.c_str()))) {
+          std::string label   = obj + info.Par.at("channel") + chg + "_" + col;
+          double genMCEntries = -1.0;
+          double recoMCEntries = myws.data(Form("d%s_%s", chg.c_str(), dsLabel.c_str()))->sumEntries();
+          if (myws.var(("NGen_"+dsLabel).c_str())) { genMCEntries = myws.var(("NGen_"+dsLabel).c_str())->getVal(); }
+          info.Var["AccXEff"][label] = (genMCEntries>0 ? (recoMCEntries/genMCEntries) : -1.0);
+        }
+      }
+    }
+  }
 
   // Set global parameters
   setMETGlobalParameterRange(myws, info);
@@ -170,7 +190,7 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap& inputWorkspaces,    // Works
 void setEWQCutParameters(GlobalInfo& info)
 {
   // Define the MET range
-  if (info.Var.at("MET").at("Max")==100000.0) { info.Var.at("MET").at("Max") = 100.0; }
+  if (info.Var.at("MET").at("Max")==100000.0) { info.Var.at("MET").at("Max") = 120.0; }
   // Define the range for the Muon related parameters
   if (info.Flag.at("doMuon")) {
     // Define the Muon PT range
@@ -288,6 +308,13 @@ int importDataset(RooWorkspace& myws  , const std::map<string, RooWorkspace>& in
   cutDS.erase(cutDS.size()-string("&&").length(), cutDS.size());
   TObjString tmp; tmp.SetString(cutDS.c_str()); myws.import(*((TObject*)&tmp), "Cut_DataSet"); // Save the cut expression for bookkeeping
   std::cout << "[INFO] Importing local RooDataSet with cuts: " << cutDS << std::endl;
+  // Import the Number of Generated Events
+  for (auto& label : info.StrV.at("DSList")) {
+    if (inputWS.count(label)>0 && inputWS.at(label).var(Form("NGen_%s", label.c_str())) && !myws.var(Form("NGen_%s", label.c_str()))) { 
+      RooRealVar N = *inputWS.at(label).var(Form("NGen_%s", label.c_str()));
+      myws.import(N);
+    }
+  }
   // Reduce and import the datasets
   for (auto& label : info.StrV.at("DSList")) {
     for (auto& chg : info.StrV.at("fitCharge")) {
@@ -346,7 +373,7 @@ void setMETFileName(string& fileName, string& outputDir, const string& DSTAG, co
   return;
 };
 
-void addLuminosity(GlobalInfo& info)
+void setLuminosity(GlobalInfo& info)
 {
   if (info.Flag.at("fitMC")) {
     info.Par["Lumi_pPb"] = Form("%s[%.4f]", "Lumi_pPb", 1.0);
@@ -358,6 +385,26 @@ void addLuminosity(GlobalInfo& info)
     if (info.Par.count("Lumi_Pbp")==0 || info.Par.at("Lumi_Pbp")=="") { info.Par["Lumi_Pbp"] = Form("%s[%.4f]", "Lumi_Pbp", PA::Lumi_Pbp); }
     if (info.Par.count("Lumi_PA")==0  || info.Par.at("Lumi_PA")=="" ) { info.Par["Lumi_PA"] = Form("%s[%.4f]", "Lumi_PA", (PA::Lumi_pPb+PA::Lumi_Pbp)); }
   }
-}
+};
+
+void setCrossSection(GlobalInfo& info)
+{
+  std::string cha = info.Par.at("channel");
+  for (auto& col : info.StrV.at("fitSystem")) {
+    for (auto& chg : info.StrV.at("fitCharge")) {
+      for (auto& obj : (info.Flag.at("incMCTemp") ? info.StrV.at("template") : info.StrV.at("fitObject"))) {
+        std::string label = obj + cha + chg + "_" + col;
+        if (PA::XSec.count(obj+cha)==0 || PA::XSec.at(obj+cha).count(col)==0) continue;
+        if (col=="PA") { PA::XSec.at(obj+cha)["PA"] = PA::XSec.at(obj+cha).at("pPb") + PA::XSec.at(obj+cha).at("Pbp"); }
+        if (info.Par.count("XSection_"+label)==0 || info.Par.at("XSection_"+label)=="") { 
+          info.Par["XSection_"+label] = Form("%s[%.8f,%.8f,%.8f]", ("XSection_"+label).c_str(), 
+                                             PA::XSec.at(obj+cha).at(col), 
+                                             0.0, 
+                                             10.*PA::XSec.at(obj+cha).at(col));
+        }
+      }
+    }
+  }
+};
 
 #endif // #ifndef fitElectroWeakMETModel_C

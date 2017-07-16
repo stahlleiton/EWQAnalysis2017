@@ -12,6 +12,7 @@
 #include "TLegend.h"
 #include "TLatex.h"
 #include "TH1.h"
+#include "TF1.h"
 #include "TLine.h"
 #include "TPad.h"
 #include "TObjString.h"

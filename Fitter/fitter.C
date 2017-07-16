@@ -25,7 +25,7 @@ void fitter(
             // Select the fitting options
             const unsigned int   numCores = 32,         // Number of cores used for fitting
             const std::bitset<1> fitVar   = 1,          // Fit Variable: 1: MET
-            const uint           varType  = 1,          // Type of MET to Fit: (0) PF Raw, (1) PF Type1, (2) NoHF Raw, (3) NoHF Type 1
+            const uint           varType  = 3,          // Type of MET to Fit: (0) PF Raw, (1) PF Type1, (2) NoHF Raw, (3) NoHF Type 1
             const std::string    Analysis = "WToMuNu",  // Type of Analysis
             // Select the drawing options
             const bool setLogScale  = true              // Draw plot with log scale
@@ -173,7 +173,7 @@ void fitter(
               if (inputInitialFilesDirs[j][VAR.first]!="") { dir = inputInitialFilesDirs[j][VAR.first]; }
               std::string InputFile = "", name = (dir + "InitialParam_" + VAR.first + "_" + PAR.first);
               std::vector<std::string> tryChannel = { userInput.Par.at("channel") , "" };
-              std::vector<std::string> trySystem  = ( userInput.Flag.at("doPA") ? std::vector<std::string>({COL.first , "PA"}) : std::vector<std::string>({COL.first}) );
+              std::vector<std::string> trySystem  = ( userInput.Flag.at("fitPA") ? std::vector<std::string>({COL.first , "PA"}) : std::vector<std::string>({COL.first}) );
               for (auto& tryCha : tryChannel) {
                 bool trySuccess = false;
                 for (auto& tryCol : trySystem) {
@@ -336,8 +336,8 @@ bool setParameters(const StringMap& row, GlobalInfo& info, const std::string& An
     info.Var["MET"]["Max"]        = 100000.0;
     info.Var["Muon_Pt"]["Min"]    = 0.0;
     info.Var["Muon_Pt"]["Max"]    = 100000.0;
-    info.Var["Muon_Eta"]["Min"]   = -2.5;
-    info.Var["Muon_Eta"]["Max"]   = 2.5;
+    info.Var["Muon_Eta"]["Min"]   = -2.4;
+    info.Var["Muon_Eta"]["Max"]   = 2.4;
     info.Var["Muon_Iso"]["Min"]   = 0.0;
     info.Var["Muon_Iso"]["Max"]   = 100000.0;
     info.Var["Muon_MT"]["Min"]    = 0.0;

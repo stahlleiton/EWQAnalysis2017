@@ -37,13 +37,24 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StrMapMap& mo
           std::string label = tag + "_" + col;
           TObjString tmp; tmp.SetString(model.second.c_str()); ws.import(*((TObject*)&tmp), ("Model_"+label).c_str()); // Save the model name for bookkeeping
           // Create Lumi variable
-          if (!ws.var(("Lumi_"+col).c_str())) { ws.factory( info.Par.at("Lumi_"+col).c_str() ); }
-          if (ws.var(("Lumi_"+col).c_str())) { ws.var(("Lumi_"+col).c_str())->setConstant(kTRUE); }
+          if (!ws.var(("Lumi_"+col).c_str())) { ws.factory( info.Par.at("Lumi_"+col).c_str() );    }
+          if ( ws.var(("Lumi_"+col).c_str())) { ws.var(("Lumi_"+col).c_str())->setConstant(kTRUE); }
           // Create AccXEff variable
-          if (!ws.var(("AccXEff_"+label).c_str())) { ws.factory( info.Par.at("AccXEff_"+label).c_str() ); }
-          if (ws.var(("AccXEff_"+label).c_str())) { ws.var(("AccXEff_"+label).c_str())->setConstant(kTRUE); }
+          if (!ws.var(("AccXEff_"+label).c_str()))    { ws.factory( info.Par.at("AccXEff_"+label).c_str() );    }
+          if ( ws.var(("AccXEff_"+label).c_str()))    { ws.var(("AccXEff_"+label).c_str())->setConstant(kTRUE); }
           if (!ws.var(("sigAccXEff_"+label).c_str())) { ws.factory( info.Par.at("sigAccXEff_"+label).c_str() ); }
-          if (ws.var(("sigAccXEff_"+label).c_str())) { ws.var(("AccXEff_"+label).c_str())->setError(ws.var(("sigAccXEff_"+label).c_str())->getVal()); }
+          if ( ws.var(("sigAccXEff_"+label).c_str())) { ws.var(("AccXEff_"+label).c_str())->setError(ws.var(("sigAccXEff_"+label).c_str())->getVal()); }
+          // Create the Cross-Section variable
+          if (ws.var(("AccXEff_"+label).c_str())->getVal()<1.0) {
+            if (label!=mainLabel) {
+              if (!ws.var(("rXSection_"+label).c_str())) ws.factory(Form("%s[%.8f]", ("rXSection_"+label).c_str(), 1.0));
+              RooWorkspace tmp; tmp.factory( info.Par.at("XSection_"+label).c_str() ); tmp.factory( info.Par.at("XSection_"+mainLabel).c_str() );
+              ws.var(("rXSection_"+label).c_str())->setVal( tmp.var(("XSection_"+label).c_str())->getVal()/tmp.var(("XSection_"+mainLabel).c_str())->getVal() );
+              ws.var(("rXSection_"+label).c_str())->setConstant(kTRUE);
+              ws.factory(Form("RooFormulaVar::%s('@0*@1',{%s,%s})", ("XSection_"+label).c_str(), ("rXSection_"+label).c_str(), info.Par.at("XSection_"+mainLabel).c_str()));
+            }
+            else { ws.factory(info.Par.at("XSection_"+label).c_str()); }
+          }
           // Create Models
           switch(ModelDictionary["MET"][model.second])
             {
@@ -244,16 +255,24 @@ void setMETModelParameters(GlobalInfo& info)
         }
         // AcceptanceXEfficiency
         if (info.Par.count("AccXEff_"+label)==0 || info.Par.at("AccXEff_"+label)=="") {
-          info.Par["AccXEff_"+label] = Form("%s[%.4f]", ("AccXEff_"+label).c_str(), 1.0);
-          info.Par["sigAccXEff_"+label] = Form("%s[%.4f]", ("sigAccXEff_"+label).c_str(), 0.0);
+          double AccXEff = 1.0;
+          if (info.Var.count("AccXEff")>0 && info.Var.at("AccXEff").count(label)>0 && info.Var.at("AccXEff").at(label)>=0) AccXEff = info.Var.at("AccXEff").at(label);
+          info.Par["AccXEff_"+label] = Form("%s[%.10f]", ("AccXEff_"+label).c_str(), AccXEff);
+          info.Par["sigAccXEff_"+label] = Form("%s[%.10f]", ("sigAccXEff_"+label).c_str(), 0.0);
         }
         // Cross-Section
         if (info.Par.count("XSection_"+label)==0 || info.Par.at("XSection_"+label)=="") {
-          info.Par["XSection_"+label] = Form("%s[%.4f,%.4f,%.4f]", ("XSection_"+label).c_str(), numEntries, 0.0, 2.0*numEntries);
+          info.Par["XSection_"+label] = Form("%s[%.8f,%.8f,%.8f]", ("XSection_"+label).c_str(), numEntries, 0.0, 2.0*numEntries);
         }
         // NUMBER OF EVENTS
         if (info.Par.count("N_"+label)==0 || info.Par.at("N_"+label)=="") {
-          info.Par["N_"+label] = Form("RooFormulaVar::%s('@0*@1*@2',{%s,%s,%s})", ("N_"+label).c_str(), ("Lumi_"+col).c_str(), ("AccXEff_"+label).c_str(), info.Par.at("XSection_"+label).c_str());
+          RooWorkspace tmp; tmp.factory( info.Par.at("AccXEff_"+label).c_str() );
+          if (tmp.var(("AccXEff_"+label).c_str())->getVal()<1.0) {
+            info.Par["N_"+label] = Form("RooFormulaVar::%s('@0*@1*@2',{%s,%s,%s})", ("N_"+label).c_str(), ("Lumi_"+col).c_str(), ("AccXEff_"+label).c_str(), ("XSection_"+label).c_str());
+          }
+          else {
+            info.Par["N_"+label] = Form("%s[%.4f,%.4f,%.4f]", ("N_"+label).c_str(), numEntries, 0.0, 2.0*numEntries);
+          }
         }
         // CUTS FOR CUT AND COUNT ALGO
         if (info.Par.count("Cut_"+label)==0 || info.Par.at("Cut_"+label)=="") {
