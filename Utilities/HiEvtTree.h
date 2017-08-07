@@ -9,7 +9,7 @@
 // Header file for c++ classes
 #include <iostream>
 
-// Header file for the classes stored in the TTree
+// Header file for the classes stored in the TChain
 
 
 class HiEvtTree {
@@ -18,10 +18,11 @@ public :
 
   HiEvtTree();
   virtual ~HiEvtTree();
-  virtual Bool_t       GetTree    (const std::string&, TTree* tree = 0);
+  virtual Bool_t       GetTree    (const std::vector< std::string >&, const std::string& treeName="hiEvtAna");
+  virtual Bool_t       GetTree    (const std::string&, const std::string& treeName="hiEvtAna");
   virtual Int_t        GetEntry   (Long64_t);
   virtual Long64_t     GetEntries (void) { return fChain_->GetEntries(); }
-  virtual TTree*       Tree       (void) { return fChain_; }
+  virtual TChain*      Tree       (void) { return fChain_; }
   virtual void         Clear      (void);
 
   // VARIABLES GETTER
@@ -64,14 +65,13 @@ public :
  private:
 
   virtual Long64_t     LoadTree        (Long64_t);
-  virtual char         GetBranchStatus (const std::string&);
   virtual void         SetBranch       (const std::string&);
   virtual void         InitTree        (void);
   virtual Int_t        LoadEntry       (void) { return fChain_->GetEntry(entry_); }
 
 
-  TTree*                    fChain_;
-  std::map<string, TTree*>  fChainM_;
+  TChain*                   fChain_;
+  std::map<string, TChain*> fChainM_;
   Long64_t                  entry_;
 
   // VARIABLES
@@ -160,33 +160,45 @@ HiEvtTree::HiEvtTree() : fChain_(0)
 HiEvtTree::~HiEvtTree()
 {
   if (fChain_ && fChain_->GetCurrentFile()) delete fChain_->GetCurrentFile();
+  for (auto& c : fChainM_) { if (c.second) { c.second->Reset(); delete c.second; } }
 }
 
-Bool_t HiEvtTree::GetTree(const std::string& fileName, TTree* tree)
+Bool_t HiEvtTree::GetTree(const std::string& fileName, const std::string& treeName)
+{
+  std::vector<std::string> fileNames = {fileName};
+  return GetTree(fileNames, treeName);
+}
+
+Bool_t HiEvtTree::GetTree(const std::vector< std::string >& fileName, const std::string& treeName)
 {
   // Open the input files
-  TFile *f = TFile::Open(fileName.c_str());
+  TFile *f = TFile::Open(fileName[0].c_str());
   if (!f || !f->IsOpen()) return false;
-  // Extract the input TTrees
+  // Extract the input TChains
   fChainM_.clear();
   TDirectory * dir;
-  if (fileName.find("root://")!=std::string::npos) dir = (TDirectory*)f->Get("hiEvtAna");
-  else dir = (TDirectory*)f->Get((fileName+":/hiEvtAna").c_str());
+  if (fileName[0].find("root://")!=std::string::npos) dir = (TDirectory*)f->Get(treeName.c_str());
+  else dir = (TDirectory*)f->Get((fileName[0]+":/"+treeName).c_str());
   if (!dir) return false;
-  if (dir->GetListOfKeys()->Contains("HiTree")) dir->GetObject("HiTree",fChainM_["HiTree"]);
+  if (dir->GetListOfKeys()->Contains("HiTree")) { fChainM_["HiTree"] = new TChain((treeName+"/HiTree").c_str()  , "HiTree"); }
   if (fChainM_.size()==0) return false;
-  // Initialize the input TTrees (set their branches)
+  // Add the files in the TChain
+  for (auto& c : fChainM_) {
+    for (auto& f : fileName) { c.second->Add(Form("%s/%s/%s", f.c_str(), treeName.c_str(), c.first.c_str())); }; c.second->GetEntries();
+  }
+  for (auto& c : fChainM_) { if (!c.second) { std::cout << "[ERROR] fChain " << c.first << " was not created, some input files are missing" << std::endl; return false; } }
+  // Initialize the input TChains (set their branches)
   InitTree();
-  // Add Friend TTrees
-  if (tree) { fChain_ = tree; }
-  else      { fChain_ = fChainM_.begin()->second; }
-  for (auto iter = fChainM_.begin(); iter != fChainM_.end(); iter++) {
-    (iter->second)->SetMakeClass(1); // For the proper setup.
-    if (iter->second != fChain_) {
-      fChain_->AddFriend(iter->second); // Add the Friend TTree
-    }
+  // Add Friend TChains
+  fChain_ = (TChain*)fChainM_.begin()->second->Clone(Form("%s", treeName.c_str()));
+  for (auto& c : fChainM_) {
+    c.second->SetMakeClass(1); // For the proper setup.
+    if (fChain_!=c.second) { fChain_->AddFriend(c.second, Form("%s", c.first.c_str()), kTRUE); } // Add the Friend TChain
   }
   if (fChain_ == 0) return false;
+  // Set All Branches to Status 0
+  fChain_->SetBranchStatus("*",0);
+  //
   return true;
 }
 
@@ -201,25 +213,17 @@ Int_t HiEvtTree::GetEntry(Long64_t entry)
 
 Long64_t HiEvtTree::LoadTree(Long64_t entry)
 {
-// Set the environment to read one entry
+  // Set the environment to read one entry
    if (!fChain_) return -5;
    Long64_t centry = fChain_->LoadTree(entry);
    return centry;
 }
 
-char HiEvtTree::GetBranchStatus(const std::string& n)
-{
-  std::string type = "HiTree";
-  if ( !(fChainM_.at(type)) || !(fChainM_.at(type)->GetBranch(n.c_str())) ) return -1;
-  return fChainM_.at(type)->GetBranchStatus(n.c_str());
-}
-
 void HiEvtTree::SetBranch(const std::string& n)
 {
-  std::string type = "HiTree";
-  if (GetBranchStatus(n) == 0) {
-    fChainM_.at(type)->SetBranchStatus(n.c_str(), 1);
-    LoadEntry(); // Needed for the first entry
+  if ( fChain_->GetBranch(n.c_str()) && (fChain_->GetBranchStatus(n.c_str()) == 0) ) {
+    fChain_->SetBranchStatus(Form("*%s*", n.c_str()), 1);
+    LoadEntry();
   }
 }
 
@@ -305,8 +309,6 @@ void HiEvtTree::InitTree(void)
     if (fChainM_["HiTree"]->GetBranch("hiNtracksPtCut"))     fChainM_["HiTree"]->SetBranchAddress("hiNtracksPtCut",     &hiNtracksPtCut_,     &b_hiNtracksPtCut);
     if (fChainM_["HiTree"]->GetBranch("hiNtracksEtaCut"))    fChainM_["HiTree"]->SetBranchAddress("hiNtracksEtaCut",    &hiNtracksEtaCut_,    &b_hiNtracksEtaCut);
     if (fChainM_["HiTree"]->GetBranch("hiNtracksEtaPtCut"))  fChainM_["HiTree"]->SetBranchAddress("hiNtracksEtaPtCut",  &hiNtracksEtaPtCut_,  &b_hiNtracksEtaPtCut);
-    // Set All Branches to Status 0
-    fChainM_["HiTree"]->SetBranchStatus("*",0);
   }
 }
 

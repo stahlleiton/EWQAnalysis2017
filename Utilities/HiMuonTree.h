@@ -5,6 +5,8 @@
 #include <TROOT.h>
 #include <TChain.h>
 #include <TInterpreter.h>
+#include <TDirectory.h>
+#include <TSystem.h>
 #include <TFile.h>
 
 // Header file for c++ classes
@@ -12,7 +14,7 @@
 #include <vector>
 #include <map>
 
-// Header file for the classes stored in the TTree
+// Header file for the classes stored in the TChain
 #include "TClonesArray.h"
 #include "TLorentzVector.h"
 #include "TVector3.h"
@@ -25,17 +27,23 @@ typedef std::vector<TVector2>                 VTVector2;
 typedef std::vector< std::vector<UChar_t> >   UCharVecVec;
 typedef std::vector< std::vector<UShort_t> >  UShortVecVec;
 
+struct GenPart { UInt_t pdg; UInt_t idx; };
+
 class HiMuonTree {
 
 public :
 
   HiMuonTree();
   virtual ~HiMuonTree();
-  virtual Bool_t       GetTree    (const std::string&, TTree* tree = 0);
+  virtual Bool_t       GetTree    (const std::vector< std::string >&, const std::string& treeName="muonAna");
+  virtual Bool_t       GetTree    (const std::string&, const std::string& treeName="muonAna");
   virtual Int_t        GetEntry   (Long64_t);
   virtual Long64_t     GetEntries (void) { return fChain_->GetEntries(); }
-  virtual TTree*       Tree       (void) { return fChain_; }
+  virtual TChain*      Tree       (void) { return fChain_; }
   virtual void         Clear      (void);
+  virtual GenPart      Mother     (const int);
+  virtual GenPart      MuonMother (const int);
+  virtual void         GetUniquePFGenMuonMatching (std::vector< char >&, std::vector< char >&, const std::vector< char >&);
 
   // EVENT INFO VARIABLES
   UInt_t               Event_Run()                        { SetBranch("Event_Run");                        return Event_Run_;                             }
@@ -201,6 +209,7 @@ public :
   virtual void         SetBranch       (const std::string&);
   virtual void         InitTree        (void);
   virtual Int_t        LoadEntry       (void) { return fChain_->GetEntry(entry_); }
+  virtual void         GenerateDictionaries (void);
 
   template <typename T> 
     T GET(T* x) { return ( (x) ? *x : T() ); }
@@ -231,8 +240,8 @@ public :
   }
 
 
-  TTree*                    fChain_;
-  std::map<string, TTree*>  fChainM_;
+  TChain*                   fChain_;
+  std::map<string, TChain*> fChainM_;
   Long64_t                  entry_;
 
   // TCLONEARRAY POINTERS
@@ -548,39 +557,52 @@ HiMuonTree::HiMuonTree() : fChain_(0)
 
 HiMuonTree::~HiMuonTree()
 {
-  if (fChain_ && fChain_->GetCurrentFile()) delete fChain_->GetCurrentFile();
+  if (fChain_ && fChain_->GetCurrentFile()) { delete fChain_->GetCurrentFile(); }
+  for (auto& c : fChainM_) { if (c.second) { c.second->Reset(); } }
 }
 
-Bool_t HiMuonTree::GetTree(const std::string& fileName, TTree* tree)
+Bool_t HiMuonTree::GetTree(const std::string& fileName, const std::string& treeName)
+{
+  std::vector<std::string> fileNames = {fileName};
+  return GetTree(fileNames, treeName);
+}
+
+Bool_t HiMuonTree::GetTree(const std::vector< std::string >& fileName, const std::string& treeName)
 {
   // Open the input files
-  TFile *f = TFile::Open(fileName.c_str());
+  TFile *f = TFile::Open(fileName[0].c_str());
   if (!f || !f->IsOpen()) return false;
-  // Extract the input TTrees
+  // Extract the input TChains
   fChainM_.clear();
   TDirectory * dir;
-  if (fileName.find("root://")!=std::string::npos) dir = (TDirectory*)f->Get("muonAna");
-  else dir = (TDirectory*)f->Get((fileName+":/muonAna").c_str());
+  if (fileName[0].find("root://")!=std::string::npos) dir = (TDirectory*)f->Get(treeName.c_str());
+  else dir = (TDirectory*)f->Get((fileName[0]+":/muonAna").c_str());
   if (!dir) return false;
-  if (dir->GetListOfKeys()->Contains("Muon_Event")) dir->GetObject("Muon_Event",fChainM_["Event"]);
-  if (dir->GetListOfKeys()->Contains("Muon_Reco"))  dir->GetObject("Muon_Reco", fChainM_["Reco"]);
-  if (dir->GetListOfKeys()->Contains("Muon_PF") )   dir->GetObject("Muon_PF",   fChainM_["PF"]  );
-  if (dir->GetListOfKeys()->Contains("Muon_Gen") )  dir->GetObject("Muon_Gen",  fChainM_["Gen"] );
+  if (dir->GetListOfKeys()->Contains("Muon_Event")) { fChainM_["Event"] = new TChain((treeName+"/Muon_Event").c_str(), "Muon_Event"); }
+  if (dir->GetListOfKeys()->Contains("Muon_Reco"))  { fChainM_["Reco"]  = new TChain((treeName+"/Muon_Reco").c_str() , "Muon_Reco" ); }
+  if (dir->GetListOfKeys()->Contains("Muon_PF") )   { fChainM_["PF"]    = new TChain((treeName+"/Muon_PF").c_str()   , "Muon_PF"   ); }
+  if (dir->GetListOfKeys()->Contains("Muon_Gen") )  { fChainM_["Gen"]   = new TChain((treeName+"/Muon_Gent").c_str() , "Muon_Gen"  ); }
   if (fChainM_.count("Reco")) fChainM_["Pat"] = fChainM_.at("Reco");
   if (fChainM_.size()==0) return false;
-  // Initialize the input TTrees (set their branches)
+  // Add the files in the TChain
+  for (auto& c : fChainM_) {
+    if(c.first!="Pat") { for (auto& f : fileName) { c.second->Add(Form("%s/%s/Muon_%s", f.c_str(), treeName.c_str(), c.first.c_str())); }; c.second->GetEntries(); }
+  }
+  for (auto& c : fChainM_) { if (!c.second) { std::cout << "[ERROR] fChain " << c.first << " was not created, some input files are missing" << std::endl; return false; } }
+  // Initialize the input TChains (set their branches)
   InitTree();
-  // Add Friend TTrees
-  if (tree) { fChain_ = tree; }
-  else      { fChain_ = fChainM_.begin()->second; }
-  for (auto iter = fChainM_.begin(); iter != fChainM_.end(); iter++) {
-    (iter->second)->SetMakeClass(1); // For the proper setup.
-    if (iter->second != fChain_) {
-      fChain_->AddFriend(iter->second); // Add the Friend TTree
-      //(iter->second)->ResetBranchAddresses(); // Reset the branch address of the friend to avoid problems
+  // Add Friend TChains
+  fChain_ =  (TChain*)fChainM_.begin()->second->Clone(Form("Muon_%s", treeName.c_str()));
+  for (auto& c : fChainM_) {
+    if(c.first!="Pat") {
+      c.second->SetMakeClass(1); // For the proper setup.
+      if (c.second != fChain_) { fChain_->AddFriend(c.second, Form("Muon_%s", c.first.c_str())); } // Add the Friend TChain
     }
   }
   if (fChain_ == 0) return false;
+  // Set All Branches to Status 0
+  fChain_->SetBranchStatus("*",0);
+  //
   return true;
 }
 
@@ -595,24 +617,22 @@ Int_t HiMuonTree::GetEntry(Long64_t entry)
 
 Long64_t HiMuonTree::LoadTree(Long64_t entry)
 {
-// Set the environment to read one entry
-   if (!fChain_) return -5;
-   Long64_t centry = fChain_->LoadTree(entry);
-   return centry;
+  // Set the environment to read one entry
+  if (!fChain_) return -5;
+  Long64_t centry = fChain_->LoadTree(entry);
+  return centry;
 }
 
 char HiMuonTree::GetBranchStatus(const std::string& n)
 {
-  std::string type = n.substr(0, n.find("_"));
-  if ( !(fChainM_.at(type)) || !(fChainM_.at(type)->GetBranch(n.c_str())) ) return -1;
-  return fChainM_.at(type)->GetBranchStatus(n.c_str());
+  if ( !fChain_ || !(fChain_->GetBranch(n.c_str())) ) return -1;
+  return fChain_->GetBranchStatus(n.c_str());
 }
 
 void HiMuonTree::SetBranch(const std::string& n)
 {
-  std::string type = n.substr(0, n.find("_"));
   if (GetBranchStatus(n) == 0) {
-    fChainM_.at(type)->SetBranchStatus(n.c_str(), 1);
+    fChain_->SetBranchStatus(Form("*%s*", n.c_str()), 1);
     LoadEntry(); // Needed for the first entry
   }
 }
@@ -620,8 +640,7 @@ void HiMuonTree::SetBranch(const std::string& n)
 void HiMuonTree::InitTree(void)
 {
   // Generate the dictionary's needed
-  gInterpreter->GenerateDictionary("vector<vector<UChar_t>>","vector");
-  gInterpreter->GenerateDictionary("vector<vector<UShort_t>>","vector");
+  GenerateDictionaries();
 
   // INITIALIZE TCLONESARRAY
   TClonesArray_.clear();
@@ -772,8 +791,6 @@ void HiMuonTree::InitTree(void)
     if (fChainM_["Event"]->GetBranch("Event_PriVtx_Err"))                fChainM_["Event"]->SetBranchAddress("Event_PriVtx_Err", &Event_PriVtx_Err_, &b_Event_PriVtx_Err);
     if (fChainM_["Event"]->GetBranch("Event_Trig_Fired"))                fChainM_["Event"]->SetBranchAddress("Event_Trig_Fired", &Event_Trig_Fired_, &b_Event_Trig_Fired);
     if (fChainM_["Event"]->GetBranch("Event_Trig_Presc"))                fChainM_["Event"]->SetBranchAddress("Event_Trig_Presc", &Event_Trig_Presc_, &b_Event_Trig_Presc);
-    // Set All Branches to Status 0
-    fChainM_["Event"]->SetBranchStatus("*",0);
   }
 
   // SET RECO MUON BRANCHES
@@ -870,8 +887,6 @@ void HiMuonTree::InitTree(void)
     if (fChainM_["Reco"]->GetBranch("Reco_DiMuon_VtxProb"))              fChainM_["Reco"]->SetBranchAddress("Reco_DiMuon_VtxProb", &Reco_DiMuon_VtxProb_, &b_Reco_DiMuon_VtxProb);
     if (fChainM_["Reco"]->GetBranch("Reco_DiMuon_DCA"))                  fChainM_["Reco"]->SetBranchAddress("Reco_DiMuon_DCA", &Reco_DiMuon_DCA_, &b_Reco_DiMuon_DCA);
     if (fChainM_["Reco"]->GetBranch("Reco_DiMuon_MassErr"))              fChainM_["Reco"]->SetBranchAddress("Reco_DiMuon_MassErr", &Reco_DiMuon_MassErr_, &b_Reco_DiMuon_MassErr);
-    // Set All Branches to Status 0
-    fChainM_["Reco"]->SetBranchStatus("*",0);
   }
 
   // SET PF MUON BRANCHES
@@ -911,8 +926,6 @@ void HiMuonTree::InitTree(void)
     if (fChainM_["PF"]->GetBranch("PF_DiMuon_MassErr"))                  fChainM_["PF"]->SetBranchAddress("PF_DiMuon_MassErr", &PF_DiMuon_MassErr_, &b_PF_DiMuon_MassErr);
     if (fChainM_["PF"]->GetBranch("PF_MET_Mom"))                         fChainM_["PF"]->SetBranchAddress("PF_MET_Mom", &(TClonesArray_["PF_MET_Mom"]), &b_PF_MET_Mom);
     if (fChainM_["PF"]->GetBranch("PF_MuonMET_TransMom"))                fChainM_["PF"]->SetBranchAddress("PF_MuonMET_TransMom", &(TClonesArray_["PF_MuonMET_TransMom"]), &b_PF_MuonMET_TransMom);
-    // Set All Branches to Status 0
-    fChainM_["PF"]->SetBranchStatus("*",0);
   }
 
   // SET GEN MUON BRANCHES
@@ -928,8 +941,6 @@ void HiMuonTree::InitTree(void)
     if (fChainM_["Gen"]->GetBranch("Gen_Muon_Particle_Idx"))             fChainM_["Gen"]->SetBranchAddress("Gen_Muon_Particle_Idx", &Gen_Muon_Particle_Idx_, &b_Gen_Muon_Particle_Idx);
     if (fChainM_["Gen"]->GetBranch("Gen_Muon_Reco_Idx"))                 fChainM_["Gen"]->SetBranchAddress("Gen_Muon_Reco_Idx", &Gen_Muon_Reco_Idx_, &b_Gen_Muon_Reco_Idx);
     if (fChainM_["Gen"]->GetBranch("Gen_Muon_PF_Idx"))                   fChainM_["Gen"]->SetBranchAddress("Gen_Muon_PF_Idx", &Gen_Muon_PF_Idx_, &b_Gen_Muon_PF_Idx);
-    // Set All Branches to Status 0
-    fChainM_["Gen"]->SetBranchStatus("*",0);
   }
 }
 
@@ -1085,6 +1096,72 @@ void HiMuonTree::Clear(void)
   if (Gen_Muon_Particle_Idx_)            Gen_Muon_Particle_Idx_->clear();
   if (Gen_Muon_Reco_Idx_)                Gen_Muon_Reco_Idx_->clear();
   if (Gen_Muon_PF_Idx_)                  Gen_Muon_PF_Idx_->clear();
+}
+
+GenPart HiMuonTree::Mother(const int iGenIdx)
+{
+  if (iGenIdx<0) { return { 0 , 0 }; }
+  UInt_t genIdx = iGenIdx;
+  Int_t pdg = Gen_Particle_PdgId()[genIdx]; Int_t pdg_OLD = pdg;
+  while(pdg==pdg_OLD && Gen_Particle_Mother_Idx()[genIdx].size()>0) {
+    genIdx = Gen_Particle_Mother_Idx()[genIdx].at(0);
+    pdg = Gen_Particle_PdgId()[genIdx];
+  }
+  return { UInt_t(std::abs(pdg)) , genIdx };
+}
+
+GenPart HiMuonTree::MuonMother(const int imuGenIdx)
+{
+  if (imuGenIdx<0) { return { 0 , 0 }; }
+  UInt_t genIdx = Gen_Muon_Particle_Idx()[imuGenIdx];
+  return Mother(genIdx);
+}
+
+void HiMuonTree::GetUniquePFGenMuonMatching(std::vector< char >& muPFToGenIdx_Fixed, std::vector< char >& muGenToPFIdx_Fixed, const std::vector< char >& muPFToGenIdx_Input)
+{
+  // 0) Get all input variables
+  const std::vector< TLorentzVector > muPF_P4  = PF_Muon_Mom();
+  const std::vector< TLorentzVector > muGEN_P4 = Gen_Muon_Mom();
+  // 1) Initiliaze the PF->Gen Muon Index Vector to -1
+  muPFToGenIdx_Fixed.clear();
+  for (uint imu = 0; imu < muPF_P4.size(); imu++) { muPFToGenIdx_Fixed.push_back(-1); }
+  // 2) Initiliaze the Gen->PF Muon Index Vector to -1
+  muGenToPFIdx_Fixed.clear();
+  for (uint imu = 0; imu < muGEN_P4.size(); imu++) { muGenToPFIdx_Fixed.push_back(-1); }
+  // 3) Create the Gen->PF Muon Index Map
+  std::map< char , std::vector< char > > muGenToPFIdx_Map;
+  for (unsigned char imu = 0; imu < muPFToGenIdx_Input.size(); imu++) { if (muPFToGenIdx_Input[imu]!=-1) { muGenToPFIdx_Map[ muPFToGenIdx_Input[imu] ].push_back( imu ); } }
+  // 4) For each Gen muon associdated to more than one PF muon, only associate to the closest one using vector magnitud
+  for (const auto& genToPFIdx : muGenToPFIdx_Map) {
+    const char genIdx = genToPFIdx.first;
+    // Find the nearest PF muon to this GEN muon
+    double minDist = 999999999.; char minPFIdx = -1;
+    for (const auto& pfIdx : genToPFIdx.second) { if ( (muPF_P4[pfIdx].Vect() - muGEN_P4[genIdx].Vect()).Mag() < minDist ) { minDist = (muPF_P4[pfIdx].Vect() - muGEN_P4[genIdx].Vect()).Mag(); minPFIdx = pfIdx; } }
+    muPFToGenIdx_Fixed[ minPFIdx ] = genIdx;
+    muGenToPFIdx_Fixed[ genIdx   ] = minPFIdx;
+  }
+  // All done!
+}
+
+void HiMuonTree::GenerateDictionaries(void)
+{
+  std::vector< std::string > inList = {    
+    "vector<vector<UChar_t>>",
+    "vector<vector<UShort_t>>",
+    "vector<UChar_t>",
+    "vector<UShort_t>",
+    "vector<Short_t>",
+    "vector<Bool_t>",
+    "vector<Char_t>",
+    "vector<Int_t>",
+    "vector<Float_t>"
+  };
+  std::string CWD = getcwd(NULL, 0);
+  gSystem->mkdir((CWD+"/cpp").c_str(), kTRUE);
+  gSystem->ChangeDirectory((CWD+"/cpp").c_str());
+  gInterpreter->AddIncludePath(Form("%s", (CWD+"/cpp").c_str())); // Needed to find the new dictionaries
+  for (const auto& d : inList) { gInterpreter->GenerateDictionary(d.c_str(), "vector"); }
+  gSystem->ChangeDirectory(CWD.c_str());
 }
 
 #endif

@@ -10,7 +10,7 @@
 #include <iostream>
 #include <map>
 
-// Header file for the classes stored in the TTree
+// Header file for the classes stored in the TChain
 #include "TVector2.h"
 #include "TMatrixD.h"
 
@@ -21,10 +21,12 @@ class HiMETTree {
 
   HiMETTree();
   virtual ~HiMETTree();
-  virtual Bool_t       GetTree    (const std::string&, TTree* tree = 0, const std::string& treeName="metAna");
+  virtual Bool_t       GetTree    (const std::vector< std::string >&, const std::string& treeName="metAna");
+  virtual Bool_t       GetTree    (const std::string&, const std::string& treeName="metAna");
   virtual Int_t        GetEntry   (Long64_t);
+  virtual void         SetEntry   (Long64_t entry) { entry_ = entry; }
   virtual Long64_t     GetEntries (void) { return fChain_->GetEntries(); }
-  virtual TTree*       Tree       (void) { return fChain_; }
+  virtual TChain*      Tree       (void) { return fChain_; }
   virtual void         Clear      (void);
 
 
@@ -263,8 +265,8 @@ class HiMETTree {
   template <typename T>
     T GET(T* x) { return ( (x) ? *x : T() ); }
 
-  TTree*                    fChain_;
-  std::map<string, TTree*>  fChainM_;
+  TChain*                   fChain_;
+  std::map<string, TChain*> fChainM_;
   Long64_t                  entry_;
   
   // EVENT INFO POINTERS
@@ -724,41 +726,53 @@ HiMETTree::HiMETTree() : fChain_(0)
 
 HiMETTree::~HiMETTree()
 {
-  if (fChain_) fChain_->GetCurrentFile();
+  if (fChain_ && fChain_->GetCurrentFile()) delete fChain_->GetCurrentFile();
+  for (auto& c : fChainM_) { if (c.second) { c.second->Reset(); delete c.second; } }
 }
 
-Bool_t HiMETTree::GetTree(const std::string& fileName, TTree* tree, const std::string& treeName)
+Bool_t HiMETTree::GetTree(const std::string& fileName, const std::string& treeName)
+{
+  std::vector<std::string> fileNames = {fileName};
+  return GetTree(fileNames, treeName);
+}
+
+Bool_t HiMETTree::GetTree(const std::vector< std::string >& fileName, const std::string& treeName)
 {
   // Open the input files
-  TFile *f = TFile::Open(fileName.c_str());
+  TFile *f = TFile::Open(fileName[0].c_str());
   if (!f || !f->IsOpen()) return false;
-  // Extract the input TTrees
+  // Extract the input TChains
   fChainM_.clear();
   TDirectory * dir;
-  if (fileName.find("root://")!=std::string::npos) dir = (TDirectory*)f->Get(treeName.c_str());
-  else dir = (TDirectory*)f->Get((fileName+":/"+treeName).c_str());
+  if (fileName[0].find("root://")!=std::string::npos) dir = (TDirectory*)f->Get(treeName.c_str());
+  else dir = (TDirectory*)f->Get((fileName[0]+":/"+treeName).c_str());
   if (!dir) return false;
-  if (dir->GetListOfKeys()->Contains("MET_Event")  ) dir->GetObject("MET_Event",  fChainM_["Event"]  );
-  if (dir->GetListOfKeys()->Contains("MET_Reco")   ) dir->GetObject("MET_Reco",   fChainM_["Reco"]   );
-  if (dir->GetListOfKeys()->Contains("MET_PF")     ) dir->GetObject("MET_PF",     fChainM_["PF"]     );
-  if (dir->GetListOfKeys()->Contains("MET_Calo")   ) dir->GetObject("MET_Calo",   fChainM_["Calo"]   );
-  if (dir->GetListOfKeys()->Contains("MET_Gen")    ) dir->GetObject("MET_Gen",    fChainM_["Gen"]    );
-  if (dir->GetListOfKeys()->Contains("MET_Type1")  ) dir->GetObject("MET_Type1",  fChainM_["Type1"]  );
-  if (dir->GetListOfKeys()->Contains("MET_TypeXY") ) dir->GetObject("MET_TypeXY", fChainM_["TypeXY"] );
-  if (dir->GetListOfKeys()->Contains("MET_Filter") ) dir->GetObject("MET_Filter", fChainM_["Filter"] );
+  if (dir->GetListOfKeys()->Contains("MET_Event")  ) { fChainM_["Event"]  = new TChain((treeName+"/MET_Event").c_str()  , "MET_Event");  }
+  if (dir->GetListOfKeys()->Contains("MET_Reco")   ) { fChainM_["Reco"]   = new TChain((treeName+"/MET_Reco").c_str()   , "MET_Reco");   }
+  if (dir->GetListOfKeys()->Contains("MET_PF")     ) { fChainM_["PF"]     = new TChain((treeName+"/MET_PF").c_str()     , "MET_PF");     }
+  if (dir->GetListOfKeys()->Contains("MET_Calo")   ) { fChainM_["Calo"]   = new TChain((treeName+"/MET_Calo").c_str()   , "MET_Calo");   }
+  if (dir->GetListOfKeys()->Contains("MET_Gen")    ) { fChainM_["Gen"]    = new TChain((treeName+"/MET_Gen").c_str()    , "MET_Gen");    }
+  if (dir->GetListOfKeys()->Contains("MET_Type1")  ) { fChainM_["Type1"]  = new TChain((treeName+"/MET_Type1").c_str()  , "MET_Type1");  }
+  if (dir->GetListOfKeys()->Contains("MET_TypeXY") ) { fChainM_["TypeXY"] = new TChain((treeName+"/MET_TypeXY").c_str() , "MET_TypeXY"); }
+  if (dir->GetListOfKeys()->Contains("MET_Filter") ) { fChainM_["Filter"] = new TChain((treeName+"/MET_Filter").c_str() , "MET_Filter"); }
   if (fChainM_.size()==0) return false;
-  // Initialize the input TTrees (set their branches)
+  // Add the files in the TChain
+  for (auto& c : fChainM_) {
+    for (auto& f : fileName) { c.second->Add(Form("%s/%s/MET_%s", f.c_str(), treeName.c_str(), c.first.c_str())); }; c.second->GetEntries();
+  }
+  for (auto& c : fChainM_) { if (!c.second) { std::cout << "[ERROR] fChain " << c.first << " was not created, some input files are missing" << std::endl; return false; } }
+  // Initialize the input TChains (set their branches)
   InitTree();
-  // Add Friend TTrees
-  if (tree) { fChain_ = tree; }
-  else      { fChain_ = fChainM_.begin()->second; }
-  for (auto iter = fChainM_.begin(); iter != fChainM_.end(); iter++) {
-    (iter->second)->SetMakeClass(1); // For the proper setup.
-    if (iter->second != fChain_) {
-      fChain_->AddFriend(iter->second); // Add the Friend TTree
-    }
+  // Add Friend TChains
+  fChain_ = (TChain*)fChainM_.begin()->second->Clone(Form("MET_%s", treeName.c_str()));
+  for (auto& c : fChainM_) {
+    c.second->SetMakeClass(1); // For the proper setup.
+    if (fChain_!=c.second) { fChain_->AddFriend(c.second, Form("MET_%s", c.first.c_str()), kTRUE); } // Add the Friend TChain
   }
   if (fChain_ == 0) return false;
+  // Set All Branches to Status 0
+  fChain_->SetBranchStatus("*",0);
+  //
   return true;
 }
 
@@ -781,11 +795,9 @@ Long64_t HiMETTree::LoadTree(Long64_t entry)
 
 void HiMETTree::SetBranch(const std::string& n)
 {
-  std::string type = n.substr(0, n.find("_"));
-  if (type=="Flag") { type = "Filter"; }
-  if ( fChainM_.count(type.c_str())>0 && fChainM_[type.c_str()]->GetBranch(n.c_str()) && (fChainM_[type.c_str()]->GetBranchStatus(n.c_str()) == 0) ) {
-    fChainM_[type.c_str()]->SetBranchStatus(n.c_str(), 1);
-    LoadEntry(); // Needed for the first entry
+  if ( fChain_->GetBranch(n.c_str()) && (fChain_->GetBranchStatus(n.c_str()) == 0) ) {
+    fChain_->SetBranchStatus(Form("*%s*", n.c_str()), 1);
+    LoadEntry();
   }
 }
 
@@ -877,8 +889,6 @@ void HiMETTree::InitTree(void)
     if (fChainM_["Event"]->GetBranch("Event_Lumi"))                       fChainM_["Event"]->SetBranchAddress("Event_Lumi", &Event_Lumi_, &b_Event_Lumi);
     if (fChainM_["Event"]->GetBranch("Event_Bx"))                         fChainM_["Event"]->SetBranchAddress("Event_Bx", &Event_Bx_, &b_Event_Bx);
     if (fChainM_["Event"]->GetBranch("Event_Number"))                     fChainM_["Event"]->SetBranchAddress("Event_Number", &Event_Number_, &b_Event_Number);
-    // Set All Branches to Status 0
-    fChainM_["Event"]->SetBranchStatus("*",0);
   }
 
   // SET RECO MET BRANCHES
@@ -888,8 +898,6 @@ void HiMETTree::InitTree(void)
     if (fChainM_["Reco"]->GetBranch("Reco_MET_Sig"))                      fChainM_["Reco"]->SetBranchAddress("Reco_MET_Sig", &Reco_MET_Sig_, &b_Reco_MET_Sig);
     if (fChainM_["Reco"]->GetBranch("Reco_MET_sumEt"))                    fChainM_["Reco"]->SetBranchAddress("Reco_MET_sumEt", &Reco_MET_sumEt_, &b_Reco_MET_sumEt);
     if (fChainM_["Reco"]->GetBranch("Reco_MET_mEtSig"))                   fChainM_["Reco"]->SetBranchAddress("Reco_MET_mEtSig", &Reco_MET_mEtSig_, &b_Reco_MET_mEtSig);
-    // Set All Branches to Status 0
-    fChainM_["Reco"]->SetBranchStatus("*",0);
   }
 
   // SET PF MET BRANCHES
@@ -939,8 +947,6 @@ void HiMETTree::InitTree(void)
     if (fChainM_["PF"]->GetBranch("PF_MET_UnclusEnDown_sumEt"))           fChainM_["PF"]->SetBranchAddress("PF_MET_UnclusEnDown_sumEt", &PF_MET_UnclusEnDown_sumEt_, &b_PF_MET_UnclusEnDown_sumEt);
     if (fChainM_["PF"]->GetBranch("PF_MET_UnclusEnUp_Mom"))               fChainM_["PF"]->SetBranchAddress("PF_MET_UnclusEnUp_Mom", &PF_MET_UnclusEnUp_Mom_, &b_PF_MET_UnclusEnUp_Mom);
     if (fChainM_["PF"]->GetBranch("PF_MET_UnclusEnUp_sumEt"))             fChainM_["PF"]->SetBranchAddress("PF_MET_UnclusEnUp_sumEt", &PF_MET_UnclusEnUp_sumEt_, &b_PF_MET_UnclusEnUp_sumEt);
-    // Set All Branches to Status 0
-    fChainM_["PF"]->SetBranchStatus("*",0);
   }
 
   // SET CALO MET BRANCHES
@@ -994,8 +1000,6 @@ void HiMETTree::InitTree(void)
     if (fChainM_["Calo"]->GetBranch("Calo_MET_UnclusEnDown_sumEt"))       fChainM_["Calo"]->SetBranchAddress("Calo_MET_UnclusEnDown_sumEt", &Calo_MET_UnclusEnDown_sumEt_, &b_Calo_MET_UnclusEnDown_sumEt);
     if (fChainM_["Calo"]->GetBranch("Calo_MET_UnclusEnUp_Mom"))           fChainM_["Calo"]->SetBranchAddress("Calo_MET_UnclusEnUp_Mom", &Calo_MET_UnclusEnUp_Mom_, &b_Calo_MET_UnclusEnUp_Mom);
     if (fChainM_["Calo"]->GetBranch("Calo_MET_UnclusEnUp_sumEt"))         fChainM_["Calo"]->SetBranchAddress("Calo_MET_UnclusEnUp_sumEt", &Calo_MET_UnclusEnUp_sumEt_, &b_Calo_MET_UnclusEnUp_sumEt);
-    // Set All Branches to Status 0
-    fChainM_["Calo"]->SetBranchStatus("*",0);
   }
 
   // SET GEN MET BRANCHES
@@ -1013,8 +1017,6 @@ void HiMETTree::InitTree(void)
     if (fChainM_["Gen"]->GetBranch("Gen_MET_Had_Chg_EtFrac"))             fChainM_["Gen"]->SetBranchAddress("Gen_MET_Had_Chg_EtFrac", &Gen_MET_Had_Chg_EtFrac_, &b_Gen_MET_Had_Chg_EtFrac);
     if (fChainM_["Gen"]->GetBranch("Gen_MET_Had_Neu_Et"))                 fChainM_["Gen"]->SetBranchAddress("Gen_MET_Had_Neu_Et", &Gen_MET_Had_Neu_Et_, &b_Gen_MET_Had_Neu_Et);
     if (fChainM_["Gen"]->GetBranch("Gen_MET_Had_Neu_EtFrac"))             fChainM_["Gen"]->SetBranchAddress("Gen_MET_Had_Neu_EtFrac", &Gen_MET_Had_Neu_EtFrac_, &b_Gen_MET_Had_Neu_EtFrac);
-    // Set All Branches to Status 0
-    fChainM_["Gen"]->SetBranchStatus("*",0);
   }
 
   // SET TYPE 1 CORRECTED MET BRANCHES
@@ -1049,8 +1051,6 @@ void HiMETTree::InitTree(void)
     if (fChainM_["Type1"]->GetBranch("Type1_MET_UnclusEnDown_sumEt"))     fChainM_["Type1"]->SetBranchAddress("Type1_MET_UnclusEnDown_sumEt", &Type1_MET_UnclusEnDown_sumEt_, &b_Type1_MET_UnclusEnDown_sumEt);
     if (fChainM_["Type1"]->GetBranch("Type1_MET_UnclusEnUp_Mom"))         fChainM_["Type1"]->SetBranchAddress("Type1_MET_UnclusEnUp_Mom", &Type1_MET_UnclusEnUp_Mom_, &b_Type1_MET_UnclusEnUp_Mom);
     if (fChainM_["Type1"]->GetBranch("Type1_MET_UnclusEnUp_sumEt"))       fChainM_["Type1"]->SetBranchAddress("Type1_MET_UnclusEnUp_sumEt", &Type1_MET_UnclusEnUp_sumEt_, &b_Type1_MET_UnclusEnUp_sumEt);
-    // Set All Branches to Status 0
-    fChainM_["Type1"]->SetBranchStatus("*",0);
   }
 
   // SET TYPE XY CORRECTED MET BRANCHES
@@ -1085,8 +1085,6 @@ void HiMETTree::InitTree(void)
     if (fChainM_["TypeXY"]->GetBranch("TypeXY_MET_UnclusEnDown_sumEt"))   fChainM_["TypeXY"]->SetBranchAddress("TypeXY_MET_UnclusEnDown_sumEt", &TypeXY_MET_UnclusEnDown_sumEt_, &b_TypeXY_MET_UnclusEnDown_sumEt);
     if (fChainM_["TypeXY"]->GetBranch("TypeXY_MET_UnclusEnUp_Mom"))       fChainM_["TypeXY"]->SetBranchAddress("TypeXY_MET_UnclusEnUp_Mom", &TypeXY_MET_UnclusEnUp_Mom_, &b_TypeXY_MET_UnclusEnUp_Mom);
     if (fChainM_["TypeXY"]->GetBranch("TypeXY_MET_UnclusEnUp_sumEt"))     fChainM_["TypeXY"]->SetBranchAddress("TypeXY_MET_UnclusEnUp_sumEt", &TypeXY_MET_UnclusEnUp_sumEt_, &b_TypeXY_MET_UnclusEnUp_sumEt);
-    // Set All Branches to Status 0
-    fChainM_["TypeXY"]->SetBranchStatus("*",0);
   }
 
   // SET TYPE XY CORRECTED MET BRANCHES
@@ -1124,8 +1122,6 @@ void HiMETTree::InitTree(void)
     if (fChainM_["Filter"]->GetBranch("Flag_trkPOG_logErrorTooManyClusters"))     fChainM_["Filter"]->SetBranchAddress("Flag_trkPOG_logErrorTooManyClusters", &Flag_trkPOG_logErrorTooManyClusters_, &b_Flag_trkPOG_logErrorTooManyClusters);
     if (fChainM_["Filter"]->GetBranch("Flag_trkPOG_manystripclus53X"))            fChainM_["Filter"]->SetBranchAddress("Flag_trkPOG_manystripclus53X", &Flag_trkPOG_manystripclus53X_, &b_Flag_trkPOG_manystripclus53X);
     if (fChainM_["Filter"]->GetBranch("Flag_trkPOG_toomanystripclus53X"))         fChainM_["Filter"]->SetBranchAddress("Flag_trkPOG_toomanystripclus53X", &Flag_trkPOG_toomanystripclus53X_, &b_Flag_trkPOG_toomanystripclus53X);
-    // Set All Branches to Status 0
-    fChainM_["Filter"]->SetBranchStatus("*",0);
   }
 }
 
