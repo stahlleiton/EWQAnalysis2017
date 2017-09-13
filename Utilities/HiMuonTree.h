@@ -582,16 +582,19 @@ Bool_t HiMuonTree::GetTree(const std::vector< std::string >& fileName, const std
   return GetTree(fileInfo, treeName);
 }
 
-Bool_t HiMuonTree::GetTree(const std::vector< std::pair< std::string , double > >& fileInfo, const std::string& treeName)
+Bool_t HiMuonTree::GetTree(const std::vector< std::pair< std::string , double > >& inFileInfo, const std::string& treeName)
 {
+  // Check the File Names
+  std::vector< std::pair< std::string , double > > fileInfo = inFileInfo;
+  for (auto& f : fileInfo) { if (f.first.find("/store/")!=std::string::npos && f.first.find("root://")==std::string::npos) { f.first = "root://cms-xrd-global.cern.ch/" + f.first.substr(f.first.find("/store/")); } }
   // Open the input files
   TFile *f = TFile::Open(fileInfo[0].first.c_str());
   if (!f || !f->IsOpen()) return false;
   // Extract the input TChains
   fChainM_.clear();
   TDirectory * dir;
-  if (fileInfo[0].first.find("root://")!=std::string::npos) dir = (TDirectory*)f->Get(treeName.c_str());
-  else dir = (TDirectory*)f->Get((fileInfo[0].first+":/muonAna").c_str());
+  if (fileInfo[0].first.find("root://")!=std::string::npos) { dir = (TDirectory*)f->Get(treeName.c_str()); }
+  else { dir = (TDirectory*)f->Get((fileInfo[0].first+":/"+treeName).c_str()); }
   if (!dir) return false;
   if (dir->GetListOfKeys()->Contains("Muon_Event")) { fChainM_["Event"] = new TChain((treeName+"/Muon_Event").c_str(), "Muon_Event"); }
   if (dir->GetListOfKeys()->Contains("Muon_Reco"))  { fChainM_["Reco"]  = new TChain((treeName+"/Muon_Reco").c_str() , "Muon_Reco" ); }

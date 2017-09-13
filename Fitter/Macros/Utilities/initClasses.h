@@ -33,8 +33,9 @@
 #include "RooPlot.h"
 #include "RooHist.h"
 
-#include "../CMS/tdrstyle.C"
-#include "../CMS/CMS_lumi.C"
+#include "../../../Utilities/CMS/tdrstyle.C"
+#include "../../../Utilities/CMS/CMS_lumi.C"
+#include "../../../Utilities/EVENTUTILS.h"
 
 #include <iostream>
 #include <sstream>
@@ -49,12 +50,13 @@
 typedef std::vector< std::string > StringVector;
 typedef std::map< std::string , RooWorkspace                    > RooWorkspaceMap;
 typedef std::map< std::string , std::vector< std::string >      > StringVectorMap;
+typedef std::map< std::string , StringVectorMap                 > StringVectorMapMap;
 typedef std::map< std::string , std::map< std::string , float > > FloatMapMap;
 typedef std::map< std::string , std::string                     > StringMap;
 typedef std::map< std::string , int                             > IntMap;
-typedef std::map< std::string , std::map< std::string , int >   > IntMapMap;
+typedef std::map< std::string , IntMap                          > IntMapMap;
 typedef std::map< std::string , bool                            > BoolMap;
-typedef std::map< std::string , std::map< std::string , std::string > > StrMapMap;
+typedef std::map< std::string , StringMap                       > StrMapMap;
 typedef std::map< std::string , std::map< std::string , std::map< std::string , int > > > ModelMap;
 typedef std::map< std::string , std::map< std::string , std::vector< int > > >  IntVecMapMap;
 
@@ -203,25 +205,6 @@ typedef struct GlobalInfo {
   }
 } GlobalInfo;
 
-
-bool existDir(std::string dir)
-{
-  bool exist = false;
-  void * dirp = gSystem->OpenDirectory(dir.c_str());
-  if (dirp){
-    gSystem->FreeDirectory(dirp);
-    exist = true;
-  }
-  return exist;
-};
-
-void makeDir(std::string dir)
-{
-  if (existDir(dir.c_str())==false){ 
-    std::cout << "[INFO] DataSet directory: " << dir << " doesn't exist, will create it!" << std::endl;  
-    gSystem->mkdir(dir.c_str(), kTRUE);
-  }
-};
 
 bool splitString(std::string input, std::string delimiter, std::vector< std::string >& output)
 {

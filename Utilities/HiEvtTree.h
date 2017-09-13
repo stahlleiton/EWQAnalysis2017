@@ -18,12 +18,14 @@ public :
 
   HiEvtTree();
   virtual ~HiEvtTree();
+  virtual Bool_t       GetTree    (const std::vector< std::pair< std::string , double > >&, const std::string& treeName="hiEvtAna");
   virtual Bool_t       GetTree    (const std::vector< std::string >&, const std::string& treeName="hiEvtAna");
   virtual Bool_t       GetTree    (const std::string&, const std::string& treeName="hiEvtAna");
   virtual Int_t        GetEntry   (Long64_t);
   virtual Long64_t     GetEntries (void) { return fChain_->GetEntries(); }
   virtual TChain*      Tree       (void) { return fChain_; }
   virtual void         Clear      (void);
+  virtual Double_t     GetCrossSection (void) { return crossSection_[fCurrent_]; }
 
   // VARIABLES GETTER
   UInt_t               run()                 { SetBranch("run");                 return run_;                 }
@@ -74,7 +76,9 @@ public :
 
   TChain*                   fChain_;
   std::map<string, TChain*> fChainM_;
+  Int_t                     fCurrent_ = -1;
   Long64_t                  entry_;
+  std::vector< Double_t >   crossSection_;
 
   // VARIABLES
   UInt_t          run_                = 0;
@@ -173,20 +177,30 @@ Bool_t HiEvtTree::GetTree(const std::string& fileName, const std::string& treeNa
 
 Bool_t HiEvtTree::GetTree(const std::vector< std::string >& fileName, const std::string& treeName)
 {
+  std::vector< std::pair< std::string , double > > fileInfo;
+  for (const auto& fName : fileName) { fileInfo.push_back(std::make_pair( fName , 1.0 )); }
+  return GetTree(fileInfo, treeName);
+}
+
+Bool_t HiEvtTree::GetTree(const std::vector< std::pair< std::string , double > >& inFileInfo, const std::string& treeName)
+{
+  // Check the File Names
+  std::vector< std::pair< std::string , double > > fileInfo = inFileInfo;
+  for (auto& f : fileInfo) { if (f.first.find("/store/")!=std::string::npos && f.first.find("root://")==std::string::npos) { f.first = "root://cms-xrd-global.cern.ch/" + f.first.substr(f.first.find("/store/")); } }
   // Open the input files
-  TFile *f = TFile::Open(fileName[0].c_str());
+  TFile *f = TFile::Open(fileInfo[0].first.c_str());
   if (!f || !f->IsOpen()) return false;
   // Extract the input TChains
   fChainM_.clear();
   TDirectory * dir;
-  if (fileName[0].find("root://")!=std::string::npos) dir = (TDirectory*)f->Get(treeName.c_str());
-  else dir = (TDirectory*)f->Get((fileName[0]+":/"+treeName).c_str());
+  if (fileInfo[0].first.find("root://")!=std::string::npos) { dir = (TDirectory*)f->Get(treeName.c_str()); }
+  else { dir = (TDirectory*)f->Get((fileInfo[0].first+":/"+treeName).c_str()); }
   if (!dir) return false;
   if (dir->GetListOfKeys()->Contains("HiTree")) { fChainM_["HiTree"] = new TChain((treeName+"/HiTree").c_str()  , "HiTree"); }
   if (fChainM_.size()==0) return false;
   // Add the files in the TChain
   for (auto& c : fChainM_) {
-    for (auto& f : fileName) { c.second->Add(Form("%s/%s/%s", f.c_str(), treeName.c_str(), c.first.c_str())); }; c.second->GetEntries();
+    for (auto& f : fileInfo) { c.second->Add(Form("%s/%s/%s", f.first.c_str(), treeName.c_str(), c.first.c_str())); }; c.second->GetEntries();
   }
   for (auto& c : fChainM_) { if (!c.second) { std::cout << "[ERROR] fChain " << c.first << " was not created, some input files are missing" << std::endl; return false; } }
   // Initialize the input TChains (set their branches)
@@ -200,6 +214,8 @@ Bool_t HiEvtTree::GetTree(const std::vector< std::string >& fileName, const std:
   if (fChain_ == 0) return false;
   // Set All Branches to Status 0
   fChain_->SetBranchStatus("*",0);
+  // Store the user cross-sections
+  crossSection_.clear(); for (auto& f : fileInfo) { crossSection_.push_back(f.second); }
   //
   return true;
 }
@@ -216,9 +232,10 @@ Int_t HiEvtTree::GetEntry(Long64_t entry)
 Long64_t HiEvtTree::LoadTree(Long64_t entry)
 {
   // Set the environment to read one entry
-   if (!fChain_) return -5;
-   Long64_t centry = fChain_->LoadTree(entry);
-   return centry;
+  if (!fChain_) return -5;
+  Long64_t centry = fChain_->LoadTree(entry);
+  if (fChain_->GetTreeNumber() != fCurrent_) { fCurrent_ = fChain_->GetTreeNumber(); }
+  return centry;
 }
 
 void HiEvtTree::SetBranch(const std::string& n)
