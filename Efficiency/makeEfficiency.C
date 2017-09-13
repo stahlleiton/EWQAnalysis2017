@@ -1,7 +1,8 @@
 #if !defined(__CINT__) || defined(__MAKECINT__)
 // Auxiliary Headers
-#include "./Utility/HiMETTree.h"
-#include "./Utility/HiMuonTree.h"
+#include "../Utilities/HiMETTree.h"
+#include "../Utilities/HiMuonTree.h"
+#include "../Utilities/EVENTUTILS.h"
 // ROOT headers
 #include "TROOT.h"
 #include "TSystem.h"
@@ -27,8 +28,8 @@
 #include <string>
 #include <chrono>
 // CMS headers
-#include "./Utility/CMS/tdrstyle.C"
-#include "./Utility/CMS/CMS_lumi.C"
+#include "../Utilities/CMS/tdrstyle.C"
+#include "../Utilities/CMS/CMS_lumi.C"
 
 #endif
 
@@ -44,16 +45,6 @@ using FileInfo_t   =  std::vector< std::pair< std::string , double > >;
 
 
 // ------------------ FUNCTION -------------------------------
-void     makeDir            ( const std::string& dir );
-bool     existDir           ( const std::string& dir );
-bool     passEventFilter    ( const std::unique_ptr<HiMETTree>& metTree );
-bool     passDrellYanVeto   ( const std::unique_ptr<HiMuonTree>& muonTree );
-bool     checkGenMuon       ( const ushort& iGenMu , const std::string& sample , const std::unique_ptr<HiMuonTree>& muonTree );
-bool     selectGenMuon      ( const ushort& iGenMu, const std::unique_ptr<HiMuonTree>& muonTree );
-bool     isGoodMuon         ( const ushort& iPFMu , const std::unique_ptr<HiMuonTree>& muonTree );
-bool     isIsolatedMuon     ( const ushort& iPFMu , const std::unique_ptr<HiMuonTree>& muonTree );
-bool     isOfflineMuon      ( const ushort& iPFMu , const std::unique_ptr<HiMuonTree>& muonTree );
-bool     isTriggerMatched   ( const ushort& triggerIndex , const ushort& iPFMu , const std::unique_ptr<HiMuonTree>& muonTree );
 void     initEff1D          ( TH1DMap_t& h , const BinMap_t& binMap );
 bool     fillEff1D          ( TH1DMap_t& h , const bool& pass , const std::string& type , const VarMap_t& var , const double sfTnP=1.0 , const double evtWeight=1.0 );
 bool     loadEff1D          ( EffMap_t& eff, const TH1DMap_t& h );
@@ -81,28 +72,18 @@ bool     checkWeights       ( const TH1& pass , const TH1& total );
 void     redrawBorder       ( );
 
 
-// ------------------ GLOBAL ------------------------------- 
-// Data Luminosity
-const double lumi_pPb = 110.77;
-const double lumi_Pbp = 62.59;
-//
+// ------------------ GLOBAL -------------------------------
 // Kinematic Info
-/*
 const BinMap_t  MU_BIN_ = {
   { "Eta" , { -2.4 , -2.2 , -2.0 , -1.8 , -1.6 , -1.4 , -1.2 , -1.0 , -0.8 , -0.6 , -0.4 , -0.2 , 0.0 , 0.2 , 0.4 , 0.6 , 0.8 , 1.0 , 1.2 , 1.4 , 1.6 , 1.8 , 2.0 , 2.2 , 2.4 } },
   { "Pt"  , { 25., 30., 35., 40., 50, 70., 200. } }
-};
-*/
-const BinMap_t  MU_BIN_ = {
-  { "Eta" , { -2.4 , -2.1 , -1.2 , 1.2 , 2.1 , 2.4 } },
-  { "Pt"  , { 25., 30., 35., 40., 45., 50, 80., 200. } }
 };
 const Bin2DMap_t MU_BIN_2D_ = {
   { "Pt_Eta" , { MU_BIN_.at("Pt") , MU_BIN_.at("Eta")} }
 };
 //
 // Trigger Info
-const ushort triggerIndex_ = 5; // HLT_PAL3SingleMu12_v1
+const ushort triggerIndex_ = PA::HLT_PAL3Mu12;
 //
 // Collision System
 const std::vector< std::string > COLL_ = { "pPb" , "Pbp" , "PA" };
@@ -116,22 +97,22 @@ const std::vector< std::string > effType = {"Acceptance" , "Identification" , "T
 // Input Files for analysis
 const std::string path_MC = "root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official";
 const std::map< std::string , std::vector< std::pair< std::string , double > > > inputFileMap_ = {
-  {"MC_QCDToMu_pPb"           , { { Form("%s/%s", path_MC.c_str(), "PYTHIA/HiEWQForest_Embedded_Official_PYTHIA8_QCD_PtHat20_MuPt15_pPb_8160GeV_20170813.root") , (3.67970e+08 * 3.77844e-4 * 208. * 1.e-3 * 0.78998) } } },
-  {"MC_QCDToMu_Pbp"           , { { Form("%s/%s", path_MC.c_str(), "PYTHIA/HiEWQForest_Embedded_Official_PYTHIA8_QCD_PtHat20_MuPt15_Pbp_8160GeV_20170813.root") , (3.67966e+08 * 3.77954e-4 * 208. * 1.e-3 * 0.81767) } } },
-  {"MC_TTall_pPb"             , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_TTall_pPb_8160GeV_20170813.root")            , 48.68  } } },
-  {"MC_TTall_Pbp"             , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_TTall_Pbp_8160GeV_20170813.root")            , 48.68  } } },
-  {"MC_ZToMuMu_M_30_Inf_pPb"  , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_pPb_8160GeV_20170813.root")    , 266.28  } } },
-  {"MC_ZToMuMu_M_30_Inf_Pbp"  , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_Pbp_8160GeV_20170813.root")    , 266.28  } } },
-  {"MC_DYToMuMu_M_10_30_pPb"  , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_10_30_pPb_8160GeV_20170813.root") , 1182.24 } } },
-  {"MC_DYToMuMu_M_10_30_Pbp"  , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_10_30_Pbp_8160GeV_20170813.root") , 1168.03 } } },
-  {"MC_WToTauNu_Plus_pPb"     , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToTauNu_Plus_pPb_8160GeV_20170813.root")    , 1146.30 } } },
-  {"MC_WToTauNu_Minus_pPb"    , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToTauNu_Minus_pPb_8160GeV_20170813.root")   , 1026.32 } } },
-  {"MC_WToTauNu_Plus_Pbp"     , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToTauNu_Plus_Pbp_8160GeV_20170813.root")    , 1147.44 } } },
-  {"MC_WToTauNu_Minus_Pbp"    , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToTauNu_Minus_Pbp_8160GeV_20170813.root")   , 1019.40 } } },
-  {"MC_WToMuNu_Plus_pPb"      , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Plus_pPb_8160GeV_20170813.root")     , 1213.38 } } },
-  {"MC_WToMuNu_Minus_pPb"     , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_pPb_8160GeV_20170813.root")    , 1082.24 } } },
-  {"MC_WToMuNu_Plus_Pbp"      , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Plus_Pbp_8160GeV_20170813.root")     , 1214.06 } } },
-  {"MC_WToMuNu_Minus_Pbp"     , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_Pbp_8160GeV_20170813.root")    , 1083.37 } } }
+  {"MC_QCDToMu_pPb"          , { { Form("%s/%s", path_MC.c_str(), "PYTHIA/HiEWQForest_Embedded_Official_PYTHIA8_QCD_PtHat20_MuPt15_pPb_8160GeV_20170813.root")         , PYTHIA::XSec.at("QCDToMu").at("pPb")           } } },
+  {"MC_QCDToMu_Pbp"          , { { Form("%s/%s", path_MC.c_str(), "PYTHIA/HiEWQForest_Embedded_Official_PYTHIA8_QCD_PtHat20_MuPt15_Pbp_8160GeV_20170813.root")         , PYTHIA::XSec.at("QCDToMu").at("Pbp")           } } },
+  {"MC_TTall_pPb"            , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_TTall_pPb_8160GeV_20170813.root")           , POWHEG::XSec.at("TTall").at("pPb")             } } },
+  {"MC_TTall_Pbp"            , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_TTall_Pbp_8160GeV_20170813.root")           , POWHEG::XSec.at("TTall").at("Pbp")             } } },
+  {"MC_ZToMuMu_M_30_Inf_pPb" , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_pPb_8160GeV_20170813.root")   , POWHEG::XSec.at("DYToMuMu_M_30_Inf").at("pPb") } } },
+  {"MC_ZToMuMu_M_30_Inf_Pbp" , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_Pbp_8160GeV_20170813.root")   , POWHEG::XSec.at("DYToMuMu_M_30_Inf").at("Pbp") } } },
+  {"MC_DYToMuMu_M_10_30_pPb" , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_10_30_pPb_8160GeV_20170813.root"), POWHEG::XSec.at("DYToMuMu_M_10_30").at("pPb")  } } },
+  {"MC_DYToMuMu_M_10_30_Pbp" , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_10_30_Pbp_8160GeV_20170813.root"), POWHEG::XSec.at("DYToMuMu_M_10_30").at("Pbp")  } } },
+  {"MC_WToTauNu_Plus_pPb"    , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToTauNu_Plus_pPb_8160GeV_20170813.root")   , POWHEG::XSec.at("WToTauNu_Plus").at("pPb")     } } },
+  {"MC_WToTauNu_Minus_pPb"   , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToTauNu_Minus_pPb_8160GeV_20170813.root")  , POWHEG::XSec.at("WToTauNu_Minus").at("pPb")    } } },
+  {"MC_WToTauNu_Plus_Pbp"    , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToTauNu_Plus_Pbp_8160GeV_20170813.root")   , POWHEG::XSec.at("WToTauNu_Plus").at("Pbp")     } } },
+  {"MC_WToTauNu_Minus_Pbp"   , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToTauNu_Minus_Pbp_8160GeV_20170813.root")  , POWHEG::XSec.at("WToTauNu_Minus").at("Pbp")    } } },
+  {"MC_WToMuNu_Plus_pPb"     , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Plus_pPb_8160GeV_20170813.root")    , POWHEG::XSec.at("WToMuNu_Plus").at("pPb")      } } },
+  {"MC_WToMuNu_Minus_pPb"    , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_pPb_8160GeV_20170813.root")   , POWHEG::XSec.at("WToMuNu_Minus").at("pPb")     } } },
+  {"MC_WToMuNu_Plus_Pbp"     , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Plus_Pbp_8160GeV_20170813.root")    , POWHEG::XSec.at("WToMuNu_Plus").at("Pbp")      } } },
+  {"MC_WToMuNu_Minus_Pbp"    , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_Pbp_8160GeV_20170813.root")   , POWHEG::XSec.at("WToMuNu_Minus").at("Pbp")     } } }
 };
 std::map< std::string , std::vector< std::string > > sampleType_;
 
@@ -219,7 +200,7 @@ void makeEfficiency(void)
       sampleType = sampleType.substr(0, (sampleType.find(col)-1));
       //
       // Get the Lumi re-weight for MC (global weight)
-      const double lumi = ( (col=="pPb") ? lumi_pPb : lumi_Pbp );
+      const double lumi = ( (col=="pPb") ? PA::LUMI::Data_pPb : PA::LUMI::Data_Pbp );
       const double mcWeight = ( ( muonTree.at(sample)->GetCrossSection() * lumi ) / muonTree.at(sample)->GetEntriesFast() );
       // Set the global weight only in the first event (i.e. once per sample)
       if (jentry==0) {
@@ -235,18 +216,18 @@ void makeEfficiency(void)
       // Check Event Conditions
       //
       // Determine if the event pass the event filters
-      const bool passEvent  = passEventFilter(metTree.at(sample));
+      const bool passEvent  = PA::passEventFilter(metTree.at(sample));
       // Determine if the event pass the Drell-Yan veto
-      const bool passDYVeto = passDrellYanVeto(muonTree.at(sample));
+      const bool passDYVeto = PA::passDrellYanVeto(muonTree.at(sample));
       //
       // Check Muon Conditions
       //
       // Loop over the generated muons
       for (ushort iGenMu = 0; iGenMu < muonTree.at(sample)->Gen_Muon_Mom().size(); iGenMu++) {
         // Check the content of the MC
-        if (checkGenMuon(iGenMu, sampleType, muonTree.at(sample)) == false) continue;
+        if (PA::checkGenMuon(iGenMu, sampleType, muonTree.at(sample)) == false) continue;
         // Check if the generated muon pass the kinematic cuts
-        const bool isGoodGenMuon  = selectGenMuon(iGenMu, muonTree.at(sample));
+        const bool isGoodGenMuon  = PA::selectGenMuon(iGenMu, muonTree.at(sample));
         // Extract the kinematic information of generated muon
         const double mu_Gen_Pt  = muonTree.at(sample)->Gen_Muon_Mom()[iGenMu].Pt();
         const double mu_Gen_Eta = muonTree.at(sample)->Gen_Muon_Mom()[iGenMu].Eta();
@@ -275,7 +256,7 @@ void makeEfficiency(void)
             if (iRecoMu < 0) { std::cout << "[ERROR] Reco idx is negative" << std::endl; return; }
             //
             // Check if the reconstructed muon pass muon ID and kinematic cuts
-            passIdentification = isGoodMuon(iPFMu , muonTree.at(sample));
+            passIdentification = PA::isGoodMuon(iPFMu , muonTree.at(sample));
             //
             if (passIdentification) {
               // Extract the kinematic information of generated muon
@@ -290,7 +271,7 @@ void makeEfficiency(void)
               // Trigger Efficiency (Based on Identified muons)
               //
               // Check if the reconstructed muon is matched to the trigger
-              passTrigger = isTriggerMatched(triggerIndex_, iPFMu, muonTree.at(sample));
+              passTrigger = PA::isTriggerMatched(triggerIndex_, iPFMu, muonTree.at(sample));
               //
               if (!fillEff1D(h1D, passTrigger, "Trigger", pfMuonVar, sfTnP, evtWeight)) { return; }
               if (!fillEff2D(h2D, passTrigger, "Trigger", pfMuonVar, sfTnP, evtWeight)) { return; }
@@ -300,7 +281,7 @@ void makeEfficiency(void)
                 // Isolation Efficiency (Based on Identified muons that passed the Trigger)
                 //
                 // Check if the reconstructed muon pass isolation cuts
-                passIsolation = isIsolatedMuon(iPFMu , muonTree.at(sample));
+                passIsolation = PA::isIsolatedMuon(iPFMu , muonTree.at(sample));
                 //
                 if (!fillEff1D(h1D, passIsolation, "Isolation", pfMuonVar, sfTnP, evtWeight)) { return; }
                 if (!fillEff2D(h2D, passIsolation, "Isolation", pfMuonVar, sfTnP, evtWeight)) { return; }
@@ -376,145 +357,6 @@ void makeEfficiency(void)
   // Store the Efficiencies
   //
   saveEff(mainDir, eff1D, eff2D);
-};
-
-
-void makeDir(const std::string& dir)
-{
-  if (existDir(dir.c_str())==false){ 
-    std::cout << "[INFO] DataSet directory: " << dir << " doesn't exist, will create it!" << std::endl;  
-    gSystem->mkdir(dir.c_str(), kTRUE);
-  }
-};
-
-
-bool existDir(const std::string& dir)
-{
-  bool exist = false;
-  void * dirp = gSystem->OpenDirectory(dir.c_str());
-  if (dirp) { gSystem->FreeDirectory(dirp); exist = true; }
-  return exist;
-};
-
-
-bool passEventFilter(const std::unique_ptr<HiMETTree>& metTree)
-{
-  if (
-      metTree->Flag_collisionEventSelectionPA() // pPb Collision Event Selection
-      ) {
-    return true; // All Event filters passed
-  }
-  //
-  return false; // At least one event filter failed
-};
-
-
-bool passDrellYanVeto(const std::unique_ptr<HiMuonTree>& muonTree)
-{
-  for (ushort iPFMu1 = 0; iPFMu1 < muonTree->PF_Muon_Mom().size(); iPFMu1++) {
-    for (ushort iPFMu2 = 0; iPFMu2 < muonTree->PF_Muon_Mom().size(); iPFMu2++) {
-      if (
-          ( isOfflineMuon(iPFMu1 , muonTree)            ) && // Consider muons passing offline selection
-          ( isOfflineMuon(iPFMu2 , muonTree)            ) && // Consider muons passing offline selection
-          ( muonTree->PF_Muon_Mom()[iPFMu1].Pt() > 15.0 ) && // Consider Muons with pT > 15 GeV
-          ( muonTree->PF_Muon_Mom()[iPFMu1].Pt() > 15.0 ) && // Consider Muons with pT > 15 GeV
-          ( muonTree->PF_Muon_Charge()[iPFMu1] != muonTree->PF_Muon_Charge()[iPFMu2] ) // Consider opposite-sign muons
-          ) {
-        return false; // Found possible Drell-Yan Candidate, so Drell-Yan Veto failed
-      }
-    }
-  }
-  //
-  return true; // Drell-Yan veto succeeded
-};
-
-
-bool checkGenMuon(const ushort& iGenMu, const std::string& sample, const std::unique_ptr<HiMuonTree>& muonTree)
-{
-  if (
-      ( (sample.find("MC_DYToMuMu")!=std::string::npos) && (muonTree->findMuonMother(iGenMu, 23, 1).pdg==23 || muonTree->findMuonMother(iGenMu, 22, 1).pdg==22) ) || // Z/gamma* -> Muon + Muon
-      ( (sample.find("MC_ZToMuMu") !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 23, 1).pdg==23) ) || // Z -> Muon + Muon
-      ( (sample.find("MC_WToMuNu") !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 24, 1).pdg==24) ) || // W -> Muon + Neutrino
-      ( (sample.find("MC_WToTauNu")!=std::string::npos) && (muonTree->findMuonMother(iGenMu, 24, 2).pdg==24) ) || // W -> Tau -> Muon + Neutrinos
-      ( (sample.find("MC_QCDToMu") !=std::string::npos) ) || // QCD -> Muon
-      ( (sample.find("MC_TTall")   !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 6, 2).pdg==6 || muonTree->findMuonMother(iGenMu, 24, 1).pdg==24) ) // t -> W -> Muon + Neutrino
-      ) {
-    return true;
-  }
-  //
-  return false;
-};
-
-bool selectGenMuon(const ushort& iGenMu, const std::unique_ptr<HiMuonTree>& muonTree)
-{
-  if (
-      ( std::abs(muonTree->Gen_Muon_Mom()[iGenMu].Eta()) < 2.4 ) && // Consider Generated Muons within the Pseudo-Rapidity acceptance of CMS
-      ( muonTree->Gen_Muon_Mom()[iGenMu].Pt() > 25.0           )    // Consider Generated Muons with pT > 25 GeV/c
-      ) {
-    return true;
-  }
-  //
-  return false;
-};
-
-
-bool isGoodMuon(const ushort& iPFMu, const std::unique_ptr<HiMuonTree>& muonTree)
-{
-  const short iRecoMu = muonTree->PF_Muon_Reco_Idx()[iPFMu];
-  if (iRecoMu < 0) { std::cout << "[ERROR] Reco idx is negative" << std::endl; return false; }
-  if (
-      ( std::abs(muonTree->PF_Muon_Mom()[iPFMu].Eta()) < 2.4 ) && // Consider Muons within the Pseudo-Rapidity acceptance of CMS
-      ( muonTree->Reco_Muon_isTight()[iRecoMu] == true       ) && // Consider Tight Muons
-      ( muonTree->PF_Muon_Mom()[iPFMu].Pt() > 25.0           )    // Consider Muons with pT > 25 GeV/c
-      ) {
-    return true;
-  }
-  //
-  return false;
-};
-
-
-bool isIsolatedMuon(const ushort& iPFMu, const std::unique_ptr<HiMuonTree>& muonTree)
-{
-  const short iRecoMu = muonTree->PF_Muon_Reco_Idx()[iPFMu];
-  if (iRecoMu < 0) { std::cout << "[ERROR] Reco idx is negative" << std::endl; return false; }
-  if (
-      ( muonTree->PF_Muon_IsoPFR03NoPUCorr()[iPFMu] < 0.15 ) // Consider Isolated Muons
-      ) {
-    return true;
-  }
-  //
-  return false;
-};
-
-
-bool isOfflineMuon(const ushort& iPFMu, const std::unique_ptr<HiMuonTree>& muonTree)
-{
-  
-  const short iRecoMu = muonTree->PF_Muon_Reco_Idx()[iPFMu];
-  if (iRecoMu < 0) { std::cout << "[ERROR] Reco idx is negative" << std::endl; return false; }
-  if (
-      ( isGoodMuon(iPFMu, muonTree)     ) && // Consider Good Quality Muons
-      ( isIsolatedMuon(iPFMu, muonTree) )    // Consider Isolated Muons
-      ) {
-    return true;
-  }
-  //
-  return false;
-};
-
-
-bool isTriggerMatched(const ushort& triggerIndex, const ushort& iPFMu, const std::unique_ptr<HiMuonTree>& muonTree)
-{
-  const short iRecoMu = muonTree->PF_Muon_Reco_Idx()[iPFMu];
-  if (
-      ( muonTree->Event_Trig_Fired()[triggerIndex] == true       ) && // Consider events that fired the trigger HLT_PAL3Mu12_v1
-      ( muonTree->Pat_Muon_Trig()[iRecoMu][triggerIndex] == true )    // Consider muons matched to the online muon that fired the trigger HLT_PAL3Mu12_v1
-      ) {
-    return true;
-  }
-  //
-  return false;
 };
 
 
@@ -1120,7 +962,18 @@ void mergeEff(EffMap_t& eff)
           for (auto& ch : s.second.at("PA")) {
             for (auto& t : ch.second) {
               // Just add the pPb, no need to combine
-              t.second.Add(s.second.at("pPb").at(ch.first).at(t.first));
+              const TEfficiency& eff_pPb = s.second.at("pPb").at(ch.first).at(t.first);
+              const TEfficiency& eff_Pbp = s.second.at("Pbp").at(ch.first).at(t.first);
+              // Passed Histogram
+              TH1D hPassed = *((TH1D*)eff_pPb.GetPassedHistogram());
+              hPassed.Add(eff_pPb.GetPassedHistogram(), t.second.GetPassedHistogram(), eff_pPb.GetWeight(), eff_Pbp.GetWeight());
+              t.second.SetPassedHistogram(hPassed, "f");
+              // Total Histogram
+              TH1D hTotal = *((TH1D*)eff_pPb.GetTotalHistogram());
+              hTotal.Add(eff_pPb.GetTotalHistogram(), t.second.GetTotalHistogram(), eff_pPb.GetWeight(), eff_Pbp.GetWeight());
+              t.second.SetTotalHistogram(hTotal, "f");
+              // Set the statistics in case of weighted histograms
+              if ( checkWeights(hPassed, hTotal) ) { t.second.SetStatisticOption(TEfficiency::kFNormal); }
             }
           }
         }

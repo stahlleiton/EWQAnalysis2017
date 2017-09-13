@@ -3,6 +3,7 @@
 #include "../Utilities/HiMETTree.h"
 #include "../Utilities/HiMuonTree.h"
 #include "../Utilities/tnp_weight.h"
+#include "../Utilities/EVENTUTILS.h"
 // ROOT headers
 #include "TROOT.h"
 #include "TSystem.h"
@@ -47,16 +48,6 @@ using FileInfo_t   =  std::vector< std::pair< std::string , double > >;
 
 
 // ------------------ FUNCTION -------------------------------
-void     makeDir             ( const std::string& dir );
-bool     existDir            ( const std::string& dir );
-bool     passEventFilter     ( const std::unique_ptr<HiMETTree>& metTree );
-bool     passDrellYanVeto    ( const std::unique_ptr<HiMuonTree>& muonTree );
-bool     checkGenMuon        ( const ushort& iGenMu , const std::string& sample , const std::unique_ptr<HiMuonTree>& muonTree );
-bool     selectGenMuon       ( const ushort& iGenMu, const std::unique_ptr<HiMuonTree>& muonTree );
-bool     isGoodMuon          ( const ushort& iPFMu , const std::unique_ptr<HiMuonTree>& muonTree );
-bool     isIsolatedMuon      ( const ushort& iPFMu , const std::unique_ptr<HiMuonTree>& muonTree );
-bool     isOfflineMuon       ( const ushort& iPFMu , const std::unique_ptr<HiMuonTree>& muonTree );
-bool     isTriggerMatched    ( const ushort& triggerIndex , const ushort& iPFMu , const std::unique_ptr<HiMuonTree>& muonTree );
 TnPVec_t getTnPScaleFactors  ( const double& pt, const double& eta );
 bool     getTnPUncertainties ( Unc1DVec_t& unc , const EffVec_t& eff );
 bool     getTnPUncertainties ( Unc1DMap_t& unc , const EffMap_t& eff );
@@ -73,10 +64,6 @@ const char* clStr            ( const std::string& in );
 
 
 // ------------------ GLOBAL ------------------------------- 
-// Data Luminosity
-const double lumi_pPb = 110.77;
-const double lumi_Pbp = 62.59;
-//
 // Kinematic Info
 const BinMap_t  MU_BIN_ = {
   { "Eta" , { -2.4 , -2.2 , -2.0 , -1.8 , -1.6 , -1.4 , -1.2 , -1.0 , -0.8 , -0.6 , -0.4 , -0.2 , 0.0 , 0.2 , 0.4 , 0.6 , 0.8 , 1.0 , 1.2 , 1.4 , 1.6 , 1.8 , 2.0 , 2.2 , 2.4 } },
@@ -84,7 +71,7 @@ const BinMap_t  MU_BIN_ = {
 };
 //
 // Trigger Info
-const ushort triggerIndex_ = 5; // HLT_PAL3SingleMu12_v1
+const ushort triggerIndex_ = PA::HLT_PAL3Mu12;
 //
 // Collision System
 const std::vector< std::string > COLL_ = { "pPb" , "Pbp" , "PA" };
@@ -112,10 +99,10 @@ const std::map< std::string , uint > corrType = {
 // Input Files for analysis
 const std::string path_MC = "root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official";
 const std::map< std::string , std::vector< std::pair< std::string , double > > > inputFileMap_ = {
-  {"MC_WToMuNu_Plus_pPb"      , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Plus_pPb_8160GeV_20170813.root")     , 1213.38 } } },
-  {"MC_WToMuNu_Minus_pPb"     , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_pPb_8160GeV_20170813.root")    , 1082.24 } } },
-  {"MC_WToMuNu_Plus_Pbp"      , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Plus_Pbp_8160GeV_20170813.root")     , 1214.06 } } },
-  {"MC_WToMuNu_Minus_Pbp"     , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_Pbp_8160GeV_20170813.root")    , 1083.37 } } }
+  {"MC_WToMuNu_Plus_pPb"      , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Plus_pPb_8160GeV_20170813.root")  , POWHEG::XSec.at("WToMuNu_Plus").at("pPb")  } } },
+  {"MC_WToMuNu_Minus_pPb"     , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_pPb_8160GeV_20170813.root") , POWHEG::XSec.at("WToMuNu_Minus").at("pPb") } } },
+  {"MC_WToMuNu_Plus_Pbp"      , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Plus_Pbp_8160GeV_20170813.root")  , POWHEG::XSec.at("WToMuNu_Plus").at("Pbp")  } } },
+  {"MC_WToMuNu_Minus_Pbp"     , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_Pbp_8160GeV_20170813.root") , POWHEG::XSec.at("WToMuNu_Minus").at("Pbp") } } }
 };
 std::map< std::string , std::vector< std::string > > sampleType_;
 
@@ -201,7 +188,7 @@ void correctEfficiency(void)
       sampleType = sampleType.substr(0, (sampleType.find(col)-1));
       //
       // Get the Lumi re-weight for MC (global weight)
-      const double lumi = ( (col=="pPb") ? lumi_pPb : lumi_Pbp );
+      const double lumi = ( (col=="pPb") ? PA::LUMI::Data_pPb : PA::LUMI::Data_Pbp );
       const double mcWeight = ( ( muonTree.at(sample)->GetCrossSection() * lumi ) / muonTree.at(sample)->GetEntriesFast() );
       // Set the global weight only in the first event (i.e. once per sample)
       if (jentry==0) {
@@ -216,18 +203,18 @@ void correctEfficiency(void)
       // Check Event Conditions
       //
       // Determine if the event pass the event filters
-      const bool passEvent  = passEventFilter(metTree.at(sample));
+      const bool passEvent  = PA::passEventFilter(metTree.at(sample));
       // Determine if the event pass the Drell-Yan veto
-      const bool passDYVeto = passDrellYanVeto(muonTree.at(sample));
+      const bool passDYVeto = PA::passDrellYanVeto(muonTree.at(sample));
       //
       // Check Muon Conditions
       //
       // Loop over the generated muons
       for (ushort iGenMu = 0; iGenMu < muonTree.at(sample)->Gen_Muon_Mom().size(); iGenMu++) {
         // Check the content of the MC
-        if (checkGenMuon(iGenMu, sampleType, muonTree.at(sample)) == false) continue;
+        if (PA::checkGenMuon(iGenMu, sampleType, muonTree.at(sample)) == false) continue;
         // Check if the generated muon pass the kinematic cuts
-        const bool isGoodGenMuon  = selectGenMuon(iGenMu, muonTree.at(sample));
+        const bool isGoodGenMuon  = PA::selectGenMuon(iGenMu, muonTree.at(sample));
         // Extract the kinematic information of generated muon
         const double mu_Gen_Pt  = muonTree.at(sample)->Gen_Muon_Mom()[iGenMu].Pt();
         const double mu_Gen_Eta = muonTree.at(sample)->Gen_Muon_Mom()[iGenMu].Eta();
@@ -265,11 +252,11 @@ void correctEfficiency(void)
             const short iRecoMu = muonTree.at(sample)->PF_Muon_Reco_Idx()[iPFMu];
             if (iRecoMu < 0) { std::cout << "[ERROR] Reco idx is negative" << std::endl; return; }
             // Check if the reconstructed muon pass muon ID and kinematic cuts
-            passIdentification = isGoodMuon(iPFMu , muonTree.at(sample));
+            passIdentification = PA::isGoodMuon(iPFMu , muonTree.at(sample));
             // Check if the reconstructed muon is matched to the trigger
-            passTrigger = isTriggerMatched(triggerIndex_, iPFMu, muonTree.at(sample));
+            passTrigger = PA::isTriggerMatched(triggerIndex_, iPFMu, muonTree.at(sample));
             // Check if the reconstructed muon pass isolation cuts
-            passIsolation = isIsolatedMuon(iPFMu , muonTree.at(sample));
+            passIsolation = PA::isIsolatedMuon(iPFMu , muonTree.at(sample));
           }
           //
           // Total Efficiency (Based on Generated muons)
@@ -310,146 +297,6 @@ void correctEfficiency(void)
   // Store the Efficiencies
   //
   saveEff(mainDir, eff1D, unc1D);
-};
-
-
-void makeDir(const std::string& dir)
-{
-  if (existDir(dir.c_str())==false){ 
-    std::cout << "[INFO] DataSet directory: " << dir << " doesn't exist, will create it!" << std::endl;  
-    gSystem->mkdir(dir.c_str(), kTRUE);
-  }
-};
-
-
-bool existDir(const std::string& dir)
-{
-  bool exist = false;
-  void * dirp = gSystem->OpenDirectory(dir.c_str());
-  if (dirp) { gSystem->FreeDirectory(dirp); exist = true; }
-  return exist;
-};
-
-
-bool passEventFilter(const std::unique_ptr<HiMETTree>& metTree)
-{
-  if (
-      metTree->Flag_collisionEventSelectionPA() // pPb Collision Event Selection
-      ) {
-    return true; // All Event filters passed
-  }
-  //
-  return false; // At least one event filter failed
-};
-
-
-bool passDrellYanVeto(const std::unique_ptr<HiMuonTree>& muonTree)
-{
-  for (ushort iPFMu1 = 0; iPFMu1 < muonTree->PF_Muon_Mom().size(); iPFMu1++) {
-    for (ushort iPFMu2 = 0; iPFMu2 < muonTree->PF_Muon_Mom().size(); iPFMu2++) {
-      if (
-          ( isOfflineMuon(iPFMu1 , muonTree)            ) && // Consider muons passing offline selection
-          ( isOfflineMuon(iPFMu2 , muonTree)            ) && // Consider muons passing offline selection
-          ( muonTree->PF_Muon_Mom()[iPFMu1].Pt() > 15.0 ) && // Consider Muons with pT > 15 GeV
-          ( muonTree->PF_Muon_Mom()[iPFMu1].Pt() > 15.0 ) && // Consider Muons with pT > 15 GeV
-          ( muonTree->PF_Muon_Charge()[iPFMu1] != muonTree->PF_Muon_Charge()[iPFMu2] ) // Consider opposite-sign muons
-          ) {
-        return false; // Found possible Drell-Yan Candidate, so Drell-Yan Veto failed
-      }
-    }
-  }
-  //
-  return true; // Drell-Yan veto succeeded
-};
-
-
-bool checkGenMuon(const ushort& iGenMu, const std::string& sample, const std::unique_ptr<HiMuonTree>& muonTree)
-{
-  if (
-      ( (sample.find("MC_DYToMuMu")!=std::string::npos) && (muonTree->findMuonMother(iGenMu, 23, 1).pdg==23 || muonTree->findMuonMother(iGenMu, 22, 1).pdg==22) ) || // Z/gamma* -> Muon + Muon
-      ( (sample.find("MC_ZToMuMu") !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 23, 1).pdg==23) ) || // Z -> Muon + Muon
-      ( (sample.find("MC_WToMuNu") !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 24, 1).pdg==24) ) || // W -> Muon + Neutrino
-      ( (sample.find("MC_WToTauNu")!=std::string::npos) && (muonTree->findMuonMother(iGenMu, 24, 2).pdg==24) ) || // W -> Tau -> Muon + Neutrinos
-      ( (sample.find("MC_QCDToMu") !=std::string::npos) ) || // QCD -> Muon
-      ( (sample.find("MC_TTall")   !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 6, 2).pdg==6 || muonTree->findMuonMother(iGenMu, 24, 1).pdg==24) ) // t -> W -> Muon + Neutrino
-      ) {
-    return true;
-  }
-  //
-  return false;
-};
-
-
-bool selectGenMuon(const ushort& iGenMu, const std::unique_ptr<HiMuonTree>& muonTree)
-{
-  if (
-      ( std::abs(muonTree->Gen_Muon_Mom()[iGenMu].Eta()) < 2.4 ) && // Consider Generated Muons within the Pseudo-Rapidity acceptance of CMS
-      ( muonTree->Gen_Muon_Mom()[iGenMu].Pt() > 25.0           )    // Consider Generated Muons with pT > 25 GeV/c
-      ) {
-    return true;
-  }
-  //
-  return false;
-};
-
-
-bool isGoodMuon(const ushort& iPFMu, const std::unique_ptr<HiMuonTree>& muonTree)
-{
-  const short iRecoMu = muonTree->PF_Muon_Reco_Idx()[iPFMu];
-  if (iRecoMu < 0) { std::cout << "[ERROR] Reco idx is negative" << std::endl; return false; }
-  if (
-      ( std::abs(muonTree->PF_Muon_Mom()[iPFMu].Eta()) < 2.4 ) && // Consider Muons within the Pseudo-Rapidity acceptance of CMS
-      ( muonTree->Reco_Muon_isTight()[iRecoMu] == true       ) && // Consider Tight Muons
-      ( muonTree->PF_Muon_Mom()[iPFMu].Pt() > 25.0           )    // Consider Muons with pT > 25 GeV/c
-      ) {
-    return true;
-  }
-  //
-  return false;
-};
-
-
-bool isIsolatedMuon(const ushort& iPFMu, const std::unique_ptr<HiMuonTree>& muonTree)
-{
-  const short iRecoMu = muonTree->PF_Muon_Reco_Idx()[iPFMu];
-  if (iRecoMu < 0) { std::cout << "[ERROR] Reco idx is negative" << std::endl; return false; }
-  if (
-      ( muonTree->PF_Muon_IsoPFR03NoPUCorr()[iPFMu] < 0.15 ) // Consider Isolated Muons
-      ) {
-    return true;
-  }
-  //
-  return false;
-};
-
-
-bool isOfflineMuon(const ushort& iPFMu, const std::unique_ptr<HiMuonTree>& muonTree)
-{
-  
-  const short iRecoMu = muonTree->PF_Muon_Reco_Idx()[iPFMu];
-  if (iRecoMu < 0) { std::cout << "[ERROR] Reco idx is negative" << std::endl; return false; }
-  if (
-      ( isGoodMuon(iPFMu, muonTree)     ) && // Consider Good Quality Muons
-      ( isIsolatedMuon(iPFMu, muonTree) )    // Consider Isolated Muons
-      ) {
-    return true;
-  }
-  //
-  return false;
-};
-
-
-bool isTriggerMatched(const ushort& triggerIndex, const ushort& iPFMu, const std::unique_ptr<HiMuonTree>& muonTree)
-{
-  const short iRecoMu = muonTree->PF_Muon_Reco_Idx()[iPFMu];
-  if (
-      ( muonTree->Event_Trig_Fired()[triggerIndex] == true       ) && // Consider events that fired the trigger HLT_PAL3Mu12_v1
-      ( muonTree->Pat_Muon_Trig()[iRecoMu][triggerIndex] == true )    // Consider muons matched to the online muon that fired the trigger HLT_PAL3Mu12_v1
-      ) {
-    return true;
-  }
-  //
-  return false;
 };
 
 
