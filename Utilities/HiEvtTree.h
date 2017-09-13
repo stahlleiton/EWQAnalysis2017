@@ -55,6 +55,8 @@ public :
   Float_t              hiET()                { SetBranch("hiET");                return hiET_;                }
   Float_t              hiEE()                { SetBranch("hiEE");                return hiEE_;                }
   Float_t              hiEB()                { SetBranch("hiEB");                return hiEB_;                }
+  Float_t              hiEEplus()            { SetBranch("hiEEplus");            return hiEEplus_;            }
+  Float_t              hiEEminus()           { SetBranch("hiEEminus");           return hiEEminus_;           }
   Int_t                hiNpix()              { SetBranch("hiNpix");              return hiNpix_;              }
   Int_t                hiNpixelTracks()      { SetBranch("hiNpixelTracks");      return hiNpixelTracks_;      }
   Int_t                hiNtracks()           { SetBranch("hiNtracks");           return hiNtracks_;           }

@@ -13,12 +13,14 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include <string>
 
 // Header file for the classes stored in the TChain
 #include "TClonesArray.h"
 #include "TLorentzVector.h"
 #include "TVector3.h"
 #include "TVector2.h"
+#include "TTreeCache.h"
 
 
 typedef std::vector<TLorentzVector>           VTLorentzVector;
@@ -35,14 +37,18 @@ public :
 
   HiMuonTree();
   virtual ~HiMuonTree();
-  virtual Bool_t       GetTree    (const std::vector< std::string >&, const std::string& treeName="muonAna");
-  virtual Bool_t       GetTree    (const std::string&, const std::string& treeName="muonAna");
-  virtual Int_t        GetEntry   (Long64_t);
-  virtual Long64_t     GetEntries (void) { return fChain_->GetEntries(); }
-  virtual TChain*      Tree       (void) { return fChain_; }
-  virtual void         Clear      (void);
-  virtual GenPart      Mother     (const int);
-  virtual GenPart      MuonMother (const int);
+  virtual Bool_t       GetTree         (const std::vector< std::pair< std::string , double > >&, const std::string& treeName="muonAna");
+  virtual Bool_t       GetTree         (const std::vector< std::string >&, const std::string& treeName="muonAna");
+  virtual Bool_t       GetTree         (const std::string&, const std::string& treeName="muonAna");
+  virtual Int_t        GetEntry        (Long64_t);
+  virtual Long64_t     GetEntries      (void) { return fChain_->GetEntries(); }
+  virtual Long64_t     GetEntriesFast  (void) { return fChain_->GetEntriesFast(); }
+  virtual TChain*      Tree            (void) { return fChain_; }
+  virtual void         Clear           (void);
+  virtual GenPart      Mother          (const int);
+  virtual GenPart      MuonMother      (const int);
+  virtual GenPart      findMuonMother  (const int imuGenIdx, const int momPdg, const uint numIter = 2, const bool verbose = false);
+  virtual Double_t     GetCrossSection (void) { return crossSection_[fCurrent_]; }
   virtual void         GetUniquePFGenMuonMatching (std::vector< char >&, std::vector< char >&, const std::vector< char >&);
 
   // EVENT INFO VARIABLES
@@ -242,7 +248,9 @@ public :
 
   TChain*                   fChain_;
   std::map<string, TChain*> fChainM_;
+  Int_t                     fCurrent_ = -1;
   Long64_t                  entry_;
+  std::vector< Double_t >   crossSection_;
 
   // TCLONEARRAY POINTERS
   std::map< std::string , TClonesArray*   > TClonesArray_;
@@ -569,14 +577,21 @@ Bool_t HiMuonTree::GetTree(const std::string& fileName, const std::string& treeN
 
 Bool_t HiMuonTree::GetTree(const std::vector< std::string >& fileName, const std::string& treeName)
 {
+  std::vector< std::pair< std::string , double > > fileInfo;
+  for (const auto& fName : fileName) { fileInfo.push_back(std::make_pair( fName , 1.0 )); }
+  return GetTree(fileInfo, treeName);
+}
+
+Bool_t HiMuonTree::GetTree(const std::vector< std::pair< std::string , double > >& fileInfo, const std::string& treeName)
+{
   // Open the input files
-  TFile *f = TFile::Open(fileName[0].c_str());
+  TFile *f = TFile::Open(fileInfo[0].first.c_str());
   if (!f || !f->IsOpen()) return false;
   // Extract the input TChains
   fChainM_.clear();
   TDirectory * dir;
-  if (fileName[0].find("root://")!=std::string::npos) dir = (TDirectory*)f->Get(treeName.c_str());
-  else dir = (TDirectory*)f->Get((fileName[0]+":/muonAna").c_str());
+  if (fileInfo[0].first.find("root://")!=std::string::npos) dir = (TDirectory*)f->Get(treeName.c_str());
+  else dir = (TDirectory*)f->Get((fileInfo[0].first+":/muonAna").c_str());
   if (!dir) return false;
   if (dir->GetListOfKeys()->Contains("Muon_Event")) { fChainM_["Event"] = new TChain((treeName+"/Muon_Event").c_str(), "Muon_Event"); }
   if (dir->GetListOfKeys()->Contains("Muon_Reco"))  { fChainM_["Reco"]  = new TChain((treeName+"/Muon_Reco").c_str() , "Muon_Reco" ); }
@@ -586,7 +601,7 @@ Bool_t HiMuonTree::GetTree(const std::vector< std::string >& fileName, const std
   if (fChainM_.size()==0) return false;
   // Add the files in the TChain
   for (auto& c : fChainM_) {
-    if(c.first!="Pat") { for (auto& f : fileName) { c.second->Add(Form("%s/%s/Muon_%s", f.c_str(), treeName.c_str(), c.first.c_str())); }; c.second->GetEntries(); }
+    if(c.first!="Pat") { for (auto& f : fileInfo) {c.second->Add(Form("%s/%s/Muon_%s", f.first.c_str(), treeName.c_str(), c.first.c_str())); }; c.second->GetEntries(); }
   }
   for (auto& c : fChainM_) { if (!c.second) { std::cout << "[ERROR] fChain " << c.first << " was not created, some input files are missing" << std::endl; return false; } }
   // Initialize the input TChains (set their branches)
@@ -602,6 +617,8 @@ Bool_t HiMuonTree::GetTree(const std::vector< std::string >& fileName, const std
   if (fChain_ == 0) return false;
   // Set All Branches to Status 0
   fChain_->SetBranchStatus("*",0);
+  // Store the user cross-sections
+  crossSection_.clear(); for (auto& f : fileInfo) { crossSection_.push_back(f.second); }
   //
   return true;
 }
@@ -620,6 +637,7 @@ Long64_t HiMuonTree::LoadTree(Long64_t entry)
   // Set the environment to read one entry
   if (!fChain_) return -5;
   Long64_t centry = fChain_->LoadTree(entry);
+  if (fChain_->GetTreeNumber() != fCurrent_) { fCurrent_ = fChain_->GetTreeNumber(); }
   return centry;
 }
 
@@ -1101,13 +1119,14 @@ void HiMuonTree::Clear(void)
 GenPart HiMuonTree::Mother(const int iGenIdx)
 {
   if (iGenIdx<0) { return { 0 , 0 }; }
-  UInt_t genIdx = iGenIdx;
+  UInt_t genIdx = iGenIdx; UInt_t genIdx_OLD = iGenIdx;
   Int_t pdg = Gen_Particle_PdgId()[genIdx]; Int_t pdg_OLD = pdg;
   while(pdg==pdg_OLD && Gen_Particle_Mother_Idx()[genIdx].size()>0) {
+    if ((std::abs(pdg) < 400) && (Gen_Particle_Mother_Idx()[genIdx].size() > 1)) { std::cout << "[WARNING] Size of mother collection is larger than 1 for " << pdg << std::endl; }
     genIdx = Gen_Particle_Mother_Idx()[genIdx].at(0);
     pdg = Gen_Particle_PdgId()[genIdx];
   }
-  return { UInt_t(std::abs(pdg)) , genIdx };
+  return { UInt_t(std::abs(pdg)) , ( (pdg_OLD==pdg) ? genIdx_OLD : genIdx ) };
 }
 
 GenPart HiMuonTree::MuonMother(const int imuGenIdx)
@@ -1115,6 +1134,24 @@ GenPart HiMuonTree::MuonMother(const int imuGenIdx)
   if (imuGenIdx<0) { return { 0 , 0 }; }
   UInt_t genIdx = Gen_Muon_Particle_Idx()[imuGenIdx];
   return Mother(genIdx);
+}
+
+GenPart HiMuonTree::findMuonMother(const int imuGenIdx, const int momPdg, const uint numIter, const bool verbose)
+{
+  if (imuGenIdx<0 || momPdg==0) { return { 0 , 0}; }
+  UInt_t genIdx = Gen_Muon_Particle_Idx()[imuGenIdx];
+  UInt_t genPdg = std::abs(Gen_Particle_PdgId()[genIdx]);
+  auto mom = Mother(genIdx);
+  uint i = 0;
+  while(mom.idx!=genIdx && mom.pdg!=std::abs(momPdg) && i<numIter) {
+    if (verbose) { std::cout << "[DEBUG XXXXX] genPdg ( " << genPdg << " ) and genIdx ( " << genIdx << " ) and momPdg ( " << mom.pdg << " ) and momIdx ( " << mom.idx << " ) " << std::endl; }
+    genIdx = mom.idx;
+    genPdg = mom.pdg;
+    mom = Mother(genIdx);
+    i++;
+  }
+  if (verbose) { std::cout << "[DEBUG 3] genPdg ( " << genPdg << " ) and genIdx ( " << genIdx << " ) and momPdg ( " << mom.pdg << " ) and momIdx ( " << mom.idx << " ) " << std::endl; }
+  return mom;
 }
 
 void HiMuonTree::GetUniquePFGenMuonMatching(std::vector< char >& muPFToGenIdx_Fixed, std::vector< char >& muGenToPFIdx_Fixed, const std::vector< char >& muPFToGenIdx_Input)

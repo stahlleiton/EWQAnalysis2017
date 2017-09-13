@@ -48,6 +48,9 @@ TString lumi_pp2015_alt  = "28.5 pb^{-1}";
 TString lumi_pPb2016  = "pPb [285952-286504]";
 TString lumi_Pbp2016  = "Pbp [285410-285951]";
 TString lumi_PA2016  = "PA [285410-286504]";
+TString lumi_pPbMC2016  = "pPb Simulation";
+TString lumi_PbpMC2016  = "Pbp Simulation";
+TString lumi_PAMC2016  = "PA Simulation";
 
 bool drawLogo      = false;
 

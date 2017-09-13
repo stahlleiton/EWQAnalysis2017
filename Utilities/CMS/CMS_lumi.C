@@ -152,6 +152,24 @@ CMS_lumi( TPad* pad, int iPeriod, int iPosX, TString label )
       // lumiText2 += " #sqrt{s_{NN}} = 5.02 TeV";
       lumiText2 += lumi_PA2016 + " (8.16 TeV)";
     }
+  else if (iPeriod==112)
+    {
+      // lumiText += lumi_PbPb2015;
+      // lumiText2 += " #sqrt{s_{NN}} = 5.02 TeV";
+      lumiText2 += lumi_pPbMC2016 + " (8.16 TeV)";
+    }
+  else if (iPeriod==113)
+    {
+      // lumiText += lumi_PbPb2015;
+      // lumiText2 += " #sqrt{s_{NN}} = 5.02 TeV";
+      lumiText2 += lumi_PbpMC2016 + " (8.16 TeV)";
+    }
+  else if (iPeriod==114)
+    {
+      // lumiText += lumi_PbPb2015;
+      // lumiText2 += " #sqrt{s_{NN}} = 5.02 TeV";
+      lumiText2 += lumi_PAMC2016 + " (8.16 TeV)";
+    }
    
   cout << lumiText << endl;
 

@@ -9,6 +9,7 @@
 // Header file for c++ classes
 #include <iostream>
 #include <map>
+#include <string>
 
 // Header file for the classes stored in the TChain
 #include "TVector2.h"
@@ -21,13 +22,16 @@ class HiMETTree {
 
   HiMETTree();
   virtual ~HiMETTree();
-  virtual Bool_t       GetTree    (const std::vector< std::string >&, const std::string& treeName="metAna");
-  virtual Bool_t       GetTree    (const std::string&, const std::string& treeName="metAna");
-  virtual Int_t        GetEntry   (Long64_t);
-  virtual void         SetEntry   (Long64_t entry) { entry_ = entry; }
-  virtual Long64_t     GetEntries (void) { return fChain_->GetEntries(); }
-  virtual TChain*      Tree       (void) { return fChain_; }
-  virtual void         Clear      (void);
+  virtual Bool_t       GetTree         (const std::vector< std::pair< std::string , double > >&, const std::string& treeName="metAna");
+  virtual Bool_t       GetTree         (const std::vector< std::string >&, const std::string& treeName="metAna");
+  virtual Bool_t       GetTree         (const std::string&, const std::string& treeName="metAna");
+  virtual Int_t        GetEntry        (Long64_t);
+  virtual void         SetEntry        (Long64_t entry) { entry_ = entry; }
+  virtual Long64_t     GetEntries      (void) { return fChain_->GetEntries(); }
+  virtual Long64_t     GetEntriesFast  (void) { return fChain_->GetEntriesFast(); }
+  virtual TChain*      Tree            (void) { return fChain_; }
+  virtual void         Clear           (void);
+  virtual Double_t     GetCrossSection (void) { return crossSection_[fCurrent_]; }
 
 
   // EVENT INFO POINTERS
@@ -267,7 +271,9 @@ class HiMETTree {
 
   TChain*                   fChain_;
   std::map<string, TChain*> fChainM_;
+  Int_t                     fCurrent_ = -1;
   Long64_t                  entry_;
+  std::vector< Double_t >   crossSection_;
   
   // EVENT INFO POINTERS
   UInt_t          Event_Run_    = 0;
@@ -738,14 +744,21 @@ Bool_t HiMETTree::GetTree(const std::string& fileName, const std::string& treeNa
 
 Bool_t HiMETTree::GetTree(const std::vector< std::string >& fileName, const std::string& treeName)
 {
+  std::vector< std::pair< std::string , double > > fileInfo;
+  for (const auto& fName : fileName) { fileInfo.push_back(std::make_pair( fName , 1.0 )); }
+  return GetTree(fileInfo, treeName);
+}
+
+Bool_t HiMETTree::GetTree(const std::vector< std::pair< std::string , double > >& fileInfo, const std::string& treeName)
+{
   // Open the input files
-  TFile *f = TFile::Open(fileName[0].c_str());
+  TFile *f = TFile::Open(fileInfo[0].first.c_str());
   if (!f || !f->IsOpen()) return false;
   // Extract the input TChains
   fChainM_.clear();
   TDirectory * dir;
-  if (fileName[0].find("root://")!=std::string::npos) dir = (TDirectory*)f->Get(treeName.c_str());
-  else dir = (TDirectory*)f->Get((fileName[0]+":/"+treeName).c_str());
+  if (fileInfo[0].first.find("root://")!=std::string::npos) dir = (TDirectory*)f->Get(treeName.c_str());
+  else dir = (TDirectory*)f->Get((fileInfo[0].first+":/"+treeName).c_str());
   if (!dir) return false;
   if (dir->GetListOfKeys()->Contains("MET_Event")  ) { fChainM_["Event"]  = new TChain((treeName+"/MET_Event").c_str()  , "MET_Event");  }
   if (dir->GetListOfKeys()->Contains("MET_Reco")   ) { fChainM_["Reco"]   = new TChain((treeName+"/MET_Reco").c_str()   , "MET_Reco");   }
@@ -758,7 +771,7 @@ Bool_t HiMETTree::GetTree(const std::vector< std::string >& fileName, const std:
   if (fChainM_.size()==0) return false;
   // Add the files in the TChain
   for (auto& c : fChainM_) {
-    for (auto& f : fileName) { c.second->Add(Form("%s/%s/MET_%s", f.c_str(), treeName.c_str(), c.first.c_str())); }; c.second->GetEntries();
+    for (auto& f : fileInfo) { c.second->Add(Form("%s/%s/MET_%s", f.first.c_str(), treeName.c_str(), c.first.c_str())); }; c.second->GetEntries();
   }
   for (auto& c : fChainM_) { if (!c.second) { std::cout << "[ERROR] fChain " << c.first << " was not created, some input files are missing" << std::endl; return false; } }
   // Initialize the input TChains (set their branches)
@@ -772,6 +785,8 @@ Bool_t HiMETTree::GetTree(const std::vector< std::string >& fileName, const std:
   if (fChain_ == 0) return false;
   // Set All Branches to Status 0
   fChain_->SetBranchStatus("*",0);
+  // Store the user cross-sections
+  crossSection_.clear(); for (auto& f : fileInfo) { crossSection_.push_back(f.second); }
   //
   return true;
 }
@@ -790,6 +805,7 @@ Long64_t HiMETTree::LoadTree(Long64_t entry)
   // Set the environment to read one entry
   if (!fChain_) return -5;
   Long64_t centry = fChain_->LoadTree(entry);
+  if (fChain_->GetTreeNumber() != fCurrent_) { fCurrent_ = fChain_->GetTreeNumber(); }
   return centry;
 }
 

@@ -1,8 +1,8 @@
 #if !defined(__CINT__) || defined(__MAKECINT__)
 // Auxiliary Headers
-#include "./Utility/HiMETTree.h"
-#include "./Utility/HiMuonTree.h"
-#include "./Utility/tnp_weight.h"
+#include "../Utilities/HiMETTree.h"
+#include "../Utilities/HiMuonTree.h"
+#include "../Utilities/tnp_weight.h"
 // ROOT headers
 #include "TROOT.h"
 #include "TSystem.h"
@@ -14,7 +14,6 @@
 #include "TPad.h"
 #include "TFrame.h"
 #include "TLine.h"
-#include "TBox.h"
 #include "TLegend.h"
 #include "TLegendEntry.h"
 #include "TPaletteAxis.h"
@@ -28,8 +27,8 @@
 #include <string>
 #include <chrono>
 // CMS headers
-#include "./Utility/CMS/tdrstyle.C"
-#include "./Utility/CMS/CMS_lumi.C"
+#include "../Utilities/CMS/tdrstyle.C"
+#include "../Utilities/CMS/CMS_lumi.C"
 
 #endif
 
@@ -65,17 +64,12 @@ void     initEff1D           ( TH1DMap_t& h , const BinMap_t& binMap );
 bool     fillEff1D           ( TH1DVec_t& h , const bool& pass , const double& xVar , const TnPVec_t& sfTnP , const double& evtWeight );
 bool     fillEff1D           ( TH1DMap_t& h , const bool& pass , const std::string& type , const VarMap_t& var , const std::vector< TnPVec_t >& sfTnP , const double& evtWeight );
 bool     loadEff1D           ( EffMap_t& eff, const TH1DMap_t& h );
-void     formatEff1D         ( TGraphAsymmErrors& graph , const std::string& var , const std::string& charge , const std::string& type );
-void     formatEff1D         ( TEfficiency& eff , const std::string& var , const std::string& charge , const std::string& type );
-void     drawEff1D           ( const std::string& outDir, EffMap_t& effMap , Unc1DMap_t unc );
 void     mergeEff            ( EffMap_t& eff );
 void     writeEff            ( TFile& file , const EffMap_t& eff , const Unc1DMap_t& unc , const std::string& mainDirName );
 void     saveEff             ( const std::string& outDir , const EffMap_t& eff1D , const Unc1DMap_t& unc );
 void     setGlobalWeight     ( TH1DMap_t& h , const double& weight , const std::string& sample , const std::string& col );
-void     setStyle            ( );
-void     formatLegendEntry   ( TLegendEntry& e );
-void     formatDecayLabel    ( std::string& label , const std::string& inLabel );
 bool     checkWeights        ( const TH1& pass , const TH1& total );
+const char* clStr            ( const std::string& in );
 
 
 // ------------------ GLOBAL ------------------------------- 
@@ -99,7 +93,7 @@ const std::vector< std::string > COLL_ = { "pPb" , "Pbp" , "PA" };
 const std::vector< std::string > CHG_  = { "Plus" , "Minus" };
 //
 // Efficiency Categories
-const std::vector< std::string > effType = {"Total"};
+const std::vector< std::string > effType = {"Total", "Acceptance"};
 //
 // Correction Categories
 const std::map< std::string , uint > corrType = {
@@ -245,14 +239,12 @@ void correctEfficiency(void)
         genMuonVar[sampleType][col][chg]["Eta"]    = { mu_Gen_Eta };
         genMuonVar[sampleType][col][chg]["Pt" ]    = { mu_Gen_Pt  };
         genMuonVar[sampleType][col][chg]["Pt_Eta"] = { mu_Gen_Pt , mu_Gen_Eta };
-        // Determine the Tag-And-Probe scale factos
-        std::vector< TnPVec_t > sfTnP;
-        sfTnP.push_back(getTnPScaleFactors(mu_Gen_Pt,  mu_Gen_Eta));
-        sfTnP.push_back(getTnPScaleFactors(mu_Gen_Pt, -mu_Gen_Eta));
         // Initialize the boolean flags
         bool passIdentification = false;
         bool passTrigger        = false;
         bool passIsolation      = false;
+        // Initialize the Tag-And-Probe scale factos
+        std::vector< TnPVec_t > sfTnP = { {} , {} };
         //
         // Check that the generated muon is within the analysis kinematic range
         if (isGoodGenMuon) {
@@ -261,6 +253,14 @@ void correctEfficiency(void)
           if (iPFMu >= 0) {
             //
             // PF Muon was matched to generated muon
+            //
+            // Extract the kinematic information of generated muon
+            const double mu_PF_Pt  = muonTree.at(sample)->PF_Muon_Mom()[iPFMu].Pt();
+            const double mu_PF_Eta = muonTree.at(sample)->PF_Muon_Mom()[iPFMu].Eta();
+            // Determine the Tag-And-Probe scale factos
+            sfTnP.clear();
+            sfTnP.push_back(getTnPScaleFactors(mu_PF_Pt,  mu_PF_Eta));
+            sfTnP.push_back(getTnPScaleFactors(mu_PF_Pt, -mu_PF_Eta));
             //
             const short iRecoMu = muonTree.at(sample)->PF_Muon_Reco_Idx()[iPFMu];
             if (iRecoMu < 0) { std::cout << "[ERROR] Reco idx is negative" << std::endl; return; }
@@ -276,6 +276,10 @@ void correctEfficiency(void)
           //
           if (!fillEff1D(h1D, (passIdentification && passTrigger && passIsolation), "Total", genMuonVar, sfTnP, evtWeight)) { return; }
         }
+        //
+        // Total Acceptance (Based on Generated muons)
+        //
+        if (!fillEff1D(h1D, isGoodGenMuon, "Acceptance", genMuonVar, sfTnP, evtWeight)) { return; }
       }
     }
   }
@@ -300,13 +304,6 @@ void correctEfficiency(void)
   //
   // Calculate Uncertainties
   if (!getTnPUncertainties(unc1D, eff1D)) { return; };
-  //
-  // ------------------------------------------------------------------------------------------------------------------------
-  //
-  // Set Style
-  setStyle();
-  // Draw the Efficiencies
-  drawEff1D(mainDir, eff1D, unc1D);
   //
   // ------------------------------------------------------------------------------------------------------------------------
   //
@@ -459,13 +456,14 @@ bool isTriggerMatched(const ushort& triggerIndex, const ushort& iPFMu, const std
 TnPVec_t getTnPScaleFactors(const double& pt, const double& eta)
 {
   TnPVec_t sfTnP;
-  //
-  double sf_TnP  = 1.0;
-  double sf_MuID = tnp_weight_muid_ppb( pt , eta , 0 );
-  double sf_Trig = tnp_weight_trg_ppb (      eta , 0 );
-  double sf_Iso  = tnp_weight_iso_ppb ( pt , eta , 0 );
-  //
   for (const auto& cor : corrType) {
+    //
+    double sf_TnP  = 1.0;
+    double sf_MuID = tnp_weight_muid_ppb( pt , eta , 0 );
+    double sf_Trig = tnp_weight_trg_ppb (      eta , 0 );
+    double sf_Iso  = tnp_weight_iso_ppb ( pt , eta , 0 );
+    //
+    sfTnP[cor.first].clear();
     for (uint i = 1; i <= cor.second; i++) {
       if (cor.first=="TnP_Stat_MuID"    ) { sf_MuID = tnp_weight_muid_ppb( pt , eta ,  i  ); }
       if (cor.first=="TnP_Stat_Trig"    ) { sf_Trig = tnp_weight_trg_ppb (      eta ,  i  ); }
@@ -473,13 +471,13 @@ TnPVec_t getTnPScaleFactors(const double& pt, const double& eta)
       if (cor.first=="TnP_Syst_MuID"    ) { sf_MuID = tnp_weight_muid_ppb( pt , eta , -i  ); }
       if (cor.first=="TnP_Syst_Trig"    ) { sf_Trig = tnp_weight_trg_ppb (      eta , -i  ); }
       if (cor.first=="TnP_Syst_Iso"     ) { sf_Iso  = tnp_weight_iso_ppb ( pt , eta , -i  ); }
-      if (cor.first=="TnP_Syst_BinMuID" ) { sf_Iso  = tnp_weight_muid_ppb( pt , eta , -10 ); }
+      if (cor.first=="TnP_Syst_BinMuID" ) { sf_MuID = tnp_weight_muid_ppb( pt , eta , -10 ); }
       if (cor.first=="TnP_Syst_BinIso"  ) { sf_Iso  = tnp_weight_iso_ppb ( pt , eta , -10 ); }
       //
-      sf_TnP = ( sf_MuID * sf_Trig * sf_Iso );
       if (cor.first=="NoCorr") { sf_TnP = 1.0; }
+      else { sf_TnP = ( sf_MuID * sf_Trig * sf_Iso ); }
       //
-      sfTnP[cor.first].push_back( sf_TnP );
+      sfTnP.at(cor.first).push_back( sf_TnP );
     }
   }
   //
@@ -489,6 +487,7 @@ TnPVec_t getTnPScaleFactors(const double& pt, const double& eta)
 
 bool getTnPUncertainties(Unc1DVec_t& unc, const EffVec_t& eff)
 {
+  if (eff.count("TnP_Nominal") == 0) { return true; }
   // Compute individual uncertainties
   const TEfficiency& nom = eff.at("TnP_Nominal")[0];
   const uint nBin = nom.GetCopyTotalHisto()->GetNbinsX();
@@ -581,6 +580,7 @@ void initEff1D(TH1DMap_t& h, const BinMap_t& binMap)
         for (const auto& chg : CHG_) {
           for (const auto& type : effType) {
             for (const auto& cor : corrType) {
+              if (type=="Acceptance" && cor.first!="NoCorr") continue;
               for (uint i = 0; i < cor.second; i++) {
                 h[bins.first][sample][col][chg][type][cor.first].push_back( std::make_tuple(TH1D() , TH1D() , 1.0) );
                 std::get<0>(h.at(bins.first).at(sample).at(col).at(chg).at(type).at(cor.first)[i]) = TH1D("Passed", "Passed", (bins.second.size()-1), bin);
@@ -590,8 +590,8 @@ void initEff1D(TH1DMap_t& h, const BinMap_t& binMap)
                 const std::string name = "h1D_" + bins.first +"_"+ sample +"_"+ col +"_"+ chg +"_"+ type +"_"+ cor.first + ((cor.second>1) ? Form("_%d",(i+1)) : "");
                 std::get<0>(h.at(bins.first).at(sample).at(col).at(chg).at(type).at(cor.first)[i]).SetName((name+"_Passed").c_str());
                 std::get<1>(h.at(bins.first).at(sample).at(col).at(chg).at(type).at(cor.first)[i]).SetName((name+"_Total").c_str());
-                std::get<0>(h.at(bins.first).at(sample).at(col).at(chg).at(type).at(cor.first)[i]).Sumw2(kTRUE);
-                std::get<1>(h.at(bins.first).at(sample).at(col).at(chg).at(type).at(cor.first)[i]).Sumw2(kTRUE);
+                std::get<0>(h.at(bins.first).at(sample).at(col).at(chg).at(type).at(cor.first)[i]).Sumw2();
+                std::get<1>(h.at(bins.first).at(sample).at(col).at(chg).at(type).at(cor.first)[i]).Sumw2();
               }
             }
           }
@@ -608,8 +608,10 @@ bool fillEff1D(TH1DVec_t& h, const bool& pass, const double& xVar, const TnPVec_
     for (uint i = 0; i < cor.second.size(); i++) {
       double sf = 1.0;
       if (sfTnP.count(cor.first)>0 && sfTnP.at(cor.first).size()>i) { sf = sfTnP.at(cor.first)[i]; }
+      else if (sfTnP.size()==0) { sf = 1.0; }
       else if (sfTnP.count(cor.first)==0) { std::cout << "[ERROR] Correction " << cor.first << " was not found!" << std::endl; return false; }
       else { std::cout << "[ERROR] Correction " << cor.first << " has invalid number of entries: " << cor.second.size() << "  " << sfTnP.at(cor.first).size() << " !" << std::endl; return false; }
+      if (cor.first!="NoCorr" && pass && sfTnP.size()==0) { std::cout << "[ERROR] TnP scale factor vector is empty!" << std::endl; return false; } 
       // Fill the Pass histogram
       if (pass) { std::get<0>(cor.second[i]).Fill(xVar , (evtWeight*sf)); }
       // Fill the total histogram
@@ -700,220 +702,6 @@ bool loadEff1D(EffMap_t& eff, const TH1DMap_t& h)
   }
   return true;
 };
-
-
-void formatEff1D(TEfficiency& eff, const std::string& var, const std::string& charge, const std::string& type)
-{
-  // Set the format of all graphs
-  if (eff.GetDimension() != 1) { std::cout << "[ERROR] formatEff1D only works for dimension == 1" << std::endl; return; }
-  gPad->Update();
-  auto graph = eff.GetPaintedGraph();
-  const std::string objLbl = ( (type=="Total" || type=="Identification" || type=="Offline") ? "Gen #mu" : "Reco #mu" );
-  // X-axis
-  std::string xLabel = objLbl; if (charge=="Plus") xLabel += "^{+}"; if (charge=="Minus") xLabel += "^{-}";
-  if (var=="Eta") { xLabel += " #eta"; }
-  if (var=="Pt" ) { xLabel += " p_{T} (GeV/c)"; }
-  // Y-axis
-  std::string yLabel = type + " Efficiency";
-  // Set Axis Titles
-  eff.SetTitle(Form(";%s;%s", xLabel.c_str(), yLabel.c_str()));
-  if (graph) { formatEff1D(*graph, var, charge, type); }
-  gPad->Update(); 
-};
-
-
-void formatEff1D(TGraphAsymmErrors& graph, const std::string& var, const std::string& charge, const std::string& type)
-{
-  // General
-  graph.SetMarkerColor(kBlue);
-  graph.SetMarkerStyle(20);
-  graph.SetMarkerSize(1.0);
-  graph.SetFillStyle(1001);
-  const std::string objLbl = ( (type=="Total" || type=="Identification" || type=="Offline") ? "Gen #mu" : "Reco #mu" );
-  // X-axis
-  std::string xLabel = objLbl; if (charge=="Plus") xLabel += "^{+}"; if (charge=="Minus") xLabel += "^{-}";
-  if (var=="Eta") { xLabel += " #eta"; }
-  if (var=="Pt" ) { xLabel += " p_{T} (GeV/c)"; }
-  graph.GetXaxis()->CenterTitle(kFALSE);
-  graph.GetXaxis()->SetTitleOffset(0.9);
-  graph.GetXaxis()->SetTitleSize(0.050);
-  graph.GetXaxis()->SetLabelSize(0.035);
-  graph.GetXaxis()->SetLimits(MU_BIN_.at(var)[0] , MU_BIN_.at(var)[MU_BIN_.at(var).size()-1]);
-  // Y-axis
-  std::string yLabel = type + " Efficiency";
-  graph.GetYaxis()->CenterTitle(kFALSE);
-  graph.GetYaxis()->SetTitleOffset(1.4);
-  graph.GetYaxis()->SetTitleSize(0.04);
-  graph.GetYaxis()->SetLabelSize(0.035);
-  graph.GetYaxis()->SetRangeUser(0.0, 1.4);
-  // Set Axis Titles
-  graph.SetTitle(Form(";%s;%s", xLabel.c_str(), yLabel.c_str()));
-};
-
-
-void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t uncMap)
-{
-  // Draw all graphs
-  for (auto& v : effMap) {
-    for (auto& s : v.second) {
-      for (auto& cl : s.second) {
-        for (auto& ch : cl.second) {
-          for (auto& t : ch.second) {
-            for (auto& co : t.second) {
-              const std::string var    = v.first;
-              const std::string sample = s.first;
-              const std::string col    = cl.first;
-              const std::string charge = ch.first;
-              const std::string type   = t.first;
-              const std::string corr   = co.first;
-              std::vector<TEfficiency>& eff = co.second;
-              Unc1DVec_t&       unc = uncMap.at(v.first).at(s.first).at(cl.first).at(ch.first).at(t.first);
-              // Create Canvas
-              TCanvas c("c", "c", 1000, 1000); c.cd();
-              // Create the Text Info
-              TLatex tex; tex.SetNDC(); tex.SetTextSize(0.028); float dy = 0;
-              std::vector< std::string > textToPrint;
-              std::string sampleLabel; formatDecayLabel(sampleLabel, sample);
-              textToPrint.push_back(sampleLabel);
-              if (var=="Eta") textToPrint.push_back("p^{#mu}_{T} > 25 GeV/c");
-              if (var=="Pt" ) textToPrint.push_back("|#eta^{#mu}| < 2.4");
-              // Declare the graph vector (for drawing with markers)
-              std::vector< TGraphAsymmErrors > grVec;
-              TLegend leg(0.2, 0.2, 0.5, 0.3);
-              // Draw graph
-              if (corr=="NoCorr") {
-                // Extract the Uncorrected Efficiency graph
-                eff[0].Draw(); gPad->Update();
-                grVec.push_back(*(eff[0].GetPaintedGraph()));
-                // Extract the Corrected Efficiency graph
-                t.second.at("TnP_Nominal")[0].Draw(); gPad->Update();
-                grVec.push_back(*(t.second.at("TnP_Nominal")[0].GetPaintedGraph()));
-                // Fill Corrected Efficiency graph with total TnP Uncertainties
-                for (int l = 0; l < grVec[1].GetN(); l++) {
-                  grVec[1].SetPointError(l, grVec[1].GetErrorXlow(l), grVec[1].GetErrorXhigh(l), unc.at("TnP_Tot")[l], unc.at("TnP_Tot")[l]);
-                }
-                // Format the Graphs
-                for (auto& g : grVec) { formatEff1D(g, var, charge, type); }
-                grVec[0].SetMarkerColor(kRed);
-                // Create Legend
-                formatLegendEntry(*leg.AddEntry(&grVec[0], "MC Truth Efficiency", "p"));
-                formatLegendEntry(*leg.AddEntry(&grVec[1], "Corrected Efficiency", "pe"));
-                // Draw the graph
-                grVec[0].Draw("ap");
-                grVec[1].Draw("samep");
-                leg.Draw("same");
-              }
-              else if (corr=="TnP_Nominal") {
-                // Extract the Corrected Efficiency graph
-                eff[0].Draw(); gPad->Update();
-                auto graph = eff[0].GetPaintedGraph();
-                grVec.push_back(*graph);
-                // Fill Corrected Efficiency graph with total TnP Uncertainties
-                for (int l = 0; l < grVec[0].GetN(); l++) {
-                  grVec[0].SetPointError(l, grVec[0].GetErrorXlow(l), grVec[0].GetErrorXhigh(l), unc.at("TnP_Tot")[l], unc.at("TnP_Tot")[l]);
-                }
-                // Fill graph for Statistical Uncertainties
-                grVec.push_back(*graph);
-                for (int l = 0; l < grVec[1].GetN(); l++) {
-                  grVec[1].SetPointError(l, grVec[1].GetErrorXlow(l)*0.4, grVec[1].GetErrorXhigh(l)*0.4, unc.at("TnP_Stat")[l], unc.at("TnP_Stat")[l]);
-                }
-                // Fill graph for Systematic Uncertainties
-                grVec.push_back(*graph);
-                for (int l = 0; l < grVec[2].GetN(); l++) {
-                  grVec[2].SetPointError(l, grVec[2].GetErrorXlow(l)*0.5, grVec[2].GetErrorXhigh(l)*0.5, unc.at("TnP_Syst")[l], unc.at("TnP_Syst")[l]);
-                }
-                // Create Legend
-                formatLegendEntry(*leg.AddEntry(&grVec[0], "Corrected Efficiency", "pe"));
-                formatLegendEntry(*leg.AddEntry(&grVec[1], "TnP Statistical Uncertainty", "f"));
-                formatLegendEntry(*leg.AddEntry(&grVec[2], "TnP Systematic Uncertainty", "f"));
-                // Format the graphs
-                for (auto& g : grVec) { formatEff1D(g, var, charge, type); }
-                grVec[0].SetMarkerColor(kBlack);
-                grVec[1].SetFillColor(kOrange);
-                grVec[2].SetFillColor(kGreen+3);
-                // Draw the graphs
-                grVec[2].Draw("a2");
-                grVec[1].Draw("same2");
-                grVec[0].Draw("samep");
-                leg.Draw("same");
-              }
-              else {
-                // Extract the Corrected Efficiency graph
-                t.second.at("TnP_Nominal")[0].Draw(); gPad->Update();
-                auto graph = t.second.at("TnP_Nominal")[0].GetPaintedGraph();
-                grVec.push_back(*graph);
-                // Fill graph for Uncertainties
-                grVec.push_back(*graph);
-                for (int l = 0; l < grVec[1].GetN(); l++) {
-                  grVec[1].SetPointError(l, grVec[1].GetErrorXlow(l)*0.8, grVec[1].GetErrorXhigh(l)*0.8, unc.at(corr)[l], unc.at(corr)[l]);
-                }
-                // Extract the Varied Efficiency graphs
-                for (uint i = 0; i < eff.size(); i++) {
-                  eff[i].Draw(); gPad->Update();
-                  grVec.push_back(*(eff[i].GetPaintedGraph()));
-                }
-                // Format the graphs
-                for (auto& g : grVec) { formatEff1D(g, var, charge, type); }
-                grVec[0].SetMarkerColor(kAzure+10);
-                grVec[1].SetFillColor(kRed);
-                for (uint n=2; n<grVec.size(); n++) { grVec[n].SetMarkerColor(kBlack);  grVec[n].SetMarkerSize(0.1); grVec[n].SetLineColor(kBlack); }
-                // Create Legend
-                formatLegendEntry(*leg.AddEntry(&grVec[0], "Corrected Efficiency", "pe"));
-                formatLegendEntry(*leg.AddEntry(&grVec[1], Form("%s Uncertainty", corr.c_str()), "f"));
-                formatLegendEntry(*leg.AddEntry(&grVec[2], Form("%s Variation", corr.c_str()), "l"));
-                // Draw the Graph
-                grVec[1].Draw("a2");
-                for (uint n=2; n<grVec.size(); n++) { grVec[n].Draw("samep"); }
-                grVec[1].Draw("same2");
-                grVec[0].Draw("samep");
-                leg.Draw("same");
-              }
-              // Update
-              c.Modified(); c.Update();
-              //
-              if (corr=="NoCorr" || corr=="TnP_Nominal") {
-                // Add Min, Max and Mean value of efficiency
-                auto graph = eff[0].GetPaintedGraph();
-                if (graph) {
-                  const double min = TMath::MinElement(graph->GetN(), graph->GetY())*100.;
-                  const double max = TMath::MaxElement(graph->GetN(), graph->GetY())*100.;
-                  const double avg = graph->GetMean(2)*100.;
-                  const double err = graph->GetRMS(2)*100.;
-                  textToPrint.push_back(Form("min: %.2f %% , max: %.2f %%", min, max));
-                  textToPrint.push_back(Form("mean: %.2f #pm %.2f %%", avg, err));
-                }
-              }
-              else {
-                textToPrint.push_back(corr);
-              }
-              // Draw the text
-              for (const auto& s: textToPrint) { tex.DrawLatex(0.22, 0.86-dy, s.c_str()); dy+=0.04; }
-              c.Modified(); c.Update();
-              // set the CMS style
-              int option = 114;
-              if (col.find("pPb")!=std::string::npos) option = 112;
-              if (col.find("Pbp")!=std::string::npos) option = 113;
-              CMS_lumi(&c, option, 33, "");
-              c.Modified(); c.Update();
-              // Create Output Directory
-              const std::string plotDir = outDir + "TnPEfficiency1D/" + var+"/" + sample+"/" + col+"/" + type;
-              makeDir(plotDir + "/png/");
-              makeDir(plotDir + "/pdf/");
-              makeDir(plotDir + "/root/");
-              // Save Canvas
-              const std::string ename = "eff1D_" + v.first +"_"+ s.first +"_"+ cl.first +"_"+ ch.first +"_"+ t.first +"_"+ co.first;
-              c.SaveAs(( plotDir + "/png/" + ename + ".png" ).c_str());
-              c.SaveAs(( plotDir + "/pdf/" + ename + ".pdf" ).c_str());
-              c.SaveAs(( plotDir + "/root/" + ename + ".root" ).c_str());
-              // Clean up memory
-              c.Clear(); c.Close();
-            }
-          }
-        }
-      }
-    }
-  }
-};
   
 
 void mergeEff(EffMap_t& eff)
@@ -928,7 +716,18 @@ void mergeEff(EffMap_t& eff)
               for (auto& co : t.second) {
                 for (uint i = 0; i < co.second.size(); i++) {
                   // Just add the pPb, no need to combine
-                  co.second[i].Add(s.second.at("pPb").at(ch.first).at(t.first).at(co.first)[i]);
+                  const TEfficiency& eff_pPb = s.second.at("pPb").at(ch.first).at(t.first).at(co.first)[i];
+                  const TEfficiency& eff_Pbp = s.second.at("Pbp").at(ch.first).at(t.first).at(co.first)[i];
+                  // Passed Histogram
+                  TH1D hPassed = *((TH1D*)eff_pPb.GetPassedHistogram());
+                  hPassed.Add(eff_pPb.GetPassedHistogram(), co.second[i].GetPassedHistogram(), eff_pPb.GetWeight(), eff_Pbp.GetWeight());
+                  co.second[i].SetPassedHistogram(hPassed, "f");
+                  // Total Histogram
+                  TH1D hTotal = *((TH1D*)eff_pPb.GetTotalHistogram());
+                  hTotal.Add(eff_pPb.GetTotalHistogram(), co.second[i].GetTotalHistogram(), eff_pPb.GetWeight(), eff_Pbp.GetWeight());
+                  co.second[i].SetTotalHistogram(hTotal, "f");
+                  // Set the statistics in case of weighted histograms
+                  if ( checkWeights(hPassed, hTotal) ) { co.second[i].SetStatisticOption(TEfficiency::kFNormal); }
                 }
               }
             }
@@ -993,15 +792,16 @@ void writeEff(TFile& file, const EffMap_t& eff, const Unc1DMap_t& unc, const std
                 if (corDir==NULL) { corDir = typeDir->mkdir(co.first.c_str()); }
                 corDir->cd();
                 for (uint i = 0; i < co.second.size(); i++) {
-                  const std::string ename = "eff1D_" + v.first +"_"+ s.first +"_"+ c.first +"_"+ ch.first +"_"+ t.first +"_"+ co.first + ((co.second.size()>1) ? Form("_%d",(i+1)) : "");
-                  co.second[i].Write(ename.c_str());
+                  co.second[i].Write(clStr(co.second[i].GetName()));
                 }
                 if (co.first!="NoCorr" && co.first!="TnP_Nominal") { u.at(co.first).Write((name + co.first).c_str()); }
                 typeDir->cd();
               }
-              u.at("TnP_Stat").Write((name + "TnP_Stat").c_str());
-              u.at("TnP_Syst").Write((name + "TnP_Syst").c_str());
-              u.at("TnP_Tot").Write((name + "TnP_Tot").c_str());
+              if (u.count("Tnp_Tot") > 0) { 
+                u.at("TnP_Stat").Write((name + "TnP_Stat").c_str());
+                u.at("TnP_Syst").Write((name + "TnP_Syst").c_str());
+                u.at("TnP_Tot").Write((name + "TnP_Tot").c_str());
+              }
               colDir->cd();
             }
           }
@@ -1047,50 +847,6 @@ void setGlobalWeight(TH1DMap_t& h, const double& weight, const std::string& samp
 };
 
 
-void setStyle()
-{
-  // Set the CMS style
-  setTDRStyle();
-  gStyle->SetOptStat(0);
-  gStyle->SetOptFit(0);
-  //
-};
-
-
-void formatLegendEntry(TLegendEntry& e)
-{
-  e.SetTextSize(0.028);
-};
-
-
-void formatDecayLabel(std::string& label, const std::string& inLabel)
-{
-  label = "";
-  if (inLabel.find("MC_DYToMuMu")!=std::string::npos) {
-    label = "Z/#gamma* #rightarrow #mu^{+} + #mu^{-}";
-    if (inLabel.find("M_10_30")!=std::string::npos) { label = "Z/#gamma* #rightarrow #mu^{+} + #mu^{-} [10 < M < 30]"; }
-    if (inLabel.find("M_30_")  !=std::string::npos) { label = "Z/#gamma* #rightarrow #mu^{+} + #mu^{-} [M > 30] ";      }
-  }
-  if (inLabel.find("MC_ZToMuMu")!=std::string::npos) {
-    label = "Z #rightarrow #mu^{+} + #mu^{-}";
-    if (inLabel.find("M_10_30")!=std::string::npos) { label = "Z #rightarrow #mu^{+} + #mu^{-} [10 < M < 30]"; }
-    if (inLabel.find("M_30_")  !=std::string::npos) { label = "Z #rightarrow #mu^{+} + #mu^{-} [M > 30] ";      }
-  }
-  if (inLabel.find("MC_WToMu")!=std::string::npos) {
-     label = "W #rightarrow #mu + #nu_{#mu}";
-    if (inLabel.find("Plus") !=std::string::npos) { label = "W^{+} #rightarrow #mu^{+} + #nu_{#mu}"; }
-    if (inLabel.find("Minus")!=std::string::npos) { label = "W^{-} #rightarrow #mu^{-} + #bar{#nu}_{#mu}"; }
-  }
-  if (inLabel.find("MC_WToTau")!=std::string::npos) {
-     label = "W #rightarrow #tau #rightarrow #mu + #nu_{#mu} + #bar{#nu}_{#tau}";
-    if (inLabel.find("Plus") !=std::string::npos) { label = "W^{+} #rightarrow #tau^{+} #rightarrow #mu^{+} + #nu_{#mu} + #bar{#nu}_{#tau}"; }
-    if (inLabel.find("Minus")!=std::string::npos) { label = "W^{-} #rightarrow #tau^{-} #rightarrow #mu^{-} + #bar{#nu}_{#mu} + #nu_{#tau}"; }
-  }
-  if (inLabel == "MC_QCDToMu") { label = "QCD #rightarrow #mu"; }
-  if (inLabel == "MC_TTall") { label = "t + #bar{t} #rightarrow All #rightarrow #mu"; }
-};
-
-
 bool checkWeights(const TH1& pass , const TH1& total)
 {
   if (pass.GetSumw2N() == 0 && total.GetSumw2N() == 0) return false;
@@ -1112,4 +868,12 @@ bool checkWeights(const TH1& pass , const TH1& total)
 
   // histograms are not weighted 
   return false;  
+};
+
+
+const char* clStr(const std::string& in)
+{
+  std::string out = in;
+  while (out.find("_copy")!=std::string::npos) { out.erase(out.find("_copy"), 5); }
+  return out.c_str();
 };
