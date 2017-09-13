@@ -797,7 +797,7 @@ void writeEff(TFile& file, const EffMap_t& eff, const Unc1DMap_t& unc, const std
                 if (co.first!="NoCorr" && co.first!="TnP_Nominal") { u.at(co.first).Write((name + co.first).c_str()); }
                 typeDir->cd();
               }
-              if (u.count("Tnp_Tot") > 0) { 
+              if (u.count("TnP_Tot") > 0) { 
                 u.at("TnP_Stat").Write((name + "TnP_Stat").c_str());
                 u.at("TnP_Syst").Write((name + "TnP_Syst").c_str());
                 u.at("TnP_Tot").Write((name + "TnP_Tot").c_str());

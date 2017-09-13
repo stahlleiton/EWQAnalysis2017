@@ -91,9 +91,9 @@ void printEfficiency(void)
   // ------------------------------------------------------------------------------------------------------------------------
   //
   // Set Style
-  //setStyle();
+  setStyle();
   // Draw the Efficiencies
-  //drawEff1D(mainDir, eff1D, unc1D);
+  drawEff1D(mainDir, eff1D, unc1D);
   //
   // ------------------------------------------------------------------------------------------------------------------------
   //
@@ -171,10 +171,12 @@ bool getObjectsFromFile(EffMap_t& eff, Unc1DMap_t& unc, const std::string& fileP
                     }
                   }
                 }
-                eff[v->GetName()][s->GetName()][c->GetName()][ch][t->GetName()]["NoCorrOnly"] = eff.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).at("NoCorr");
-                std::string name = eff.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).at("NoCorr")[0].GetName();
-                name.replace(name.find("NoCorr"), name.find("NoCorr")+6, "NoCorrOnly");
-                eff.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).at("NoCorrOnly")[0].SetName(name.c_str());
+                if (std::string(t->GetName())!="Acceptance") {
+                  eff[v->GetName()][s->GetName()][c->GetName()][ch][t->GetName()]["NoCorrOnly"] = eff.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).at("NoCorr");
+                  std::string name = eff.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).at("NoCorr")[0].GetName();
+                  name.replace(name.find("NoCorr"), name.find("NoCorr")+6, "NoCorrOnly");
+                  eff.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).at("NoCorrOnly")[0].SetName(name.c_str());
+                }
               }
               typeDir->cd();
             }
@@ -253,7 +255,8 @@ void formatEff1D(TGraphAsymmErrors& graph, const std::string& var, const std::st
   graph.GetYaxis()->SetTitleOffset(1.4);
   graph.GetYaxis()->SetTitleSize(0.04);
   graph.GetYaxis()->SetLabelSize(0.035);
-  graph.GetYaxis()->SetRangeUser(0.79, 1.13);
+  if (type!="Acceptance") { graph.GetYaxis()->SetRangeUser(0.79, 1.13); }
+  else { graph.GetYaxis()->SetRangeUser(0.60, 0.90); }
   // Set Axis Titles
   graph.SetTitle(Form(";%s;%s", xLabel.c_str(), yLabel.c_str()));
 };
@@ -275,7 +278,6 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t uncMap)
               const std::string type   = t.first;
               const std::string corr   = co.first;
               std::vector<TEfficiency>& eff = co.second;
-              Unc1DVec_t&       unc = uncMap.at(v.first).at(s.first).at(cl.first).at(ch.first).at(t.first);
               // Create Canvas
               TCanvas c("c", "c", 1000, 1000); c.cd();
               // Create the Text Info
@@ -320,6 +322,7 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t uncMap)
                 t.second.at("TnP_Nominal")[0].Draw(); gPad->Update();
                 grVec.push_back(*(t.second.at("TnP_Nominal")[0].GetPaintedGraph()));
                 // Fill Corrected Efficiency graph with total TnP Uncertainties
+                Unc1DVec_t& unc = uncMap.at(v.first).at(s.first).at(cl.first).at(ch.first).at(t.first);
                 for (int l = 0; l < grVec[1].GetN(); l++) {
                   const double errorYlow  = std::sqrt( (grVec[1].GetErrorYlow(l)*grVec[1].GetErrorYlow(l)) + (unc.at("TnP_Tot")[l]*unc.at("TnP_Tot")[l]) );
                   const double errorYhigh = std::sqrt( (grVec[1].GetErrorYhigh(l)*grVec[1].GetErrorYhigh(l)) + (unc.at("TnP_Tot")[l]*unc.at("TnP_Tot")[l]) );
@@ -341,6 +344,7 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t uncMap)
                 auto graph = eff[0].GetPaintedGraph();
                 grVec.push_back(*graph);
                 // Fill Corrected Efficiency graph with total TnP Uncertainties
+                Unc1DVec_t& unc = uncMap.at(v.first).at(s.first).at(cl.first).at(ch.first).at(t.first);
                 for (int l = 0; l < grVec[0].GetN(); l++) {
                   const double errorYlow  = std::sqrt( (grVec[0].GetErrorYlow(l)*grVec[0].GetErrorYlow(l)) + (unc.at("TnP_Tot")[l]*unc.at("TnP_Tot")[l]) );
                   const double errorYhigh = std::sqrt( (grVec[0].GetErrorYhigh(l)*grVec[0].GetErrorYhigh(l)) + (unc.at("TnP_Tot")[l]*unc.at("TnP_Tot")[l]) );
@@ -384,6 +388,7 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t uncMap)
                 auto graph = t.second.at("TnP_Nominal")[0].GetPaintedGraph();
                 grVec.push_back(*graph);
                 // Fill Corrected Efficiency graph with the TnP Uncertainties
+                Unc1DVec_t& unc = uncMap.at(v.first).at(s.first).at(cl.first).at(ch.first).at(t.first);
                 grVec.push_back(*graph);
                 for (int j = 0; j < grVec[1].GetN(); j++) {
                   grVec[1].SetPointError(j, grVec[1].GetErrorXlow(j)*0.8, grVec[1].GetErrorXhigh(j)*0.8, unc.at(corr)[j], unc.at(corr)[j]);
@@ -570,8 +575,8 @@ bool printTableEff1D(const std::string& outDir, const EffMap_t& effMap, const Un
  {
    // Set the CMS style
    setTDRStyle();
-  gStyle->SetOptStat(0);
-  gStyle->SetOptFit(0);
+   gStyle->SetOptStat(0);
+   gStyle->SetOptFit(0);
   //
 };
 
