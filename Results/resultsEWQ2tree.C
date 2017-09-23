@@ -1,177 +1,200 @@
 #ifndef resultsEWQ2tree_C
 #define resultsEWQ2tree_C
 
+// Auxiliary Headers
+#include "Utilities/resultsUtils.h"
+// ROOT headers
+#include "TROOT.h"
+#include "TSystem.h"
 #include "TFile.h"
 #include "TTree.h"
-#include "TString.h"
-#include "TH1.h"
-#include "TMath.h"
-#include "RooRealVar.h"
-#include "RooAbsPdf.h"
-#include "RooAbsData.h"
-#include "RooStringVar.h"
+// RooFit headers
 #include "RooWorkspace.h"
-#include "RooPlot.h"
-#include "RooHist.h"
+#include "RooAbsData.h"
+#include "RooAbsReal.h"
+#include "RooRealVar.h"
+#include "RooFormulaVar.h"
+#include "RooFitResult.h"
+#include "RooArgSet.h"
+// c++ headers
+#include <iostream>
+#include <string>
 
-#include <vector>
-#include <cstring>
-
-#include "Macros/Utilities/resultsUtils.h"
 
 
-struct poi {
-  Char_t Name[64];
-  float Val;
-  float Err;
-  float Min;
-  float Max;
-  float parIni_Val;
-  float parIni_Err;
-};
-
-const int nBins = 46;
-
-void resultsEWQ2tree(
-                     const char* workDirName,
-                     const char* DSTag,
-                     const char* prependPath,
-                     const char* fitType,
-                     const char* thePoiNames
-                     ) {
-  // workDirName: usual tag where to look for files in Output
-  // thePoiNames: comma-separated list of parameters to store ("par1,par2,par3"). Default: all
-
-  TFile *f  = new TFile(treeFileName(workDirName,DSTag,prependPath,fitType), "RECREATE");
-  TTree *tr = new TTree("fitresults", "fit results");
-
-  // Event Variables
-  std::map< std::string , std::map < std::string , float > > evtVar = 
-    {
-      { "MET",        {{"Min" , -99.}, {"Max" , -99.}, {"Val" , -99.}, {"Err" , -99.}} },
-      { "Muon_Pt",    {{"Min" , -99.}, {"Max" , -99.}, {"Val" , -99.}, {"Err" , -99.}} },
-      { "Muon_Eta",   {{"Min" , -99.}, {"Max" , -99.}, {"Val" , -99.}, {"Err" , -99.}} },
-      { "Muon_Iso",   {{"Min" , -99.}, {"Max" , -99.}, {"Val" , -99.}, {"Err" , -99.}} },
-      { "Muon_MT",    {{"Min" , -99.}, {"Max" , -99.}, {"Val" , -99.}, {"Err" , -99.}} },
-      { "Centrality", {{"Min" , -99.}, {"Max" , -99.}, {"Val" , -99.}, {"Err" , -99.}} }
-    };
-  // model names
-  Char_t W_Model[128]="" , WToTau_Model[128]="", DYZ_Model[128]="", QCD_Model[128]="";
-  // Cut Value
-  Char_t CutAndCount_WToMu[200]="";
-  // system information
-  Char_t collSystem[8]="", charge[5]="";
-  // goodness of fit
-  std::map< std::string , std::map < std::string , float > > fitPar = 
-    { 
-      { "MET", {{"Chi2" , -99.}, {"NDoF" , -99.}, {"NLL" , -99.}, {"NPar" , -99.}, {"NormChi2" , -99.}, {"Chi2Prob" , -99.}} }
-    };
-  // parame
-  TString thePoiNamesStr(thePoiNames);
-  if (thePoiNamesStr.EqualTo("all")) {
-    thePoiNamesStr = TString("N_WToMu,N_WToTauToMu,N_DYZToMu,N_QCDToMu,Alpha_QCDToMu,Beta_QCDToMu,x0_QCDToMu");
-  }
-  std::vector<poi> thePois;
-  TString t; Int_t from = 0;
-  while (thePoiNamesStr.Tokenize(t, from , ",")) {
-    poi p; strcpy(p.Name, t.Data());
-    cout << p.Name << endl;
-    thePois.push_back(p);
-  }
-
-  // create tree branches
-  // Event Variables
-  for (auto& v : evtVar) {
-    for (auto& p : v.second) {
-      tr->Branch(Form("%s_%s", v.first.c_str(), p.first.c_str()) ,&p.second, Form("%s_%s/F", v.first.c_str(), p.first.c_str()));
+bool resultsEWQ2tree(
+                     const std::string workDirName = "NominalCM",
+                     const std::string metTag      = "METPF_RAW",
+                     const std::string dsTag       = "DATA",
+                     const std::string colTag      = "PA",
+                     const std::string thePoiNames = "all"
+                     )
+{
+  //
+  // --------------------------------------------------------------------------------- //
+  //
+  // Define the output file info
+  const std::string CWD = getcwd(NULL, 0);
+  const std::string outputDirPath = Form("%s/Tree/%s/%s/%s/%s", CWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), colTag.c_str());
+  const std::string outputFileName = "tree_allvars.root";
+  const std::string outputFilePath = Form("%s/%s", outputDirPath.c_str(), outputFileName.c_str());
+  //
+  // --------------------------------------------------------------------------------- //
+  //
+  // Define the tree info container
+  TreeInfo info;
+  // Initialize the tree info container
+  iniResultsTreeInfo(info, thePoiNames);
+  //
+  // Initialize the tree
+  TTree tree("fitResults", "Fit Results");
+  //
+  // Set the tree branches
+  setBranches(tree, info);
+  //
+  // --------------------------------------------------------------------------------- //
+  //
+  // Get the list of input files
+  //
+  std::vector< std::string > inputFileNames;
+  std::string preCWD = CWD; preCWD.erase(preCWD.find_last_of("/"), 10);
+  const std::string inputDirPath = Form("%s/Fitter/Output/%s/%s/%s/%s/result", preCWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), colTag.c_str());
+  if (!fileList(inputFileNames, inputDirPath)) { return false; };
+  //
+  // --------------------------------------------------------------------------------- //
+  //
+  // Loop over the input files
+  //
+  for (const auto& inputFileName : inputFileNames) {
+    //
+    std::cout << "Processing file: " << inputFileName << std::endl;
+    //
+    // Open input file
+    const std::string inputFilePath = Form("%s/%s", inputDirPath.c_str(), inputFileName.c_str());
+    TFile inputFile(inputFilePath.c_str(), "READ");
+    //
+    if (inputFile.IsOpen()==false || inputFile.IsZombie()==true) {
+      std::cout << "[ERROR] The input file " << inputFilePath << " could not be created!" << std::endl;
     }
-  }
-  // Goodness of fit
-  for (auto& v : fitPar) {
-    for (auto& p : v.second) {
-      tr->Branch(Form("%s_%s", v.first.c_str(), p.first.c_str()) ,&p.second, Form("%s_%s/F", v.first.c_str(), p.first.c_str()));
+    //
+    // Extract the Workspace
+    RooWorkspace* ws = (RooWorkspace*) inputFile.Get("workspace");
+    if (ws == NULL) { std::cout << "[Error] File: " << inputFilePath << " does not have the workspace!" << std::endl; inputFile.Close(); return false; }
+    //
+    // Extract the information from the workspace
+    const std::string DSTAG = (ws->obj("DSTAG"))     ? ((TObjString*)ws->obj("DSTAG"))->GetString().Data()     : "";
+    const std::string CHA   = (ws->obj("channel"))   ? ((TObjString*)ws->obj("channel"))->GetString().Data()   : "";
+    const std::string COL   = (ws->obj("fitSystem")) ? ((TObjString*)ws->obj("fitSystem"))->GetString().Data() : "";
+    const std::string CHG   = (ws->obj("fitCharge")) ? ((TObjString*)ws->obj("fitCharge"))->GetString().Data() : "";
+    const std::string OBJ   = (ws->obj("fitObject")) ? ((TObjString*)ws->obj("fitObject"))->GetString().Data() : "";
+    // Check the information
+    if (DSTAG.find(dsTag)==std::string::npos) { std::cout << "[ERROR] Workspace DSTAG " << DSTAG << " is not consistent with input dsTag " << dsTag << std::endl; inputFile.Close(); return false; }
+    if (COL != colTag ) { std::cout << "[ERROR] Workspace COL " << COL << " is not consistent with input colTag " << colTag << std::endl; inputFile.Close(); return false; }
+    if (OBJ != "W"    ) { std::cout << "[ERROR] Only W fits are currently supported in result macros!"      << std::endl; return false; }
+    if (CHA != "ToMu" ) { std::cout << "[ERROR] Only muon channel is currently supported in result macros!" << std::endl; return false; }
+    //
+    // Fill the information
+    info.Str.at("collSystem") = COL;
+    info.Str.at("charge"    ) = CHG;
+    info.Str.at("fitObject" ) = OBJ;
+    info.Str.at("channel"   ) = CHA;
+    info.Str.at("metType"   ) = ( (ws->obj("METType")) ? ((TObjString*)ws->obj("METType"))->GetString().Data() : "" );
+    //
+    const std::string token  = ( CHG + "_" + COL );
+    const std::string tag    = ( OBJ + CHA + token );
+    const std::string dsName = ( "d" + CHG + "_" + DSTAG );
+    //
+    // Fill the Model Information
+    const std::vector< std::string > objType = { "W" , "WToTau" , "DY" , "TTbar" , "QCD" };
+    for (const auto& o : objType) {
+      const std::string modelLabel = Form("Model_%s%s%s", o.c_str(), CHA.c_str(), token.c_str());
+      info.Str.at("Model_"+o) = ( (ws->obj(modelLabel.c_str())) ? ((TObjString*)ws->obj(modelLabel.c_str()))->GetString().Data() : "" );
     }
-  }
-  // model names
-  tr->Branch("Model_W",W_Model,"Model_W/C");
-  tr->Branch("Model_WToTau",WToTau_Model,"Model_WToTau/C");
-  tr->Branch("Model_DYZ",DYZ_Model,"Model_DYZ/C");
-  tr->Branch("Model_QCD",QCD_Model,"Model_QCD/C");
-  // system information
-  tr->Branch("collSystem",collSystem,"collSystem/C");
-  tr->Branch("charge",charge,"collSystem/C");
-  // parameters to store
-  tr->Branch("CutAndCount_WToMu",CutAndCount_WToMu,"CutAndCount_WToMu/C");
-  for (vector<poi>::iterator it=thePois.begin(); it!=thePois.end(); it++) {
-    tr->Branch(Form("%s_Val",it->Name),&(it->Val),Form("%s_Val/F",it->Name));
-    tr->Branch(Form("%s_Err",it->Name),&(it->Err),Form("%s_Err/F",it->Name));
-    tr->Branch(Form("%s_Min",it->Name),&(it->Min),Form("%s_Min/F",it->Name));
-    tr->Branch(Form("%s_Max",it->Name),&(it->Max),Form("%s_Max/F",it->Name));
-    tr->Branch(Form("%s_parIni_Val",it->Name),&(it->parIni_Val),Form("%s_parIni_Val/F",it->Name));
-    tr->Branch(Form("%s_parIni_Err",it->Name),&(it->parIni_Err),Form("%s_parIni_Err/F",it->Name));
-  }
-
-  // list of files
-  std::vector<TString> theFiles = fileList(workDirName,"",DSTag,"",fitType);
-  std::cout << theFiles.size() << std::endl;
-
-  int cnt=0;
-  for (auto& fileN : theFiles) {
-    cout << "Parsing file " << cnt << " / " << theFiles.size() << ": " << fileN << endl;
-    // parse the file name to get info
-    if (fileN.Contains("Pbp_"))  { strcpy(collSystem, "Pbp");  }
-    if (fileN.Contains("pPb_"))  { strcpy(collSystem, "pPb");  }
-    if (fileN.Contains("PA_"))   { strcpy(collSystem, "PA");   }
-    if (fileN.Contains("PbPb_")) { strcpy(collSystem, "PbPb"); }
-    if (fileN.Contains("PP_"))   { strcpy(collSystem, "PP");   }
-    if (fileN.Contains("Pl_"))   { strcpy(charge,     "Pl");   }
-    if (fileN.Contains("Mi_"))   { strcpy(charge,     "Mi");   }
-    const char* dsName = Form("d%s_%s_MUON_%s", charge, DSTag, collSystem);
-    const char* token = Form("%s_%s", charge, collSystem);
-    
-    TFile *f = TFile::Open(fileN.Data());
-    if (!f) { std::cout << "[Error] File: " << fileN << " does not exist!" << std::endl; return; }
-    if (!f->IsOpen()) { std::cout << "[Error] File: " << fileN << " fail to open!" << std::endl; delete f; return; }
-    RooWorkspace* ws = (RooWorkspace*) f->Get("workspace");
-    if (!ws) { std::cout << "[Error] File: " << fileN << " does not have the workspace!" << std::endl; f->Close(); delete f; return; }
-
-    // get the snapshots
+    //
+    // Fill the Cut Information
+    info.Str.at("cutAndCount_W") = ( (ws->obj(Form("CutAndCount_%s", tag.c_str()))) ? ((TObjString*)ws->obj(Form("CutAndCount_%s", tag.c_str())))->GetString().Data() : "" );
+    //
+    // Fill the Flag Information
+    bool useEtaCM = false;
+    if ( (ws->var("useEtaCM") != NULL) && (ws->var("useEtaCM")->getVal() == 1.0) ) { useEtaCM = true; }
+    info.Flag.at("useEtaCM") = useEtaCM;
+    //
+    // Fill the Dataset Variable Information
+    RooAbsData* ds = (RooAbsData*) ws->data(Form("CutAndCount_%s", dsName.c_str()));
+    if (ds == NULL) { ds = (RooAbsData*) ws->data(Form("%s", dsName.c_str())); }
+    if (ds == NULL) { std::cout << "[ERROR] The Dataset " << dsName << " was not found in the workspace" << std::endl; inputFile.Close(); return false; }
+    for (auto& v : info.Var) {
+      if (v.first.find("VAR_")==std::string::npos) continue;
+      std::string varName = v.first; varName.erase(varName.find("VAR_"), 4);
+      //
+      RooRealVar* var  = (RooRealVar*) ws->var(varName.c_str());
+      RooRealVar* mean = ( (var && ds) ? (RooRealVar*) ds->meanVar(*var) : NULL );
+      RooRealVar* rms  = ( (var && ds) ? (RooRealVar*) ds->rmsVar(*var) : NULL );
+      //
+      if (v.second.count("Min")) { v.second.at("Min") = var  ? var->getMin()   : -1.0; }
+      if (v.second.count("Max")) { v.second.at("Max") = var  ? var->getMax()   : -1.0; }
+      if (v.second.count("Val")) { v.second.at("Val") = mean ? mean->getVal()  : -1.0; }
+      if (v.second.count("Err")) { v.second.at("Err") = rms  ? rms->getError() : -1.0; }
+    }
+    //
+    // Get the Snapshots
     const RooArgSet *parIni = ws->getSnapshot("initialParameters");
-
-    // get the POIs
-    for (auto& itpoi : thePois) {
-      RooRealVar *thevar = poiFromWS(*ws, token, itpoi.Name);
-      RooRealVar *thevar_parIni = parIni ? (RooRealVar*) parIni->find(Form("%s%s", itpoi.Name, token)) : NULL;
-      itpoi.Val = thevar ? thevar->getVal()   : 0;
-      itpoi.Err = thevar ? thevar->getError() : 0;
-      itpoi.Min = thevar ? thevar->getMin()   : 0;
-      itpoi.Max = thevar ? thevar->getMax()   : 0;
-      itpoi.parIni_Val = thevar_parIni ? thevar_parIni->getVal()   : 0;
-      itpoi.parIni_Err = thevar_parIni ? thevar_parIni->getError() : 0;
+    //
+    // Fill the Fitted Variable Information
+    for (auto& p : info.Var) {
+      if (p.first.find("POI_")==std::string::npos) continue;
+      std::string poiName = p.first; poiName.erase(poiName.find("POI_"), 4);
+      poiName += token;
+      //
+      if (ws->var(poiName.c_str())!=NULL) {
+        RooRealVar* poi = (RooRealVar*) ws->var(poiName.c_str());
+        RooRealVar* poi_parIni = ( parIni ? (RooRealVar*) parIni->find(poiName.c_str()) : NULL );
+        if (p.second.count("Min")) { p.second.at("Min") = poi ? poi->getMin()   : -1.0; }
+        if (p.second.count("Max")) { p.second.at("Max") = poi ? poi->getMax()   : -1.0; }
+        if (p.second.count("Val")) { p.second.at("Val") = poi ? poi->getVal()   : -1.0; }
+        if (p.second.count("Err")) { p.second.at("Err") = poi ? poi->getError() : -1.0; }
+        if (p.second.count("parIni_Val")) { p.second.at("parIni_Val") = poi_parIni ? poi_parIni->getMin() : -1.0; }
+        if (p.second.count("parIni_Err")) { p.second.at("parIni_Err") = poi_parIni ? poi_parIni->getMax() : -1.0; }
+      }
+      //
+      else if (ws->function(poiName.c_str())!=NULL) {
+        const std::string pdfName = ( "pdfMET_Tot" + tag );
+        RooFitResult* fitResult = (RooFitResult*) ws->obj(Form("fitResult_%s", pdfName.c_str()));
+        RooFormulaVar* poi = (RooFormulaVar*) ws->function(poiName.c_str());
+        if (p.second.count("Min")) { p.second.at("Min") = -1.0; }
+        if (p.second.count("Max")) { p.second.at("Max") = -1.0; }
+        if (p.second.count("Val")) { p.second.at("Val") = poi ? poi->getVal() : -1.0; }
+        if (p.second.count("Err")) { p.second.at("Err") = (poi && fitResult) ? poi->getPropagatedError(*fitResult) : -1.0; }
+        if (p.second.count("parIni_Val")) { p.second.at("parIni_Val") = (poi && parIni) ? poi->getVal(*parIni) : -1.0; }
+        if (p.second.count("parIni_Err")) { p.second.at("parIni_Err") = -1.0; }
+      }
     }
-
-    RooAbsData * ds = (RooAbsData*) ws->data(Form("CutAndCount_%s", dsName));
-    if (!ds) { ds = (RooAbsData*) ws->data(Form("%s", dsName)); }
-    for (auto& v : evtVar) {
-      RooRealVar *thevar  = parIni ? (RooRealVar*) parIni->find(v.first.c_str()) : NULL;
-      RooRealVar *themean = (thevar && ds) ? (RooRealVar*) ds->meanVar(*thevar) : NULL;
-      if (v.second.count("Min")) { v.second.at("Min") = thevar ? thevar->getMin() : 0; }
-      if (v.second.count("Max")) { v.second.at("Max") = thevar ? thevar->getMax() : 0; }
-      if (v.second.count("Val")) { v.second.at("Val") = themean ? themean->getVal() : 0; }
-      if (v.second.count("Err")) { v.second.at("Err") = themean ? themean->getError() : 0; }
-    }
-    RooStringVar *thecut  = (RooStringVar*) ws->obj(Form("CutAndCount_WToMu%s", token));
-    strcpy(CutAndCount_WToMu, thecut ? thecut->getVal() : "");
-
-    delete ws; f->Close(); delete f;
-
-    // fill the tree
-    tr->Fill();
-    cnt++;
+    //
+    // Clean up the memory
+    delete ws;
+    inputFile.Close();
+    //
+    // Fill the tree
+    tree.Fill();
   } // loop on the files
-
-  f->Write();
-  f->Close();
+  //
+  // Create the output file
+  TFile outputFile(outputFilePath.c_str(), "RECREATE");
+  if (outputFile.IsOpen()==false || outputFile.IsZombie()==true) {
+    std::cout << "[ERROR] The output file " << outputFilePath << " could not be created!" << std::endl;
+  }
+  outputFile.cd();
+  //
+  // Write the output tree
+  tree.Write();
+  //
+  // Write the output file
+  outputFile.Write();
+  // Close the output file
+  outputFile.Close();
+  //
+  // return
+  return true;
 }
 
 

@@ -1,30 +1,26 @@
-#include "Macros/CMS/CMS_lumi.C"
-#include "Macros/CMS/tdrstyle.C"
-#include "Macros/Utilities/bin.h"
-#include "Macros/Utilities/initClasses.h"
-#include "Macros/Utilities/resultsUtils.h"
-#include "Macros/Utilities/texUtils.h"
+// Auxiliary Headers
+#include "Utilities/resultsUtils.h"
+#include "resultsEWQ2tree.C"
+// ROOT headers
+#include "TROOT.h"
+#include "TSystem.h"
+#include "TFile.h"
+#include "TTree.h"
+// RooFit headers
 
+// c++ headers
+#include <iostream>
+#include <sstream>
 #include <vector>
 #include <map>
 #include <string>
-#include <sstream>
-#include "TGraphAsymmErrors.h"
-#include "TGraphErrors.h"
-#include "TCanvas.h"
-#include "TH1.h"
-#include "TLegend.h"
-#include "TLine.h"
-#include "RooRealVar.h"
-#include "RooWorkspace.h"
-#include "TSystemDirectory.h"
-#include "TSystemFile.h"
-#include "TArrow.h"
+
 
 ////////////////
 // PARAMETERS //
 ////////////////
 
+/*
 #ifndef poiname_check
 #define poiname_check
 const char* poiname = "N_WToMu"; // for W Asymmetry (will correct automatically for efficiency)
@@ -44,284 +40,160 @@ typedef std::map< std::string, std::map< anabin<0> , std::vector< anabin<0> > > 
 void printOptions();
 void plotGraph(const TGraphBinDict& theGraphs, const std::string& xaxis, const std::string& outputDir,  const std::string type, 
                const std::vector<std::string>& infoLabel=std::vector<std::string>(), const bool& merge=false);
-void plot(std::vector< anabin<0> > thecats, string xaxis, string workDirName);
 void flipXAxis(TGraphAsymmErrors& g);
 int color(int i);
 int markerstyle(int i);
 string nameTag;
-
-class asymm_input {
-public:
-  double nPl;
-  double nMi;
-  double dnPl_stat;
-  double dnMi_stat;
-};
-
-
-/////////////////////////////////////////////
-// MAIN FUNCTIONS TO BE CALLED BY THE USER //
-/////////////////////////////////////////////
-/*
-     theCats.push_back(anabin<0>(-2.4,-2.0,0.0,0.15,0,200));
-     theCats.push_back(anabin<0>(-2.0,-1.5,0.0,0.15,0,200));
-     theCats.push_back(anabin<0>(-1.5,-1.0,0.0,0.15,0,200));
-     theCats.push_back(anabin<0>(-1.0,-0.5,0.0,0.15,0,200));
-     theCats.push_back(anabin<0>(-0.5,+0.0,0.0,0.15,0,200));
-     theCats.push_back(anabin<0>(+0.0,+0.5,0.0,0.15,0,200));
-     theCats.push_back(anabin<0>(+0.5,+1.0,0.0,0.15,0,200));
-     theCats.push_back(anabin<0>(+1.0,+1.5,0.0,0.15,0,200));
-     theCats.push_back(anabin<0>(+1.5,+2.0,0.0,0.15,0,200));
-     theCats.push_back(anabin<0>(+2.0,+2.4,0.0,0.15,0,200));
 */
 
-void plotEta(string workDirName)
+void plot ( const std::string xaxis = "eta" , const std::string workDirName = "NominalCM" );
+
+void plotEta(const string& workDirName)
 {
   std::string xaxis = "eta";
-  std::vector<anabin<0>> theCats;
-
-  theCats.push_back(anabin<0>(-2.4,2.4,0.0,0.15,0,200));
-
-  nameTag = nameTag_base;
-  plot(theCats,xaxis,workDirName);
+  std::vector< anabin<0> > bins;
+  //
+  plot(xaxis, workDirName);
 };
 
-void plotAll(string workDirName)
+
+void plotAll(const string& workDirName)
 {
   plotEta(workDirName);
 };
+
 
 /////////////////////
 // OTHER FUNCTIONS //
 /////////////////////
 
-void plot(std::vector< anabin<0> > thecats, std::string xaxis, std::string outputDir)
-{ 
-  TFile *f = new TFile(treeFileName(outputDir.c_str(),"DATA","","MET"));
-  if (!f || !f->IsOpen()) {
-    resultsEWQ2tree(outputDir.c_str(),"DATA");
-    f = new TFile(treeFileName(outputDir.c_str(),"DATA","","MET"));
-    if (!f) return;
-  }
-  TTree *tr = (TTree*) f->Get("fitresults");
-  if (!tr) { f->Close(); delete f; return; }
-
-  std::map<std::string, std::map< anabin<0>, asymm_input> > theVars_inputs;
-
-  std::vector<double> x, ex, y, ey;
-  std::map< std::string , std::map < std::string , float > > evtVar = 
-    {
-      { "MET",        {{"Min" , -99.}, {"Max" , -99.}, {"Val" , -99.}, {"Err" , -99.}} },
-      { "Muon_Pt",    {{"Min" , -99.}, {"Max" , -99.}, {"Val" , -99.}, {"Err" , -99.}} },
-      { "Muon_Eta",   {{"Min" , -99.}, {"Max" , -99.}, {"Val" , -99.}, {"Err" , -99.}} },
-      { "Muon_Iso",   {{"Min" , -99.}, {"Max" , -99.}, {"Val" , -99.}, {"Err" , -99.}} },
-      { "Muon_MT",    {{"Min" , -99.}, {"Max" , -99.}, {"Val" , -99.}, {"Err" , -99.}} },
-      { "Centrality", {{"Min" , -99.}, {"Max" , -99.}, {"Val" , -99.}, {"Err" , -99.}} }
-    };
-  float val, err=0;
-  char collSystem[5], charge[5], cutLabel[200];
-
-  // Event Variables
-  for (auto v : evtVar) {
-    for (auto p : v.second) {
-      tr->SetBranchAddress(Form("%s_%s", v.first.c_str(), p.first.c_str()) ,&(evtVar.at(v.first).at(p.first)));
+void plot(const std::string xaxis, const std::string workDirName)
+{
+  //
+  const std::string metTag      = "METPF_RAW";
+  const std::string dsTag       = "DATA";
+  const std::string colTag      = "PA";
+  const std::string thePoiNames = "all";
+  //
+  // --------------------------------------------------------------------------------- //
+  //
+  // Define the input file info
+  const std::string CWD = getcwd(NULL, 0);
+  const std::string inputDirPath = Form("%s/Tree/%s/%s/%s/%s", CWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), colTag.c_str());
+  const std::string inputFileName = "tree_allvars.root";
+  const std::string inputFilePath = Form("%s/%s", inputDirPath.c_str(), inputFileName.c_str());
+  // Open the input file
+  TFile inputFile(inputFilePath.c_str(), "READ");
+  if (inputFile.IsOpen()==false || inputFile.IsZombie()==true) {
+    std::cout << "[WARNING] The input file " << inputFilePath << " was not found, will create it!" << std::endl;
+    if (!resultsEWQ2tree(workDirName, metTag, dsTag, colTag)) { return; };
+    inputFile.ReOpen("READ");
+    if (inputFile.IsOpen()==false || inputFile.IsZombie()==true) {
+      std::cout << "[ERROR] The input file " << inputFilePath << " could not be re-created!" << std::endl;
     }
   }
-  tr->SetBranchAddress(Form("%s_Val",poiname),&val);
-  tr->SetBranchAddress(Form("%s_Err",poiname),&err);
-  tr->SetBranchAddress("collSystem",collSystem);
-  tr->SetBranchAddress("charge",charge);
-  tr->SetBranchAddress("CutAndCount_WToMu",cutLabel);
-  const char* token = Form("%s_%s", charge, collSystem);
-
-  int ntr = tr->GetEntries();
-  for (int i=0; i<ntr; i++) {
-    tr->GetEntry(i);
-    anabin<0> thebin(evtVar.at("Muon_Eta").at("Min"), evtVar.at("Muon_Eta").at("Max"), evtVar.at("Muon_Iso").at("Min"), evtVar.at("Muon_Iso").at("Max"), 0, 200);
-    if (thebin==anabin<0>(-99.,-99.,-99.,-99.,-99.,-99.)) { std::cout << "[ERROR] The bin was not set properly!" << std::endl; return; }
-    if ((TString(collSystem)=="pPb") && (TString(charge)=="Pl")) {
-      theVars_inputs["pPb"][thebin].nPl = val;
-      theVars_inputs["pPb"][thebin].dnPl_stat = err;
-    } 
-    else if ((TString(collSystem)=="pPb") && (TString(charge)=="Mi")) {
-      theVars_inputs["pPb"][thebin].nMi = val;
-      theVars_inputs["pPb"][thebin].dnMi_stat = err;
+  //
+  // --------------------------------------------------------------------------------- //
+  //
+  // Define the tree info container
+  TreeInfo info;
+  // Initialize the tree info container
+  iniResultsTreeInfo(info, thePoiNames);
+  //
+  // Extract the input tree
+  TTree * tree = (TTree*) inputFile.Get("fitResults");
+  if (tree==NULL) { std::cout << "[ERROR] The input tree fitResults was not found in " << inputFilePath << "" << std::endl; inputFile.Close(); return; }
+  // Set the address of the tree branches
+  setBranchAddress(*tree, info);
+  //
+  // Extract the input variables
+  VarBinMap inputVar;
+  bool useEtaCM = false;
+  //
+  const uint nEntries = tree->GetEntries();
+  for (uint i = 0; i < nEntries; i++) {
+    tree->GetEntry(i);
+    //
+    const std::string collSystem = *info.StrP.at("collSystem");
+    const std::string charge     = *info.StrP.at("charge");
+    //
+    // Determine the bin
+    double etaMin = info.Var.at("VAR_Muon_Eta").at("Min");
+    double etaMax = info.Var.at("VAR_Muon_Eta").at("Max");
+    if ((etaMin == -99.) || (etaMax == -99.)) { std::cout << "[ERROR] The bin was not set properly!" << std::endl; return; }
+    // If the bins where fitted in the Center of Mass, change from LAB to CM
+    if (info.Flag.at("useEtaCM")) {
+      bool usepPb = false; if ( (collSystem == "PA") || (collSystem == "pPb") ) { usepPb = true; }
+      etaMin = PA::EtaLABtoCM(etaMin, usepPb);
+      etaMax = PA::EtaLABtoCM(etaMax, usepPb);
+      useEtaCM = true;
     }
-    else if ((TString(collSystem)=="Pbp") && (TString(charge)=="Pl")) {
-      theVars_inputs["Pbp"][thebin].nPl = val;
-      theVars_inputs["Pbp"][thebin].dnPl_stat = err;
+    // Round the bin boundaries to two decimals
+    roundValue(etaMin, 2);
+    roundValue(etaMax, 2);
+    anabin<0> bin(etaMin, etaMax);
+    //
+    // Get the fit variables
+    for (auto& v : info.Var) {
+      if (v.first.find("POI_")==std::string::npos) continue;
+      std::string name = v.first; name.erase(name.find("POI_"),4);
+      inputVar[collSystem][bin][charge][name]["Val"] = v.second.at("Val");
+      inputVar[collSystem][bin][charge][name]["Err_Stat_High"] = v.second.at("Err");
+      inputVar[collSystem][bin][charge][name]["Err_Stat_Low"]  = v.second.at("Err");
+      inputVar[collSystem][bin][charge][name]["Err_Syst_High"] = 0.0;
+      inputVar[collSystem][bin][charge][name]["Err_Syst_Low"]  = 0.0;
     }
-    else if ((TString(collSystem)=="Pbp") && (TString(charge)=="Mi")) {
-      theVars_inputs["Pbp"][thebin].nMi = val;
-      theVars_inputs["Pbp"][thebin].dnMi_stat = err;
-    }
-  }
-  BinVecBinDict    theBins;
-  DoubleVecBinDict theVarsBinned_Asymm;
-  DoubleVecBinDict theVarsBinned_Asymm_stat;
-  TGraphBinDict    theGraphs_Asymm;
-  DoubleVecBinDict theVarsBinned_A1Pl;
-  DoubleVecBinDict theVarsBinned_A1Pl_stat;
-  TGraphBinDict    theGraphs_A1Pl;
-  DoubleVecBinDict theVarsBinned_A1Mi;
-  DoubleVecBinDict theVarsBinned_A1Mi_stat;
-  TGraphBinDict    theGraphs_A1Mi;
-  DoubleVecBinDict theVarsBinned_A3;
-  DoubleVecBinDict theVarsBinned_A3_stat;
-  TGraphBinDict    theGraphs_A3;
-  // initialize the maps
-  for (auto colM : theVars_inputs) {
-    std::string col = colM.first;
-    for (auto it : thecats) {
-      theBins[col][it] = std::vector< anabin<0> >();
-      theVarsBinned_Asymm[col][it] = std::vector<double>();
-      theVarsBinned_Asymm_stat[col][it] = std::vector<double>();
-      theVarsBinned_A1Pl[col][it] = std::vector<double>();
-      theVarsBinned_A1Pl_stat[col][it] = std::vector<double>();
-      theVarsBinned_A1Mi[col][it] = std::vector<double>();
-      theVarsBinned_A1Mi_stat[col][it] = std::vector<double>();
-      theVarsBinned_A3[col][it] = std::vector<double>();
-      theVarsBinned_A3_stat[col][it] = std::vector<double>();
-    }
-  }
-  std::map< std::string, std::map< std::string, std::map< double, double > > > N , dN;
-  std::map< std::string, double > norm;
-  for (auto colM : theVars_inputs) {
-    std::string col = colM.first;
-    norm[col] = 0;
-    for (auto it : colM.second) {
-      anabin<0> thebin = it.first;
-      if (!binok(thecats,xaxis,thebin)) continue;
-      theBins.at(col).at(thebin).push_back(it.first);
-      // Compute Charge Asymmetry
-      asymm_input v = theVars_inputs.at(col).at(it.first);
-      double asym = (v.nPl - v.nMi)/(v.nPl + v.nMi);
-      double dasym_stat = 2.0*sqrt( pow((v.nMi*v.dnPl_stat), 2.0) + pow((v.nPl*v.dnMi_stat), 2.0) )/(pow((v.nPl + v.nMi), 2.0));
-      theVarsBinned_Asymm.at(col).at(thebin).push_back(asym);
-      theVarsBinned_Asymm_stat.at(col).at(thebin).push_back(dasym_stat);
-      // Compute the eta asymmetries
-      double eta = (it.first.muetabin().high()+it.first.muetabin().low())/2.;
-      N[col]["Pl"][eta] = v.nPl; N[col]["Mi"][eta] = v.nMi;
-      dN[col]["Pl"][eta] = v.dnPl_stat; dN[col]["Mi"][eta] = v.dnMi_stat;
-      norm.at(col) += (v.nPl + v.nMi);
+    // Get the dataset variables
+    for (auto& v : info.Var) {
+      if (v.first.find("VAR_")==std::string::npos) continue;
+      std::string name = v.first; name.erase(name.find("VAR_"),4);
+      inputVar[collSystem][bin][charge][name]["Val"] = v.second.at("Val");
+      inputVar[collSystem][bin][charge][name]["RMS"] = v.second.at("Err");
+      inputVar[collSystem][bin][charge][name]["Min"] = v.second.at("Min");
+      inputVar[collSystem][bin][charge][name]["Max"] = v.second.at("Max");
     }
   }
-  // make TGraphAsymmErrors
-  for (auto colM : theVars_inputs) {
-    int cnt=0;
-    std::string col = colM.first;
-    for (auto it : thecats) {
-      int n = theBins.at(col).at(it).size();
-      if(n==0) {
-        cout << "Error, nothing found for category" << endl;
-        theGraphs_Asymm[col][it] = NULL;
-        continue;
-      }
-      if (!theGraphs_Asymm[col][it]) { theGraphs_Asymm.at(col).at(it) = new TGraphAsymmErrors(n); }
-      theGraphs_Asymm.at(col).at(it)->SetName(Form("bin_%s_%i",col.c_str(),cnt));
-      for (int i=0; i<n; i++) {
-        double x=0, exl=0, exh=0, y=0, eyl=0, eyh=0;
-        double low=0, high=0; 
-        anabin<0> thebin = theBins.at(col).at(it).at(i);
-        y = theVarsBinned_Asymm.at(col).at(it).at(i);
-        if (xaxis=="eta") {
-          low= thebin.muetabin().low();
-          high = thebin.muetabin().high();
-          x = (low+high)/2.;
-          exh = (high-low)/2.;
-          exl = (high-low)/2.;
-        }
-        eyl = fabs(theVarsBinned_Asymm_stat.at(col).at(it).at(i));
-        eyh = eyl;
-        theGraphs_Asymm.at(col).at(it)->SetPoint(i,x,y);
-        theGraphs_Asymm.at(col).at(it)->SetPointError(i,exl,exh,eyl,eyh);
-      }
-      cnt++;
-    }
-  }
-  for (auto colM : theVars_inputs) {
-    std::string col = colM.first;
-    for (auto it : colM.second) {
-      anabin<0> thebin = it.first;
-      if (!binok(thecats,xaxis,thebin)) continue;
-      double eta = (it.first.muetabin().high()+it.first.muetabin().low())/2.;
-      if (eta<0.) continue;
-      if (col.find("pPb")!=std::string::npos) { eta = -1.0*eta; }
-      double a1Pl = N.at(col).at("Pl").at(-1.*eta)/N.at(col).at("Pl").at(eta);
-      double da1Pl_stat = sqrt( 
-                               pow((N.at(col).at("Pl").at(eta)*dN.at(col).at("Pl").at(-1.*eta)), 2.0) + 
-                               pow((N.at(col).at("Pl").at(-1.*eta)*dN.at(col).at("Pl").at(eta)), 2.0) 
-                                ) / (pow(N.at(col).at("Pl").at(eta), 2.0));
-      theVarsBinned_A1Pl.at(col).at(thebin).push_back(a1Pl);
-      theVarsBinned_A1Pl_stat.at(col).at(thebin).push_back(da1Pl_stat);
-      double a1Mi = N.at(col).at("Mi").at(-1.*eta)/N.at(col).at("Mi").at(eta);
-      double da1Mi_stat = sqrt( 
-                               pow((N.at(col).at("Mi").at(eta)*dN.at(col).at("Mi").at(-1.*eta)), 2.0) + 
-                               pow((N.at(col).at("Mi").at(-1.*eta)*dN.at(col).at("Mi").at(eta)), 2.0) 
-                                ) / (pow(N.at(col).at("Mi").at(eta), 2.0));
-      theVarsBinned_A1Mi.at(col).at(thebin).push_back(a1Mi);
-      theVarsBinned_A1Mi_stat.at(col).at(thebin).push_back(da1Mi_stat);
-      double a3 = (N.at(col).at("Mi").at(-1.*eta)+N.at(col).at("Pl").at(-1.*eta))/(N.at(col).at("Mi").at(eta)+N.at(col).at("Pl").at(eta));
-      double da3_stat = sqrt( 
-                             pow( (N.at(col).at("Pl").at(eta)+N.at(col).at("Mi").at(eta)) , 2.0)*(pow( (dN.at(col).at("Pl").at(-1.*eta)) , 2.0) + pow( (dN.at(col).at("Mi").at(-1.*eta)) , 2.0) ) +
-                             pow( (N.at(col).at("Pl").at(-1.*eta)+N.at(col).at("Mi").at(-1.*eta)) , 2.0)*(pow( (dN.at(col).at("Pl").at(eta)) , 2.0) + pow( (dN.at(col).at("Mi").at(eta)) , 2.0) )
-                              ) / (pow( (N.at(col).at("Mi").at(eta)+N.at(col).at("Pl").at(eta)) , 2.0));
-      theVarsBinned_A3.at(col).at(thebin).push_back(a3);
-      theVarsBinned_A3_stat.at(col).at(thebin).push_back(da3_stat);
-    }
-  }
-  for (auto colM : theVars_inputs) {
-    int cnt=0;
-    std::string col = colM.first;
-    for (auto it : thecats) {
-      int n = int(theBins.at(col).at(it).size());
-      if(n==0) {
-        cout << "Error, nothing found for category" << endl;
-        theGraphs_A1Pl[col][it] = NULL;
-        theGraphs_A1Mi[col][it] = NULL;
-        theGraphs_A3[col][it] = NULL;
-        continue;
-      }
-      if (!theGraphs_A1Pl[col][it]) { theGraphs_A1Pl.at(col).at(it) = new TGraphAsymmErrors(int(n/2.)); }
-      if (!theGraphs_A1Mi[col][it]) { theGraphs_A1Mi.at(col).at(it) = new TGraphAsymmErrors(int(n/2.)); }
-      if (!theGraphs_A3[col][it]) { theGraphs_A3.at(col).at(it) = new TGraphAsymmErrors(int(n/2.)); }
-      theGraphs_A1Pl.at(col).at(it)->SetName(Form("bin_%s_%i",col.c_str(),cnt));
-      theGraphs_A1Mi.at(col).at(it)->SetName(Form("bin_%s_%i",col.c_str(),cnt));
-      theGraphs_A3.at(col).at(it)->SetName(Form("bin_%s_%i",col.c_str(),cnt));
-      int i=0;
-      for (int j=0; j<n; j++) {
-        double x=0, exl=0, exh=0, y=0, eyl=0, eyh=0;
-        double low=0, high=0; 
-        anabin<0> thebin = theBins.at(col).at(it).at(j);
-        double eta = (thebin.muetabin().high()+thebin.muetabin().low())/2.;
-        if (eta<0.) continue;
-        y = theVarsBinned_A1Pl.at(col).at(it).at(i);
-        if (xaxis=="eta") {
-          low= thebin.muetabin().low();
-          high = thebin.muetabin().high();
-          x = (low+high)/2.;
-          exh = (high-low)/2.;
-          exl = (high-low)/2.;
-        }
-        eyl = fabs(theVarsBinned_A1Pl_stat.at(col).at(it).at(i));
-        eyh = eyl;
-        theGraphs_A1Pl.at(col).at(it)->SetPoint(i,x,y);
-        theGraphs_A1Pl.at(col).at(it)->SetPointError(i,exl,exh,eyl,eyh);
-        y = theVarsBinned_A1Mi.at(col).at(it).at(i);
-        eyl = fabs(theVarsBinned_A1Mi_stat.at(col).at(it).at(i));
-        eyh = eyl;
-        theGraphs_A1Mi.at(col).at(it)->SetPoint(i,x,y);
-        theGraphs_A1Mi.at(col).at(it)->SetPointError(i,exl,exh,eyl,eyh);
-        y = theVarsBinned_A3.at(col).at(it).at(i);
-        eyl = fabs(theVarsBinned_A3_stat.at(col).at(it).at(i));
-        eyh = eyl;
-        theGraphs_A3.at(col).at(it)->SetPoint(i,x,y);
-        theGraphs_A3.at(col).at(it)->SetPointError(i,exl,exh,eyl,eyh);
-        i += 1;
-      }
-      cnt++;
-    }
-  }
+  //
+  // --------------------------------------------------------------------------------- //
+  //
+  // Initialize the output variables
+  BinPentaMap var;
+  //
+  const std::vector< std::string > varType = { "Var" , "Err_Stat_High" , "Err_Stat_Low" , "Err_Syst_High" , "Err_Syst_Low" };
+  //
+  // Compute the Charge Asymmetry
+  //
+  if (!computeChargeAsymmetry(var, inputVar)) { return; }
+  //
+  // Compute the Forward-Backward ratio
+  //
+  if (!computeForwardBackwardRatio(var, inputVar)) { return; }
+  //
+  // Compute the Cross-Section
+  //
+  if (!computeCrossSection(var, inputVar)) { return; }
+  //
+  // --------------------------------------------------------------------------------- //
+  //
+  // Initialize the Output Graphs
+  GraphQuadMap graph;
+  iniResultsGraph(graph, var);
+  //
+  // Fill the Output Graphs
+  //
+  if (!fillResultsGraph(graph, var)) { return; }
+  //
+  // --------------------------------------------------------------------------------- //
+  //
+  // Set Style
+  setStyle();
+  //
+  // Draw the Output Graphs
+  drawGraph(graph, CWD);
+  //
+  //
+  inputFile.Close();
+  /*
   // Adding MCFM values
   if (addTheory) {
     for (auto it : thecats) {
@@ -356,8 +228,9 @@ void plot(std::vector< anabin<0> > thecats, std::string xaxis, std::string outpu
   nameTag = "_a3";
   plotGraph(theGraphs_A3, xaxis, outputDir, "a3", text, true);
   f->Close(); delete f;
+  */
 }
-
+/*
 void plotGraph(const TGraphBinDict& theGraphs, const std::string& xaxis, const std::string& outputDir, const std::string type, const std::vector<std::string>& infoLabel, const bool& merge)
 {
   setTDRStyle();
@@ -471,7 +344,8 @@ void plotGraph(const TGraphBinDict& theGraphs, const std::string& xaxis, const s
   for (auto& h : haxes) { if (h.second) delete h.second; }
   for (auto& c : c1)    { if (c.second) delete c.second; }
 }
-
+*/
+/*
 void flipXAxis(TGraphAsymmErrors& g)
 {
   int nbins = g.GetN();
@@ -515,3 +389,4 @@ void printOptions()
      "nameTag_base = \"" << nameTag_base << "\"" << 
      endl;
 };
+*/

@@ -83,12 +83,18 @@ namespace PA {
   bool checkGenMuon(const ushort& iGenMu, const std::string& sample, const std::unique_ptr<HiMuonTree>& muonTree)
   {
     if (
-        ( (sample.find("MC_DYToMuMu")!=std::string::npos) && (muonTree->findMuonMother(iGenMu, 23, 1).pdg==23 || muonTree->findMuonMother(iGenMu, 22, 1).pdg==22) ) || // Z/gamma* -> Muon + Muon
-        ( (sample.find("MC_ZToMuMu") !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 23, 1).pdg==23) ) || // Z -> Muon + Muon
-        ( (sample.find("MC_WToMuNu") !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 24, 1).pdg==24) ) || // W -> Muon + Neutrino
-        ( (sample.find("MC_WToTauNu")!=std::string::npos) && (muonTree->findMuonMother(iGenMu, 24, 2).pdg==24) ) || // W -> Tau -> Muon + Neutrinos
-        ( (sample.find("MC_QCDToMu") !=std::string::npos) ) || // QCD -> Muon
-        ( (sample.find("MC_TTall")   !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 6, 2).pdg==6 || muonTree->findMuonMother(iGenMu, 24, 1).pdg==24) ) // t -> W -> Muon + Neutrino
+        (sample.find("MC_TT")     == std::string::npos) && (sample.find("MC_DY")  == std::string::npos) &&
+        (sample.find("MC_Z")      == std::string::npos) && (sample.find("MC_W")   == std::string::npos) &&
+        (sample.find("MC_WToTau") == std::string::npos) && (sample.find("MC_QCD") == std::string::npos)
+        )
+      { std::cout << "[ERROR] GEN sample " << sample << " has an INVALID NAME!" << std::endl; return false; }
+    if (
+        ( (sample.find("MC_TT")    !=std::string::npos) && (muonTree->findMuonMother(iGenMu,  6, 2).pdg==6  || muonTree->findMuonMother(iGenMu, 24, 1).pdg==24) ) || // t -> W -> Muon + Neutrino
+        ( (sample.find("MC_DY")    !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 23, 1).pdg==23 || muonTree->findMuonMother(iGenMu, 22, 1).pdg==22) ) || // Z/gamma* -> Muon + Muon
+        ( (sample.find("MC_Z")     !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 23, 1).pdg==23) ) || // Z -> Muon + Muon
+        ( (sample.find("MC_W")     !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 24, 1).pdg==24) ) || // W -> Muon + Neutrino
+        ( (sample.find("MC_WToTau")!=std::string::npos) && (muonTree->findMuonMother(iGenMu, 24, 2).pdg==24) ) || // W -> Tau -> Muon + Neutrinos
+        ( (sample.find("MC_QCD")   !=std::string::npos) ) // QCD -> Muon
         ) {
       return true;
     }
@@ -108,14 +114,13 @@ namespace PA {
     return false;
   };
   //
-  bool isGoodMuon(const ushort& iPFMu, const std::unique_ptr<HiMuonTree>& muonTree)
+  bool isTightMuon(const ushort& iPFMu, const std::unique_ptr<HiMuonTree>& muonTree)
   {
     const short iRecoMu = muonTree->PF_Muon_Reco_Idx()[iPFMu];
     if (iRecoMu < 0) { std::cout << "[ERROR] Reco idx is negative" << std::endl; return false; }
     if (
         ( std::abs(muonTree->PF_Muon_Mom()[iPFMu].Eta()) < 2.4 ) && // Consider Muons within the Pseudo-Rapidity acceptance of CMS
-        ( muonTree->Reco_Muon_isTight()[iRecoMu] == true       ) && // Consider Tight Muons
-        ( muonTree->PF_Muon_Mom()[iPFMu].Pt() > 25.0           )    // Consider Muons with pT > 25 GeV/c
+        ( muonTree->Reco_Muon_isTight()[iRecoMu] == true       )    // Consider Tight Muons
         ) {
       return true;
     }
@@ -125,8 +130,6 @@ namespace PA {
   //
   bool isIsolatedMuon(const ushort& iPFMu, const std::unique_ptr<HiMuonTree>& muonTree)
   {
-    const short iRecoMu = muonTree->PF_Muon_Reco_Idx()[iPFMu];
-    if (iRecoMu < 0) { std::cout << "[ERROR] Reco idx is negative" << std::endl; return false; }
     if (
         ( muonTree->PF_Muon_IsoPFR03NoPUCorr()[iPFMu] < 0.15 ) // Consider Isolated Muons
         ) {
@@ -136,10 +139,32 @@ namespace PA {
     return false;
   };
   //
+  bool isTightIsolatedMuon(const ushort& iPFMu, const std::unique_ptr<HiMuonTree>& muonTree)
+  {
+    if (
+        ( isTightMuon(iPFMu, muonTree)    ) && // Consider Good Quality Muons
+        ( isIsolatedMuon(iPFMu, muonTree) )    // Consider Isolated Muons
+        ) {
+      return true;
+    }
+    //
+    return false;
+  };
+  //
+  bool isGoodMuon(const ushort& iPFMu, const std::unique_ptr<HiMuonTree>& muonTree)
+  {
+    if (
+        ( isTightMuon(iPFMu, muonTree)               ) && // Consider Tight Muons
+        ( muonTree->PF_Muon_Mom()[iPFMu].Pt() > 25.0 )    // Consider Muons with pT > 25 GeV/c
+        ) {
+      return true;
+    }
+    //
+    return false;
+  };
+  //
   bool isOfflineMuon(const ushort& iPFMu, const std::unique_ptr<HiMuonTree>& muonTree)
   {
-    const short iRecoMu = muonTree->PF_Muon_Reco_Idx()[iPFMu];
-    if (iRecoMu < 0) { std::cout << "[ERROR] Reco idx is negative" << std::endl; return false; }
     if (
         ( isGoodMuon(iPFMu, muonTree)     ) && // Consider Good Quality Muons
         ( isIsolatedMuon(iPFMu, muonTree) )    // Consider Isolated Muons
@@ -168,10 +193,10 @@ namespace PA {
     for (ushort iPFMu1 = 0; iPFMu1 < muonTree->PF_Muon_Mom().size(); iPFMu1++) {
       for (ushort iPFMu2 = 0; iPFMu2 < muonTree->PF_Muon_Mom().size(); iPFMu2++) {
         if (
-            ( isOfflineMuon(iPFMu1 , muonTree)            ) && // Consider muons passing offline selection
-            ( isOfflineMuon(iPFMu2 , muonTree)            ) && // Consider muons passing offline selection
-            ( muonTree->PF_Muon_Mom()[iPFMu1].Pt() > 15.0 ) && // Consider Muons with pT > 15 GeV
-            ( muonTree->PF_Muon_Mom()[iPFMu1].Pt() > 15.0 ) && // Consider Muons with pT > 15 GeV
+            ( isTightIsolatedMuon(iPFMu1 , muonTree)          ) && // Consider muons passing Tight ID and isolation
+            ( isTightIsolatedMuon(iPFMu2 , muonTree)          ) && // Consider muons passing Tight ID and isolation
+            ( muonTree->PF_Muon_Mom()[iPFMu1].Pt() > 15.0     ) && // Consider Muons with pT > 15 GeV
+            ( muonTree->PF_Muon_Mom()[iPFMu2].Pt() > 15.0     ) && // Consider Muons with pT > 15 GeV
             ( muonTree->PF_Muon_Charge()[iPFMu1] != muonTree->PF_Muon_Charge()[iPFMu2] ) // Consider opposite-sign muons
             ) {
           return false; // Found possible Drell-Yan Candidate, so Drell-Yan Veto failed
@@ -180,6 +205,43 @@ namespace PA {
     }
     //
     return true; // Drell-Yan veto succeeded
+  };
+  //
+  bool getCrossSection(double& xSection, const std::string& xSectionTag)
+  {
+    xSection = -1.0;
+    std::string GENTAG  = xSectionTag; GENTAG.erase(GENTAG.find("_"), GENTAG.length());
+    std::string NAMETAG = xSectionTag; NAMETAG = NAMETAG.substr(NAMETAG.find("_")+1); NAMETAG.erase(NAMETAG.find_last_of("_"), 5);
+    std::string COLTAG  = xSectionTag; COLTAG = COLTAG.substr(COLTAG.find_last_of("_")+1);
+    if (GENTAG == "POWHEG") {
+      if (POWHEG::XSec.count(NAMETAG) == 0) { std::cout << "[ERROR] POWHEG Cross-section was not found for process: " << NAMETAG << std::endl; return false; }
+      if (POWHEG::XSec.at(NAMETAG).count(COLTAG) == 0) { std::cout << "[ERROR] POWHEG Cross-section was not found for process: " << (NAMETAG+"_"+COLTAG) << std::endl; return false; }
+      xSection = POWHEG::XSec.at(NAMETAG).at(COLTAG);
+    }
+    else if (GENTAG == "PYTHIA") {
+      if (PYTHIA::XSec.count(NAMETAG) == 0) { std::cout << "[ERROR] PYTHIA Cross-section was not found for process: " << NAMETAG << std::endl; return false; }
+      if (PYTHIA::XSec.at(NAMETAG).count(COLTAG) == 0) { std::cout << "[ERROR] PYTHIA Cross-section was not found for process: " << (NAMETAG+"_"+COLTAG) << std::endl; return false; }
+      xSection = PYTHIA::XSec.at(NAMETAG).at(COLTAG);
+    }
+    else {
+      std::cout << "[ERROR] Cross-section for enerator " << GENTAG << " has not been defined!" << std::endl; return false;
+    }
+    std::cout << "[INFO] Cross-section for " << xSectionTag << " set to " << xSection << " nb " << std::endl;
+    return true;
+  };
+  //
+  double EtaLABtoCM(const double& etaLAB, const bool ispPb)
+  {
+    const double shift = ( ispPb ? 0.465 : -0.465 );
+    const double etaCM = etaLAB - shift;
+    return etaCM;
+  };
+  //
+  double EtaCMtoLAB(const double& etaCM, const bool ispPb)
+  {
+    const double shift = ( ispPb ? 0.465 : -0.465 );
+    const double etaLAB = etaCM + shift;
+    return etaLAB;
   };
   //
 };
