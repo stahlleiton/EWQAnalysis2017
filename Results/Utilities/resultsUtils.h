@@ -449,7 +449,7 @@ bool computeCrossSection( BinPentaMap& var , const VarBinMap& inputVar )
 std::string formatResultVarName(const std::string varName)
 {
   std::string label = "";
-  if (varName == "Charge_Asymmetry"      ) { label = "( N[#mu^{+}] - N[#mu^{-}] ) / ( N[#mu^{+}] + N[#mu^{-}] )"; }
+  if (varName == "Charge_Asymmetry"      ) { label = "( N^{+} - N^{-} ) / ( N^{+} + N^{-} )"; }
   if (varName == "ForwardBackward_Ratio" ) { label = "R_{FB}"; }
   if (varName == "Cross_Section"         ) { label = "B #times d#sigma/d#eta (nb)"; }
   return label;
@@ -470,40 +470,10 @@ void iniResultsGraph(GraphQuadMap& graphMap, const BinPentaMap& var)
         for (const auto& t : graphType) {
           auto& graph = graphMap[c.first][ch.first][v.first][t];
           graph.Set(nBins);
-          graph.Draw();
           //
           // Set Graph Name
           const std::string name = Form("gr_WToMu%s_%s_%s_%s", ch.first.c_str(), c.first.c_str(), v.first.c_str(), t.c_str());
           graph.SetName(name.c_str());
-          //
-          // Set the Axis Titles
-          std::string xLabel = "#mu"; if (ch.first == "Pl") { xLabel += "^{+}"; }; if (ch.first == "Mi") { xLabel += "^{-}"; }; xLabel += " #eta";
-          std::string yLabel = formatResultVarName(v.first);
-          graph.SetTitle(Form(";%s;%s", xLabel.c_str(), yLabel.c_str()));
-          //
-          // Format the graphs
-          //
-          // General
-          graph.SetMarkerColor(kBlue);
-          graph.SetMarkerStyle(20);
-          graph.SetMarkerSize(1.0);
-          graph.SetFillStyle(1001);
-          // X-axis
-          graph.GetXaxis()->CenterTitle(kFALSE);
-          graph.GetXaxis()->SetTitleOffset(0.9);
-          graph.GetXaxis()->SetTitleSize(0.050);
-          graph.GetXaxis()->SetLabelSize(0.035);
-          if (v.first=="Charge_Asymmetry"     ) { graph.GetXaxis()->SetLimits(-2.5, 2.5); }
-          if (v.first=="ForwardBackward_Ratio") { graph.GetXaxis()->SetLimits( 0.0, 2.5); }
-          if (v.first=="Cross_Section"        ) { graph.GetXaxis()->SetLimits(-2.5, 2.5); }
-          // Y-axis
-          graph.GetYaxis()->CenterTitle(kFALSE);
-          graph.GetYaxis()->SetTitleOffset(1.4);
-          graph.GetYaxis()->SetTitleSize(0.04);
-          graph.GetYaxis()->SetLabelSize(0.035);
-          if (v.first=="Charge_Asymmetry"     ) { graph.GetYaxis()->SetRangeUser(-1.0,   1.0); }
-          if (v.first=="ForwardBackward_Ratio") { graph.GetYaxis()->SetRangeUser( 0.0,   2.0); }
-          if (v.first=="Cross_Section"        ) { graph.GetYaxis()->SetRangeUser( 0.0, 300.0); }
         }
       }
     }
@@ -587,8 +557,53 @@ void formatLegendEntry(TLegendEntry& e)
 };
 
 
-void drawGraph(GraphQuadMap& graphMap, const std::string& outDir)
+void formatResultsGraph(TGraphAsymmErrors& graph, const std::string& var, const std::string& chg, const bool& useEtaCM)
 {
+  //
+  // Set the Axis Titles
+  std::string xLabel = "#mu"; if (chg == "Pl") { xLabel += "^{+}"; }; if (chg == "Mi") { xLabel += "^{-}"; }; xLabel += " #eta";
+  if (useEtaCM) { xLabel += "_{CM}"; }
+  else { xLabel += "_{LAB}"; }
+  std::string yLabel = formatResultVarName(var);
+  graph.SetTitle(Form(";%s;%s", xLabel.c_str(), yLabel.c_str()));
+  //
+  // General
+  graph.SetMarkerColor(kBlue);
+  graph.SetMarkerStyle(20);
+  graph.SetMarkerSize(1.0);
+  graph.SetFillStyle(1001);
+  // X-axis
+  graph.GetXaxis()->CenterTitle(kFALSE);
+  graph.GetXaxis()->SetTitleOffset(0.9);
+  graph.GetXaxis()->SetTitleSize(0.050);
+  graph.GetXaxis()->SetLabelSize(0.035);
+  if (useEtaCM) {
+    if ( var == "Charge_Asymmetry"      ) { graph.GetXaxis()->SetLimits(-2.0, 2.0); }
+    if ( var == "ForwardBackward_Ratio" ) { graph.GetXaxis()->SetLimits( 0.0, 2.0); }
+    if ( var == "Cross_Section"         ) { graph.GetXaxis()->SetLimits(-2.0, 2.0); }
+  }
+  else {
+    if ( var == "Charge_Asymmetry"      ) { graph.GetXaxis()->SetLimits(-2.5, 2.5); }
+    if ( var == "ForwardBackward_Ratio" ) { graph.GetXaxis()->SetLimits( 0.0, 2.5); }
+    if ( var == "Cross_Section"         ) { graph.GetXaxis()->SetLimits(-2.5, 2.5); }
+  }
+  // Y-axis
+  graph.GetYaxis()->CenterTitle(kFALSE);
+  graph.GetYaxis()->SetTitleOffset(1.45);
+  graph.GetYaxis()->SetTitleSize(0.050);
+  if ( var == "Charge_Asymmetry" ) { graph.GetYaxis()->SetTitleSize(0.040); }
+  graph.GetYaxis()->SetLabelSize(0.035);
+  if ( var == "Charge_Asymmetry"      ) { graph.GetYaxis()->SetRangeUser(-0.1,   0.5); }
+  if ( var == "ForwardBackward_Ratio" ) { graph.GetYaxis()->SetRangeUser( 0.5,   1.5); }
+  if ( var == "Cross_Section"         ) { graph.GetYaxis()->SetRangeUser( 50.0, 200.0); }
+};
+
+
+void drawGraph(GraphQuadMap& graphMap, const std::string& outDir, const bool useEtaCM = true)
+{
+  //
+  // Set Style
+  setStyle();
   //
   std::cout << "[INFO] Drawing the output graphs" << std::endl;
   //
@@ -606,7 +621,7 @@ void drawGraph(GraphQuadMap& graphMap, const std::string& outDir)
         TCanvas c("c", "c", 1000, 1000); c.cd();
         //
         // Create the Text Info
-        TLatex tex; tex.SetNDC(); tex.SetTextSize(0.028); float dy = 0;
+        TLatex tex; tex.SetNDC(); tex.SetTextSize(0.035); float dy = 0;
         std::vector< std::string > textToPrint;
         std::string sampleLabel = "W #rightarrow #mu + #nu_{#mu}";
         if (chg == "Pl") { sampleLabel = "W^{+} #rightarrow #mu^{+} + #nu_{#mu}"; }
@@ -614,12 +629,13 @@ void drawGraph(GraphQuadMap& graphMap, const std::string& outDir)
         textToPrint.push_back(sampleLabel);
         //
         // Create Legend
-        TLegend leg(0.2, 0.66, 0.4, 0.79);
-        formatLegendEntry(*leg.AddEntry(&graph.at("Err_Tot") , "Object", "pe"));
+        TLegend leg(0.2, 0.71, 0.4, 0.84);
+        formatLegendEntry(*leg.AddEntry(&graph.at("Err_Tot") , "Data", "pe"));
         formatLegendEntry(*leg.AddEntry(&graph.at("Err_Stat"), "Statistical Uncertainty", "f"));
         formatLegendEntry(*leg.AddEntry(&graph.at("Err_Syst"), "Systematic Uncertainty", "f"));
         //
         // Format the graphs
+        for (auto& gr : graph) { formatResultsGraph(gr.second, var, chg, useEtaCM); }
         graph.at("Err_Tot").SetMarkerColor(kBlack);
         graph.at("Err_Stat").SetFillColor(kOrange);
         graph.at("Err_Syst").SetFillColor(kGreen+3);
@@ -629,9 +645,11 @@ void drawGraph(GraphQuadMap& graphMap, const std::string& outDir)
         graph.at("Err_Stat").Draw("same2");
         graph.at("Err_Tot").Draw("samep");
         // Draw the Line
-        TLine line_FB(0.0, 1.0, 2.5, 1.0); line_FB.SetLineStyle(2);
+        double etaMin = -2.5; if (useEtaCM) { etaMin = -2.0; }
+        double etaMax = 2.5; if (useEtaCM) { etaMax = 2.0; }
+        TLine line_FB(0.0, 1.0, etaMax, 1.0); line_FB.SetLineStyle(2);
         if (var=="ForwardBackward_Ratio") { line_FB.Draw("same"); }
-        TLine line_CA(-2.5, 0.0, 2.5, 0.0); line_CA.SetLineStyle(2);
+        TLine line_CA(etaMin, 0.0, etaMax, 0.0); line_CA.SetLineStyle(2);
         if (var=="Charge_Asymmetry") { line_CA.Draw("same"); }
         // Draw the Legend
         leg.Draw("same");
@@ -651,7 +669,7 @@ void drawGraph(GraphQuadMap& graphMap, const std::string& outDir)
         c.Modified(); c.Update(); // Pure paranoia
         //
         // Create Output Directory
-        const std::string plotDir = outDir + "/Results/" + col+"/" + chg+"/" + var;
+        const std::string plotDir = outDir + "/Output/" + col+"/" + var;
         makeDir(plotDir + "/png/");
         makeDir(plotDir + "/pdf/");
         makeDir(plotDir + "/root/");
