@@ -49,11 +49,12 @@ bool         existDir            ( const std::string& dir );
 bool         getObjectsFromFile  ( EffMap_t& eff , Unc1DMap_t& unc , const std::string& filePath );
 void         formatEff1D         ( TGraphAsymmErrors& graph , const std::string& var , const std::string& charge , const std::string& type );
 void         formatEff1D         ( TEfficiency& eff , const std::string& var , const std::string& charge , const std::string& type );
-void         drawEff1D           ( const std::string& outDir , EffMap_t& effMap , Unc1DMap_t unc );
-bool         printTableEff1D     ( const std::string& outDir , const EffMap_t& effMap , const Unc1DMap_t& uncMap );
+void         drawEff1D           ( const std::string& outDir , EffMap_t& effMap , Unc1DMap_t& unc , const bool isCutAndCount = false );
+bool         printTableEff1D     ( const std::string& outDir , const EffMap_t& effMap , const Unc1DMap_t& uncMap , const bool isCutAndCount = false );
 void         makeTable           ( std::ofstream& file , const std::vector< TEfficiency >& eff ,
                                    const std::vector< TVector >& tnpStat , const std::vector< TVector >& tnpSyst , 
-                                   const std::string& type , const std::vector<std::string>& info , const bool& isAcceptance );
+                                   const std::string& type , const std::vector<std::string>& info ,
+                                   const bool& isAcceptance , const bool isCutAndCount = false );
 void         formatLegendEntry   ( TLegendEntry& e );
 void         formatDecayLabel    ( std::string& label , const std::string& inLabel, const std::string c="#" );
 void         setStyle            ( );
@@ -64,20 +65,25 @@ const char*  sgn                 ( const double n ) { if (n >= 0.) { return "+";
 // ------------------ GLOBAL ------------------------------- 
 // Kinematic Info
 const BinMap_t  MU_BIN_RANGE_ = {
-  { "Eta" , { -2.5 , 2.5 } },
-  { "Pt"  , { 25., 200. } }
+  { "Eta"   , { -2.5 , 2.5  } },
+  { "EtaCM" , { -2.0 , 2.0  } },
+  { "Pt"    , { 25.  , 200. } }
 };
 //
 // Muon Charge
 const std::vector< std::string > CHG_  = { "Plus" , "Minus" };
 
-void printEfficiency(void)
+
+void printEfficiency(const std::string workDirName = "NominalCM")
 {
   // Change the working directory
   const std::string CWD = getcwd(NULL, 0);
-  const std::string mainDir = Form("%s/TnPEfficiency/", CWD.c_str());
+  const std::string mainDir = Form("%s/TnPEfficiency/%s/", CWD.c_str(), workDirName.c_str());
   gSystem->mkdir(mainDir.c_str(), kTRUE);
   gSystem->ChangeDirectory(mainDir.c_str());
+  //
+  // Define the working flags
+  bool isCutAndCount = false; if ( (workDirName == "CutAndCount") || (workDirName == "CutAndCountCM") ) { isCutAndCount = true; }
   //
   // Declare the efficiencies
   EffMap_t eff1D;
@@ -90,15 +96,13 @@ void printEfficiency(void)
   //
   // ------------------------------------------------------------------------------------------------------------------------
   //
-  // Set Style
-  setStyle();
   // Draw the Efficiencies
-  drawEff1D(mainDir, eff1D, unc1D);
+  drawEff1D(mainDir, eff1D, unc1D, isCutAndCount);
   //
   // ------------------------------------------------------------------------------------------------------------------------
   //
   // Create Tables
-  if (!printTableEff1D(mainDir, eff1D, unc1D)) { return; };
+  if (!printTableEff1D(mainDir, eff1D, unc1D, isCutAndCount)) { return; };
   //
 };
 
@@ -219,8 +223,9 @@ void formatEff1D(TEfficiency& eff, const std::string& var, const std::string& ch
   const std::string objLbl = ( (type=="Total" || type=="Acceptance") ? "Gen #mu" : "Reco #mu" );
   // X-axis
   std::string xLabel = objLbl; if (charge=="Plus") xLabel += "^{+}"; if (charge=="Minus") xLabel += "^{-}";
-  if (var=="Eta") { xLabel += " #eta"; }
-  if (var=="Pt" ) { xLabel += " p_{T} (GeV/c)"; }
+  if (var=="Eta"  ) { xLabel += " #eta_{LAB}";    }
+  if (var=="EtaCM") { xLabel += " #eta_{CM}";     }
+  if (var=="Pt"   ) { xLabel += " p_{T} (GeV/c)"; }
   // Y-axis
   std::string yLabel = type;
   if (type!="Acceptance") { type + " Efficiency"; }
@@ -241,8 +246,9 @@ void formatEff1D(TGraphAsymmErrors& graph, const std::string& var, const std::st
   const std::string objLbl = ( (type=="Total" || type=="Acceptance") ? "Gen #mu" : "Reco #mu" );
   // X-axis
   std::string xLabel = objLbl; if (charge=="Plus") xLabel += "^{+}"; if (charge=="Minus") xLabel += "^{-}";
-  if (var=="Eta") { xLabel += " #eta"; }
-  if (var=="Pt" ) { xLabel += " p_{T} (GeV/c)"; }
+  if (var=="Eta"  ) { xLabel += " #eta_{LAB}";    }
+  if (var=="EtaCM") { xLabel += " #eta_{CM}";     }
+  if (var=="Pt"   ) { xLabel += " p_{T} (GeV/c)"; }
   graph.GetXaxis()->CenterTitle(kFALSE);
   graph.GetXaxis()->SetTitleOffset(0.9);
   graph.GetXaxis()->SetTitleSize(0.050);
@@ -262,8 +268,10 @@ void formatEff1D(TGraphAsymmErrors& graph, const std::string& var, const std::st
 };
 
 
-void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t uncMap)
+void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, const bool isCutAndCount)
 {
+  // Set Style
+  setStyle();
   // Draw all graphs
   for (auto& v : effMap) {
     for (auto& s : v.second) {
@@ -285,8 +293,9 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t uncMap)
               std::vector< std::string > textToPrint;
               std::string sampleLabel; formatDecayLabel(sampleLabel, sample);
               textToPrint.push_back(sampleLabel);
-              if (var=="Eta") textToPrint.push_back("p^{#mu}_{T} > 25 GeV/c");
-              if (var=="Pt" ) textToPrint.push_back("|#eta^{#mu}| < 2.4");
+              if (var=="Eta" || var=="EtaCM") { textToPrint.push_back("p^{#mu}_{T} > 25 GeV/c"); }
+              if (var=="Pt") { textToPrint.push_back("|#eta^{#mu}| < 2.4"); }
+              if (isCutAndCount) { textToPrint.push_back("20 GeV/c #geq |#slash{E}_{T}| & 40 GeV/c^{2} #geq M_{T}^{#mu}"); }
               // Declare the graph vector (for drawing with markers)
               std::vector< TGraphAsymmErrors > grVec;
               TLegend leg(0.2, 0.66, 0.4, 0.79);
@@ -417,7 +426,7 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t uncMap)
                 grVec[0].Draw("samep");
               }
               // Draw Legend and line
-              TLine line(-2.4, 1.0, 2.4, 1.0); line.SetLineStyle(2);
+              TLine line( MU_BIN_RANGE_.at(var)[0] , 1.0 ,  MU_BIN_RANGE_.at(var)[MU_BIN_RANGE_.at(var).size()-1] , 1.0 ); line.SetLineStyle(2);
               line.Draw("same");
               leg.Draw("same");
               // Update
@@ -466,7 +475,7 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t uncMap)
 
 
 void makeTable(std::ofstream& file, const std::vector< TEfficiency >& eff, const std::vector< TVector >& tnpStat, const std::vector< TVector >& tnpSyst,
-               const std::string& type, const std::vector<std::string>& info, const bool& isAcceptance)
+               const std::string& type, const std::vector<std::string>& info, const bool& isAcceptance, const bool isCutAndCount)
 {
   // Initialize the latex table
   std::vector< std::string > texTable;
@@ -483,8 +492,9 @@ void makeTable(std::ofstream& file, const std::vector< TEfficiency >& eff, const
     std::string bin;
     const double min = eff[0].GetTotalHistogram()->GetXaxis()->GetBinLowEdge(i);
     const double max = eff[0].GetTotalHistogram()->GetXaxis()->GetBinUpEdge(i);
-    if (info[0]=="Pt" ) { bin = Form("$%s%.1f < \\pt < %s%.1f$", sgn(min), min, sgn(max) , max); }
-    if (info[0]=="Eta") { bin = Form("$%s%.1f < \\eta < %s%.1f$", sgn(min), min, sgn(max) , max); }
+    if (info[0]=="Pt"   ) { bin = Form("$%s%.1f < \\pt < %s%.1f$", sgn(min), min, sgn(max) , max);       }
+    if (info[0]=="Eta"  ) { bin = Form("$%s%.1f < \\eta < %s%.1f$", sgn(min), min, sgn(max) , max);      }
+    if (info[0]=="EtaCM") { bin = Form("$%s%.1f < \\eta_{CM} < %s%.1f$", sgn(min), min, sgn(max) , max); }
     std::string eff_Pl, eff_Mi;
     if (type=="NoCorr") {
       eff_Pl = Form("$%.3f^{+%.3f}_{-%.3f}$", eff[0].GetEfficiency(i), eff[0].GetEfficiencyErrorUp(i), eff[0].GetEfficiencyErrorLow(i));
@@ -506,7 +516,7 @@ void makeTable(std::ofstream& file, const std::vector< TEfficiency >& eff, const
   if (info[2]!="PA") { colInfo = ""; }
   std::string colType = (" "+info[2]);
   if (info[2]=="PA") { colType = ""; }
-  std::string varInfo = ""; if (info[0]=="Pt") { varInfo = "\\pt"; }; if (info[0]=="Eta") { varInfo = "\\eta"; }
+  std::string varInfo = ""; if (info[0]=="Pt") { varInfo = "\\pt"; }; if (info[0]=="Eta") { varInfo = "\\eta"; } if (info[0]=="EtaCM") { varInfo = "\\eta_{CM}"; }
   std::string mcInfo = ""; if (type=="NoCorr") { mcInfo = "truth efficiency"; }; if (type=="TnP_Nominal") { mcInfo = "TnP corrected efficiency"; }
   std::string tnpInfo = " The labels \"stat\" and \"syst\" represent the TnP statisitical and systematic uncertainties, respectively.";
   if (type!="TnP_Nominal") { tnpInfo = ""; }
@@ -516,7 +526,12 @@ void makeTable(std::ofstream& file, const std::vector< TEfficiency >& eff, const
     texTable.push_back(Form("  \\caption{\\PW\\ acceptance as a function of the generated muon $%s$, derived from the $%s$%s \\POWHEG sample separated in negative and positive charged muons.%s Results corresponds to \\eq{eq:WAcceptance}.}", varInfo.c_str(), decay.c_str(), colType.c_str(), colInfo.c_str()));
   }
   else {
-    texTable.push_back(Form("  \\caption{Muon %s as a function of the generated muon $%s$, derived from the $%s$%s \\POWHEG sample separated in negative and positive charged muons.%s%s Generated muons are require to match reconstructed muons passing all analysis cuts. Results corresponds to \\eq{eq:MCTruthEfficiency}.}", mcInfo.c_str(), varInfo.c_str(), decay.c_str(), colType.c_str(), tnpInfo.c_str(), colInfo.c_str()));
+    if (isCutAndCount) {
+      texTable.push_back(Form("  \\caption{Muon %s as a function of the generated muon $%s$, derived from the $%s$%s \\POWHEG sample separated in negative and positive charged muons. The tight \\PW selection has been applied for the method CutAndCount.%s%s Generated muons are require to match reconstructed muons passing all analysis cuts. Results corresponds to \\eq{eq:MCTruthEfficiency}.}", mcInfo.c_str(), varInfo.c_str(), decay.c_str(), colType.c_str(), tnpInfo.c_str(), colInfo.c_str()));
+    }
+    else {
+      texTable.push_back(Form("  \\caption{Muon %s as a function of the generated muon $%s$, derived from the $%s$%s \\POWHEG sample separated in negative and positive charged muons.%s%s Generated muons are require to match reconstructed muons passing all analysis cuts. Results corresponds to \\eq{eq:MCTruthEfficiency}.}", mcInfo.c_str(), varInfo.c_str(), decay.c_str(), colType.c_str(), tnpInfo.c_str(), colInfo.c_str()));
+    }
   }
   texTable.push_back("\\end{table}");
   //
@@ -526,7 +541,7 @@ void makeTable(std::ofstream& file, const std::vector< TEfficiency >& eff, const
 };
 
 
-bool printTableEff1D(const std::string& outDir, const EffMap_t& effMap, const Unc1DMap_t& uncMap)
+bool printTableEff1D(const std::string& outDir, const EffMap_t& effMap, const Unc1DMap_t& uncMap, const bool isCutAndCount)
 {
   // Draw all graphs
   for (auto& v : effMap) {
@@ -553,7 +568,7 @@ bool printTableEff1D(const std::string& outDir, const EffMap_t& effMap, const Un
         const TVector&     unc_Pl_Syst   = uncMap.at(v.first).at(s.first).at(cl.first).at("Plus").at("Total").at("TnP_Syst");
         const TVector&     unc_Mi_Syst   = uncMap.at(v.first).at(s.first).at(cl.first).at("Minus").at("Total").at("TnP_Syst");
         // Make table for uncorrected efficiency
-        makeTable(file_NoCorr, {eff_Pl_NoCorr, eff_Mi_NoCorr}, {}, {}, "NoCorr", {v.first, s.first, cl.first}, false);
+        makeTable(file_NoCorr, {eff_Pl_NoCorr, eff_Mi_NoCorr}, {}, {}, "NoCorr", {v.first, s.first, cl.first}, false, isCutAndCount);
         // Make table for corrected efficiency
         makeTable(file_Corr, {eff_Pl_Corr, eff_Mi_Corr}, {unc_Pl_Stat, unc_Mi_Stat}, {unc_Pl_Syst, unc_Mi_Syst}, "TnP_Nominal", {v.first, s.first, cl.first}, false);
         // Make table with all the uncertainties splitted
@@ -563,7 +578,7 @@ bool printTableEff1D(const std::string& outDir, const EffMap_t& effMap, const Un
         const TEfficiency& acc_Pl_NoCorr = effMap.at(v.first).at(s.first).at(cl.first).at("Plus").at("Acceptance").at("NoCorr")[0];
         const TEfficiency& acc_Mi_NoCorr = effMap.at(v.first).at(s.first).at(cl.first).at("Minus").at("Acceptance").at("NoCorr")[0];
         // Make table for uncorrected efficiency
-        makeTable(file_NoCorr, {acc_Pl_NoCorr, acc_Mi_NoCorr}, {}, {}, "NoCorr", {v.first, s.first, cl.first}, true);
+        makeTable(file_NoCorr, {acc_Pl_NoCorr, acc_Mi_NoCorr}, {}, {}, "NoCorr", {v.first, s.first, cl.first}, true, isCutAndCount);
       }
     }
   }

@@ -53,7 +53,7 @@ bool     getTnPUncertainties ( Unc1DVec_t& unc , const EffVec_t& eff );
 bool     getTnPUncertainties ( Unc1DMap_t& unc , const EffMap_t& eff );
 void     initEff1D           ( TH1DMap_t& h , const BinMap_t& binMap );
 bool     fillEff1D           ( TH1DVec_t& h , const bool& pass , const double& xVar , const TnPVec_t& sfTnP , const double& evtWeight );
-bool     fillEff1D           ( TH1DMap_t& h , const bool& pass , const std::string& type , const VarMap_t& var , const std::vector< TnPVec_t >& sfTnP , const double& evtWeight );
+bool     fillEff1D           ( TH1DMap_t& h , const bool& pass , const std::string& type , const VarMap_t& var , const std::vector< TnPVec_t >& sfTnP , const double& evtWeight , const BinMap_t& MU_BIN );
 bool     loadEff1D           ( EffMap_t& eff, const TH1DMap_t& h );
 void     mergeEff            ( EffMap_t& eff );
 void     writeEff            ( TFile& file , const EffMap_t& eff , const Unc1DMap_t& unc , const std::string& mainDirName );
@@ -64,11 +64,6 @@ const char* clStr            ( const std::string& in );
 
 
 // ------------------ GLOBAL ------------------------------- 
-// Kinematic Info
-const BinMap_t  MU_BIN_ = {
-  { "Eta" , { -2.4 , -2.2 , -2.0 , -1.8 , -1.6 , -1.4 , -1.2 , -1.0 , -0.8 , -0.6 , -0.4 , -0.2 , 0.0 , 0.2 , 0.4 , 0.6 , 0.8 , 1.0 , 1.2 , 1.4 , 1.6 , 1.8 , 2.0 , 2.2 , 2.4 } },
-  { "Pt"  , { 25., 30., 35., 40., 45., 50, 80., 200. } }
-};
 //
 // Trigger Info
 const ushort triggerIndex_ = PA::HLT_PAL3Mu12;
@@ -107,8 +102,38 @@ const std::map< std::string , std::vector< std::pair< std::string , double > > >
 std::map< std::string , std::vector< std::string > > sampleType_;
 
 
-void correctEfficiency(void)
+void correctEfficiency(const std::string workDirName = "NominalCM")
 {
+  //
+  // Initialize the Kinematic Bin info
+  BinMap_t  MU_BIN;
+  if ( (workDirName == "Nominal") || (workDirName == "CutAndCount") ) {
+    const BinMap_t  TMP = {
+      { "Eta" , { -2.4 , -2.2 , -2.0 , -1.8 , -1.6 , -1.4 , -1.2 , -1.0 , -0.8 , -0.6 , -0.4 , -0.2 , 0.0 , 0.2 , 0.4 , 0.6 , 0.8 , 1.0 , 1.2 , 1.4 , 1.6 , 1.8 , 2.0 , 2.2 , 2.4 } }
+    };
+    for (const auto& v : TMP) { MU_BIN[v.first] = v.second; }
+  }
+  else if ( (workDirName == "NominalCM") || (workDirName == "CutAndCountCM") ) {
+    const BinMap_t  TMP = {
+      { "EtaCM" , { -1.8 , -1.6 , -1.4 , -1.2 , -1.0 , -0.8 , -0.6 , -0.4 , -0.2 , 0.0 , 0.2 , 0.4 , 0.6 , 0.8 , 1.0 , 1.2 , 1.4 , 1.6 , 1.8 } }
+    };
+    for (const auto& v : TMP) { MU_BIN[v.first] = v.second; }
+  }
+  else if (workDirName == "General") {
+    const BinMap_t  TMP = {
+      { "Eta" , { -2.4 , -2.2 , -2.0 , -1.8 , -1.6 , -1.4 , -1.2 , -1.0 , -0.8 , -0.6 , -0.4 , -0.2 , 0.0 , 0.2 , 0.4 , 0.6 , 0.8 , 1.0 , 1.2 , 1.4 , 1.6 , 1.8 , 2.0 , 2.2 , 2.4 } },
+      { "Pt"  , { 25., 30., 35., 40., 45., 50, 80., 200. } }
+    };
+    for (const auto& v : TMP) { MU_BIN[v.first] = v.second; }
+  }
+  else {
+    std::cout << "[ERROR] WorkDirName " << workDirName << " has not been defined" << std::endl; return;
+  }
+  //
+  // Define the working flags
+  bool useEtaCM = false;      if ( (workDirName == "NominalCM"  ) || (workDirName == "CutAndCountCM") ) { useEtaCM = true; }
+  bool isCutAndCount = false; if ( (workDirName == "CutAndCount") || (workDirName == "CutAndCountCM") ) { isCutAndCount = true; }
+  //
   // Change the working directory
   const std::string CWD = getcwd(NULL, 0);
   const std::string mainDir = Form("%s/TnPEfficiency/", CWD.c_str());
@@ -131,7 +156,7 @@ void correctEfficiency(void)
   TH1DMap_t h1D;   // Stores the total and passing histograms separately
   //
   // Initialize the efficiencies
-  initEff1D(h1D , MU_BIN_);
+  initEff1D(h1D , MU_BIN);
   //
   // ------------------------------------------------------------------------------------------------------------------------
   //
@@ -189,7 +214,7 @@ void correctEfficiency(void)
       //
       // Get the Lumi re-weight for MC (global weight)
       const double lumi = ( (col=="pPb") ? PA::LUMI::Data_pPb : PA::LUMI::Data_Pbp );
-      const double mcWeight = ( ( muonTree.at(sample)->GetCrossSection() * lumi ) / muonTree.at(sample)->GetEntriesFast() );
+      const double mcWeight = ( ( muonTree.at(sample)->GetCrossSection() * lumi ) / muonTree.at(sample)->GetTreeEntries() );
       // Set the global weight only in the first event (i.e. once per sample)
       if (jentry==0) {
         setGlobalWeight(h1D, mcWeight, sampleType, col);
@@ -223,9 +248,17 @@ void correctEfficiency(void)
         const std::string chg = ( (charge < 0) ? "Minus" : "Plus" );
         // Fill the VarMap with the kinematic information
         VarMap_t genMuonVar;
-        genMuonVar[sampleType][col][chg]["Eta"]    = { mu_Gen_Eta };
-        genMuonVar[sampleType][col][chg]["Pt" ]    = { mu_Gen_Pt  };
-        genMuonVar[sampleType][col][chg]["Pt_Eta"] = { mu_Gen_Pt , mu_Gen_Eta };
+        genMuonVar[sampleType][col][chg]["Pt" ]      = { mu_Gen_Pt  };
+        if (useEtaCM) {
+          const bool   ispPb = (col == "pPb");
+          const double etaCM = PA::EtaLABtoCM( mu_Gen_Eta , ispPb );
+          genMuonVar[sampleType][col][chg]["EtaCM"]    = { etaCM };
+          genMuonVar[sampleType][col][chg]["Pt_EtaCM"] = { mu_Gen_Pt , etaCM };
+        }
+        else {
+          genMuonVar[sampleType][col][chg]["Eta"]    = { mu_Gen_Eta };
+          genMuonVar[sampleType][col][chg]["Pt_Eta"] = { mu_Gen_Pt , mu_Gen_Eta };
+        }
         // Initialize the boolean flags
         bool passIdentification = false;
         bool passTrigger        = false;
@@ -257,16 +290,32 @@ void correctEfficiency(void)
             passTrigger = PA::isTriggerMatched(triggerIndex_, iPFMu, muonTree.at(sample));
             // Check if the reconstructed muon pass isolation cuts
             passIsolation = PA::isIsolatedMuon(iPFMu , muonTree.at(sample));
+            // Check if we are using cut and count method
+            if (isCutAndCount) {
+              // Extract the MET
+              const auto& MET = metTree.at(sample)->PF_MET_NoShift_Mom();
+              // Recompute the Transver Mass based on the chosen MET
+              const double mu_PF_Phi = muonTree.at(sample)->PF_Muon_Mom()[iPFMu].Phi();
+              const double mu_PF_M   = muonTree.at(sample)->PF_Muon_Mom()[iPFMu].M();
+              TLorentzVector pfMuonP4T = TLorentzVector(), METP4 = TLorentzVector();
+              pfMuonP4T.SetPtEtaPhiM(mu_PF_Pt, 0.0, mu_PF_Phi, mu_PF_M);
+              METP4.SetPtEtaPhiM( MET.Mod(), 0.0, MET.Phi(), 0.0 );
+              TLorentzVector muT = TLorentzVector( pfMuonP4T + METP4 );
+              // Define the MET and MT selection
+              const bool passCutAndCountSel = ( (MET.Mod() >= 20.0) && (muT.M() >= 40.0) );
+              // Include the Cut and Count selection in the Identification flag
+              passIdentification = passIdentification && passCutAndCountSel;
+            }
           }
           //
           // Total Efficiency (Based on Generated muons)
           //
-          if (!fillEff1D(h1D, (passIdentification && passTrigger && passIsolation), "Total", genMuonVar, sfTnP, evtWeight)) { return; }
+          if (!fillEff1D(h1D, (passIdentification && passTrigger && passIsolation), "Total", genMuonVar, sfTnP, evtWeight, MU_BIN)) { return; }
         }
         //
         // Total Acceptance (Based on Generated muons)
         //
-        if (!fillEff1D(h1D, isGoodGenMuon, "Acceptance", genMuonVar, sfTnP, evtWeight)) { return; }
+        if (!fillEff1D(h1D, isGoodGenMuon, "Acceptance", genMuonVar, sfTnP, evtWeight, MU_BIN)) { return; }
       }
     }
   }
@@ -294,9 +343,13 @@ void correctEfficiency(void)
   //
   // ------------------------------------------------------------------------------------------------------------------------
   //
+  // Define the output directory
+  //
   // Store the Efficiencies
   //
-  saveEff(mainDir, eff1D, unc1D);
+  const std::string outDir = mainDir + workDirName +"/";
+  gSystem->mkdir(outDir.c_str(), kTRUE);
+  saveEff(outDir, eff1D, unc1D);
 };
 
 
@@ -469,7 +522,7 @@ bool fillEff1D(TH1DVec_t& h, const bool& pass, const double& xVar, const TnPVec_
 };
 
 
-bool fillEff1D(TH1DMap_t& h, const bool& pass, const std::string& type, const VarMap_t& var, const std::vector< TnPVec_t >& sfTnP, const double& evtWeight)
+bool fillEff1D(TH1DMap_t& h, const bool& pass, const std::string& type, const VarMap_t& var, const std::vector< TnPVec_t >& sfTnP, const double& evtWeight, const BinMap_t& MU_BIN)
 {
   const std::string sample = var.begin()->first;
   const std::string col    = var.at(sample).begin()->first;
@@ -487,8 +540,16 @@ bool fillEff1D(TH1DMap_t& h, const bool& pass, const std::string& type, const Va
           if (ch.second.count(type)==0) { std::cout << "[ERROR] Efficiency type " << type << " is not defined" << std::endl; return false; }
           double xVar = var.at(sample).at(col).at(charge).at(v.first)[0];
           uint sfIdx = 0;
-          if (c.first=="PA" && col=="Pbp") { sfIdx = 1; if (v.first=="Eta") { xVar = -xVar; } }
-          if (xVar >= MU_BIN_.at(v.first)[0] && xVar <= MU_BIN_.at(v.first)[MU_BIN_.at(v.first).size()-1]) { // Don't include values outside of range
+          if (c.first=="PA" && col=="Pbp") {
+            sfIdx = 1;
+            if (v.first=="Eta") { xVar = -xVar; } // Invert in the LAB frame
+            if (v.first=="EtaCM") {
+              xVar = PA::EtaCMtoLAB(xVar, false); // Switch from CM -> LAB, in Pbp system
+              xVar = -xVar;                       // Invert in the LAB frame, so from Pbp -> pPb
+              xVar = PA::EtaLABtoCM(xVar, true);  // Switch from LAB -> CM, in pPb system
+            }
+          }
+          if (xVar >= MU_BIN.at(v.first)[0] && xVar <= MU_BIN.at(v.first)[MU_BIN.at(v.first).size()-1]) { // Don't include values outside of range
             // Fill histograms
             if (!fillEff1D(ch.second.at(type), pass, xVar, sfTnP[sfIdx], evtWeight)) { return false; }
           }
