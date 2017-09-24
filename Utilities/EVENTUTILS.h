@@ -66,6 +66,16 @@ namespace PYTHIA {
 };
 
 
+void roundValue( double& value , const uint& nDecimals )
+{
+  double tmp = value;
+  tmp *= std::pow(10.0, nDecimals);
+  tmp = std::round(tmp);
+  tmp /= std::pow(10.0, nDecimals);
+  value = tmp;
+};
+
+
 // Selections
 namespace PA {
   //
@@ -233,14 +243,16 @@ namespace PA {
   double EtaLABtoCM(const double& etaLAB, const bool ispPb)
   {
     const double shift = ( ispPb ? 0.465 : -0.465 );
-    const double etaCM = etaLAB - shift;
+    double etaCM = etaLAB - shift;
+    roundValue(etaCM, 4);
     return etaCM;
   };
   //
   double EtaCMtoLAB(const double& etaCM, const bool ispPb)
   {
     const double shift = ( ispPb ? 0.465 : -0.465 );
-    const double etaLAB = etaCM + shift;
+    double etaLAB = etaCM + shift;
+    roundValue(etaLAB, 4);
     return etaLAB;
   };
   //

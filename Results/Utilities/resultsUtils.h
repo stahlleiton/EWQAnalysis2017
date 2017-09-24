@@ -9,6 +9,9 @@
 #include "TFile.h"
 #include "TTree.h"
 #include "TGraphAsymmErrors.h"
+#include "TEfficiency.h"
+#include "TVector.h"
+#include "TH1.h"
 #include "TCanvas.h"
 #include "TPad.h"
 #include "TFrame.h"
@@ -153,16 +156,6 @@ bool fileList(std::vector< std::string >& fileNames, const std::string& dirPath)
 };
 
 
-void roundValue( double& value , const uint& nDecimals )
-{
-  double tmp = value;
-  tmp *= std::pow(10.0, nDecimals);
-  tmp = std::round(tmp);
-  tmp /= std::pow(10.0, nDecimals);
-  value = tmp;
-};
-
-
 void iniResultsTreeInfo( TreeInfo& info , const std::string& thePoiNames )
 {
   //
@@ -267,6 +260,186 @@ void setBranchAddress( TTree& tree , TreeInfo& info )
   //
 };
 
+
+void iniAcceptanceAndEfficiency( BinPentaMap& eff , const VarBinMap& inputVar )
+{
+  //
+  for (const auto& c : inputVar) {
+    for (const auto& b : c.second) {
+      for (const auto& ch : b.second) {
+        // For MC Acceptance
+        eff[c.first][ch.first]["Acceptance_MC"]["Val"][b.first] = -1.0;
+        eff[c.first][ch.first]["Acceptance_MC"]["Err_Stat_High"][b.first] = 0.0;
+        eff[c.first][ch.first]["Acceptance_MC"]["Err_Stat_Low" ][b.first] = 0.0;
+        eff[c.first][ch.first]["Acceptance_MC"]["Err_Syst_High"][b.first] = 0.0;
+        eff[c.first][ch.first]["Acceptance_MC"]["Err_Syst_Low" ][b.first] = 0.0;
+        // For MC Efficiency
+        eff[c.first][ch.first]["Efficiency_MC"]["Val"][b.first] = -1.0;
+        eff[c.first][ch.first]["Efficiency_MC"]["Err_Stat_High"][b.first] = 0.0;
+        eff[c.first][ch.first]["Efficiency_MC"]["Err_Stat_Low" ][b.first] = 0.0;
+        eff[c.first][ch.first]["Efficiency_MC"]["Err_Syst_High"][b.first] = 0.0;
+        eff[c.first][ch.first]["Efficiency_MC"]["Err_Syst_Low" ][b.first] = 0.0;
+        // For Corrected Efficiency
+        eff[c.first][ch.first]["Efficiency_TnP"]["Val"][b.first] = -1.0;
+        eff[c.first][ch.first]["Efficiency_TnP"]["Err_Stat_High"][b.first] = 0.0;
+        eff[c.first][ch.first]["Efficiency_TnP"]["Err_Stat_Low" ][b.first] = 0.0;
+        eff[c.first][ch.first]["Efficiency_TnP"]["Err_Syst_High"][b.first] = 0.0;
+        eff[c.first][ch.first]["Efficiency_TnP"]["Err_Syst_Low" ][b.first] = 0.0;
+      }
+    }
+  }
+};
+
+
+void getEffContent( double& val , double& err_High , double& err_Low , const TEfficiency& eff , const double& binVal )
+{
+  auto hist = eff.GetTotalHistogram();
+  if (hist==NULL) { return; }
+  const int iBin = hist->GetXaxis()->FindBin(binVal);
+  val      = eff.GetEfficiency(iBin);
+  err_High = eff.GetEfficiencyErrorUp(iBin);
+  err_Low  = eff.GetEfficiencyErrorLow(iBin);
+};
+
+
+void getUncContent( double& err_High , double& err_Low , const TVector& unc , const TEfficiency& eff , const double& binVal )
+{
+  auto hist = eff.GetTotalHistogram();
+  if (hist==NULL) { return; }
+  const int idx = ( hist->GetXaxis()->FindBin(binVal) - 1 ); // index is bin number - 1
+  const double unc_High = unc[idx];
+  const double unc_Low  = unc[idx];
+  err_High = std::sqrt( std::pow( err_High , 2.0 ) + std::pow( unc_High , 2.0 ) );
+  err_Low  = std::sqrt( std::pow( err_Low  , 2.0 ) + std::pow( unc_Low  , 2.0 ) );
+};
+
+
+bool getAcceptanceAndEfficiency( BinPentaMap& effMap , const std::string& inputFilePath , const bool useEtaCM = true )
+{
+  //
+  // Open the input file
+  TFile inputFile(inputFilePath.c_str(), "READ");
+  if (inputFile.IsOpen()==false || inputFile.IsZombie()==true) { std::cout << "[ERROR] The input efficiency file " << inputFilePath << " was not found!" << std::endl; return false; }
+  inputFile.cd();
+  //
+  std::string var = "Eta"; if (useEtaCM) { var = "EtaCM"; }
+  const std::string sample = "MC_WToMuNu";
+  //
+  for (const auto& c : effMap) {
+    for (const auto& ch : c.second) {
+      if (ch.second.count("Acceptance_MC")==0 || ch.second.at("Acceptance_MC").count("Val")==0) { std::cout << "[ERROR] The efficiency container is not valid" << std::endl; return false; }
+      auto& eff = effMap.at(c.first).at(ch.first);
+      //
+      const std::string col = c.first;
+      std::string charge = ""; if (ch.first=="Pl") { charge = "Plus"; } if (ch.first=="Mi") { charge = "Minus"; }
+      //
+      const std::string accDir    = Form("TnPEfficiency1D/%s/%s/%s/Acceptance/NoCorr" , var.c_str(), sample.c_str(), col.c_str());
+      const std::string effDir    = Form("TnPEfficiency1D/%s/%s/%s/Total/NoCorr"      , var.c_str(), sample.c_str(), col.c_str());
+      const std::string effTnPDir = Form("TnPEfficiency1D/%s/%s/%s/Total/TnP_Nominal" , var.c_str(), sample.c_str(), col.c_str());
+      const std::string uncTnPDir = Form("TnPEfficiency1D/%s/%s/%s/Total"             , var.c_str(), sample.c_str(), col.c_str());
+      //
+      const std::string accName        = Form("eff1D_%s_%s_%s_%s_Acceptance_NoCorr" , var.c_str(), sample.c_str(), col.c_str(), charge.c_str());
+      const std::string effName        = Form("eff1D_%s_%s_%s_%s_Total_NoCorr"      , var.c_str(), sample.c_str(), col.c_str(), charge.c_str());
+      const std::string effTnPName     = Form("eff1D_%s_%s_%s_%s_Total_TnP_Nominal" , var.c_str(), sample.c_str(), col.c_str(), charge.c_str());
+      const std::string uncStatTnPName = Form("unc1D_%s_%s_%s_%s_Total_TnP_Stat"    , var.c_str(), sample.c_str(), col.c_str(), charge.c_str());
+      const std::string uncSystTnPName = Form("unc1D_%s_%s_%s_%s_Total_TnP_Syst"    , var.c_str(), sample.c_str(), col.c_str(), charge.c_str());
+      //
+      auto accObj        = (TEfficiency*) inputFile.Get(Form("%s/%s", accDir.c_str(), accName.c_str()));
+      auto effObj        = (TEfficiency*) inputFile.Get(Form("%s/%s", effDir.c_str(), effName.c_str()));
+      auto effTnPObj     = (TEfficiency*) inputFile.Get(Form("%s/%s", effTnPDir.c_str(), effTnPName.c_str()));
+      auto uncStatTnPObj = (TVector*    ) inputFile.Get(Form("%s/%s", uncTnPDir.c_str(), uncStatTnPName.c_str()));
+      auto uncSystTnPObj = (TVector*    ) inputFile.Get(Form("%s/%s", uncTnPDir.c_str(), uncSystTnPName.c_str()));
+      //
+      if (accObj==NULL       ) { std::cout << "[ERROR] Acceptance object in "                  << accDir    << " was not found in file " << inputFilePath << std::endl; return false; }
+      if (effObj==NULL       ) { std::cout << "[ERROR] Efficiency object in "                  << effDir    << " was not found in file " << inputFilePath << std::endl; return false; }
+      if (effTnPObj==NULL    ) { std::cout << "[ERROR] TnP Efficiency object in "              << effTnPDir << " was not found in file " << inputFilePath << std::endl; return false; }
+      if (uncStatTnPObj==NULL) { std::cout << "[ERROR] TnP Statistical Uncertainty object in " << uncTnPDir << " was not found in file " << inputFilePath << std::endl; return false; }
+      if (uncSystTnPObj==NULL) { std::cout << "[ERROR] TnP Systematic Uncertainty object in "  << uncTnPDir << " was not found in file " << inputFilePath << std::endl; return false; }
+      //
+      for (const auto& b : ch.second.at("Acceptance_MC").at("Val")) {
+        // Compute the center value of the bin
+        const double etaVal = ( ( b.first.etabin().high() + b.first.etabin().low() ) / 2.0 );
+        // Fill Acceptance
+        getEffContent(eff.at("Acceptance_MC").at("Val").at(b.first) , eff.at("Acceptance_MC").at("Err_Stat_High").at(b.first) , eff.at("Acceptance_MC").at("Err_Stat_Low").at(b.first) , *accObj , etaVal);
+        // Fill Efficiency
+        getEffContent(eff.at("Efficiency_MC").at("Val").at(b.first) , eff.at("Efficiency_MC").at("Err_Stat_High").at(b.first) , eff.at("Efficiency_MC").at("Err_Stat_Low").at(b.first) , *effObj , etaVal);
+        // Fill TnP Efficiency
+        getEffContent(eff.at("Efficiency_TnP").at("Val").at(b.first) , eff.at("Efficiency_TnP").at("Err_Stat_High").at(b.first) , eff.at("Efficiency_TnP").at("Err_Stat_Low").at(b.first) , *effTnPObj , etaVal);
+        // Fill TnP Statistical Uncertainty
+        getUncContent(eff.at("Efficiency_TnP").at("Err_Stat_High").at(b.first) , eff.at("Efficiency_TnP").at("Err_Stat_Low").at(b.first) , *uncStatTnPObj , *effTnPObj , etaVal);
+        // Fill TnP Systematic Uncertainty
+        getUncContent(eff.at("Efficiency_TnP").at("Err_Syst_High").at(b.first) , eff.at("Efficiency_TnP").at("Err_Syst_Low").at(b.first) , *uncSystTnPObj , *effTnPObj , etaVal);
+      }
+    }
+  }
+  return true;
+};
+
+  
+double getCorrectedYieldValue( const double& N_Raw , const double& Acceptance , const double& Efficiency )
+{
+  return ( N_Raw / ( Acceptance * Efficiency ) );
+};
+
+  
+double getCorrectedYieldError( const double& N_Raw , const double& Acceptance , const double& Efficiency , const double& Err_N_Raw , const double& Err_Acceptance , const double& Err_Efficiency )
+{
+  const double common    = getCorrectedYieldValue( N_Raw , Acceptance , Efficiency );
+  const double error2N   = std::pow( ( Err_N_Raw / N_Raw ) , 2.0 );
+  const double error2Eff = std::pow( ( Err_Efficiency / Efficiency ) , 2.0 );
+  const double error2Acc = std::pow( ( Err_Acceptance / Acceptance ) , 2.0 );
+  return ( std::abs(common) * std::sqrt( error2N + error2Eff + error2Acc ) );
+};
+
+
+bool correctRawYields( VarBinMap& inputVar , const BinPentaMap& effMap , const std::string accType = "MC" , const std::string effType = "TnP" )
+{
+  //
+  const std::string accName = ( (accType!="") ? Form("Acceptance_%s", accType.c_str()) : "" );
+  const std::string effName = ( (effType!="") ? Form("Efficiency_%s", effType.c_str()) : "" );
+  //
+  for (const auto& c : inputVar) {
+    for (const auto& b : c.second) {
+      for (const auto& ch : b.second) {
+        if (effMap.count(c.first)==0) { std::cout << "[ERROR] Efficiency container does not have the collision " << c.first << std::endl; return false; }
+        if (effMap.at(c.first).count(ch.first)==0) { std::cout << "[ERROR] Efficiency container does not have the charge " << ch.first << std::endl; return false; }
+        // Check that eveythin is fine
+        const auto& eff = effMap.at(c.first).at(ch.first);
+        if (accName!="" && eff.count(accName)==0) { std::cout << "[ERROR] Efficiency container does not have the variable " << accName << std::endl; return false; }
+        if (effName!="" && eff.count(effName)==0) { std::cout << "[ERROR] Efficiency container does not have the variable " << effName << std::endl; return false; }
+        if ( (accName!="" && eff.at(accName).at("Val").count(b.first)==0) || (effName!="" && eff.at(effName).at("Val").count(b.first)==0) ) {
+          std::cout << "[ERROR] Efficiency container does not have the bin [" << b.first.etabin().high() << " , " << b.first.etabin().low() << "] " << std::endl; return false;
+        }
+        // Extract the Acceptance and Efficiency
+        std::map< std::string , double > Acceptance , Efficiency;
+        if (accName!="") { for (const auto& t : eff.at(accName)) { Acceptance[t.first] = t.second.at(b.first); } }
+        else {
+          Acceptance["Val"] = 1.0;
+          for (const auto& t : ch.second.at("N_WToMu")) { if (t.first=="Val") continue; Acceptance[t.first] = 0.0; }
+        }
+        if (effName!="") { for (const auto& t : eff.at(effName)) { Efficiency[t.first] = t.second.at(b.first); } }
+        else {
+          Efficiency["Val"] = 1.0;
+          for (const auto& t : ch.second.at("N_WToMu")) { if (t.first=="Val") continue; Efficiency[t.first] = 0.0; }
+        }
+        //
+        const auto& N_Raw  = ch.second.at("N_WToMu");
+        auto&       N_Corr = inputVar.at(c.first).at(b.first).at(ch.first).at("N_WToMu");
+        // Create a backup
+        for (const auto& t : N_Raw) { inputVar.at(c.first).at(b.first).at(ch.first)["N_WToMu_RAW"][t.first] = t.second; }
+        //
+        // Fill with the corrected values
+        N_Corr.at("Val") = getCorrectedYieldValue(N_Raw.at("Val") , Acceptance.at("Val") , Efficiency.at("Val"));
+        for (const auto& t : N_Raw) {
+          if (t.first=="Val") continue;
+          N_Corr.at(t.first) = getCorrectedYieldError(N_Raw.at("Val") , Acceptance.at("Val") , Efficiency.at("Val") , N_Raw.at(t.first) , Acceptance.at(t.first) , Efficiency.at(t.first));
+        }
+      }
+    }
+  }
+  return true;
+};
+
   
 double getChargeAsymmetryValue( const double& N_Plus , const double& N_Minus )
 {
@@ -320,7 +493,7 @@ double getForwardBackwardRatioValue( const double& N_Forward , const double& N_B
   
 double getForwardBackwardRatioError( const double& N_Forward , const double& N_Backward , const double& Err_Forward , const double& Err_Backward )
 {
-  const double common   = ( N_Forward / N_Backward );
+  const double common   = getForwardBackwardRatioValue( N_Forward , N_Backward );
   const double error2Fw = std::pow( ( Err_Forward  / N_Forward  ) , 2.0 );
   const double error2Bw = std::pow( ( Err_Backward / N_Backward ) , 2.0 );
   return ( std::abs(common) * std::sqrt( error2Fw + error2Bw ) );
@@ -330,7 +503,7 @@ double getForwardBackwardRatioError( const double& N_Forward , const double& N_B
 double getForwardBackwardRatioError( const double& N_Forward_Plus   , const double& N_Backward_Plus   , const double& N_Forward_Minus   , const double& N_Backward_Minus ,
                                      const double& Err_Forward_Plus , const double& Err_Backward_Plus , const double& Err_Forward_Minus , const double& Err_Backward_Minus )
 {
-  const double common   = ( ( N_Forward_Plus + N_Forward_Minus ) / ( N_Backward_Plus + N_Backward_Minus ) );
+  const double common     = getForwardBackwardRatioValue( ( N_Forward_Plus + N_Forward_Minus ) , ( N_Backward_Plus + N_Backward_Minus ) );
   const double error2FwPl = std::pow( ( Err_Forward_Plus   / ( N_Forward_Plus  + N_Forward_Minus  ) ) , 2.0 );
   const double error2FwMi = std::pow( ( Err_Forward_Minus  / ( N_Forward_Plus  + N_Forward_Minus  ) ) , 2.0 );
   const double error2BwPl = std::pow( ( Err_Backward_Plus  / ( N_Backward_Plus + N_Backward_Minus ) ) , 2.0 );
@@ -397,7 +570,7 @@ double getCrossSectionValue( const double& N , const double& Luminosity , const 
   
 double getCrossSectionError( const double& N , const double& Luminosity , const double& BinWidth , const double& Err_N , const double& Err_Luminosity )
 {
-  const double common  = ( N / ( Luminosity * BinWidth ) );
+  const double common  = getCrossSectionValue( N , Luminosity , BinWidth );
   const double error2N = std::pow( ( Err_N / N ) , 2.0 );
   const double error2L = std::pow( ( Err_Luminosity / Luminosity ) , 2.0 );
   return ( std::abs(common) * std::sqrt( error2N + error2L ) );
@@ -511,7 +684,8 @@ bool fillResultsGraph(GraphQuadMap& graphMap, const BinPentaMap& var)
             const double Err_X      = ( (b.first.etabin().high() - b.first.etabin().low()) / 2.0 ); // Width of eta bin
             double Err_X_High = Err_X;
             double Err_X_Low  = Err_X;
-            if (t!="Err_Tot") { Err_X_High *= 0.5; Err_X_Low *= 0.5; }
+            if (t=="Err_Stat") { Err_X_High *= 0.4; Err_X_Low *= 0.4; }
+            if (t=="Err_Syst") { Err_X_High *= 0.6; Err_X_Low *= 0.6; }
             // Y Value
             const double Y = v.second.at("Val").at(b.first);
             // Y Error
@@ -557,7 +731,7 @@ void formatLegendEntry(TLegendEntry& e)
 };
 
 
-void formatResultsGraph(TGraphAsymmErrors& graph, const std::string& var, const std::string& chg, const bool& useEtaCM)
+void formatResultsGraph(TGraphAsymmErrors& graph, const std::string& var, const std::string& chg, const bool& useEtaCM, const bool& isEffCorr)
 {
   //
   // Set the Axis Titles
@@ -593,13 +767,13 @@ void formatResultsGraph(TGraphAsymmErrors& graph, const std::string& var, const 
   graph.GetYaxis()->SetTitleSize(0.050);
   if ( var == "Charge_Asymmetry" ) { graph.GetYaxis()->SetTitleSize(0.040); }
   graph.GetYaxis()->SetLabelSize(0.035);
-  if ( var == "Charge_Asymmetry"      ) { graph.GetYaxis()->SetRangeUser(-0.1,   0.5); }
-  if ( var == "ForwardBackward_Ratio" ) { graph.GetYaxis()->SetRangeUser( 0.5,   1.5); }
-  if ( var == "Cross_Section"         ) { graph.GetYaxis()->SetRangeUser( 50.0, 200.0); }
+  if ( var == "Charge_Asymmetry"      ) { graph.GetYaxis()->SetRangeUser(   0.0,   0.5); }
+  if ( var == "ForwardBackward_Ratio" ) { graph.GetYaxis()->SetRangeUser(   0.6,   1.5); }
+  if ( var == "Cross_Section"         ) { graph.GetYaxis()->SetRangeUser(  50.0, 350.0); }
 };
 
 
-void drawGraph(GraphQuadMap& graphMap, const std::string& outDir, const bool useEtaCM = true)
+void drawGraph( GraphQuadMap& graphMap , const std::string& outDir , const bool useEtaCM = true , const std::string accType = "MC" , const std::string effType = "TnP" )
 {
   //
   // Set Style
@@ -635,7 +809,8 @@ void drawGraph(GraphQuadMap& graphMap, const std::string& outDir, const bool use
         formatLegendEntry(*leg.AddEntry(&graph.at("Err_Syst"), "Systematic Uncertainty", "f"));
         //
         // Format the graphs
-        for (auto& gr : graph) { formatResultsGraph(gr.second, var, chg, useEtaCM); }
+        const bool isEffCorr = (accType!="" || effType!="");
+        for (auto& gr : graph) { formatResultsGraph(gr.second, var, chg, useEtaCM, isEffCorr); }
         graph.at("Err_Tot").SetMarkerColor(kBlack);
         graph.at("Err_Stat").SetFillColor(kOrange);
         graph.at("Err_Syst").SetFillColor(kGreen+3);
@@ -674,8 +849,16 @@ void drawGraph(GraphQuadMap& graphMap, const std::string& outDir, const bool use
         makeDir(plotDir + "/pdf/");
         makeDir(plotDir + "/root/");
         //
+        std::string label = "";
+        if (accType==""   && effType==""   ) { label = "RAW";          }
+        if (accType=="MC" && effType==""   ) { label = "AccMC";        }
+        if (accType==""   && effType=="MC" ) { label = "EffMC";        }
+        if (accType=="MC" && effType=="MC" ) { label = "AccMC_EffMC";  }
+        if (accType==""   && effType=="TnP") { label = "EffTnP";       }
+        if (accType=="MC" && effType=="TnP") { label = "AccMC_EffTnP"; }
+        //
         // Save Canvas
-        const std::string name = Form("gr_WToMu%s_%s_%s", chg.c_str(), col.c_str(), var.c_str());
+        const std::string name = Form("gr_WToMu%s_%s_%s_%s", chg.c_str(), col.c_str(), var.c_str(), label.c_str());
         c.SaveAs(( plotDir + "/png/"  + name + ".png"  ).c_str());
         c.SaveAs(( plotDir + "/pdf/"  + name + ".pdf"  ).c_str());
         c.SaveAs(( plotDir + "/root/" + name + ".root" ).c_str());

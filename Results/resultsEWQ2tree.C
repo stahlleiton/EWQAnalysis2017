@@ -179,6 +179,7 @@ bool resultsEWQ2tree(
   } // loop on the files
   //
   // Create the output file
+  gSystem->mkdir(outputDirPath.c_str(), kTRUE);
   TFile outputFile(outputFilePath.c_str(), "RECREATE");
   if (outputFile.IsOpen()==false || outputFile.IsZombie()==true) {
     std::cout << "[ERROR] The output file " << outputFilePath << " could not be created!" << std::endl;
