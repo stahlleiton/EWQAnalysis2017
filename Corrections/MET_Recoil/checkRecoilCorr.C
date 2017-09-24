@@ -394,10 +394,10 @@ void checkRecoilCorr(
               ( muonTree.at(sample)->Reco_Muon_isTight()[imu1R] && muonTree.at(sample)->Reco_Muon_isTight()[imu2R]) // Require both muons to pass Tight ID
               )
             {
+              if (eventType=="Other") eventType = "DYToMuMu_ALL";
               TLorentzVector diMu_P4 = mu_P4[imu1] + mu_P4[imu2];
               //
               if (diMu_P4.M() <= 30.) continue; // Select Dimuons with mass > 30 GeV to match with MC
-              if (eventType=="Other") eventType = "DYToMuMu_ALL";
               if (
                   ( muonTree.at(sample)->PF_DiMuon_Charge()[iQQ] == 0      ) && // Select opposite sign dimuons
                   ( diMu_P4.M() > Z_M[0] && diMu_P4.M() < Z_M[1] )    // Select invariant mass within Z mass range
