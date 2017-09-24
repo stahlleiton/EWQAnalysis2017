@@ -18,13 +18,14 @@ public :
 
   HiEvtTree();
   virtual ~HiEvtTree();
-  virtual Bool_t       GetTree    (const std::vector< std::pair< std::string , double > >&, const std::string& treeName="hiEvtAna");
-  virtual Bool_t       GetTree    (const std::vector< std::string >&, const std::string& treeName="hiEvtAna");
-  virtual Bool_t       GetTree    (const std::string&, const std::string& treeName="hiEvtAna");
-  virtual Int_t        GetEntry   (Long64_t);
-  virtual Long64_t     GetEntries (void) { return fChain_->GetEntries(); }
-  virtual TChain*      Tree       (void) { return fChain_; }
-  virtual void         Clear      (void);
+  virtual Bool_t       GetTree         (const std::vector< std::pair< std::string , double > >&, const std::string& treeName="hiEvtAna");
+  virtual Bool_t       GetTree         (const std::vector< std::string >&, const std::string& treeName="hiEvtAna");
+  virtual Bool_t       GetTree         (const std::string&, const std::string& treeName="hiEvtAna");
+  virtual Int_t        GetEntry        (Long64_t);
+  virtual Long64_t     GetEntries      (void) { return fChain_->GetEntries(); }
+  virtual Long64_t     GetTreeEntries  (void) { return fChain_->GetTree()->GetEntriesFast(); }
+  virtual TChain*      Chain           (void) { return fChain_; }
+  virtual void         Clear           (void);
   virtual Double_t     GetCrossSection (void) { return crossSection_[fCurrent_]; }
 
   // VARIABLES GETTER

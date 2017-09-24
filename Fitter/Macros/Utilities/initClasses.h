@@ -35,6 +35,7 @@
 
 #include "../../../Utilities/CMS/tdrstyle.C"
 #include "../../../Utilities/CMS/CMS_lumi.C"
+#include "../../../Utilities/tnp_weight.h"
 #include "../../../Utilities/EVENTUTILS.h"
 
 #include <iostream>
@@ -45,12 +46,12 @@
 #include <bitset>
 #include <algorithm>
 
-//using namespace RooFit;
 
 typedef std::vector< std::string > StringVector;
 typedef std::map< std::string , RooWorkspace                    > RooWorkspaceMap;
 typedef std::map< std::string , std::vector< std::string >      > StringVectorMap;
-typedef std::map< std::string , StringVectorMap                 > StringVectorMapMap;
+typedef std::map< std::string , StringVectorMap                 > StringVectorDiMap;
+typedef std::map< std::string , StringVectorDiMap               > StringVectorTriMap;
 typedef std::map< std::string , std::map< std::string , float > > FloatMapMap;
 typedef std::map< std::string , std::string                     > StringMap;
 typedef std::map< std::string , int                             > IntMap;
@@ -69,22 +70,23 @@ enum class METModel
     MultiJetBkg,
     Size
 };
-IntMap METModelDictionary = {
+const IntMap METModelDictionary = {
   {"InvalidModel", int(METModel::InvalidModel)},
   {"CutAndCount",  int(METModel::CutAndCount)},
   {"Template",     int(METModel::Template)},
   {"MultiJetBkg",  int(METModel::MultiJetBkg)}
 };
 // Add the Models to the Main Dictionary
-IntMapMap ModelDictionary = {
+const IntMapMap ModelDictionary = {
   { "MET" , METModelDictionary }
 };
 
-StringMap varEWQLabel = {
+const StringMap varEWQLabel = {
   { "MET"        , "|#slash{E}_{T}|"   },
   { "Muon_Iso"   , "Iso_{PFR03}^{#mu}" },
   { "Muon_Pt"    , "p_{T}^{#mu}"       },
   { "Muon_Eta"   , "#eta_{LAB}^{#mu}"  },
+  { "Muon_EtaCM" , "#eta_{CM}^{#mu}"   },
   { "Muon_MT"    , "M_{T}^{#mu}"       },
   { "Centrality" , "Cent."             }
 };
@@ -106,33 +108,33 @@ typedef struct GlobalInfo {
   }
   void Copy(const FloatMapMap &ref, bool keep = true) {
     if (!keep) this->Var.clear();
-    for (auto& var : ref) {
-      for (auto& ele : var.second) {
+    for (const auto& var : ref) {
+      for (const auto& ele : var.second) {
         this->Var[var.first][ele.first] = ele.second;
       }
     }
   }
   void Copy(const StringMap &ref, bool keep = true) {
     if (!keep) this->Par.clear();
-    for (auto& par : ref) {
+    for (const auto& par : ref) {
       this->Par[par.first] = par.second;
     }
   }
   void Copy(const IntMap &ref, bool keep = true) {
     if (!keep) this->Int.clear();
-    for (auto& i : ref) {
+    for (const auto& i : ref) {
       this->Int[i.first] = i.second;
     }
   }
   void Copy(const StringVectorMap &ref, bool keep = true) {
     if (!keep) this->StrV.clear();
-    for (auto& i : ref) {
+    for (const auto& i : ref) {
       this->StrV[i.first] = i.second;
     }
   }
   void Copy(const BoolMap &ref, bool keep = true) {
     if (!keep) this->Flag.clear();
-    for (auto& flag : ref) {
+    for (const auto& flag : ref) {
       this->Flag[flag.first] = flag.second;
     }
   }
@@ -146,7 +148,7 @@ typedef struct GlobalInfo {
   bool operator == (const FloatMapMap &ref) const 
   {
     if (ref.size() != this->Var.size()) return false;
-    for (auto& var : this->Var) {
+    for (const auto& var : this->Var) {
       if (ref.count(var.first)==0 || ref.at(var.first).count("Min")==0 || ref.at(var.first).count("Max")==0) return false;
       if (var.second.at("Min") != ref.at(var.first).at("Min")) return false;
       if (var.second.at("Max") != ref.at(var.first).at("Max")) return false;
@@ -156,7 +158,7 @@ typedef struct GlobalInfo {
   bool operator == (const StringMap &ref) const 
   {
     if (ref.size() != this->Par.size()) return false;
-    for (auto& par : this->Par) {
+    for (const auto& par : this->Par) {
       if (ref.count(par.first)==0) return false;
       if (par.second != ref.at(par.first)) return false;
     }
@@ -165,7 +167,7 @@ typedef struct GlobalInfo {
   bool operator == (const IntMap &ref) const 
   {
     if (ref.size() != this->Int.size()) return false;
-    for (auto& i : this->Int) {
+    for (const auto& i : this->Int) {
       if (ref.count(i.first)==0) return false;
       if (i.second != ref.at(i.first)) return false;
     }
@@ -174,7 +176,7 @@ typedef struct GlobalInfo {
   bool operator == (const StringVectorMap &ref) const 
   {
     if (ref.size() != this->StrV.size()) return false;
-    for (auto& i : this->StrV) {
+    for (const auto& i : this->StrV) {
       if (ref.count(i.first)==0) return false;
       if (i.second != ref.at(i.first)) return false;
     }
@@ -182,8 +184,8 @@ typedef struct GlobalInfo {
   }
   bool operator == (const BoolMap &ref) const 
   {
-    if (ref.size() != this->Int.size()) return false;
-    for (auto& flag : this->Flag) {
+    if (ref.size() != this->Flag.size()) return false;
+    for (const auto& flag : this->Flag) {
       if (ref.count(flag.first)==0) return false;
       if (flag.second != ref.at(flag.first)) return false;
     }
@@ -309,7 +311,7 @@ std::string formatCut(const std::string& cut, const StringMap& map = StringMap()
   stringReplace( str, "<=Muon_MT", " GeV/c^{2}<=Muon_MT" ); stringReplace( str, "<Muon_MT", " GeV/c^{2}<Muon_MT" );
   for (auto& elem : map) { stringReplace( str, elem.first, elem.second ); }
   stringReplace( str, "Pl", "^{+}+x" ); stringReplace( str, "Mi", "^{-}+x" );
-  stringReplace( str, "Mu", "#mu" ); stringReplace( str, "Tau", "#tau" ); stringReplace( str, "DYZ", "Z/#gamma" );
+  stringReplace( str, "Mu", "#mu" ); stringReplace( str, "Tau", "#tau" ); stringReplace( str, "DY", "Z/#gamma*" ); stringReplace( str, "TTbar", "t#bar{t}" );
   stringReplace( str, "To", "#rightarrow" ); stringReplace( str, "&&", " & " ); stringReplace( str, "(", "" ); stringReplace( str, ")", "" );
   stringReplace( str, "<=", " #leq " ); stringReplace( str, "<", " < " ); stringReplace( str, ">=", " #geq " ); stringReplace( str, ">", " > " );
   return str;

@@ -28,8 +28,8 @@ class HiMETTree {
   virtual Int_t        GetEntry        (Long64_t);
   virtual void         SetEntry        (Long64_t entry) { entry_ = entry; }
   virtual Long64_t     GetEntries      (void) { return fChain_->GetEntries(); }
-  virtual Long64_t     GetEntriesFast  (void) { return fChain_->GetEntriesFast(); }
-  virtual TChain*      Tree            (void) { return fChain_; }
+  virtual Long64_t     GetTreeEntries  (void) { return fChain_->GetTree()->GetEntriesFast(); }
+  virtual TChain*      Chain           (void) { return fChain_; }
   virtual void         Clear           (void);
   virtual Double_t     GetCrossSection (void) { return crossSection_[fCurrent_]; }
 
