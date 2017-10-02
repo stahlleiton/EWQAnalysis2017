@@ -40,6 +40,17 @@ RecoilCorrector::~RecoilCorrector()
 
 
 //-----------------------------------------------------------------------------------------------------------------------------------------
+bool RecoilCorrector::isValid()
+{
+  if ( (u1Fits_MC_.size()==0) || (u2Fits_MC_.size()==0) || (u1Fits_DATA_.size()==0) || (u2Fits_DATA_.size()==0) ) { return false; }
+  if ( (std::abs(reference_pT_.Mod())<0.000001) && (std::abs(reference_pT_.Phi())<0.000001) ) { return false; }
+  if ( (std::abs(boson_pT_.Mod())<0.000001) && (std::abs(boson_pT_.Phi())<0.000001) ) { return false; }
+  if ( fRandom_==NULL ) { return false; }
+  return true;
+};
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
 bool RecoilCorrector::setInputFiles(
                                     const std::string METType,
                                     const std::string mcFileName,
@@ -51,6 +62,7 @@ bool RecoilCorrector::setInputFiles(
   //
   if (!getRecoilFits(mcFileName   , u1Fits_MC_[METType]   , u2Fits_MC_[METType]  )) { return false; }
   if (!getRecoilFits(dataFileName , u1Fits_DATA_[METType] , u2Fits_DATA_[METType])) { return false; }
+  this->METType_ =  METType;
   //
   // Return back
   //
@@ -71,11 +83,10 @@ void RecoilCorrector::setInitialSetup(
   // Initialize the random generator
   this->fRandom_ = new TRandom3(time(NULL));
   // Initialize all other variables
-  this->sample_              = sample;
   this->useOneGaussian_MC_   = useOneGaussian_MC;
   this->useOneGaussian_DATA_ = useOneGaussian_DATA;
   this->corrMean_            = corrMean;
-  if (sample.find("QCDToMu")!=std::string::npos) { this->corrMean_ = false; }
+  if (sample.find("QCD")!=std::string::npos) { this->corrMean_ = false; }
 };
 
 
@@ -87,10 +98,10 @@ void RecoilCorrector::clear()
   //
   this->reference_pT_        = TVector2();
   this->boson_pT_            = TVector2();
-  this->sample_              = "";
   this->useOneGaussian_MC_   = false;
   this->useOneGaussian_DATA_ = false;
   this->corrMean_            = true;
+  this->METType_             = "";
   //
   for (auto& ell : this->u1Fits_MC_  ) { for (auto& el : ell.second ) { if (el.second) { el.second->Delete(); } } } this->u1Fits_MC_.clear();
   for (auto& ell : this->u2Fits_MC_  ) { for (auto& el : ell.second ) { if (el.second) { el.second->Delete(); } } } this->u2Fits_MC_.clear();
@@ -269,71 +280,96 @@ TF1* RecoilCorrector::getFunctionCDF(
 
 //-----------------------------------------------------------------------------------------------------------------------------------------
 bool RecoilCorrector::getPtFromTree(
+                                    TVector2& reference_pT,
+                                    TVector2& boson_pT,
                                     const uint& muonIdx,
-                                    const std::unique_ptr<HiMuonTree>& muonTree
+                                    const std::unique_ptr<HiMuonTree>& muonTree,
+                                    const std::string sample
                                     )
 {
   //
-  if (sample_=="") { std::cout << "[ERROR] Sample is not defined!" << std::endl; return false; }
+  if (sample=="") { std::cout << "[ERROR] Sample is not defined!" << std::endl; return false; }
   //
   // Initialize output variables
-  reference_pT_ = TVector2(); boson_pT_ = TVector2();
-  //
-  // Fix the muon PF - GEN matching
-  //
-  std::vector<char> PF_Muon_Gen_Idx , Gen_Muon_PF_Idx;
-  muonTree->GetUniquePFGenMuonMatching(PF_Muon_Gen_Idx, Gen_Muon_PF_Idx, muonTree->PF_Muon_Gen_Idx());    
+  reference_pT = TVector2(); boson_pT = TVector2();
   //
   // Determine the reference and the boson pT vectors
   //
-  // Case: Z -> Muon + Muon
-  if (sample_.find("DYToMuMu")!=std::string::npos || sample_.find("ZToMuMu")!=std::string::npos) {
-    // Find the number of RECO muons matched to GEN muons from Z boson decay
+  // Case: DrellYan -> Muon + Muon
+  if (sample.find("MC_DY")!=std::string::npos) {
+    // Find the number of RECO muons matched to GEN muons from Z/gamma boson decay
     std::vector< std::vector< uint > > idx;
-    for (uint j = 0; j < muonTree->PF_Muon_Mom().size(); j++) {
-      if ( PF_Muon_Gen_Idx[j] > -1 ) {
-        auto mom = muonTree->MuonMother(PF_Muon_Gen_Idx[j]);
-        if ( mom.pdg == 23 ) { idx.push_back({ j , uint(PF_Muon_Gen_Idx[j]) , mom.idx }); }
+    // Get the mom of the leading muon
+    const int genMuIdx = muonTree->PF_Muon_Gen_Idx()[muonIdx];
+    if ( genMuIdx > -1 ) {
+      const auto& muMom = muonTree->MuonMother(genMuIdx);
+      if      ( muMom.pdg == 23 ) { idx.push_back({ muonIdx , uint(genMuIdx) , muMom.idx }); }
+      else if ( muMom.pdg == 22 ) { idx.push_back({ muonIdx , uint(genMuIdx) , muMom.idx }); }
+      else { std::cout << "[ERROR] Leading Muon in DrellYan MC comes from invalid mother " << muMom.pdg << " !" << std::endl; return false; }
+      for (uint iMu = 0; iMu < muonTree->PF_Muon_Mom().size(); iMu++) {
+        const int& iGenMu = muonTree->PF_Muon_Gen_Idx()[iMu];
+        if ( (iGenMu != genMuIdx) && (iGenMu > -1) ) {
+          const auto& mom = muonTree->MuonMother(iGenMu);
+          if ( mom.idx == muMom.idx ) { idx.push_back({ iMu , uint(iGenMu) , mom.idx }); break; }
+        }
       }
     }
-    if ( idx.size() >  2 ) { std::cout << "[ERROR] Found " << idx.size() << " RECO muons matched to GEN muons from Z decay!" << std::endl; return false; }
     if ( idx.size() == 0 ) { std::cout << "[ERROR] Found 0 RECO muons matched to GEN muons from Z decay!" << std::endl; return false; }
-    // Found 2 RECO muons from Z decay
+    // Found 2 RECO muons from DrellYan decay
     if ( idx.size() == 2 ) {
+      if ( (idx[0][0] != muonIdx) && (idx[1][0] != muonIdx) ) { std::cout << "[ERROR] Input muon index is inconsistent with the RECO muon from DrellYan->MuMu decay!" << std::endl; return false; }
       if ( idx[0][2] != idx[1][2] ) { std::cout << "[ERROR] The 2 muons don't share the same mother (" << idx[0][2] << " , " << idx[1][2] << ") !" << std::endl; return false; }
-      TLorentzVector Z_P4 = muonTree->PF_Muon_Mom()[idx[0][0]] + muonTree->PF_Muon_Mom()[idx[1][0]];
-      // Reference is Z pT
-      reference_pT_.SetMagPhi( Z_P4.Pt(), Z_P4.Phi() );
+      const TLorentzVector& DY_P4 = muonTree->PF_Muon_Mom()[idx[0][0]] + muonTree->PF_Muon_Mom()[idx[1][0]];
+      // Reference is DY pT
+      reference_pT.SetMagPhi( DY_P4.Pt(), DY_P4.Phi() );
       // Boson pT is the sum of both RECO Muons pT
-      boson_pT_.SetMagPhi( Z_P4.Pt(), Z_P4.Phi() );
+      boson_pT.SetMagPhi( DY_P4.Pt(), DY_P4.Phi() );
     }
-    // Found 1 RECO muon from Z decay
+    // Found 1 RECO muon from Drell Yan decay
     if ( idx.size() == 1 ) {
-      if ( idx[0][0] != muonIdx ) { std::cout << "[ERROR] Input muon index is inconsistent with the RECO muon from Z decay!" << std::endl; return false; }
+      if ( idx[0][0] != muonIdx ) { std::cout << "[ERROR] Input muon index is inconsistent with the RECO muon from DrellYan->Mu decay!" << std::endl; return false; }
       // Find the GEN muon that was not matched to a RECO muon
       std::vector< uint > iGenMissingMuon;
-      for (uint j = 0; j < muonTree->Gen_Muon_Mom().size(); j++) {
-        if (j != idx[0][1]) {
-          auto mom = muonTree->MuonMother(j);
-          if ( (mom.pdg == 23) && (mom.idx == idx[0][2]) ) { iGenMissingMuon.push_back(j); }
+      for (uint iGenMu = 0; iGenMu < muonTree->Gen_Muon_Mom().size(); iGenMu++) {
+        if (iGenMu != idx[0][1]) {
+          const auto& mom = muonTree->MuonMother(iGenMu);
+          if (mom.idx == idx[0][2]) { iGenMissingMuon.push_back(iGenMu); }
         }
       }
       if ( iGenMissingMuon.size() != 1 ) { std::cout << "[ERROR] Inconsistent number of GEN muons (" << iGenMissingMuon.size() << ") from Z decay!" << std::endl; return false; }
       // Reference is RECO Muon pT
-      reference_pT_.SetMagPhi( muonTree->PF_Muon_Mom()[idx[0][0]].Pt() , muonTree->PF_Muon_Mom()[idx[0][0]].Phi() );
+      reference_pT.SetMagPhi( muonTree->PF_Muon_Mom()[idx[0][0]].Pt() , muonTree->PF_Muon_Mom()[idx[0][0]].Phi() );
       // Boson pT is the sum of RECO Muon pT and missing GEN Muon pT
-      boson_pT_.SetMagPhi( muonTree->Gen_Muon_Mom()[iGenMissingMuon[0]].Pt() , muonTree->Gen_Muon_Mom()[iGenMissingMuon[0]].Phi() );
-      boson_pT_ += reference_pT_;
+      boson_pT.SetMagPhi( muonTree->Gen_Muon_Mom()[iGenMissingMuon[0]].Pt() , muonTree->Gen_Muon_Mom()[iGenMissingMuon[0]].Phi() );
+      boson_pT += reference_pT;
     }
   }
   //
+  // Case: W -> Tau -> Muon + Neutrinos
+  else if (sample.find("MC_WToTau")!=std::string::npos) {
+    // Find the number of RECO muons matched to GEN muons from W->Tau boson decay
+    std::vector< uint > idx;
+    const int& iGenMu = muonTree->PF_Muon_Gen_Idx()[muonIdx];
+    if ( iGenMu > -1 ) {
+      const auto& mom = muonTree->findMuonMother(iGenMu, 24, 2);
+      if ( mom.pdg == 24 ) { idx = { muonIdx , uint(iGenMu) , mom.idx }; }
+    }
+    if ( idx.size() == 0 ) { std::cout << "[ERROR] Found 0 RECO muons matched to GEN muon from W->Tau decay!" << std::endl; return false; }
+    // Found 1 RECO muon from W->Tau decay
+    // Reference is RECO Muon pT
+    reference_pT.SetMagPhi( muonTree->PF_Muon_Mom()[idx[0]].Pt() , muonTree->PF_Muon_Mom()[idx[0]].Phi() );
+    // Boson pT is the GEN W boson pT (mother of muon)
+    boson_pT.SetMagPhi( muonTree->Gen_Particle_Mom()[idx[2]].Pt() , muonTree->Gen_Particle_Mom()[idx[2]].Phi() );
+  }
+  //
   // Case: W -> Muon + Neutrino
-  else if (sample_.find("WToMu")!=std::string::npos) {
+  else if (sample.find("MC_W")!=std::string::npos) {
     // Find the number of RECO muons matched to GEN muons from W boson decay
     std::vector< uint > idx;
-    if ( PF_Muon_Gen_Idx[muonIdx] > -1 ) {
-      auto mom = muonTree->MuonMother(PF_Muon_Gen_Idx[muonIdx]);
-      if ( mom.pdg == 24 ) { idx = { muonIdx , uint(PF_Muon_Gen_Idx[muonIdx]) , mom.idx }; }
+    const int& iGenMu = muonTree->PF_Muon_Gen_Idx()[muonIdx];
+    if ( iGenMu > -1 ) {
+      const auto& mom = muonTree->MuonMother(iGenMu);
+      if ( mom.pdg == 24 ) { idx = { muonIdx , uint(iGenMu) , mom.idx }; }
     }
     if ( idx.size() == 0 ) { std::cout << "[ERROR] Found 0 RECO muons matched to GEN muon from W decay!" << std::endl; return false; }
     // Found 1 RECO muon from W decay
@@ -341,44 +377,45 @@ bool RecoilCorrector::getPtFromTree(
     int iGenNeutrino = -1;
     for (uint i = 0; i < muonTree->Gen_Particle_PdgId().size(); i++) {
       if ( (muonTree->Gen_Particle_Status()[i]==1) && (abs(muonTree->Gen_Particle_PdgId()[i])==14) ) {
-        auto mom = muonTree->Mother(i);
-        if ( (mom.pdg == 24) && (mom.idx == idx[2]) ) { iGenNeutrino = i; break; }
+        const auto& mom = muonTree->Mother(i);
+        if (mom.idx == idx[2]) { iGenNeutrino = i; break; }
       }
     }
     if ( iGenNeutrino == -1 ) { std::cout << "[ERROR] No GEN neutrinos were found from W decay!" << std::endl; return false; }
     // Reference is RECO Muon pT
-    reference_pT_.SetMagPhi( muonTree->PF_Muon_Mom()[idx[0]].Pt() , muonTree->PF_Muon_Mom()[idx[0]].Phi() );
+    reference_pT.SetMagPhi( muonTree->PF_Muon_Mom()[idx[0]].Pt() , muonTree->PF_Muon_Mom()[idx[0]].Phi() );
     // Boson pT is the sum of RECO Muon pT and missing GEN Neutrino pT
-    boson_pT_.SetMagPhi( muonTree->Gen_Particle_Mom()[iGenNeutrino].Pt() , muonTree->Gen_Particle_Mom()[iGenNeutrino].Phi() );
-    boson_pT_ += reference_pT_;
+    boson_pT.SetMagPhi( muonTree->Gen_Particle_Mom()[iGenNeutrino].Pt() , muonTree->Gen_Particle_Mom()[iGenNeutrino].Phi() );
+    boson_pT += reference_pT;
   }
   //
-  // Case: W -> Tau -> Muon + Neutrinos
-  else if (sample_.find("WToTau")!=std::string::npos) {
-    // Find the number of RECO muons matched to GEN muons from W->Tau boson decay
+  // Case: t -> W -> Muon + Neutrinos
+  else if (sample.find("MC_TT")!=std::string::npos) {
+    // Find the number of RECO muons matched to GEN muons from W->Muon boson decay
     std::vector< uint > idx;
-    if ( PF_Muon_Gen_Idx[muonIdx] > -1 ) {
-      auto mom = muonTree->MuonMother(PF_Muon_Gen_Idx[muonIdx]);
-      if ( mom.pdg == 24 ) { idx = { muonIdx , uint(PF_Muon_Gen_Idx[muonIdx]) , mom.idx }; }
+    const int& iGenMu = muonTree->PF_Muon_Gen_Idx()[muonIdx];
+    if ( iGenMu > -1 ) {
+      const auto& mom = muonTree->MuonMother(iGenMu);
+      if ( mom.pdg == 24 ) { idx = { muonIdx , uint(iGenMu) , mom.idx }; }
     }
-    if ( idx.size() == 0 ) { std::cout << "[ERROR] Found 0 RECO muons matched to GEN muon from W->Tau decay!" << std::endl; return false; }
-    // Found 1 RECO muon from W->Tau decay
+    if ( idx.size() == 0 ) { std::cout << "[ERROR] Found 0 RECO muons matched to GEN muon from t->W->Mu decay!" << std::endl; return false; }
+    // Found 1 RECO muon from W->Muon decay
     // Reference is RECO Muon pT
-    reference_pT_.SetMagPhi( muonTree->PF_Muon_Mom()[idx[0]].Pt() , muonTree->PF_Muon_Mom()[idx[0]].Phi() );
+    reference_pT.SetMagPhi( muonTree->PF_Muon_Mom()[idx[0]].Pt() , muonTree->PF_Muon_Mom()[idx[0]].Phi() );
     // Boson pT is the GEN W boson pT (mother of muon)
-    boson_pT_.SetMagPhi( muonTree->Gen_Particle_Mom()[idx[2]].Pt() , muonTree->Gen_Particle_Mom()[idx[2]].Phi() );
+    boson_pT.SetMagPhi( muonTree->Gen_Particle_Mom()[idx[2]].Pt() , muonTree->Gen_Particle_Mom()[idx[2]].Phi() );
   }
   //
   // Case: QCD -> Muon + X
-  else if (sample_.find("QCDToMu")!=std::string::npos) {
+  else if (sample.find("MC_QCD")!=std::string::npos) {
     // Reference is RECO Muon pT
-    reference_pT_.SetMagPhi( muonTree->PF_Muon_Mom()[muonIdx].Pt() , muonTree->PF_Muon_Mom()[muonIdx].Phi() );
+    reference_pT.SetMagPhi( muonTree->PF_Muon_Mom()[muonIdx].Pt() , muonTree->PF_Muon_Mom()[muonIdx].Phi() );
     // Boson pT is also the RECO Muon pT
-    boson_pT_ = reference_pT_;
+    boson_pT = reference_pT;
   }
   //
   else {
-    std::cout << "[ERROR] Sample : " << sample_ << " has not been implemented in the Recoil Corrector Class!" << std::endl; return false;
+    std::cout << "[ERROR] Sample : " << sample << " has not been implemented in the Recoil Corrector Class!" << std::endl; return false;
   }
   //
   // Return back
@@ -664,14 +701,13 @@ bool RecoilCorrector::correctMCRecoil(
 bool RecoilCorrector::correctMET(
                                  TVector2& MET_CORR,
                                  const TVector2& MET_RAW,
-                                 const std::string METType,
                                  const std::string method
                                  )
 {
   //
   if ( (reference_pT_.Px() == 0.0) && (reference_pT_.Py() == 0.0) ) { std::cout << "[ERROR] The reference pT has not been defined!" << std::endl; return false; }
   if ( (    boson_pT_.Px() == 0.0) && (    boson_pT_.Py() == 0.0) ) { std::cout << "[ERROR] The boson pT has not been defined!"     << std::endl; return false; }
-  if ( u1Fits_MC_.count(METType) == 0 ) { std::cout << "[ERROR] MET type " << METType << " has not been defined!" << std::endl; return false; }
+  if ( u1Fits_MC_.count(METType_) == 0 ) { std::cout << "[ERROR] MET type " << METType_ << " has not been defined!" << std::endl; return false; }
   //
   // Initialize output variables
   MET_CORR = TVector2();
@@ -685,10 +721,10 @@ bool RecoilCorrector::correctMET(
   //
   // For parallel recoil
   double u1_CORR;
-  if(!correctMCRecoil(u1_CORR, u1_RAW, boson_pT_.Mod(), u1Fits_MC_.at(METType), u1Fits_DATA_.at(METType), method, useOneGaussian_MC_, useOneGaussian_DATA_, corrMean_)) { return false; }
+  if(!correctMCRecoil(u1_CORR, u1_RAW, boson_pT_.Mod(), u1Fits_MC_.at(METType_), u1Fits_DATA_.at(METType_), method, useOneGaussian_MC_, useOneGaussian_DATA_, corrMean_)) { return false; }
   // For perpendicular recoil
   double u2_CORR;
-  if(!correctMCRecoil(u2_CORR, u2_RAW, boson_pT_.Mod(), u2Fits_MC_.at(METType), u2Fits_DATA_.at(METType), method, useOneGaussian_MC_, useOneGaussian_DATA_, corrMean_)) { return false; }
+  if(!correctMCRecoil(u2_CORR, u2_RAW, boson_pT_.Mod(), u2Fits_MC_.at(METType_), u2Fits_DATA_.at(METType_), method, useOneGaussian_MC_, useOneGaussian_DATA_, corrMean_)) { return false; }
   //
   // Compute the MET based on the corrected recoil components
   //  

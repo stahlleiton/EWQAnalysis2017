@@ -39,6 +39,7 @@ using Unc1DMap_t   =  std::map< std::string , std::map< std::string , std::map< 
 using EffVec_t     =  std::map< std::string , std::vector< TEfficiency > >;
 using EffMap_t     =  std::map< std::string , std::map< std::string , std::map< std::string , std::map< std::string , std::map< std::string , EffVec_t > > > > >;
 using BinMap_t     =  std::map< std::string , std::vector< double > >;
+using BinMapMap_t  =  std::map< std::string , BinMap_t >;
 using KeyPVec_t    =  std::vector< TKey* >;
 
 
@@ -47,8 +48,8 @@ using KeyPVec_t    =  std::vector< TKey* >;
 void         makeDir             ( const std::string& dir );
 bool         existDir            ( const std::string& dir );
 bool         getObjectsFromFile  ( EffMap_t& eff , Unc1DMap_t& unc , const std::string& filePath );
-void         formatEff1D         ( TGraphAsymmErrors& graph , const std::string& var , const std::string& charge , const std::string& type );
-void         formatEff1D         ( TEfficiency& eff , const std::string& var , const std::string& charge , const std::string& type );
+void         formatEff1D         ( TGraphAsymmErrors& graph , const std::string& col , const std::string& var , const std::string& charge , const std::string& type );
+void         formatEff1D         ( TEfficiency& eff , const std::string& col , const std::string& var , const std::string& charge , const std::string& type );
 void         drawEff1D           ( const std::string& outDir , EffMap_t& effMap , Unc1DMap_t& unc , const bool isCutAndCount = false );
 bool         printTableEff1D     ( const std::string& outDir , const EffMap_t& effMap , const Unc1DMap_t& uncMap , const bool isCutAndCount = false );
 void         makeTable           ( std::ofstream& file , const std::vector< TEfficiency >& eff ,
@@ -63,12 +64,6 @@ const char*  sgn                 ( const double n ) { if (n >= 0.) { return "+";
 
 
 // ------------------ GLOBAL ------------------------------- 
-// Kinematic Info
-const BinMap_t  MU_BIN_RANGE_ = {
-  { "Eta"   , { -2.5 , 2.5  } },
-  { "EtaCM" , { -2.0 , 2.0  } },
-  { "Pt"    , { 25.  , 200. } }
-};
 //
 // Muon Charge
 const std::vector< std::string > CHG_  = { "Plus" , "Minus" };
@@ -83,7 +78,7 @@ void printEfficiency(const std::string workDirName = "NominalCM")
   gSystem->ChangeDirectory(mainDir.c_str());
   //
   // Define the working flags
-  bool isCutAndCount = false; if ( (workDirName == "CutAndCount") || (workDirName == "CutAndCountCM") ) { isCutAndCount = true; }
+  bool isCutAndCount = false; if (workDirName.find("CutAndCount")!=std::string::npos) { isCutAndCount = true; }
   //
   // Declare the efficiencies
   EffMap_t eff1D;
@@ -214,7 +209,7 @@ bool getObjectsFromFile(EffMap_t& eff, Unc1DMap_t& unc, const std::string& fileP
 };
 
 
-void formatEff1D(TEfficiency& eff, const std::string& var, const std::string& charge, const std::string& type)
+void formatEff1D(TEfficiency& eff, const std::string& col, const std::string& var, const std::string& charge, const std::string& type)
 {
   // Set the format of all graphs
   if (eff.GetDimension() != 1) { std::cout << "[ERROR] formatEff1D only works for dimension == 1" << std::endl; return; }
@@ -231,12 +226,12 @@ void formatEff1D(TEfficiency& eff, const std::string& var, const std::string& ch
   if (type!="Acceptance") { type + " Efficiency"; }
   // Set Axis Titles
   eff.SetTitle(Form(";%s;%s", xLabel.c_str(), yLabel.c_str()));
-  if (graph) { formatEff1D(*graph, var, charge, type); }
+  if (graph) { formatEff1D(*graph, col, var, charge, type); }
   gPad->Update(); 
 };
 
 
-void formatEff1D(TGraphAsymmErrors& graph, const std::string& var, const std::string& charge, const std::string& type)
+void formatEff1D(TGraphAsymmErrors& graph, const std::string& col, const std::string& var, const std::string& charge, const std::string& type)
 {
   // General
   graph.SetMarkerColor(kBlue);
@@ -253,7 +248,13 @@ void formatEff1D(TGraphAsymmErrors& graph, const std::string& var, const std::st
   graph.GetXaxis()->SetTitleOffset(0.9);
   graph.GetXaxis()->SetTitleSize(0.050);
   graph.GetXaxis()->SetLabelSize(0.035);
-  graph.GetXaxis()->SetLimits(MU_BIN_RANGE_.at(var)[0] , MU_BIN_RANGE_.at(var)[MU_BIN_RANGE_.at(var).size()-1]);
+  double xMin, xMax, yDummy;
+  graph.GetPoint(0, xMin, yDummy); xMin -= graph.GetErrorXlow(0);
+  int n = (graph.GetN()-1);
+  graph.GetPoint(n, xMax, yDummy); xMax += graph.GetErrorXhigh(n);
+  xMin = (std::floor((xMin-0.1)*10.0)/10.0);
+  xMax = (std::ceil((xMax+0.1)*10.0)/10.0);
+  graph.GetXaxis()->SetLimits(xMin , xMax);
   // Y-axis
   std::string yLabel = type;
   if (type!="Acceptance") { type + " Efficiency"; }
@@ -291,7 +292,7 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
               // Create the Text Info
               TLatex tex; tex.SetNDC(); tex.SetTextSize(0.028); float dy = 0;
               std::vector< std::string > textToPrint;
-              std::string sampleLabel; formatDecayLabel(sampleLabel, sample);
+              std::string sampleLabel; formatDecayLabel(sampleLabel, (sample+"_"+charge));
               textToPrint.push_back(sampleLabel);
               if (var=="Eta" || var=="EtaCM") { textToPrint.push_back("p^{#mu}_{T} > 25 GeV/c"); }
               if (var=="Pt") { textToPrint.push_back("|#eta^{#mu}| < 2.4"); }
@@ -299,29 +300,32 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
               // Declare the graph vector (for drawing with markers)
               std::vector< TGraphAsymmErrors > grVec;
               TLegend leg(0.2, 0.66, 0.4, 0.79);
+              double xMin , xMax;
               // Draw graph
               if (corr=="NoCorrOnly") {
                 // Extract the Uncorrected Efficiency graph
                 eff[0].Draw(); gPad->Update();
                 grVec.push_back(*(eff[0].GetPaintedGraph()));
                 // Format the Graphs
-                for (auto& g : grVec) { formatEff1D(g, var, charge, type); }
+                for (auto& g : grVec) { formatEff1D(g, col, var, charge, type); }
                 // Create Legend
                 formatLegendEntry(*leg.AddEntry(&grVec[0], "MC Truth Efficiency", "pe"));
                 // Draw the graph
                 grVec[0].Draw("ap");
+                xMin = grVec[0].GetXaxis()->GetXmin(); xMax = grVec[0].GetXaxis()->GetXmax();
               }
               else if (corr=="NoCorr" && type=="Acceptance") {
                 // Extract the Uncorrected Efficiency graph
                 eff[0].Draw(); gPad->Update();
                 grVec.push_back(*(eff[0].GetPaintedGraph()));
                 // Format the Graphs
-                for (auto& g : grVec) { formatEff1D(g, var, charge, type); }
+                for (auto& g : grVec) { formatEff1D(g, col, var, charge, type); }
                 grVec[0].SetMarkerColor(kRed);
                 // Create Legend
                 formatLegendEntry(*leg.AddEntry(&grVec[0], "MC Acceptance", "pe"));
                 // Draw the graph
                 grVec[0].Draw("ap");
+                xMin = grVec[0].GetXaxis()->GetXmin(); xMax = grVec[0].GetXaxis()->GetXmax();
               }
               else if (corr=="NoCorr") {
                 // Extract the Uncorrected Efficiency graph
@@ -338,7 +342,7 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                   grVec[1].SetPointError(l, grVec[1].GetErrorXlow(l), grVec[1].GetErrorXhigh(l), errorYlow, errorYhigh);
                 }
                 // Format the Graphs
-                for (auto& g : grVec) { formatEff1D(g, var, charge, type); }
+                for (auto& g : grVec) { formatEff1D(g, col, var, charge, type); }
                 grVec[0].SetMarkerColor(kRed);
                 // Create Legend
                 formatLegendEntry(*leg.AddEntry(&grVec[0], "MC Truth Efficiency", "pe"));
@@ -346,6 +350,7 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                 // Draw the graph
                 grVec[0].Draw("ap");
                 grVec[1].Draw("samep");
+                xMin = grVec[0].GetXaxis()->GetXmin(); xMax = grVec[0].GetXaxis()->GetXmax();
               }
               else if (corr=="TnP_Nominal") {
                 // Extract the Corrected Efficiency graph
@@ -380,16 +385,18 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                 formatLegendEntry(*leg.AddEntry(&grVec[1], "TnP Statistical Uncertainty", "f"));
                 formatLegendEntry(*leg.AddEntry(&grVec[2], "TnP Systematic Uncertainty", "f"));
                 // Format the graphs
-                for (auto& g : grVec) { formatEff1D(g, var, charge, type); }
+                for (auto& g : grVec) { formatEff1D(g, col, var, charge, type); }
                 grVec[0].SetMarkerColor(kBlack);
                 grVec[1].SetFillColor(kOrange);
                 grVec[2].SetFillColor(kGreen+3);
                 grVec[3].SetFillColor(kRed);
                 // Draw the graphs
-                grVec[2].Draw("a2");
+                grVec[0].Draw("ap");
+                grVec[2].Draw("same2");
                 grVec[1].Draw("same2");
                 grVec[3].Draw("same2");
                 grVec[0].Draw("samep");
+                xMin = grVec[0].GetXaxis()->GetXmin(); xMax = grVec[0].GetXaxis()->GetXmax();
               }
               else {
                 // Extract the Corrected Efficiency graph
@@ -411,7 +418,7 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                   }
                 }
                 // Format the graphs
-                for (auto& g : grVec) { formatEff1D(g, var, charge, type); }
+                for (auto& g : grVec) { formatEff1D(g, col, var, charge, type); }
                 grVec[0].SetMarkerColor(kAzure+10);
                 grVec[1].SetFillColor(kRed);
                 for (uint n=2; n<grVec.size(); n++) { grVec[n].SetMarkerColor(kBlack);  grVec[n].SetMarkerSize(0.0); grVec[n].SetLineColor(kBlack); }
@@ -420,13 +427,14 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                 formatLegendEntry(*leg.AddEntry(&grVec[1], Form("%s Uncertainty", corr.c_str()), "f"));
                 formatLegendEntry(*leg.AddEntry(&grVec[2], Form("%s Variation", corr.c_str()), "l"));
                 // Draw the Graph
-                grVec[1].Draw("a2");
+                grVec[0].Draw("ap");
                 for (uint n=2; n<grVec.size(); n++) { grVec[n].Draw("samep"); }
                 grVec[1].Draw("same2");
                 grVec[0].Draw("samep");
+                xMin = grVec[0].GetXaxis()->GetXmin(); xMax = grVec[0].GetXaxis()->GetXmax();
               }
               // Draw Legend and line
-              TLine line( MU_BIN_RANGE_.at(var)[0] , 1.0 ,  MU_BIN_RANGE_.at(var)[MU_BIN_RANGE_.at(var).size()-1] , 1.0 ); line.SetLineStyle(2);
+              TLine line( xMin , 1.0 ,  xMax , 1.0 ); line.SetLineStyle(2);
               line.Draw("same");
               leg.Draw("same");
               // Update

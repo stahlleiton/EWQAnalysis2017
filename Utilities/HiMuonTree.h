@@ -37,7 +37,6 @@ public :
 
   HiMuonTree();
   virtual ~HiMuonTree();
-  virtual Bool_t       GetTree         (const std::vector< std::pair< std::string , double > >&, const std::string& treeName="muonAna");
   virtual Bool_t       GetTree         (const std::vector< std::string >&, const std::string& treeName="muonAna");
   virtual Bool_t       GetTree         (const std::string&, const std::string& treeName="muonAna");
   virtual Int_t        GetEntry        (Long64_t);
@@ -47,9 +46,7 @@ public :
   virtual void         Clear           (void);
   virtual GenPart      Mother          (const int);
   virtual GenPart      MuonMother      (const int);
-  virtual GenPart      findMuonMother  (const int imuGenIdx, const int momPdg, const uint numIter = 2, const bool verbose = false);
-  virtual Double_t     GetCrossSection (void) { return crossSection_[fCurrent_]; }
-  virtual void         GetUniquePFGenMuonMatching (std::vector< char >&, std::vector< char >&, const std::vector< char >&);
+  virtual GenPart      findMuonMother  (const int imuGenIdx, const int momPdg, const uint numIter = 2);
 
   // EVENT INFO VARIABLES
   UInt_t               Event_Run()                        { SetBranch("Event_Run");                        return Event_Run_;                             }
@@ -246,11 +243,10 @@ public :
   }
 
 
-  TChain*                   fChain_;
-  std::map<string, TChain*> fChainM_;
-  Int_t                     fCurrent_ = -1;
-  Long64_t                  entry_;
-  std::vector< Double_t >   crossSection_;
+  TChain*                    fChain_;
+  std::map<string, TChain*>  fChainM_;
+  Int_t                      fCurrent_ = -1;
+  Long64_t                   entry_;
 
   // TCLONEARRAY POINTERS
   std::map< std::string , TClonesArray*   > TClonesArray_;
@@ -575,26 +571,20 @@ Bool_t HiMuonTree::GetTree(const std::string& fileName, const std::string& treeN
   return GetTree(fileNames, treeName);
 }
 
-Bool_t HiMuonTree::GetTree(const std::vector< std::string >& fileName, const std::string& treeName)
-{
-  std::vector< std::pair< std::string , double > > fileInfo;
-  for (const auto& fName : fileName) { fileInfo.push_back(std::make_pair( fName , 1.0 )); }
-  return GetTree(fileInfo, treeName);
-}
-
-Bool_t HiMuonTree::GetTree(const std::vector< std::pair< std::string , double > >& inFileInfo, const std::string& treeName)
+Bool_t HiMuonTree::GetTree(const std::vector< std::string >& inFileName, const std::string& treeName)
 {
   // Check the File Names
-  std::vector< std::pair< std::string , double > > fileInfo = inFileInfo;
-  for (auto& f : fileInfo) { if (f.first.find("/store/")!=std::string::npos && f.first.find("root://")==std::string::npos) { f.first = "root://cms-xrd-global.cern.ch/" + f.first.substr(f.first.find("/store/")); } }
+  std::vector< std::string > fileName = inFileName;
+  for (auto& f : fileName) { if (f.find("/store/")!=std::string::npos && f.find("root://")==std::string::npos) { f = "root://cms-xrd-global.cern.ch/" + f.substr(f.find("/store/")); } }
   // Open the input files
-  TFile *f = TFile::Open(fileInfo[0].first.c_str());
+  std::cout << fileName[0].c_str() << std::endl;
+  TFile *f = TFile::Open(fileName[0].c_str());
   if (!f || !f->IsOpen()) return false;
   // Extract the input TChains
   fChainM_.clear();
   TDirectory * dir;
-  if (fileInfo[0].first.find("root://")!=std::string::npos) { dir = (TDirectory*)f->Get(treeName.c_str()); }
-  else { dir = (TDirectory*)f->Get((fileInfo[0].first+":/"+treeName).c_str()); }
+  if (fileName[0].find("root://")!=std::string::npos) { dir = (TDirectory*)f->Get(treeName.c_str()); }
+  else { dir = (TDirectory*)f->Get((fileName[0]+":/"+treeName).c_str()); }
   if (!dir) return false;
   if (dir->GetListOfKeys()->Contains("Muon_Event")) { fChainM_["Event"] = new TChain((treeName+"/Muon_Event").c_str(), "Muon_Event"); }
   if (dir->GetListOfKeys()->Contains("Muon_Reco"))  { fChainM_["Reco"]  = new TChain((treeName+"/Muon_Reco").c_str() , "Muon_Reco" ); }
@@ -604,7 +594,7 @@ Bool_t HiMuonTree::GetTree(const std::vector< std::pair< std::string , double > 
   if (fChainM_.size()==0) return false;
   // Add the files in the TChain
   for (auto& c : fChainM_) {
-    if(c.first!="Pat") { for (auto& f : fileInfo) {c.second->Add(Form("%s/%s/Muon_%s", f.first.c_str(), treeName.c_str(), c.first.c_str())); }; c.second->GetEntries(); }
+    if(c.first!="Pat") { for (auto& f : fileName) {c.second->Add(Form("%s/%s/Muon_%s", f.c_str(), treeName.c_str(), c.first.c_str())); }; c.second->GetEntries(); }
   }
   for (auto& c : fChainM_) { if (!c.second) { std::cout << "[ERROR] fChain " << c.first << " was not created, some input files are missing" << std::endl; return false; } }
   // Initialize the input TChains (set their branches)
@@ -620,8 +610,6 @@ Bool_t HiMuonTree::GetTree(const std::vector< std::pair< std::string , double > 
   if (fChain_ == 0) return false;
   // Set All Branches to Status 0
   fChain_->SetBranchStatus("*",0);
-  // Store the user cross-sections
-  crossSection_.clear(); for (auto& f : fileInfo) { crossSection_.push_back(f.second); }
   //
   return true;
 }
@@ -1139,48 +1127,20 @@ GenPart HiMuonTree::MuonMother(const int imuGenIdx)
   return Mother(genIdx);
 }
 
-GenPart HiMuonTree::findMuonMother(const int imuGenIdx, const int momPdg, const uint numIter, const bool verbose)
+GenPart HiMuonTree::findMuonMother(const int imuGenIdx, const int momPdg, const uint numIter)
 {
   if (imuGenIdx<0 || momPdg==0) { return { 0 , 0}; }
   UInt_t genIdx = Gen_Muon_Particle_Idx()[imuGenIdx];
   UInt_t genPdg = std::abs(Gen_Particle_PdgId()[genIdx]);
   auto mom = Mother(genIdx);
-  uint i = 0;
+  uint i = 1;
   while(mom.idx!=genIdx && mom.pdg!=std::abs(momPdg) && i<numIter) {
-    if (verbose) { std::cout << "[DEBUG XXXXX] genPdg ( " << genPdg << " ) and genIdx ( " << genIdx << " ) and momPdg ( " << mom.pdg << " ) and momIdx ( " << mom.idx << " ) " << std::endl; }
     genIdx = mom.idx;
     genPdg = mom.pdg;
     mom = Mother(genIdx);
     i++;
   }
-  if (verbose) { std::cout << "[DEBUG 3] genPdg ( " << genPdg << " ) and genIdx ( " << genIdx << " ) and momPdg ( " << mom.pdg << " ) and momIdx ( " << mom.idx << " ) " << std::endl; }
   return mom;
-}
-
-void HiMuonTree::GetUniquePFGenMuonMatching(std::vector< char >& muPFToGenIdx_Fixed, std::vector< char >& muGenToPFIdx_Fixed, const std::vector< char >& muPFToGenIdx_Input)
-{
-  // 0) Get all input variables
-  const std::vector< TLorentzVector > muPF_P4  = PF_Muon_Mom();
-  const std::vector< TLorentzVector > muGEN_P4 = Gen_Muon_Mom();
-  // 1) Initiliaze the PF->Gen Muon Index Vector to -1
-  muPFToGenIdx_Fixed.clear();
-  for (uint imu = 0; imu < muPF_P4.size(); imu++) { muPFToGenIdx_Fixed.push_back(-1); }
-  // 2) Initiliaze the Gen->PF Muon Index Vector to -1
-  muGenToPFIdx_Fixed.clear();
-  for (uint imu = 0; imu < muGEN_P4.size(); imu++) { muGenToPFIdx_Fixed.push_back(-1); }
-  // 3) Create the Gen->PF Muon Index Map
-  std::map< char , std::vector< char > > muGenToPFIdx_Map;
-  for (unsigned char imu = 0; imu < muPFToGenIdx_Input.size(); imu++) { if (muPFToGenIdx_Input[imu]!=-1) { muGenToPFIdx_Map[ muPFToGenIdx_Input[imu] ].push_back( imu ); } }
-  // 4) For each Gen muon associdated to more than one PF muon, only associate to the closest one using vector magnitud
-  for (const auto& genToPFIdx : muGenToPFIdx_Map) {
-    const char genIdx = genToPFIdx.first;
-    // Find the nearest PF muon to this GEN muon
-    double minDist = 999999999.; char minPFIdx = -1;
-    for (const auto& pfIdx : genToPFIdx.second) { if ( (muPF_P4[pfIdx].Vect() - muGEN_P4[genIdx].Vect()).Mag() < minDist ) { minDist = (muPF_P4[pfIdx].Vect() - muGEN_P4[genIdx].Vect()).Mag(); minPFIdx = pfIdx; } }
-    muPFToGenIdx_Fixed[ minPFIdx ] = genIdx;
-    muGenToPFIdx_Fixed[ genIdx   ] = minPFIdx;
-  }
-  // All done!
 }
 
 void HiMuonTree::GenerateDictionaries(void)

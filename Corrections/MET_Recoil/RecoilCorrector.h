@@ -37,10 +37,13 @@ class RecoilCorrector
   // Public Functions
   //
   void  clear();
+  bool  isValid();
   bool  setInputFiles       ( const std::string METType , const std::string mcFileName , const std::string dataFileName );
   void  setInitialSetup     ( const std::string& sample , const bool useOneGaussian_MC = false, const bool useOneGaussian_DATA = false , const bool corrMean = true );
-  bool  correctMET          ( TVector2& MET_CORR , const TVector2& MET_RAW , const std::string METType , const std::string method );
-  bool  getPtFromTree       ( const uint& muonIdx , const std::unique_ptr<HiMuonTree>& muonTree );
+  bool  correctMET          ( TVector2& MET_CORR , const TVector2& MET_RAW , const std::string method );
+  void  setPt               ( const TVector2& reference_pT , const TVector2& boson_pT ) { this->reference_pT_ = reference_pT; this->boson_pT_ = boson_pT; };
+
+  static bool getPtFromTree ( TVector2& reference_pT , TVector2& boson_pT , const uint& muonIdx , const std::unique_ptr<HiMuonTree>& muonTree , const std::string sample );
 
 
  protected:
@@ -73,8 +76,6 @@ class RecoilCorrector
   //
   TRandom3* fRandom_ = NULL;
   //
-  std::string sample_;
-  //
   bool useOneGaussian_MC_;
   bool useOneGaussian_DATA_;
   bool corrMean_;
@@ -86,6 +87,8 @@ class RecoilCorrector
   //
   TVector2  reference_pT_;
   TVector2  boson_pT_;
+  //
+  std::string METType_;
 
 };
 

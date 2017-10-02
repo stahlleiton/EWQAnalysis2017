@@ -44,6 +44,7 @@ using EffVec_t     =  std::map< std::string , std::vector< TEfficiency > >;
 using EffMap_t     =  std::map< std::string , std::map< std::string , std::map< std::string , std::map< std::string , std::map< std::string , EffVec_t > > > > >;
 using VarMap_t     =  std::map< std::string , std::map< std::string , std::map< std::string , std::map< std::string , std::vector< double > > > > >;
 using BinMap_t     =  std::map< std::string , std::vector< double > >;
+using BinMapMap_t  =  std::map< std::string , BinMap_t >;
 using FileInfo_t   =  std::vector< std::pair< std::string , double > >;
 
 
@@ -51,9 +52,9 @@ using FileInfo_t   =  std::vector< std::pair< std::string , double > >;
 TnPVec_t getTnPScaleFactors  ( const double& pt, const double& eta );
 bool     getTnPUncertainties ( Unc1DVec_t& unc , const EffVec_t& eff );
 bool     getTnPUncertainties ( Unc1DMap_t& unc , const EffMap_t& eff );
-void     initEff1D           ( TH1DMap_t& h , const BinMap_t& binMap );
+void     initEff1D           ( TH1DMap_t& h , const BinMapMap_t& binMap );
 bool     fillEff1D           ( TH1DVec_t& h , const bool& pass , const double& xVar , const TnPVec_t& sfTnP , const double& evtWeight );
-bool     fillEff1D           ( TH1DMap_t& h , const bool& pass , const std::string& type , const VarMap_t& var , const std::vector< TnPVec_t >& sfTnP , const double& evtWeight , const BinMap_t& MU_BIN );
+bool     fillEff1D           ( TH1DMap_t& h , const bool& pass , const std::string& type , const VarMap_t& var , const std::vector< TnPVec_t >& sfTnP , const double& evtWeight , const BinMapMap_t& MU_BIN );
 bool     loadEff1D           ( EffMap_t& eff, const TH1DMap_t& h );
 void     mergeEff            ( EffMap_t& eff );
 void     writeEff            ( TFile& file , const EffMap_t& eff , const Unc1DMap_t& unc , const std::string& mainDirName );
@@ -106,25 +107,29 @@ void correctEfficiency(const std::string workDirName = "NominalCM")
 {
   //
   // Initialize the Kinematic Bin info
-  BinMap_t  MU_BIN;
+  BinMapMap_t  MU_BIN;
   if ( (workDirName == "Nominal") || (workDirName == "CutAndCount") ) {
     const BinMap_t  TMP = {
       { "Eta" , { -2.4 , -2.2 , -2.0 , -1.8 , -1.6 , -1.4 , -1.2 , -1.0 , -0.8 , -0.6 , -0.4 , -0.2 , 0.0 , 0.2 , 0.4 , 0.6 , 0.8 , 1.0 , 1.2 , 1.4 , 1.6 , 1.8 , 2.0 , 2.2 , 2.4 } }
     };
-    for (const auto& v : TMP) { MU_BIN[v.first] = v.second; }
+    for (const auto& v : TMP) { MU_BIN["PA"][v.first] = v.second; MU_BIN["pPb"][v.first] = v.second; MU_BIN["Pbp"][v.first] = v.second; }
   }
   else if ( (workDirName == "NominalCM") || (workDirName == "CutAndCountCM") ) {
-    const BinMap_t  TMP = {
-      { "EtaCM" , { -1.8 , -1.6 , -1.4 , -1.2 , -1.0 , -0.8 , -0.6 , -0.4 , -0.2 , 0.0 , 0.2 , 0.4 , 0.6 , 0.8 , 1.0 , 1.2 , 1.4 , 1.6 , 1.8 } }
+    const BinMap_t  TMP_pPb = {
+      { "EtaCM" , { -2.86 , -2.60 , -2.40 , -2.20 , -2.00 , -1.80 , -1.60 , -1.40 , -1.20 , -1.00 , -0.80 , -0.60 , -0.40 , -0.20 , 0.00 , 0.20 , 0.40 , 0.60 , 0.80 , 1.00 , 1.20 , 1.40 , 1.60 , 1.80, 1.93 } }
     };
-    for (const auto& v : TMP) { MU_BIN[v.first] = v.second; }
+    const BinMap_t  TMP_Pbp = {
+      { "EtaCM" , { -1.93 , -1.80 , -1.60 , -1.40 , -1.20 , -1.00 , -0.80 , -0.60 , -0.40 , -0.20 , 0.00 , 0.20 , 0.40 , 0.60 , 0.80 , 1.00 , 1.20 , 1.40 , 1.60 , 1.80 , 2.00 , 2.20 , 2.40 , 2.60 , 2.86 } }
+    };
+    for (const auto& v : TMP_pPb) { MU_BIN["PA"][v.first] = v.second; MU_BIN["pPb"][v.first] = v.second; }
+    for (const auto& v : TMP_Pbp) { MU_BIN["Pbp"][v.first] = v.second; }
   }
   else if (workDirName == "General") {
     const BinMap_t  TMP = {
       { "Eta" , { -2.4 , -2.2 , -2.0 , -1.8 , -1.6 , -1.4 , -1.2 , -1.0 , -0.8 , -0.6 , -0.4 , -0.2 , 0.0 , 0.2 , 0.4 , 0.6 , 0.8 , 1.0 , 1.2 , 1.4 , 1.6 , 1.8 , 2.0 , 2.2 , 2.4 } },
       { "Pt"  , { 25., 30., 35., 40., 45., 50, 80., 200. } }
     };
-    for (const auto& v : TMP) { MU_BIN[v.first] = v.second; }
+    for (const auto& v : TMP) { MU_BIN["PA"][v.first] = v.second; MU_BIN["pPb"][v.first] = v.second; MU_BIN["Pbp"][v.first] = v.second; }
   }
   else {
     std::cout << "[ERROR] WorkDirName " << workDirName << " has not been defined" << std::endl; return;
@@ -165,9 +170,10 @@ void correctEfficiency(const std::string workDirName = "NominalCM")
   std::map< std::string , std::unique_ptr< HiMuonTree > > muonTree;
   std::map< std::string , std::unique_ptr< HiMETTree  > > metTree;
   for (const auto & inputFile : inputFileMap_) {
-    const std::string sample   = inputFile.first;
-    const FileInfo_t  fileInfo = inputFile.second;
-    for (const auto& f : fileInfo) { std::cout << "[INFO] Loading File: " << f.first << std::endl; }
+    const std::string sample = inputFile.first;
+    std::vector< std::string >  fileInfo;
+    for (const auto& f : inputFile.second) { fileInfo.push_back(f.first); }
+    for (const auto& f : fileInfo) { std::cout << "[INFO] Loading File: " << f << std::endl; }
     //
     muonTree[sample] = std::unique_ptr<HiMuonTree>(new HiMuonTree());
     if (!muonTree.at(sample)->GetTree(fileInfo)) return;
@@ -186,13 +192,23 @@ void correctEfficiency(const std::string workDirName = "NominalCM")
   for (auto & inputFile : inputFileMap_) {
     const std::string sample = inputFile.first;
     // Loop over the events
+    int treeIdx = -1;
+    double crossSection = -1.0;
+    std::cout << "[INFO] Starting to process " << nentries.at(sample) << " nentries" << std::endl;
     for (Long64_t jentry = 0; jentry < nentries.at(sample); jentry++) { //
       //
       // Get the entry in the trees
-      if (metTree.at(sample)->GetEntry(jentry)<0) break;
-      if (muonTree.at(sample)->GetEntry(jentry)<0) break;
+      if (muonTree.at(sample)->GetEntry(jentry)<0) { std::cout << "[ERROR] Muon Tree invalid entry!"  << std::endl; return; }
+      if ( metTree.at(sample)->GetEntry(jentry)<0) { std::cout << "[ERROR] MET Tree invalid entry!"   << std::endl; return; }
       //
-      if (jentry%200000==0) std::cout << sample << " : " << jentry << "/" << nentries[sample] << std::endl;
+      if (muonTree.at(sample)->Chain()->GetTreeNumber()!=treeIdx) {
+        treeIdx = muonTree.at(sample)->Chain()->GetTreeNumber();
+        std::cout << "[INFO] Processing Root File: " << inputFile.second[treeIdx].first << std::endl;
+        // Get the MC Cross-Section
+        crossSection = inputFile.second[treeIdx].second;
+      }
+      //
+      if (jentry%200000==0) std::cout << "[INFO] " << sample << " : " << jentry << "/" << nentries[sample] << std::endl;
       if (jentry%200000==0) { 
         std::cout << "[INFO] Processing time: " << std::chrono::duration_cast<std::chrono::seconds>( std::chrono::high_resolution_clock::now() - t1 ).count() << " sec" << std::endl;
         t1 = std::chrono::high_resolution_clock::now();
@@ -214,7 +230,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM")
       //
       // Get the Lumi re-weight for MC (global weight)
       const double lumi = ( (col=="pPb") ? PA::LUMI::Data_pPb : PA::LUMI::Data_Pbp );
-      const double mcWeight = ( ( muonTree.at(sample)->GetCrossSection() * lumi ) / muonTree.at(sample)->GetTreeEntries() );
+      const double mcWeight = ( ( crossSection * lumi ) / muonTree.at(sample)->GetTreeEntries() );
       // Set the global weight only in the first event (i.e. once per sample)
       if (jentry==0) {
         setGlobalWeight(h1D, mcWeight, sampleType, col);
@@ -470,13 +486,13 @@ bool getTnPUncertainties(Unc1DMap_t& unc, const EffMap_t& eff)
 };
 
 
-void initEff1D(TH1DMap_t& h, const BinMap_t& binMap)
+void initEff1D(TH1DMap_t& h, const BinMapMap_t& binMap)
 {
-  for (const auto& bins : binMap) {
-    Double_t bin[bins.second.size()];
-    for (uint i = 0; i < bins.second.size(); i++) { bin[i] = bins.second[i]; }
-    for (const auto& sample : sampleType_.at("sample")) {
-      for (const auto& col : COLL_) {
+  for (const auto& col : COLL_) {
+    for (const auto& bins : binMap.at(col)) {
+      Double_t bin[bins.second.size()];
+      for (uint i = 0; i < bins.second.size(); i++) { bin[i] = bins.second[i]; }
+      for (const auto& sample : sampleType_.at("sample")) {
         for (const auto& chg : CHG_) {
           for (const auto& type : effType) {
             for (const auto& cor : corrType) {
@@ -522,7 +538,7 @@ bool fillEff1D(TH1DVec_t& h, const bool& pass, const double& xVar, const TnPVec_
 };
 
 
-bool fillEff1D(TH1DMap_t& h, const bool& pass, const std::string& type, const VarMap_t& var, const std::vector< TnPVec_t >& sfTnP, const double& evtWeight, const BinMap_t& MU_BIN)
+bool fillEff1D(TH1DMap_t& h, const bool& pass, const std::string& type, const VarMap_t& var, const std::vector< TnPVec_t >& sfTnP, const double& evtWeight, const BinMapMap_t& MU_BIN)
 {
   const std::string sample = var.begin()->first;
   const std::string col    = var.at(sample).begin()->first;
@@ -541,7 +557,7 @@ bool fillEff1D(TH1DMap_t& h, const bool& pass, const std::string& type, const Va
           double xVar = var.at(sample).at(col).at(charge).at(v.first)[0];
           uint sfIdx = 0;
           if (c.first=="PA" && col=="Pbp") {
-            sfIdx = 1;
+            //sfIdx = 1; Ask about this on Monday
             if (v.first=="Eta") { xVar = -xVar; } // Invert in the LAB frame
             if (v.first=="EtaCM") {
               xVar = PA::EtaCMtoLAB(xVar, false); // Switch from CM -> LAB, in Pbp system
@@ -549,7 +565,7 @@ bool fillEff1D(TH1DMap_t& h, const bool& pass, const std::string& type, const Va
               xVar = PA::EtaLABtoCM(xVar, true);  // Switch from LAB -> CM, in pPb system
             }
           }
-          if (xVar >= MU_BIN.at(v.first)[0] && xVar <= MU_BIN.at(v.first)[MU_BIN.at(v.first).size()-1]) { // Don't include values outside of range
+          if (xVar >= MU_BIN.at(c.first).at(v.first)[0] && xVar <= MU_BIN.at(c.first).at(v.first)[MU_BIN.at(c.first).at(v.first).size()-1]) { // Don't include values outside of range
             // Fill histograms
             if (!fillEff1D(ch.second.at(type), pass, xVar, sfTnP[sfIdx], evtWeight)) { return false; }
           }

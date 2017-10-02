@@ -8,12 +8,12 @@
 
 void   setMETGlobalParameterRange ( RooWorkspace& myws , GlobalInfo& info );
 void   setEWQCutParameters  ( GlobalInfo& info );
-bool   setEWQModel          ( StrMapMap& model, GlobalInfo&  info );
+bool   setEWQModel          ( StrMapMap_t& model, GlobalInfo&  info );
 int    importDataset        ( RooWorkspace& myws  , const std::map<string, RooWorkspace>& inputWS , const GlobalInfo& info);
 void   setMETFileName       ( string& fileName, string& outputDir, const string& DSTAG, const string& plotLabel, const GlobalInfo& info );
 
 
-bool fitElectroWeakMETModel( const RooWorkspaceMap& inputWorkspaces,    // Workspace with all the input RooDatasets
+bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Workspace with all the input RooDatasets
                              const GlobalInfo& inputInfo,     // Contains information on initial Parameters, cut values, flags, ...
                              const GlobalInfo& userInput,     // Contains information on initial Parameters, cut values, flags, ...
                              const std::string& outputDir,    // Path to output directory
@@ -50,7 +50,7 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap& inputWorkspaces,    // Works
   setEWQCutParameters(info);
 
   // Set models based on input files
-  StrMapMap model;
+  StrMapMap_t model;
   if (!setEWQModel(model, info)) { return false; }
   
   // Import the all the datasets needed for the fit
@@ -237,7 +237,7 @@ void setEWQCutParameters(GlobalInfo& info)
 };
 
 
-bool setEWQModel(StrMapMap& model, GlobalInfo&  info)
+bool setEWQModel(StrMapMap_t& model, GlobalInfo&  info)
 {
   std::string cha = info.Par.at("channel");
   for (const auto& col : info.StrV.at("fitSystem")) {
@@ -315,20 +315,30 @@ int importDataset(RooWorkspace& myws  , const std::map<string, RooWorkspace>& in
   }
   cutDS.erase(cutDS.size()-string("&&").length(), cutDS.size());
   TObjString tmp; tmp.SetString(cutDS.c_str()); myws.import(*((TObject*)&tmp), "Cut_DataSet"); // Save the cut expression for bookkeeping
-  std::cout << "[INFO] Importing local RooDataSet with cuts: " << cutDS << std::endl;
+  std::cout << "[INFO] Importing local RooDataSets with cuts: " << cutDS << std::endl;
   // Reduce and import the datasets
   for (const auto& label : info.StrV.at("DSList")) {
+    // Extract the RooDatasets
+    std::string dsType = "COR";
+    if (inputWS.at(label).data(Form("dPl_%s_%s", dsType.c_str(), label.c_str()))==NULL) { dsType = "LUM"; }
+    if (inputWS.at(label).data(Form("dPl_%s_%s", dsType.c_str(), label.c_str()))==NULL) { dsType = "RAW"; }
+    const std::string extLabel = dsType + "_" + label;
+    std::cout << "[INFO] Importing local RooDataSet " << extLabel << std::endl;
+    //
     for (const auto& chg : info.StrV.at("fitCharge")) {
       if (myws.data(Form("d%s_%s", chg.c_str(), label.c_str()))!=NULL) continue;
-      if ( inputWS.count(label)==0 || !(inputWS.at(label).data(Form("d%s_%s", chg.c_str(), label.c_str())))){ 
-        std::cout << "[ERROR] The dataset " <<  Form("d%s_%s", chg.c_str(), label.c_str()) << " was not found!" << std::endl;
+      if ( inputWS.count(label)==0 || !(inputWS.at(label).data(Form("d%s_%s", chg.c_str(), extLabel.c_str())))){ 
+        std::cout << "[ERROR] The dataset " <<  Form("d%s_%s", chg.c_str(), extLabel.c_str()) << " was not found!" << std::endl;
         return -1;
       }
-      RooDataSet* data = (RooDataSet*)inputWS.at(label).data(Form("d%s_%s", chg.c_str(), label.c_str()))->reduce(cutDS.c_str());
+      RooDataSet* data  = (RooDataSet*)inputWS.at(label).data(Form("d%s_%s", chg.c_str(), extLabel.c_str()))->reduce(cutDS.c_str());
       if (data==NULL || data->sumEntries()==0){ 
-        std::cout << "[ERROR] No events from dataset " <<  Form("d%s_%s", chg.c_str(), label.c_str()) << " passed the kinematic cuts!" << std::endl; return -1;
+        std::cout << "[ERROR] No events from dataset " <<  Form("d%s_%s", chg.c_str(), extLabel.c_str()) << " passed the kinematic cuts!" << std::endl; return -1;
       }
-      else { myws.import(*data); }
+      else {
+        data->SetName(Form("d%s_%s", chg.c_str(), label.c_str()));
+        myws.import(*data);
+}
       std::cout << "[INFO] " << Form("%.0f", data->sumEntries()) << " weighted entries imported from local RooDataSet " << Form("d%s_%s", chg.c_str(), label.c_str()) << std::endl;
       if (data) { delete data; }
       if (myws.obj("METType")==NULL) { myws.import(*((TObjString*)inputWS.at(label).obj("METType")), "METType"); }

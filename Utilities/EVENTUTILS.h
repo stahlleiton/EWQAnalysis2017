@@ -8,6 +8,8 @@
 // Auxiliary Headers
 #include "../Utilities/HiMETTree.h"
 #include "../Utilities/HiMuonTree.h"
+// ROOT Headers
+#include "TLorentzVector.h"
 // c++ headers
 #include <dirent.h>
 #include <memory>
@@ -15,6 +17,34 @@
 #include <map>
 #include <vector>
 #include <string>
+
+
+// Utiliy Functions
+
+bool existDir(const std::string& dir)
+{
+  bool exist = false;
+  void * dirp = gSystem->OpenDirectory(dir.c_str());
+  if (dirp) { gSystem->FreeDirectory(dirp); exist = true; }
+  return exist;
+};
+
+void makeDir(const std::string& dir)
+{
+  if (existDir(dir.c_str())==false){ 
+    std::cout << "[INFO] DataSet directory: " << dir << " doesn't exist, will create it!" << std::endl;  
+    gSystem->mkdir(dir.c_str(), kTRUE);
+  }
+};
+
+void roundValue( double& value , const uint& nDecimals )
+{
+  double tmp = value;
+  tmp *= std::pow(10.0, nDecimals);
+  tmp = std::round(tmp);
+  tmp /= std::pow(10.0, nDecimals);
+  value = tmp;
+};
 
 
 namespace PA {
@@ -33,46 +63,181 @@ namespace PA {
   namespace LUMI {
     const double Data_pPb = 110.77;
     const double Data_Pbp = 62.59;
-  }
+  };
 
+};
+
+
+// Variable Computation
+namespace PA {
+  //
+  const double Muon_MASS_ = 0.1057;
+  //
+  double getWTransverseMass(const double& muPt, const double& muPhi, const double& nuPt, const double& nuPhi)
+  {
+    TLorentzVector pfMuonP4T = TLorentzVector(), METP4 = TLorentzVector();
+    pfMuonP4T.SetPtEtaPhiM(muPt, 0.0, muPhi, Muon_MASS_);
+    METP4.SetPtEtaPhiM( nuPt, 0.0, nuPhi, 0.0 );
+    TLorentzVector muT = TLorentzVector( pfMuonP4T + METP4 );
+    return muT.M();
+  };
+};
+
+    
+// Centre of Mass Frames
+namespace PA {
+  //
+  double EtaLABtoCM(const double& etaLAB, const bool ispPb)
+  {
+    const double shift = ( ispPb ? 0.465 : -0.465 );
+    double etaCM = etaLAB - shift;
+    roundValue(etaCM, 4);
+    return etaCM;
+  };
+  //
+  double EtaCMtoLAB(const double& etaCM, const bool ispPb)
+  {
+    const double shift = ( ispPb ? 0.465 : -0.465 );
+    double etaLAB = etaCM + shift;
+    roundValue(etaLAB, 4);
+    return etaLAB;
+  };
+  //
 };
 
 // MC Related Information
 //
 namespace PYQUEN {
   std::map< std::string , std::map< std::string , double > > XSec = {
-    { "WToMuNu"   , { { "pPb" , 1.159e4 * 208. * 1.e-3 } , { "Pbp" , 1.223e4 * 208. * 1.e-3 } } },
-    { "DYToMuMu"  , { { "pPb" , 1.290e3 * 208. * 1.e-3 } , { "Pbp" , 1.342e3 * 208. * 1.e-3 } } },
-    { "WToTauNu"  , { { "pPb" , 1.182e4 * 208. * 1.e-3 } , { "Pbp" , 1.213e4 * 208. * 1.e-3 } } }
+    { "WToMuNu"            , { { "pPb" , 1.159e4 * 208. * 1.e-3 } , { "Pbp" , 1.223e4 * 208. * 1.e-3 } } },
+    { "DYToMuMu_M_30_Inf"  , { { "pPb" , 1.290e3 * 208. * 1.e-3 } , { "Pbp" , 1.342e3 * 208. * 1.e-3 } } },
+    { "WToTauNu"           , { { "pPb" , 1.182e4 * 208. * 1.e-3 } , { "Pbp" , 1.213e4 * 208. * 1.e-3 } } },
+    { "TTall"              , { { "pPb" , 48.68                  } , { "Pbp" , 48.68                  } } }
   };
-};
+};  
 //
 namespace POWHEG {
   std::map< std::string , std::map< std::string , double > > XSec = {
-    {"WToMuNu_Plus"       , { { "pPb" , 1213.38 }  , { "Pbp" , 1214.06 } } },
-    {"WToMuNu_Minus"      , { { "pPb" , 1082.24 }  , { "Pbp" , 1083.37 } } },
-    {"DYToMuMu_M_30_Inf"  , { { "pPb" , 266.28  }  , { "Pbp" , 266.28  } } },
-    {"DYToMuMu_M_10_30"   , { { "pPb" , 1182.24 }  , { "Pbp" , 1168.03 } } },
-    {"WToTauNu_Plus"      , { { "pPb" , 1146.30 }  , { "Pbp" , 1147.44 } } },
-    {"WToTauNu_Minus"     , { { "pPb" , 1026.32 }  , { "Pbp" , 1019.40 } } },
-    {"TTall"              , { { "pPb" , 48.68   }  , { "Pbp" , 48.68   } } }
+    { "WToMuNu_Plus"       , { { "pPb" , 1213.38 }  , { "Pbp" , 1214.06 } } },
+    { "WToMuNu_Minus"      , { { "pPb" , 1082.24 }  , { "Pbp" , 1083.37 } } },
+    { "DYToMuMu_M_30_Inf"  , { { "pPb" , 266.28  }  , { "Pbp" , 266.28  } } },
+    { "DYToMuMu_M_10_30"   , { { "pPb" , 1182.24 }  , { "Pbp" , 1168.03 } } },
+    { "WToTauNu_Plus"      , { { "pPb" , 1146.30 }  , { "Pbp" , 1147.44 } } },
+    { "WToTauNu_Minus"     , { { "pPb" , 1026.32 }  , { "Pbp" , 1019.40 } } },
+    { "TTall"              , { { "pPb" , 48.68   }  , { "Pbp" , 48.68   } } }
   };
 };
 //
 namespace PYTHIA {
   std::map< std::string , std::map< std::string , double > > XSec = {  
-    {"QCDToMu"  , { { "pPb" , (28919.33 * 0.78998) }  , { "Pbp" , 28927.43 * 0.81767 } } } // pPb: 3.67970e+05 * 3.77844e-4 * 208. 48.68  Pbp: 3.67966e+05 * 3.77954e-4 * 208.
+    { "QCDToMu"  , { { "pPb" , (28919.33 * 0.78998) }  , { "Pbp" , 28927.43 * 0.81767 } } } // pPb: 3.67970e+05 * 3.77844e-4 * 208. 48.68  Pbp: 3.67966e+05 * 3.77954e-4 * 208.
   };
 };
-
-
-void roundValue( double& value , const uint& nDecimals )
-{
-  double tmp = value;
-  tmp *= std::pow(10.0, nDecimals);
-  tmp = std::round(tmp);
-  tmp /= std::pow(10.0, nDecimals);
-  value = tmp;
+//
+// MC Tags
+namespace PA {
+  enum class MCType 
+  {
+    Invalid = 0,
+      // For Pythia8
+      PYTHIA_QCDToMu_pPb           =  10,
+      PYTHIA_QCDToMu_Pbp           = -10,
+      // For Pyquen
+      PYQUEN_WToMuNu_pPb           =  20,
+      PYQUEN_WToMuNu_Pbp           = -20,
+      PYQUEN_DYToMuMu_M_30_Inf_pPb =  21,
+      PYQUEN_DYToMuMu_M_30_Inf_Pbp = -21,
+      PYQUEN_WToTauNu_pPb          =  22,
+      PYQUEN_WToTauNu_Pbp          = -22,
+      PYQUEN_TTall_pPb             =  23,
+      PYQUEN_TTall_Pbp             = -23,
+      // For Powheg
+      POWHEG_WToMuNu_Plus_pPb      =  30,
+      POWHEG_WToMuNu_Plus_Pbp      = -30,
+      POWHEG_WToMuNu_Minus_pPb     =  31,
+      POWHEG_WToMuNu_Minus_Pbp     = -31,
+      POWHEG_DYToMuMu_M_30_Inf_pPb =  32,
+      POWHEG_DYToMuMu_M_30_Inf_Pbp = -32,
+      POWHEG_DYToMuMu_M_10_30_pPb  =  33,
+      POWHEG_DYToMuMu_M_10_30_Pbp  = -33,
+      POWHEG_WToTauNu_Plus_pPb     =  34,
+      POWHEG_WToTauNu_Plus_Pbp     = -34,
+      POWHEG_WToTauNu_Minus_pPb    =  35,
+      POWHEG_WToTauNu_Minus_Pbp    = -35,
+      POWHEG_TTall_pPb             =  36,
+      POWHEG_TTall_Pbp             = -36
+      };
+  //
+  const std::map< std::string , int > MCTypeDictionary = {
+    { "Invalid"                      , int(MCType::Invalid)},
+    // For Pythia8
+    { "PYTHIA_QCDToMu_pPb"           , int(MCType::PYTHIA_QCDToMu_pPb)},
+    { "PYTHIA_QCDToMu_Pbp"           , int(MCType::PYTHIA_QCDToMu_Pbp)},
+    // For Pyquen
+    { "PYQUEN_WToMuNu_pPb"           , int(MCType::PYQUEN_WToMuNu_pPb)},
+    { "PYQUEN_WToMuNu_Pbp"           , int(MCType::PYQUEN_WToMuNu_Pbp)},
+    { "PYQUEN_DYToMuMu_M_30_Inf_pPb" , int(MCType::PYQUEN_DYToMuMu_M_30_Inf_pPb)},
+    { "PYQUEN_DYToMuMu_M_30_Inf_Pbp" , int(MCType::PYQUEN_DYToMuMu_M_30_Inf_Pbp)},
+    { "PYQUEN_WToTauNu_pPb"          , int(MCType::PYQUEN_WToTauNu_pPb)},
+    { "PYQUEN_WToTauNu_Pbp"          , int(MCType::PYQUEN_WToTauNu_Pbp)},
+    { "PYQUEN_TTall_pPb"             , int(MCType::PYQUEN_TTall_pPb)},
+    { "PYQUEN_TTall_Pbp"             , int(MCType::PYQUEN_TTall_Pbp)},
+    // For Powheg
+    { "POWHEG_WToMuNu_Plus_pPb"      , int(MCType::POWHEG_WToMuNu_Plus_pPb)},
+    { "POWHEG_WToMuNu_Plus_Pbp"      , int(MCType::POWHEG_WToMuNu_Plus_Pbp)},
+    { "POWHEG_WToMuNu_Minus_pPb"     , int(MCType::POWHEG_WToMuNu_Minus_pPb)},
+    { "POWHEG_WToMuNu_Minus_Pbp"     , int(MCType::POWHEG_WToMuNu_Minus_Pbp)},
+    { "POWHEG_DYToMuMu_M_30_Inf_pPb" , int(MCType::POWHEG_DYToMuMu_M_30_Inf_pPb)},
+    { "POWHEG_DYToMuMu_M_30_Inf_Pbp" , int(MCType::POWHEG_DYToMuMu_M_30_Inf_Pbp)},
+    { "POWHEG_DYToMuMu_M_10_30_pPb"  , int(MCType::POWHEG_DYToMuMu_M_10_30_pPb)},
+    { "POWHEG_DYToMuMu_M_10_30_Pbp"  , int(MCType::POWHEG_DYToMuMu_M_10_30_Pbp)},
+    { "POWHEG_WToTauNu_Plus_pPb"     , int(MCType::POWHEG_WToTauNu_Plus_pPb)},
+    { "POWHEG_WToTauNu_Plus_Pbp"     , int(MCType::POWHEG_WToTauNu_Plus_Pbp)},
+    { "POWHEG_WToTauNu_Minus_pPb"    , int(MCType::POWHEG_WToTauNu_Minus_pPb)},
+    { "POWHEG_WToTauNu_Minus_Pbp"    , int(MCType::POWHEG_WToTauNu_Minus_Pbp)},
+    { "POWHEG_TTall_pPb"             , int(MCType::POWHEG_TTall_pPb)},
+    { "POWHEG_TTall_Pbp"             , int(MCType::POWHEG_TTall_Pbp)}
+  };
+  //
+  std::string getMCTypeName(const int& MCTypeID)
+    {
+      for (const auto& MCT : MCTypeDictionary) { if (MCT.second == MCTypeID) { return MCT.first; } }
+      return "Invalid";
+    };
+  //
+  int getMCTypeID(const std::string& MCTypeName)
+  {
+    if (MCTypeDictionary.count(MCTypeName)>0) { return MCTypeDictionary.at(MCTypeName); }
+    return int(MCType::Invalid);
+  };
+  //
+  bool getCrossSection(double& xSection, const std::string& MCTypeName, const bool verbose = false)
+  {
+    xSection = -1.0;
+    std::string GENTAG  = MCTypeName; GENTAG.erase(GENTAG.find("_"), GENTAG.length());
+    std::string NAMETAG = MCTypeName; NAMETAG = NAMETAG.substr(NAMETAG.find("_")+1); NAMETAG.erase(NAMETAG.find_last_of("_"), 5);
+    std::string COLTAG  = MCTypeName; COLTAG = COLTAG.substr(COLTAG.find_last_of("_")+1);
+    if (GENTAG == "POWHEG") {
+      if (POWHEG::XSec.count(NAMETAG) == 0) { std::cout << "[ERROR] POWHEG Cross-section was not found for process: " << NAMETAG << std::endl; return false; }
+      if (POWHEG::XSec.at(NAMETAG).count(COLTAG) == 0) { std::cout << "[ERROR] POWHEG Cross-section was not found for process: " << (NAMETAG+"_"+COLTAG) << std::endl; return false; }
+      xSection = POWHEG::XSec.at(NAMETAG).at(COLTAG);
+    }
+    else if (GENTAG == "PYTHIA") {
+      if (PYTHIA::XSec.count(NAMETAG) == 0) { std::cout << "[ERROR] PYTHIA Cross-section was not found for process: " << NAMETAG << std::endl; return false; }
+      if (PYTHIA::XSec.at(NAMETAG).count(COLTAG) == 0) { std::cout << "[ERROR] PYTHIA Cross-section was not found for process: " << (NAMETAG+"_"+COLTAG) << std::endl; return false; }
+      xSection = PYTHIA::XSec.at(NAMETAG).at(COLTAG);
+    }
+    else {
+      std::cout << "[ERROR] Cross-section for enerator " << GENTAG << " has not been defined!" << std::endl; return false;
+    }
+    if (verbose) { std::cout << "[INFO] Cross-section for " << MCTypeName << " set to " << xSection << " nb " << std::endl; }
+    return true;
+  };
+  //
+  bool getCrossSection(double& xSection, const int& MCTypeID, const bool verbose = false)
+  {
+    return getCrossSection(xSection, getMCTypeName(MCTypeID), verbose);
+  };
 };
 
 
@@ -216,65 +381,6 @@ namespace PA {
     //
     return true; // Drell-Yan veto succeeded
   };
-  //
-  bool getCrossSection(double& xSection, const std::string& xSectionTag)
-  {
-    xSection = -1.0;
-    std::string GENTAG  = xSectionTag; GENTAG.erase(GENTAG.find("_"), GENTAG.length());
-    std::string NAMETAG = xSectionTag; NAMETAG = NAMETAG.substr(NAMETAG.find("_")+1); NAMETAG.erase(NAMETAG.find_last_of("_"), 5);
-    std::string COLTAG  = xSectionTag; COLTAG = COLTAG.substr(COLTAG.find_last_of("_")+1);
-    if (GENTAG == "POWHEG") {
-      if (POWHEG::XSec.count(NAMETAG) == 0) { std::cout << "[ERROR] POWHEG Cross-section was not found for process: " << NAMETAG << std::endl; return false; }
-      if (POWHEG::XSec.at(NAMETAG).count(COLTAG) == 0) { std::cout << "[ERROR] POWHEG Cross-section was not found for process: " << (NAMETAG+"_"+COLTAG) << std::endl; return false; }
-      xSection = POWHEG::XSec.at(NAMETAG).at(COLTAG);
-    }
-    else if (GENTAG == "PYTHIA") {
-      if (PYTHIA::XSec.count(NAMETAG) == 0) { std::cout << "[ERROR] PYTHIA Cross-section was not found for process: " << NAMETAG << std::endl; return false; }
-      if (PYTHIA::XSec.at(NAMETAG).count(COLTAG) == 0) { std::cout << "[ERROR] PYTHIA Cross-section was not found for process: " << (NAMETAG+"_"+COLTAG) << std::endl; return false; }
-      xSection = PYTHIA::XSec.at(NAMETAG).at(COLTAG);
-    }
-    else {
-      std::cout << "[ERROR] Cross-section for enerator " << GENTAG << " has not been defined!" << std::endl; return false;
-    }
-    std::cout << "[INFO] Cross-section for " << xSectionTag << " set to " << xSection << " nb " << std::endl;
-    return true;
-  };
-  //
-  double EtaLABtoCM(const double& etaLAB, const bool ispPb)
-  {
-    const double shift = ( ispPb ? 0.465 : -0.465 );
-    double etaCM = etaLAB - shift;
-    roundValue(etaCM, 4);
-    return etaCM;
-  };
-  //
-  double EtaCMtoLAB(const double& etaCM, const bool ispPb)
-  {
-    const double shift = ( ispPb ? 0.465 : -0.465 );
-    double etaLAB = etaCM + shift;
-    roundValue(etaLAB, 4);
-    return etaLAB;
-  };
-  //
-};
-
-
-// Utiliy Functions
-
-bool existDir(const std::string& dir)
-{
-  bool exist = false;
-  void * dirp = gSystem->OpenDirectory(dir.c_str());
-  if (dirp) { gSystem->FreeDirectory(dirp); exist = true; }
-  return exist;
-};
-
-void makeDir(const std::string& dir)
-{
-  if (existDir(dir.c_str())==false){ 
-    std::cout << "[INFO] DataSet directory: " << dir << " doesn't exist, will create it!" << std::endl;  
-    gSystem->mkdir(dir.c_str(), kTRUE);
-  }
 };
 
 

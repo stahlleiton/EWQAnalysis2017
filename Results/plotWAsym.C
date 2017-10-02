@@ -22,9 +22,9 @@
 
 void plotWAsym(
                const std::string workDirName = "NominalCM",
-               const std::vector< std::string > collVec = { "PA" },
                const std::string effType     = "TnP",
-               const std::string accType     = "MC"
+               const std::string accType     = "",
+               const std::vector< std::string > collVec = { "PA" , "pPb" , "Pbp" }
                )
 {
   //
@@ -87,13 +87,13 @@ void plotWAsym(
       // If the bins where fitted in the Center of Mass, change from LAB to CM
       if (info.Flag.at("useEtaCM")) {
         bool usepPb = false; if ( (collSystem == "PA") || (collSystem == "pPb") ) { usepPb = true; }
-        etaMin = PA::EtaLABtoCM(etaMin, usepPb);
-        etaMax = PA::EtaLABtoCM(etaMax, usepPb);
+        etaMin = PA::EtaLABtoCM(std::max(-2.4, etaMin), usepPb);
+        etaMax = PA::EtaLABtoCM(std::min(+2.4, etaMax), usepPb);
         useEtaCM = true;
       }
-      // Round the bin boundaries to two decimals
-      roundValue(etaMin, 2);
-      roundValue(etaMax, 2);
+      // Round the bin boundaries to three decimals
+      roundValue(etaMin, 3);
+      roundValue(etaMax, 3);
       anabin<0> bin(etaMin, etaMax);
       //
       // Get the fit variables
@@ -102,9 +102,9 @@ void plotWAsym(
         std::string name = v.first; name.erase(name.find("POI_"),4);
         inputVar[collSystem][bin][charge][name]["Val"] = v.second.at("Val");
         inputVar[collSystem][bin][charge][name]["Err_Stat_High"] = v.second.at("Err");
-        inputVar[collSystem][bin][charge][name]["Err_Stat_Low"]  = v.second.at("Err");
+        inputVar[collSystem][bin][charge][name]["Err_Stat_Low" ] = v.second.at("Err");
         inputVar[collSystem][bin][charge][name]["Err_Syst_High"] = 0.0;
-        inputVar[collSystem][bin][charge][name]["Err_Syst_Low"]  = 0.0;
+        inputVar[collSystem][bin][charge][name]["Err_Syst_Low" ] = 0.0;
       }
       // Get the dataset variables
       for (auto& v : info.Var) {
@@ -127,7 +127,12 @@ void plotWAsym(
       //
       // Define the efficiency input file name
       std::string preCWD = CWD; preCWD.erase(preCWD.find_last_of("/"), 10);
-      const std::string effDirPath  = Form("%s/Efficiency/TnPEfficiency/%s", preCWD.c_str(), workDirName.c_str());
+      const bool useCM = (workDirName.find("CM")!=std::string::npos);
+      std::string effWorkDirName = "";
+      if (workDirName.find("CutAndCount")!=std::string::npos) { effWorkDirName = "CutAndCount"; }
+      else { effWorkDirName = "Nominal"; }
+      if (useCM) { effWorkDirName += "CM"; }
+      const std::string effDirPath  = Form("%s/Efficiency/TnPEfficiency/%s", preCWD.c_str(), effWorkDirName.c_str());
       const std::string effFileName = "efficiencyTnP.root";
       const std::string effFilePath = Form("%s/%s", effDirPath.c_str(), effFileName.c_str());
       //
@@ -145,8 +150,6 @@ void plotWAsym(
     //
     // Initialize the output variables
     BinPentaMap var;
-    //
-    const std::vector< std::string > varType = { "Var" , "Err_Stat_High" , "Err_Stat_Low" , "Err_Syst_High" , "Err_Syst_Low" };
     //
     // Compute the Charge Asymmetry
     //
@@ -173,7 +176,8 @@ void plotWAsym(
     // --------------------------------------------------------------------------------- //
     //
     // Draw the Output Graphs
-    drawGraph(graph, CWD, useEtaCM, accType, effType);
+    const std::string outDir = CWD + "/Output/" + workDirName+"/" + metTag+"/" + dsTag;
+    drawGraph(graph, outDir, useEtaCM, accType, effType);
     //
     //
     inputFile.Close();

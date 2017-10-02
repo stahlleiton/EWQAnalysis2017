@@ -6,7 +6,7 @@
 
 void       printElectroWeakMETParameters ( TPad* pad, const RooWorkspace& ws, const std::string& pdfName, const uint& drawMode );
 void       printElectroWeakBinning       ( TPad* pad, const RooWorkspace& ws, const std::string& dsName, const std::vector< std::string >& text, const uint& drawMode );
-void       printElectroWeakLegend        ( TPad* pad, const RooPlot& frame, const StrMapMap& legInfo, const uint& drawMode );
+void       printElectroWeakLegend        ( TPad* pad, const RooPlot& frame, const StrMapMap_t& legInfo, const uint& drawMode );
 RooHist*   makeRatioHist ( RooPlot* frame, const char* histname, const char* curvename, bool normalize, bool useAverage );
 bool       getVar        ( std::vector<RooRealVar*>& varVec, const RooWorkspace& ws, const std::string& name, const std::string& pdfName );
 void       parseVarName  ( const std::string& name, std::string& label );
@@ -49,7 +49,7 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   if (cha=="ToMu") { process += Form("#rightarrow#mu^{%c}+x", chgL); }
   process = Form("#font[62]{#scale[1.1]{%s}}", process.c_str());
   
-  StrMapMap legInfo;
+  StrMapMap_t legInfo;
 
   std::map< std::string , RooPlot* > frame;
   std::map< std::string , TPad* > pad;
@@ -286,7 +286,8 @@ void parseVarName(const std::string& name, std::string& label)
   stringstream ss(name); std::string s1, s2, s3;
   getline(ss, s1, '_'); getline(ss, s2, '_'); getline(ss, s3, '_');
   // Format QCD MET model parameters
-  if (s1=="Alpha"){ s1="#alpha"; } else if (s1=="Beta"){ s1="#beta"; } 
+  if (s1=="Alpha"){ s1="#alpha"; } else if (s1=="Beta"){ s1="#beta"; }
+  else if (s1=="Sigma0"){ s1="#sigma0"; } else if (s1=="Sigma1"){ s1="#sigma1"; } else if (s1=="Sigma2"){ s1="#sigma2"; }
   else if (s1=="XSection"){ s1="#sigma"; } else if (s1=="AccXEff"){ s1="#alphax#epsilon"; }
   // Format Object name
   std::string chg = ""; if (s2.find("Pl")!=std::string::npos) { chg = "+"; } else if (s2.find("Mi")!=std::string::npos) { chg = "-"; }
@@ -372,7 +373,7 @@ void printElectroWeakBinning(TPad* pad, const RooWorkspace& ws, const std::strin
 };
 
 
-void printElectroWeakLegend(TPad* pad, const RooPlot& frame, const StrMapMap& legInfo, const uint& drawMode)
+void printElectroWeakLegend(TPad* pad, const RooPlot& frame, const StrMapMap_t& legInfo, const uint& drawMode)
 {
   pad->cd();
   double ymax = 0.89, xmax = 0.65, dy = (0.89-0.64), dx = (0.65-0.48);

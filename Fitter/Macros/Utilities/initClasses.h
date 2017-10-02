@@ -35,7 +35,6 @@
 
 #include "../../../Utilities/CMS/tdrstyle.C"
 #include "../../../Utilities/CMS/CMS_lumi.C"
-#include "../../../Utilities/tnp_weight.h"
 #include "../../../Utilities/EVENTUTILS.h"
 
 #include <iostream>
@@ -48,18 +47,18 @@
 
 
 typedef std::vector< std::string > StringVector;
-typedef std::map< std::string , RooWorkspace                    > RooWorkspaceMap;
-typedef std::map< std::string , std::vector< std::string >      > StringVectorMap;
-typedef std::map< std::string , StringVectorMap                 > StringVectorDiMap;
-typedef std::map< std::string , StringVectorDiMap               > StringVectorTriMap;
-typedef std::map< std::string , std::map< std::string , float > > FloatMapMap;
-typedef std::map< std::string , std::string                     > StringMap;
-typedef std::map< std::string , int                             > IntMap;
-typedef std::map< std::string , IntMap                          > IntMapMap;
-typedef std::map< std::string , bool                            > BoolMap;
-typedef std::map< std::string , StringMap                       > StrMapMap;
+typedef std::map< std::string , RooWorkspace                    > RooWorkspaceMap_t;
+typedef std::map< std::string , std::vector< std::string >      > StringVectorMap_t;
+typedef std::map< std::string , StringVectorMap_t               > StringVectorDiMap_t;
+typedef std::map< std::string , StringVectorDiMap_t             > StringVectorTriMap_t;
+typedef std::map< std::string , std::map< std::string , float > > FloatMapMap_t;
+typedef std::map< std::string , std::string                     > StringMap_t;
+typedef std::map< std::string , int                             > IntMap_t;
+typedef std::map< std::string , IntMap_t                        > IntMapMap_t;
+typedef std::map< std::string , bool                            > BoolMap_t;
+typedef std::map< std::string , StringMap_t                     > StrMapMap_t;
 typedef std::map< std::string , std::map< std::string , std::map< std::string , int > > > ModelMap;
-typedef std::map< std::string , std::map< std::string , std::vector< int > > >  IntVecMapMap;
+typedef std::map< std::string , std::map< std::string , std::vector< int > > >  IntVecMapMap_t;
 
 // MET Model
 enum class METModel 
@@ -68,20 +67,22 @@ enum class METModel
     CutAndCount,
     Template,
     MultiJetBkg,
+    ModifiedRayleigh,
     Size
 };
-const IntMap METModelDictionary = {
-  {"InvalidModel", int(METModel::InvalidModel)},
-  {"CutAndCount",  int(METModel::CutAndCount)},
-  {"Template",     int(METModel::Template)},
-  {"MultiJetBkg",  int(METModel::MultiJetBkg)}
+const IntMap_t METModelDictionary = {
+  {"InvalidModel",     int(METModel::InvalidModel)},
+  {"CutAndCount",      int(METModel::CutAndCount)},
+  {"Template",         int(METModel::Template)},
+  {"MultiJetBkg",      int(METModel::MultiJetBkg)},
+  {"ModifiedRayleigh", int(METModel::ModifiedRayleigh)}
 };
 // Add the Models to the Main Dictionary
-const IntMapMap ModelDictionary = {
+const IntMapMap_t ModelDictionary = {
   { "MET" , METModelDictionary }
 };
 
-const StringMap varEWQLabel = {
+const StringMap_t varEWQLabel = {
   { "MET"        , "|#slash{E}_{T}|"   },
   { "Muon_Iso"   , "Iso_{PFR03}^{#mu}" },
   { "Muon_Pt"    , "p_{T}^{#mu}"       },
@@ -93,12 +94,12 @@ const StringMap varEWQLabel = {
 
 // Global Info Structure (wrapper to carry information around)
 typedef struct GlobalInfo {
-  FloatMapMap      Var;
-  StringMap        Par;
-  IntMap           Int;
-  StringVectorMap  StrV;
-  BoolMap          Flag;
-  void             Clear() { this->Var.clear(); this->Par.clear(); this->Int.clear(); this->StrV.clear(); this->Flag.clear(); }
+  FloatMapMap_t     Var;
+  StringMap_t       Par;
+  IntMap_t          Int;
+  StringVectorMap_t StrV;
+  BoolMap_t         Flag;
+  void              Clear() { this->Var.clear(); this->Par.clear(); this->Int.clear(); this->StrV.clear(); this->Flag.clear(); }
   GlobalInfo() {}
   GlobalInfo(const GlobalInfo &ref, bool keep = false) {
     this->Copy(ref, keep);
@@ -106,7 +107,7 @@ typedef struct GlobalInfo {
   ~GlobalInfo() {
     this->Clear();
   }
-  void Copy(const FloatMapMap &ref, bool keep = true) {
+  void Copy(const FloatMapMap_t &ref, bool keep = true) {
     if (!keep) this->Var.clear();
     for (const auto& var : ref) {
       for (const auto& ele : var.second) {
@@ -114,25 +115,25 @@ typedef struct GlobalInfo {
       }
     }
   }
-  void Copy(const StringMap &ref, bool keep = true) {
+  void Copy(const StringMap_t &ref, bool keep = true) {
     if (!keep) this->Par.clear();
     for (const auto& par : ref) {
       this->Par[par.first] = par.second;
     }
   }
-  void Copy(const IntMap &ref, bool keep = true) {
+  void Copy(const IntMap_t &ref, bool keep = true) {
     if (!keep) this->Int.clear();
     for (const auto& i : ref) {
       this->Int[i.first] = i.second;
     }
   }
-  void Copy(const StringVectorMap &ref, bool keep = true) {
+  void Copy(const StringVectorMap_t &ref, bool keep = true) {
     if (!keep) this->StrV.clear();
     for (const auto& i : ref) {
       this->StrV[i.first] = i.second;
     }
   }
-  void Copy(const BoolMap &ref, bool keep = true) {
+  void Copy(const BoolMap_t &ref, bool keep = true) {
     if (!keep) this->Flag.clear();
     for (const auto& flag : ref) {
       this->Flag[flag.first] = flag.second;
@@ -145,7 +146,7 @@ typedef struct GlobalInfo {
     this->Copy(ref.StrV, keep);
     this->Copy(ref.Flag, keep);
   }
-  bool operator == (const FloatMapMap &ref) const 
+  bool operator == (const FloatMapMap_t &ref) const 
   {
     if (ref.size() != this->Var.size()) return false;
     for (const auto& var : this->Var) {
@@ -155,7 +156,7 @@ typedef struct GlobalInfo {
     }
     return true;
   }
-  bool operator == (const StringMap &ref) const 
+  bool operator == (const StringMap_t &ref) const 
   {
     if (ref.size() != this->Par.size()) return false;
     for (const auto& par : this->Par) {
@@ -164,7 +165,7 @@ typedef struct GlobalInfo {
     }
     return true;
   }
-  bool operator == (const IntMap &ref) const 
+  bool operator == (const IntMap_t &ref) const 
   {
     if (ref.size() != this->Int.size()) return false;
     for (const auto& i : this->Int) {
@@ -173,7 +174,7 @@ typedef struct GlobalInfo {
     }
     return true;
   }
-  bool operator == (const StringVectorMap &ref) const 
+  bool operator == (const StringVectorMap_t &ref) const 
   {
     if (ref.size() != this->StrV.size()) return false;
     for (const auto& i : this->StrV) {
@@ -182,7 +183,7 @@ typedef struct GlobalInfo {
     }
     return true;
   }
-  bool operator == (const BoolMap &ref) const 
+  bool operator == (const BoolMap_t &ref) const 
   {
     if (ref.size() != this->Flag.size()) return false;
     for (const auto& flag : this->Flag) {
@@ -191,12 +192,12 @@ typedef struct GlobalInfo {
     }
     return true;
   }
-  bool operator != ( const FloatMapMap      &ref ) const { if (*this == ref) { return false; } return true; }
-  bool operator != ( const StringMap        &ref ) const { if (*this == ref) { return false; } return true; }
-  bool operator != ( const IntMap           &ref ) const { if (*this == ref) { return false; } return true; }
-  bool operator != ( const StringVectorMap  &ref ) const { if (*this == ref) { return false; } return true; }
-  bool operator != ( const BoolMap          &ref ) const { if (*this == ref) { return false; } return true; }
-  bool operator == (const GlobalInfo        &ref) const 
+  bool operator != ( const FloatMapMap_t      &ref ) const { if (*this == ref) { return false; } return true; }
+  bool operator != ( const StringMap_t        &ref ) const { if (*this == ref) { return false; } return true; }
+  bool operator != ( const IntMap_t           &ref ) const { if (*this == ref) { return false; } return true; }
+  bool operator != ( const StringVectorMap_t  &ref ) const { if (*this == ref) { return false; } return true; }
+  bool operator != ( const BoolMap_t          &ref ) const { if (*this == ref) { return false; } return true; }
+  bool operator == ( const GlobalInfo         &ref) const 
   {
     if ( *this != ref.Var  ) return false;
     if ( *this != ref.Par  ) return false;
@@ -303,7 +304,7 @@ void stringReplace(std::string& txt, const std::string& from, const std::string&
     }
 };
 
-std::string formatCut(const std::string& cut, const StringMap& map = StringMap())
+std::string formatCut(const std::string& cut, const StringMap_t& map = StringMap_t())
 {
   std::string str = cut;
   str.erase(std::remove(str.begin(), str.end(), ' '), str.end());

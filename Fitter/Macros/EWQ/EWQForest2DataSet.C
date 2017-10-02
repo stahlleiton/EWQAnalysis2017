@@ -19,23 +19,24 @@
 #include "../../../Utilities/HiMETTree.h"
 #include "../../../Utilities/HiMuonTree.h"
 #include "../../../Utilities/HiEvtTree.h"
-#include "../../../Utilities/RecoilCorrector.C"
+#include "../../../Utilities/tnp_weight.h"
+#include "../../../Corrections/MET_Recoil/RecoilCorrector.C"
 #include "../Utilities/initClasses.h"
 #include <chrono>
 
 
-bool checkEWQDS          ( RooDataSet* DS              , const std::string& DSName       , const std::string& Analysis );
-bool EWQForest_WToMuNu   ( RooWorkspaceMap& Workspaces , const StringVectorMap& FileInfo , const GlobalInfo&  info     );
+bool checkEWQDS          ( RooDataSet* DS                , const std::string& DSName         , const std::string& Analysis );
+bool EWQForest_WToMuNu   ( RooWorkspaceMap_t& Workspaces , const StringVectorMap_t& FileInfo , const GlobalInfo&  info     );
 
 
-bool EWQForest2DataSet(RooWorkspaceMap& Workspaces, const StringVectorMap& FileInfo, const GlobalInfo& info)
+bool EWQForest2DataSet(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& FileInfo, const GlobalInfo& info)
 {
   std::string Analysis = info.Par.at("Analysis");
   if (Analysis=="WToMuNu") { if (!EWQForest_WToMuNu(Workspaces, FileInfo, info)) return false; }
   return true;
 };
 
-bool EWQForest_WToMuNu(RooWorkspaceMap& Workspaces, const StringVectorMap& FileInfo, const GlobalInfo& info)
+bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& FileInfo, const GlobalInfo& info)
 {
   StringVector OutputFileNames;
   const std::string  chaDir = "Muon";
@@ -57,7 +58,6 @@ bool EWQForest_WToMuNu(RooWorkspaceMap& Workspaces, const StringVectorMap& FileI
   // Extract Input Information
   std::string  TYPE = info.Par.at("Analysis");
   int triggerIndex  = info.Int.at("triggerIndex");
-  bool applyCorr  = info.Flag.at("applyCorr");
   // Create RooDataSets
   std::vector< RooDataSet* > dataPl, dataMi, mcPl, mcMi;
   bool createDS = info.Flag.at("updateDS");
@@ -67,10 +67,10 @@ bool EWQForest_WToMuNu(RooWorkspaceMap& Workspaces, const StringVectorMap& FileI
       std::cout << "[INFO] Loading RooDataSets from " << OutputFileNames[i] << std::endl;
       TFile *DBFile = TFile::Open(OutputFileNames[i].c_str(),"READ");
       if (!DBFile) { std::cout << "[ERROR] File: " << OutputFileNames[i] << " is corrupted!" << std::endl; return false; }
-      dataPl.push_back( (RooDataSet*)DBFile->Get(Form("dPl_%s", DSNames[i].c_str())) );
-      dataMi.push_back( (RooDataSet*)DBFile->Get(Form("dMi_%s", DSNames[i].c_str())) );
-      if (isMC) { mcPl.push_back( (RooDataSet*)DBFile->Get(Form("mcPl_%s", DSNames[i].c_str())) ); }
-      if (isMC) { mcMi.push_back( (RooDataSet*)DBFile->Get(Form("mcMi_%s", DSNames[i].c_str())) ); }
+      dataPl.push_back( (RooDataSet*)DBFile->Get(Form("dPl_RAW_%s", DSNames[i].c_str())) );
+      dataMi.push_back( (RooDataSet*)DBFile->Get(Form("dMi_RAW_%s", DSNames[i].c_str())) );
+      if (isMC) { mcPl.push_back( (RooDataSet*)DBFile->Get(Form("mcPl_RAW_%s", DSNames[i].c_str())) ); }
+      if (isMC) { mcMi.push_back( (RooDataSet*)DBFile->Get(Form("mcMi_RAW_%s", DSNames[i].c_str())) ); }
       if (checkEWQDS(dataPl[i], DSNames[i], TYPE)==false) { createDS = true; }
       if (checkEWQDS(dataMi[i], DSNames[i], TYPE)==false) { createDS = true; }
       DBFile->Close(); delete DBFile;
@@ -80,57 +80,46 @@ bool EWQForest_WToMuNu(RooWorkspaceMap& Workspaces, const StringVectorMap& FileI
   if (createDS) {
     ///// Input Forest
     //
-    std::vector< std::pair< std::string , double > > inFileNames;
-    for (uint i = 0; i < InputFileNames.size(); i++) {
-      double xSection = 1.0; if (isMC && !PA::getCrossSection(xSection, FileInfo.at("XSectionTags")[i])) { return false; }
-      inFileNames.push_back(std::make_pair(InputFileNames[i] , xSection));
-    }
-    // Get the Recoil Corrections
-    //
-    RecoilCorrector recoilCorr = RecoilCorrector();
-    const std::string met = info.Par.at("VarType");
-    const std::string recoilDir = "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Corrections/MET_Recoil";
-    const std::string fileName_MC   = Form("%s/FitRecoil/MC_DYToMuMu_PYQUEN/MET_%s/PA/Results/fits_RecoilPDF_%s_PA.root", recoilDir.c_str(), met.c_str(), met.c_str());
-    const std::string fileName_DATA = Form("%s/FitRecoil/DATA/MET_%s/PA/Results/fits_RecoilPDF_%s_PA.root", recoilDir.c_str(), met.c_str(), met.c_str());
-    recoilCorr.setInputFiles(met, fileName_MC, fileName_DATA);
-    if (isMC) { recoilCorr.setInitialSetup(DSNames[0]); }
-    //
     std::unique_ptr<HiMuonTree> muonTree = std::unique_ptr<HiMuonTree>(new HiMuonTree());
-    if (!muonTree->GetTree(inFileNames)) return false;
+    if (!muonTree->GetTree(InputFileNames)) return false;
     Long64_t nentries = muonTree->GetEntries();
     std::unique_ptr<HiMETTree> metTree = std::unique_ptr<HiMETTree>(new HiMETTree());
-    if (useNoHFMET) { if (!metTree->GetTree(inFileNames, "metAnaNoHF")) return false; }
-    else { if (!metTree->GetTree(inFileNames, "metAna")) return false; }
+    if (useNoHFMET) { if (!metTree->GetTree(InputFileNames, "metAnaNoHF")) return false; }
+    else { if (!metTree->GetTree(InputFileNames, "metAna")) return false; }
     if (metTree->GetEntries() != nentries) { std::cout << "[ERROR] Inconsistent number of entries!" << std::endl; return false; }
     std::unique_ptr<HiEvtTree> evtTree = std::unique_ptr<HiEvtTree>(new HiEvtTree());
-    if (!evtTree->GetTree(inFileNames)) return false;
+    if (!evtTree->GetTree(InputFileNames)) return false;
     if (evtTree->GetEntries() != nentries) { std::cout << "[ERROR] Inconsistent number of entries!" << std::endl; return false; }
     ///// MC Generator Information
-    RooRealVar mcNGen  = RooRealVar ( "NGen",  "Number of Generated Events", -1.0, 100000000000.0,  ""        );
-    RooRealVar mcXSec  = RooRealVar ( "XSec",  "Cross Section"             , -1.0, 100000000000.0,  "nb"      );
-    RooRealVar mcLumi  = RooRealVar ( "Lumi",  "Luminosity"                , -1.0, 100000000000.0,  "nb^{-1}" );
-    RooRealVar mcSFTnP = RooRealVar ( "SFTnP", "TagAndProbe Scale Factor"  , -10.0,          10.0,  ""        );
-    RooArgSet  mcCols  = RooArgSet  (mcNGen, mcXSec, mcLumi, mcSFTnP);
+    RooRealVar mcNGen   = RooRealVar ( "NGen"      , "Number of Generated Events" ,   -1.0 ,   1000000000.0 , ""      );
+    RooRealVar mcType   = RooRealVar ( "MC_Type"   , "MC Type Number"             , -100.0 ,          100.0 , ""      );
+    RooRealVar bosonPt  = RooRealVar ( "Boson_Pt"  , "Boson p_{T}"                ,   -1.0 ,       100000.0 , "GeV/c" );
+    RooRealVar bosonPhi = RooRealVar ( "Boson_Phi" , "Boson #phi"                 ,   -9.0 ,            9.0 , ""      );
+    RooRealVar refPt    = RooRealVar ( "Ref_Pt"    , "Reference p_{T}"            ,   -1.0 ,       100000.0 , "GeV/c" );
+    RooRealVar refPhi   = RooRealVar ( "Ref_Phi"   , "Reference #phi"             ,   -9.0 ,            9.0 , ""      );
+    RooRealVar metPhi   = RooRealVar ( "MET_Phi"   , "#slash{E}_{T} #phi"         ,   -9.0 ,            9.0 , ""      );
+    RooRealVar muPhi    = RooRealVar ( "Muon_Phi"  , "#mu #phi"                   ,   -9.0 ,            9.0 , ""      );
+    RooArgSet  mcCols = RooArgSet(mcNGen, mcType, bosonPt, bosonPhi, refPt, refPhi);
+    mcCols.add(metPhi); mcCols.add(muPhi);
     ///// RooDataSet Variables
-    RooRealVar   met    = RooRealVar ( "MET",         "|#slash{E}_{T}|",   -1.0, 100000.0,  "GeV/c"     );
-    RooRealVar   muPt   = RooRealVar ( "Muon_Pt",     "#mu p_{T}",         -1.0, 100000.0,  "GeV/c"     );
-    RooRealVar   muEta  = RooRealVar ( "Muon_Eta",    "#mu #eta",          -10., 10.,       ""          );
-    RooRealVar   muIso  = RooRealVar ( "Muon_Iso",    "#mu Isolation",     -1.0, 100000.0,  ""          );
-    RooRealVar   muMT   = RooRealVar ( "Muon_MT",     "W Transverse Mass", -1.0, 100000.0,  "GeV/c^{2}" );
-    RooRealVar   cent   = RooRealVar ( "Centrality",  "Centrality",        -1.0, 100000.0,  ""          );
-    RooRealVar   weight = RooRealVar ( "Weight",      "Weight",            -1.0, 10000000000.0,  ""     );
-    RooCategory  type   = RooCategory( "Event_Type",  "Event Type");
+    RooRealVar   met    = RooRealVar ( "MET"        , "|#slash{E}_{T}|"   ,  -1.0 , 100000.0 ,  "GeV/c"     );
+    RooRealVar   muPt   = RooRealVar ( "Muon_Pt"    , "#mu p_{T}"         ,  -1.0 , 100000.0 ,  "GeV/c"     );
+    RooRealVar   muEta  = RooRealVar ( "Muon_Eta"   , "#mu #eta"          , -10.0 ,     10.0 ,  ""          );
+    RooRealVar   muIso  = RooRealVar ( "Muon_Iso"   , "#mu Isolation"     ,  -1.0 , 100000.0 ,  ""          );
+    RooRealVar   muMT   = RooRealVar ( "Muon_MT"    , "W Transverse Mass" ,  -1.0 , 100000.0 ,  "GeV/c^{2}" );
+    RooRealVar   cent   = RooRealVar ( "Centrality" , "Centrality"        ,  -1.0 , 100000.0 ,  ""          );
+    RooCategory  type   = RooCategory( "Event_Type" , "Event Type");
     type.defineType("Other", -1); type.defineType("DYToMuMu", 1);
-    RooArgSet cols = RooArgSet(met, muPt, muEta, muIso, muMT, cent, weight);
+    RooArgSet cols = RooArgSet(met, muPt, muEta, muIso, muMT, cent);
     cols.add(type);
     ///// Initiliaze RooDataSets
     dataPl.clear(); dataMi.clear(); mcPl.clear(); mcMi.clear();
     for (uint i=0; i<DSNames.size(); i++) {
       std::cout << "[INFO] Creating " << "RooDataSet for " << DSNames[i] << std::endl;
-      dataPl.push_back( new RooDataSet(Form("dPl_%s", DSNames[i].c_str()), "dPl", cols, RooFit::WeightVar(weight)) );
-      dataMi.push_back( new RooDataSet(Form("dMi_%s", DSNames[i].c_str()), "dMi", cols, RooFit::WeightVar(weight)) );
-      if (isMC) { mcPl.push_back( new RooDataSet(Form("mcPl_%s", DSNames[i].c_str()), "mcPl", mcCols ) ); }
-      if (isMC) { mcMi.push_back( new RooDataSet(Form("mcMi_%s", DSNames[i].c_str()), "mcMi", mcCols ) ); }
+      dataPl.push_back( new RooDataSet(Form("dPl_RAW_%s", DSNames[i].c_str()), "dPl", cols) );
+      dataMi.push_back( new RooDataSet(Form("dMi_RAW_%s", DSNames[i].c_str()), "dMi", cols) );
+      if (isMC) { mcPl.push_back( new RooDataSet(Form("mcPl_RAW_%s", DSNames[i].c_str()), "mcPl", mcCols ) ); }
+      if (isMC) { mcMi.push_back( new RooDataSet(Form("mcMi_RAW_%s", DSNames[i].c_str()), "mcMi", mcCols ) ); }
     }
     ///// Iterate over the Input Forest
     int treeIdx = -1;
@@ -138,9 +127,9 @@ bool EWQForest_WToMuNu(RooWorkspaceMap& Workspaces, const StringVectorMap& FileI
     for (Long64_t jentry=0; jentry<nentries;jentry++) {
       //
       // Get the entry in the trees
-      if (muonTree->GetEntry(jentry)<0) break;
-      if (metTree ->GetEntry(jentry)<0) break;
-      if (evtTree ->GetEntry(jentry)<0) break;
+      if (muonTree->GetEntry(jentry)<0) { std::cout << "[ERROR] Muon Tree invalid entry!"  << std::endl; return false; }
+      if (metTree ->GetEntry(jentry)<0) { std::cout << "[ERROR] MET Tree invalid entry!"   << std::endl; return false; }
+      if (evtTree ->GetEntry(jentry)<0) { std::cout << "[ERROR] Event Tree invalid entry!" << std::endl; return false; }
       // 
       // Check that the different tree agrees well
       if (muonTree->Event_Run()!=metTree->Event_Run()       ) { std::cout << "[ERROR] MET Run does not agree!"     << std::endl; return false; }
@@ -151,6 +140,13 @@ bool EWQForest_WToMuNu(RooWorkspaceMap& Workspaces, const StringVectorMap& FileI
       if (muonTree->Chain()->GetTreeNumber()!=treeIdx) {
         treeIdx = muonTree->Chain()->GetTreeNumber();
         std::cout << "[INFO] Processing Root File: " << InputFileNames[treeIdx] << std::endl;
+        // Get the MC Info
+        if (isMC) {
+          mcNGen.setVal ( muonTree->GetTreeEntries() );
+          int mcID = PA::getMCTypeID(FileInfo.at("TreeTags")[treeIdx]);
+          if (mcID==0) { std::cout << "[ERROR] MC Tag " << FileInfo.at("TreeTags")[treeIdx] << " is invalid!" << std::endl; return false; }
+          mcType.setVal ( mcID );
+        }
       }
       if (jentry%200000==0) std::cout << "[INFO] Processed : " << jentry << "/" << nentries << std::endl;
       if (jentry%200000==0) { 
@@ -169,15 +165,6 @@ bool EWQForest_WToMuNu(RooWorkspaceMap& Workspaces, const StringVectorMap& FileI
         if (DSNames[0].find("pPb")!=std::string::npos) evtCol = "pPb"; // for pPb
       }
       if (evtCol=="") { std::cout << "[ERROR] Could not determine the collision system in the sample" << std::endl; return false; }
-      //
-      // Get the Lumi re-weight for MC
-      double lumiWeight = 1.0;
-      if (isMC) {
-        mcNGen.setVal ( muonTree->GetTreeEntries()  );
-        mcXSec.setVal ( muonTree->GetCrossSection() );
-        mcLumi.setVal ( (evtCol=="pPb") ? PA::LUMI::Data_pPb : PA::LUMI::Data_Pbp );
-        lumiWeight = ( (mcXSec.getVal() * mcLumi.getVal()) / mcNGen.getVal() );
-      }
       //
       // Event Based Information
       //
@@ -218,33 +205,6 @@ bool EWQForest_WToMuNu(RooWorkspaceMap& Workspaces, const StringVectorMap& FileI
       // Apply Trigger Matching
       if (PA::isTriggerMatched(triggerIndex, leadMuPFIdx, muonTree)==false) continue;  // Only consider Muons Matched to Trigger
       //
-      // Get Nominal Tag and Probe Scale Factors
-      double sf_TnP  = 1.0;
-      if (isMC) {
-        const double sf_MuID = tnp_weight_muid_ppb( muP4.Pt() , muP4.Eta() , 0 );
-        const double sf_Trig = tnp_weight_trg_ppb (             muP4.Eta() , 0 );
-        const double sf_Iso  = tnp_weight_iso_ppb ( muP4.Pt() , muP4.Eta() , 0 );
-        sf_TnP  = ( sf_MuID * sf_Trig * sf_Iso );
-        mcSFTnP.setVal( sf_TnP );
-      }
-      // Apply the MET Recoil corrections
-      //
-      // Event Corrections
-      const double evtCorr = sf_TnP;
-      //
-      // Set Event Weight
-      const double evtWeight = ( lumiWeight * (applyCorr ? evtCorr : 1.0) );
-      //
-      // Store isolation and charge of leading muon
-      const float leadMuIso = muonTree->PF_Muon_IsoPFR03NoPUCorr()[leadMuPFIdx];
-      const int   leadMuChg = int(muonTree->PF_Muon_Charge()[leadMuPFIdx]);
-      if (isMC) { mcMuChg.setVal( leadMuChg ); }
-      //
-      // Recompute the Transver Mass based on the chosen MET
-      TLorentzVector pfMuonP4T = TLorentzVector(), METP4 = TLorentzVector();
-      pfMuonP4T.SetPtEtaPhiM(muP4.Pt(), 0.0, muP4.Phi(), muP4.M());
-      METP4.SetPtEtaPhiM( MET.Mod(), 0.0, MET.Phi(), 0.0 );
-      TLorentzVector muT = TLorentzVector( pfMuonP4T + METP4 );
       //
       // Classify the events
       //
@@ -254,24 +214,43 @@ bool EWQForest_WToMuNu(RooWorkspaceMap& Workspaces, const StringVectorMap& FileI
       if (eventType=="Other") {
         if (PA::passDrellYanVeto(muonTree) == false) { eventType = "DYToMuMu"; }  // Found a Drell-Yan candidate
       }
+      if (eventType=="DYToMuMu") continue; // Remove Drell-Yan events
+      //
+      // Isolation and Charge of Leading Muon
+      const float leadMuIso = muonTree->PF_Muon_IsoPFR03NoPUCorr()[leadMuPFIdx];
+      const int   leadMuChg = int(muonTree->PF_Muon_Charge()[leadMuPFIdx]);
+      //
+      // Recompute the Transver Mass based on the chosen MET
+      const double muMTVal = PA::getWTransverseMass(muP4.Pt(), muP4.Phi(), MET.Mod(), MET.Phi());
       //
       //// Set the variables
       met.setVal    ( MET.Mod()  );
       muPt.setVal   ( muP4.Pt()  );
       muEta.setVal  ( muP4.Eta() );
       muIso.setVal  ( leadMuIso  );
-      muMT.setVal   ( muT.M()    );
+      muMT.setVal   ( muMTVal    );
       cent.setVal   ( 0.0        );
-      weight.setVal ( evtWeight  );
       type.setLabel ( eventType.c_str() );
+      //
+      // Get the Information needed for the Recoil Corrections
+      if (isMC) {
+        TVector2 ref_Pt , boson_Pt;
+        if (!RecoilCorrector::getPtFromTree(ref_Pt, boson_Pt, leadMuPFIdx, muonTree, DSNames[0])) { return false; }
+        bosonPt.setVal  ( boson_Pt.Mod() );
+        bosonPhi.setVal ( boson_Pt.Phi() );
+        refPt.setVal    ( ref_Pt.Mod()   );
+        refPhi.setVal   ( ref_Pt.Phi()   );
+        metPhi.setVal   ( MET.Phi()      );
+        muPhi.setVal    ( muP4.Phi()     );
+      }
       //
       //// Fill the RooDataSets
       for (uint i=0; i<DSNames.size(); i++) {
         if (DSNames[i].find(evtCol)!=std::string::npos) {
-          if (leadMuChg > 0) { dataPl[i]->add(cols, weight.getVal()); }
-          if (leadMuChg < 0) { dataMi[i]->add(cols, weight.getVal()); }
-          if (isMC && (leadMuChg > 0)) { mcPl[i]->add(mcCols); }
-          if (isMC && (leadMuChg < 0)) { mcMi[i]->add(mcCols); }
+          if (leadMuChg > 0) { dataPl[i]->addFast(cols); }
+          if (leadMuChg < 0) { dataMi[i]->addFast(cols); }
+          if (isMC && (leadMuChg > 0)) { mcPl[i]->addFast(mcCols); }
+          if (isMC && (leadMuChg < 0)) { mcMi[i]->addFast(mcCols); }
         }
       }
     }
@@ -279,10 +258,10 @@ bool EWQForest_WToMuNu(RooWorkspaceMap& Workspaces, const StringVectorMap& FileI
     for (uint i=0; i<DSNames.size(); i++) {
       TFile *DBFile = TFile::Open(OutputFileNames[i].c_str(),"RECREATE");
       DBFile->cd();
-      dataPl[i]->Write(Form("dPl_%s", DSNames[i].c_str()));
-      dataMi[i]->Write(Form("dMi_%s", DSNames[i].c_str()));
-      if (isMC) { mcPl[i]->Write(Form("mcPl_%s", DSNames[i].c_str())); }
-      if (isMC) { mcMi[i]->Write(Form("mcMi_%s", DSNames[i].c_str())); }
+      dataPl[i]->Write(Form("dPl_RAW_%s", DSNames[i].c_str()));
+      dataMi[i]->Write(Form("dMi_RAW_%s", DSNames[i].c_str()));
+      if (isMC) { mcPl[i]->Write(Form("mcPl_RAW_%s", DSNames[i].c_str())); }
+      if (isMC) { mcMi[i]->Write(Form("mcMi_RAW_%s", DSNames[i].c_str())); }
       DBFile->Write(); DBFile->Close(); delete DBFile;
     }
   }
@@ -328,6 +307,343 @@ bool checkEWQDS(RooDataSet* DS, const string& DSName, const std::string& Analysi
       { std::cout << "[WARNING] Original dataset: " << DS->GetName() << " is corrupted, will remake it!" << std::endl; }
   }
   return false;
+};
+
+
+bool applyLumiWeight(RooWorkspace& ws, const std::string dDSName, const std::string& mcDSName, const bool verbose = false)
+{
+  //
+  if (dDSName.find("MC_")==std::string::npos) { std::cout << "[ERROR] applyLumiWeight: Dataset " << dDSName << " is not from MC!" << std::endl; return false; }
+  // Get the RooDatasets
+  auto  dDS = (RooDataSet*)ws.data(dDSName.c_str());
+  if ( dDS==NULL) { std::cout << "[ERROR] applyLumiWeight: Dataset " << dDSName << " was not found in the workspace!" << std::endl; return false; }
+  auto mcDS = (RooDataSet*)ws.data(mcDSName.c_str());
+  if (mcDS==NULL) { std::cout << "[ERROR] applyLumiWeight: Dataset " << mcDSName << " was not found in the workspace!" << std::endl; return false; }
+  // Get the sample name
+  std::string sample = dDS->GetName(); sample = sample.substr(sample.find("MC_"));
+  std::string chg    = dDS->GetName(); chg    = chg.substr(1, sample.find("_"));
+  std::string col    = dDS->GetName(); col    = col.substr(col.find_last_of("_")+1);
+  // Initialize the new RooRealVars
+  RooRealVar weight = RooRealVar ( "Weight" , "Weight"        , -1.0 , 1000000000.0, ""        );
+  RooRealVar mcXSec = RooRealVar ( "XSec"   , "Cross Section" , -1.0 , 1000000000.0, "nb"      );
+  RooRealVar mcLumi = RooRealVar ( "Lumi"   , "Luminosity"    , -1.0 , 1000000000.0, "nb^{-1}" );
+  // Initialize the RooArgSets
+  RooArgSet cols   = *dDS->get();
+  cols.add(weight);
+  RooArgSet mcCols = *mcDS->get();
+  mcCols.add(mcXSec);
+  mcCols.add(mcLumi);
+  // Initialize the new RooDataSets
+  auto dWDS  = new RooDataSet( Form("d%s_LUM_%s" , chg.c_str(), sample.c_str()) , Form("d%s" , chg.c_str()) , cols   , RooFit::WeightVar(weight) );
+  auto mcWDS = new RooDataSet( Form("mc%s_LUM_%s", chg.c_str(), sample.c_str()) , Form("mc%s", chg.c_str()) , mcCols );
+  // Apply the Lumi re-weighting to positive muon dataset
+  int mcID = -99; double xSection = -1.0;
+  for (int i = 0; i < dDS->numEntries(); i++) {
+    dDS->get(i);
+    mcDS->get(i);
+    // Get the Luminosity
+    mcLumi.setVal( (col=="pPb") ? PA::LUMI::Data_pPb : PA::LUMI::Data_Pbp );
+    // Get the Cross-Section
+    auto mcType = (RooRealVar*)mcCols.find("MC_Type");
+    if (mcType==NULL) { std::cout << "[ERROR] applyLumiWeight: Variable MC_Type was not found in " << mcDSName << std::endl; return false; }
+    if (mcID != mcType->getVal()) {
+      if (!PA::getCrossSection(xSection, int(mcType->getVal()), verbose)) { return false; }
+      mcID = mcType->getVal();
+    }
+    mcXSec.setVal( xSection );
+    // Compute the Luminosity MC Weight
+    auto mcNGen = (RooRealVar*)mcCols.find("NGen");
+    if (mcNGen==NULL) { std::cout << "[ERROR] applyLumiWeight: Variable NGen was not found in " << mcDSName << std::endl; return false; }
+    weight.setVal( (mcXSec.getVal() * mcLumi.getVal()) / mcNGen->getVal() );
+    // Fill the new RooDataSets
+    if (weight.getVal() <= 0.0) {
+      std::cout << mcXSec.getVal() << "  " <<  mcLumi.getVal() << "  " << mcNGen->getVal() << std::endl;
+      std::cout << "[ERROR] applyLumiWeight : Weight is negative ( " << weight.getVal() << " ) in " << mcDSName << std::endl; return false; }
+    dWDS->addFast(cols, weight.getVal());
+    mcWDS->addFast(mcCols);
+  }
+  // Import to RooWorkspace
+  ws.import(*dWDS);
+  ws.import(*mcWDS);
+  // Clean the memory
+  if (dWDS ) { delete dWDS;  }
+  if (mcWDS) { delete mcWDS; }
+  // Return
+  return true;
+  //
+};
+
+
+bool reweightMCLumi(RooWorkspaceMap_t& Workspaces)
+{
+  //
+  for (auto& ws : Workspaces) {
+    if (ws.first.find("MC_")!=std::string::npos) {
+      RooWorkspace& myws = ws.second;
+      // Get the sample name
+      const auto& dsList =  myws.allData();
+      std::string sample = dsList.front()->GetName(); sample = sample.substr(sample.find("_")+1);
+      std::cout << "[INFO] Re-weighting the Luminosity of " << sample << std::endl;
+      // Apply the Lumi re-weighting to positive muon dataset
+      if (!applyLumiWeight(myws, ("dPl_"+sample), ("mcPl_"+sample), true)) { return false; }
+      // Apply the Lumi re-weighting to negative muon dataset
+      const bool printXSec = (sample.find("MC_W")!=std::string::npos);
+      if (!applyLumiWeight(myws, ("dMi_"+sample), ("mcMi_"+sample), printXSec)) { return false; }
+    }
+  }
+  //
+  return true;
+  //
+};
+
+
+bool applyMCCorrection(RooWorkspace& ws, const std::string dDSName, const std::string& mcDSName, const bool& applyTnPCorr, RecoilCorrector& recoilCorr, const std::string& recoilMethod)
+{
+  //
+  const bool applyRecoilCorr = recoilCorr.isValid();
+  if (!applyTnPCorr && !applyRecoilCorr) { return true; }
+  if (dDSName.find("MC_")==std::string::npos) { std::cout << "[ERROR] applyMCCorrection: Dataset " << dDSName << " is not from MC!" << std::endl; return false; }
+  // Get the RooDatasets
+  auto  dDS = (RooDataSet*)ws.data(dDSName.c_str());
+  if ( dDS==NULL) { std::cout << "[ERROR] applyMCCorrection: Dataset " << dDSName << " was not found in the workspace!" << std::endl; return false; }
+  auto mcDS = (RooDataSet*)ws.data(mcDSName.c_str());
+  if (mcDS==NULL) { std::cout << "[ERROR] applyMCCorrection: Dataset " << mcDSName << " was not found in the workspace!" << std::endl; return false; }
+  // Get the sample name
+  std::string sample = dDS->GetName(); sample = sample.substr(sample.find("MC_"));
+  std::string chg    = dDS->GetName(); chg    = chg.substr(1, sample.find("_"));
+  std::string col    = dDS->GetName(); col    = col.substr(col.find_last_of("_")+1);
+  // Initialize the new RooRealVars
+  RooRealVar mcRawMET = RooRealVar( "MET"     , "|#slash{E}_{T}|"          ,  -1.0 ,     100000.0 , "GeV/c"     );
+  RooRealVar mcRawMT  = RooRealVar( "Muon_MT" , "W Transverse Mass"        ,  -1.0 ,     100000.0 , "GeV/c^{2}" );
+  RooRealVar mcSFTnP  = RooRealVar( "SFTnP"   , "TagAndProbe Scale Factor" , -10.0 ,         10.0 , ""          );
+  RooRealVar weight   = RooRealVar( "Weight"  , "Weight"                   ,  -1.0 , 1000000000.0 , ""          );
+  // Initialize the RooArgSets
+  RooArgSet cols   = *dDS->get();
+  cols.add(weight);
+  RooArgSet mcCols = *mcDS->get();
+  if (applyTnPCorr) { mcCols.add(mcSFTnP); }
+  if (applyRecoilCorr) { mcCols.add(mcRawMET); mcCols.add(mcRawMT); }
+  //
+  // Initialize the new RooDataSets
+  auto dWDS  = new RooDataSet( Form("d%s_COR_%s" , chg.c_str(), sample.c_str()) , Form("d%s" , chg.c_str()) , cols   , RooFit::WeightVar(weight) );
+  auto mcWDS = new RooDataSet( Form("mc%s_COR_%s", chg.c_str(), sample.c_str()) , Form("mc%s", chg.c_str()) , mcCols );
+  // Apply the Lumi re-weighting to positive muon dataset
+  int mcID = -99;
+  for (int i = 0; i < dDS->numEntries(); i++) {
+    dDS->get(i);
+    mcDS->get(i);
+    //
+    // Apply the Tag And Probe corrections
+    //
+    weight.setVal( dDS->weight() );
+    if (applyTnPCorr) {
+      // Get the Muon Kinematic Variables
+      auto muPt = (RooRealVar*)cols.find("Muon_Pt");
+      if (muPt==NULL) { std::cout << "[ERROR] applyMCCorrection: Variable Muon_Pt was not found in " << dDSName << std::endl; return false; }
+      auto muEta = (RooRealVar*)cols.find("Muon_Eta");
+      if (muEta==NULL) { std::cout << "[ERROR] applyMCCorrection: Variable Muon_Eta was not found in " << dDSName << std::endl; return false; }
+      // Get Nominal Tag and Probe Scale Factors
+      const double sf_MuID = tnp_weight_muid_ppb( muPt->getVal() , muEta->getVal() , 0 );
+      const double sf_Trig = tnp_weight_trg_ppb (                  muEta->getVal() , 0 );
+      const double sf_Iso  = tnp_weight_iso_ppb ( muPt->getVal() , muEta->getVal() , 0 );
+      mcSFTnP.setVal( sf_MuID * sf_Trig * sf_Iso );
+      // Set the TnP Scale Factor weight
+      weight.setVal( weight.getVal() * mcSFTnP.getVal() );
+    }
+    //
+    // Apply the MET Recoil corrections
+    //
+    if (applyRecoilCorr) {
+      // Get the Muon Kinematic Variables
+      auto muPt = (RooRealVar*)cols.find("Muon_Pt");
+      if (muPt==NULL) { std::cout << "[ERROR] applyMCCorrection: Variable Muon_Pt was not found in " << dDSName << std::endl; return false; }
+      auto muPhi = (RooRealVar*)mcCols.find("Muon_Phi");
+      if (muPhi==NULL) { std::cout << "[ERROR] applyMCCorrection: Variable Muon_Phi was not found in " << dDSName << std::endl; return false; }
+      // Get the MET vector
+      auto met = (RooRealVar*)cols.find("MET");
+      if (met==NULL) { std::cout << "[ERROR] applyMCCorrection: Variable MET was not found in " << dDSName << std::endl; return false; }
+      mcRawMET.setVal(met->getVal());
+      auto metPhi = (RooRealVar*)mcCols.find("MET_Phi");
+      if (metPhi==NULL) { std::cout << "[ERROR] applyMCCorrection: Variable MET_Phi was not found in " << dDSName << std::endl; return false; }
+      TVector2 MET_RAW; MET_RAW.SetMagPhi(met->getVal() , metPhi->getVal());
+      // Get the Muon Transverse Mass
+      auto muMT = (RooRealVar*)cols.find("Muon_MT");
+      if (muMT==NULL) { std::cout << "[ERROR] applyMCCorrection: Variable Muon_MT was not found in " << dDSName << std::endl; return false; }
+      mcRawMT.setVal(muMT->getVal());
+      // Get the Reference pT vector
+      auto refPt = (RooRealVar*)mcCols.find("Ref_Pt");
+      if (refPt==NULL) { std::cout << "[ERROR] applyMCCorrection: Variable Ref_Pt was not found in " << dDSName << std::endl; return false; }
+      auto refPhi = (RooRealVar*)mcCols.find("Ref_Phi");
+      if (refPhi==NULL) { std::cout << "[ERROR] applyMCCorrection: Variable Ref_Phi was not found in " << dDSName << std::endl; return false; }
+      TVector2 reference_pT; reference_pT.SetMagPhi(refPt->getVal() , refPhi->getVal());
+      // Get the Boson pT vector
+      auto bosonPt = (RooRealVar*)mcCols.find("Boson_Pt");
+      if (bosonPt==NULL) { std::cout << "[ERROR] applyMCCorrection: Variable Boson_Pt was not found in " << dDSName << std::endl; return false; }
+      auto bosonPhi = (RooRealVar*)mcCols.find("Boson_Phi");
+      if (bosonPhi==NULL) { std::cout << "[ERROR] applyMCCorrection: Variable Boson_Phi was not found in " << dDSName << std::endl; return false; }
+      TVector2 boson_pT; boson_pT.SetMagPhi(bosonPt->getVal() , bosonPhi->getVal());
+      // Set the Reference and Boson pT vectors
+      recoilCorr.setPt(reference_pT, boson_pT);
+      // Correct the MET
+      TVector2 MET_CORR;
+      if (!recoilCorr.correctMET(MET_CORR, MET_RAW, recoilMethod)) { return false; }
+      // Correct the Muon Transverse Mass
+      const double muMTVal = PA::getWTransverseMass(muPt->getVal(), muPhi->getVal(), MET_CORR.Mod(), MET_CORR.Phi());
+      // Set the corrected MET and Transverse Mass
+      met->setVal(MET_CORR.Mod());
+      muMT->setVal(muMTVal);
+    }
+    // Fill the new RooDataSets
+    if (weight.getVal() <= 0.0) { std::cout << "[ERROR] applyMCCorrection: Weight is negative ( " << weight.getVal() << " ) in " << dDSName << std::endl; return false; }
+    dWDS->addFast(cols, weight.getVal());
+    mcWDS->addFast(mcCols);
+  }
+  // Import to RooWorkspace
+  ws.import(*dWDS);
+  ws.import(*mcWDS);
+  // Clean the memory
+  if (dWDS ) { delete dWDS;  }
+  if (mcWDS) { delete mcWDS; }
+  // Return
+  return true;
+};
+
+
+bool correctMC(RooWorkspaceMap_t& Workspaces, const GlobalInfo& info)
+{
+  //
+  const bool applyTnPCorr    = info.Flag.at("applyTnPCorr");
+  const bool applyRecoilCorr = info.Flag.at("applyRecoilCorr");
+  if (!applyTnPCorr && !applyRecoilCorr) { std::cout << "[INFO] Corrections disabled, no MC corrections will be applied!" << std::endl; return true; }
+  //
+  // Define the MET Recoil Corrector
+  RecoilCorrector recoilCorr = RecoilCorrector();
+  std::string recoilMethod;
+  if (applyRecoilCorr) {
+    recoilMethod = info.Par.at("RecoilCorrMethod");
+    const std::string met = info.Par.at("METType");
+    std::string preCWD = getcwd(NULL, 0); preCWD.erase(preCWD.find_last_of("/"), 100);
+    const std::string recoilDir     = Form("%s/Corrections/MET_Recoil", preCWD.c_str());
+    const std::string fileName_MC   = Form("%s/FitRecoil/MC_DYToMuMu_PYQUEN/MET_%s/PA/Results/fits_RecoilPDF_%s_PA.root", recoilDir.c_str(), met.c_str(), met.c_str());
+    const std::string fileName_DATA = Form("%s/FitRecoil/DATA/MET_%s/PA/Results/fits_RecoilPDF_%s_PA.root", recoilDir.c_str(), met.c_str(), met.c_str());
+    if (!recoilCorr.setInputFiles(met, fileName_MC, fileName_DATA)) { return false; }
+  }
+  //
+  for (auto& ws : Workspaces) {
+    if (ws.first.find("MC_")!=std::string::npos) {
+      RooWorkspace& myws = ws.second;
+      // Get the sample name
+      std::string sample = "LUM_" + ws.first;
+      if (myws.data(Form("dPl_%s", sample.c_str()))==NULL) { sample = "RAW_" + ws.first; }
+      std::cout << "[INFO] Applying corrections ( " << (applyTnPCorr ? "TnPCorr ," : "") << (applyRecoilCorr ? " RecoilCorr" : "") << " ) to " << sample << std::endl;
+      // Initialize the MET Recoil Corrector
+      if (applyRecoilCorr) { recoilCorr.setInitialSetup(sample); }
+      // Apply the MC correction to positive muon dataset
+      if (!applyMCCorrection(myws, ("dPl_"+sample), ("mcPl_"+sample), applyTnPCorr, recoilCorr, recoilMethod)) { return false; }
+      // Apply the MC correction to negative muon dataset
+      if (!applyMCCorrection(myws, ("dMi_"+sample), ("mcMi_"+sample), applyTnPCorr, recoilCorr, recoilMethod)) { return false; }
+    }
+  }
+  //
+  return true;
+  //
+};
+
+
+bool invertEtaAndFill(RooDataSet& dsPA, const RooDataSet& dsPbp)
+{
+  for(int i = 0; i < dsPbp.numEntries(); i++){
+    auto set = dsPbp.get(i);
+    auto eta = (RooRealVar*)set->find("Muon_Eta");
+    auto pt  = (RooRealVar*)set->find("Muon_Pt");
+    if (eta==NULL) { std::cout << "[ERROR] RooRealVar Muon_Eta was not found!" << std::endl; return false; }
+    // Invert the pseudo-rapidity
+    eta->setVal(-1.0*eta->getVal());
+    // Add the new event
+    if (dsPbp.weight() <= 0.0) { std::cout << "[ERROR] invertEtaAndFill: Weight is negative ( " << dsPbp.weight() << " )" << std::endl; return false; }
+    dsPA.add(*set, dsPbp.weight());
+  }
+  return true;
+};
+
+
+bool createPADataset(RooWorkspaceMap_t& Workspaces, const std::string& sampleTag)
+{
+  //
+  const std::string sample_pPb = sampleTag + "_pPb";
+  const std::string sample_Pbp = sampleTag + "_Pbp";
+  const std::string sample_PA  = sampleTag + "_PA";
+  //
+  // Check input datasets
+  if (Workspaces.count(sample_pPb)==0) { std::cout << "[ERROR] RooWorkspace for sample " << sample_pPb << " does not exist!" << std::endl; return false; }
+  if (Workspaces.count(sample_Pbp)==0) { std::cout << "[ERROR] RooWorkspace for sample " << sample_Pbp << " does not exist!" << std::endl; return false; }
+  //
+  // Extract the RooDatasets
+  std::string dsType = "COR";
+  if (Workspaces.at(sample_pPb).data(("dPl_"+dsType+"_"+sample_pPb).c_str())==NULL) { dsType = "LUM"; }
+  if (Workspaces.at(sample_pPb).data(("dPl_"+dsType+"_"+sample_pPb).c_str())==NULL) { dsType = "RAW"; }
+  const std::string dsSampleTag  = dsType + "_" + sampleTag;
+  const std::string dsSample_pPb = dsSampleTag + "_pPb";
+  const std::string dsSample_Pbp = dsSampleTag + "_Pbp";
+  const std::string dsSample_PA  = dsSampleTag + "_PA";
+  //
+  auto dPl_pPb = (RooDataSet*)Workspaces.at(sample_pPb).data(("dPl_"+dsSample_pPb).c_str());
+  if (dPl_pPb==NULL) { std::cout << "[ERROR] RooDataSet " << ("dPl_"+dsSample_pPb) << " does not exist!" << std::endl; return false; }
+  auto dMi_pPb = (RooDataSet*)Workspaces.at(sample_pPb).data(("dMi_"+dsSample_pPb).c_str());
+  if (dMi_pPb==NULL) { std::cout << "[ERROR] RooDataSet " << ("dMi_"+dsSample_pPb) << " does not exist!" << std::endl; return false; }
+  auto mcPl_pPb = (RooDataSet*)Workspaces.at(sample_pPb).data(("mcPl_"+dsSample_pPb).c_str());
+  auto mcMi_pPb = (RooDataSet*)Workspaces.at(sample_pPb).data(("mcMi_"+dsSample_pPb).c_str());
+  //
+  auto dPl_Pbp = (RooDataSet*)Workspaces.at(sample_Pbp).data(("dPl_"+dsSample_Pbp).c_str());
+  if (dPl_Pbp==NULL) { std::cout << "[ERROR] RooDataSet " << ("dPl_"+dsSample_Pbp) << " does not exist!" << std::endl; return false; }
+  auto dMi_Pbp = (RooDataSet*)Workspaces.at(sample_Pbp).data(("dMi_"+dsSample_Pbp).c_str());
+  if (dMi_Pbp==NULL) { std::cout << "[ERROR] RooDataSet " << ("dMi_"+dsSample_Pbp) << " does not exist!" << std::endl; return false; }
+  auto mcPl_Pbp = (RooDataSet*)Workspaces.at(sample_Pbp).data(("mcPl_"+dsSample_Pbp).c_str());
+  auto mcMi_Pbp = (RooDataSet*)Workspaces.at(sample_Pbp).data(("mcMi_"+dsSample_Pbp).c_str());
+  //
+  std::cout << "[INFO] Creating combined PA RooDataSet for " << dsSampleTag << std::endl;
+  //
+  // Copy the pPb datasets
+  auto dPl_PA = (RooDataSet*)dPl_pPb->Clone(("dPl_"+dsSample_PA).c_str());
+  if (dPl_PA==NULL || dPl_PA->sumEntries()==0) { std::cout << "[ERROR] RooDataSet " << ("dPl_"+dsSample_PA) << " was not created!" << std::endl; return false; }
+  auto dMi_PA = (RooDataSet*)dMi_pPb->Clone(("dMi_"+dsSample_PA).c_str());
+  if (dMi_PA==NULL || dMi_PA->sumEntries()==0) { std::cout << "[ERROR] RooDataSet " << ("dMi_"+dsSample_PA) << " was not created!" << std::endl; return false; }
+  RooDataSet* mcPl_PA = NULL; if (mcPl_pPb!=NULL) { mcPl_PA = (RooDataSet*)mcPl_pPb->Clone(("mcPl_"+dsSample_PA).c_str()); }
+  RooDataSet* mcMi_PA = NULL; if (mcMi_pPb!=NULL) { mcMi_PA = (RooDataSet*)mcPl_pPb->Clone(("mcMi_"+dsSample_PA).c_str()); }
+  //
+  // Invert the eta of Pbp dataset and fill the PA dataset
+  if (!invertEtaAndFill(*dPl_PA, *dPl_Pbp)) { return false; }
+  if (!invertEtaAndFill(*dMi_PA, *dMi_Pbp)) { return false; }
+  if (mcPl_pPb!=NULL && mcPl_PA!=NULL) { mcPl_PA->append(*mcPl_Pbp); }
+  if (mcMi_pPb!=NULL && mcMi_PA!=NULL) { mcMi_PA->append(*mcMi_Pbp); }
+  //
+  // Check the consistency of the combined dataset
+  if (dPl_PA->numEntries()!=(dPl_pPb->numEntries()+dPl_Pbp->numEntries())) { std::cout << "[ERROR] Number of entries for the combined Pl " << dsSampleTag << " dataset is inconsistent!" << std::endl; return false; }
+  if (dMi_PA->numEntries()!=(dMi_pPb->numEntries()+dMi_Pbp->numEntries())) { std::cout << "[ERROR] Number of entries for the combined Mi " << dsSampleTag << " dataset is inconsistent!" << std::endl; return false; }
+  if (std::abs(dPl_PA->sumEntries()-(dPl_pPb->sumEntries()+dPl_Pbp->sumEntries()))>0.05*(dPl_pPb->sumEntries()+dPl_Pbp->sumEntries())) {
+    std::cout << "[ERROR] Number of weighted entries for the combined Pl " << dsSampleTag << " dataset ( " 
+              << dPl_PA->sumEntries() << " , " << dPl_pPb->sumEntries() << " , " << dPl_Pbp->sumEntries() << " ) is inconsistent!" << std::endl; return false;
+  }
+  if (std::abs(dMi_PA->sumEntries()-(dMi_pPb->sumEntries()+dMi_Pbp->sumEntries()))>0.05*(dMi_pPb->sumEntries()+dMi_Pbp->sumEntries())) {
+    std::cout << "[ERROR] Number of weighted entries for the combined Mi " << dsSampleTag << " dataset ( "
+              << dMi_PA->sumEntries() << " , " << dMi_pPb->sumEntries() << " , " << dMi_Pbp->sumEntries() << " ) is inconsistent!" << std::endl; return false;
+  }
+  //
+  // Import the new PA dataset
+  Workspaces[sample_PA].import(*dPl_PA);
+  Workspaces.at(sample_PA).import(*dMi_PA);
+  if (mcPl_PA!=NULL) { Workspaces.at(sample_PA).import(*mcPl_PA); }
+  if (mcMi_PA!=NULL) { Workspaces.at(sample_PA).import(*mcMi_PA); }
+  Workspaces.at(sample_PA).import(*((TObjString*)Workspaces.at(sample_pPb).obj("METType")), "METType");
+  //
+  // Clean up the memory
+  if (dPl_PA) delete dPl_PA;
+  if (dMi_PA) delete dMi_PA;
+  if (mcPl_PA) delete mcPl_PA;
+  if (mcMi_PA) delete mcMi_PA;
+  //
+  // return
+  return true;
 };
 
 

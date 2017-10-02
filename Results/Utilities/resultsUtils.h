@@ -268,23 +268,29 @@ void iniAcceptanceAndEfficiency( BinPentaMap& eff , const VarBinMap& inputVar )
     for (const auto& b : c.second) {
       for (const auto& ch : b.second) {
         // For MC Acceptance
-        eff[c.first][ch.first]["Acceptance_MC"]["Val"][b.first] = -1.0;
+        eff[c.first][ch.first]["Acceptance_MC"]["Val"][b.first] = 1.0;
         eff[c.first][ch.first]["Acceptance_MC"]["Err_Stat_High"][b.first] = 0.0;
         eff[c.first][ch.first]["Acceptance_MC"]["Err_Stat_Low" ][b.first] = 0.0;
         eff[c.first][ch.first]["Acceptance_MC"]["Err_Syst_High"][b.first] = 0.0;
         eff[c.first][ch.first]["Acceptance_MC"]["Err_Syst_Low" ][b.first] = 0.0;
+        eff[c.first][ch.first]["Acceptance_MC"]["Err_Tot_High" ][b.first] = 0.0;
+        eff[c.first][ch.first]["Acceptance_MC"]["Err_Tot_Low"  ][b.first] = 0.0;
         // For MC Efficiency
-        eff[c.first][ch.first]["Efficiency_MC"]["Val"][b.first] = -1.0;
+        eff[c.first][ch.first]["Efficiency_MC"]["Val"][b.first] = 1.0;
         eff[c.first][ch.first]["Efficiency_MC"]["Err_Stat_High"][b.first] = 0.0;
         eff[c.first][ch.first]["Efficiency_MC"]["Err_Stat_Low" ][b.first] = 0.0;
         eff[c.first][ch.first]["Efficiency_MC"]["Err_Syst_High"][b.first] = 0.0;
         eff[c.first][ch.first]["Efficiency_MC"]["Err_Syst_Low" ][b.first] = 0.0;
+        eff[c.first][ch.first]["Efficiency_MC"]["Err_Tot_High" ][b.first] = 0.0;
+        eff[c.first][ch.first]["Efficiency_MC"]["Err_Tot_Low"  ][b.first] = 0.0;
         // For Corrected Efficiency
-        eff[c.first][ch.first]["Efficiency_TnP"]["Val"][b.first] = -1.0;
+        eff[c.first][ch.first]["Efficiency_TnP"]["Val"][b.first] = 1.0;
         eff[c.first][ch.first]["Efficiency_TnP"]["Err_Stat_High"][b.first] = 0.0;
         eff[c.first][ch.first]["Efficiency_TnP"]["Err_Stat_Low" ][b.first] = 0.0;
         eff[c.first][ch.first]["Efficiency_TnP"]["Err_Syst_High"][b.first] = 0.0;
         eff[c.first][ch.first]["Efficiency_TnP"]["Err_Syst_Low" ][b.first] = 0.0;
+        eff[c.first][ch.first]["Efficiency_TnP"]["Err_Tot_High" ][b.first] = 0.0;
+        eff[c.first][ch.first]["Efficiency_TnP"]["Err_Tot_Low"  ][b.first] = 0.0;
       }
     }
   }
@@ -297,8 +303,8 @@ void getEffContent( double& val , double& err_High , double& err_Low , const TEf
   if (hist==NULL) { return; }
   const int iBin = hist->GetXaxis()->FindBin(binVal);
   val      = eff.GetEfficiency(iBin);
-  err_High = eff.GetEfficiencyErrorUp(iBin);
-  err_Low  = eff.GetEfficiencyErrorLow(iBin);
+  err_High = std::sqrt( std::pow( err_High , 2.0 ) + std::pow( eff.GetEfficiencyErrorUp(iBin)  , 2.0 ) );
+  err_Low  = std::sqrt( std::pow( err_Low  , 2.0 ) + std::pow( eff.GetEfficiencyErrorLow(iBin) , 2.0 ) );
 };
 
 
@@ -311,6 +317,14 @@ void getUncContent( double& err_High , double& err_Low , const TVector& unc , co
   const double unc_Low  = unc[idx];
   err_High = std::sqrt( std::pow( err_High , 2.0 ) + std::pow( unc_High , 2.0 ) );
   err_Low  = std::sqrt( std::pow( err_Low  , 2.0 ) + std::pow( unc_Low  , 2.0 ) );
+};
+
+  
+double sumErrors( const double& ErrorA , const double& ErrorB )
+{
+  const double errorA2 = std::pow( ErrorA , 2.0 );
+  const double errorB2 = std::pow( ErrorB , 2.0 );
+  return ( std::sqrt( errorA2 + errorB2 ) );
 };
 
 
@@ -366,9 +380,14 @@ bool getAcceptanceAndEfficiency( BinPentaMap& effMap , const std::string& inputF
         // Fill TnP Efficiency
         getEffContent(eff.at("Efficiency_TnP").at("Val").at(b.first) , eff.at("Efficiency_TnP").at("Err_Stat_High").at(b.first) , eff.at("Efficiency_TnP").at("Err_Stat_Low").at(b.first) , *effTnPObj , etaVal);
         // Fill TnP Statistical Uncertainty
-        getUncContent(eff.at("Efficiency_TnP").at("Err_Stat_High").at(b.first) , eff.at("Efficiency_TnP").at("Err_Stat_Low").at(b.first) , *uncStatTnPObj , *effTnPObj , etaVal);
+        getUncContent(eff.at("Efficiency_TnP").at("Err_Syst_High").at(b.first) , eff.at("Efficiency_TnP").at("Err_Syst_Low").at(b.first) , *uncStatTnPObj , *effTnPObj , etaVal);
         // Fill TnP Systematic Uncertainty
         getUncContent(eff.at("Efficiency_TnP").at("Err_Syst_High").at(b.first) , eff.at("Efficiency_TnP").at("Err_Syst_Low").at(b.first) , *uncSystTnPObj , *effTnPObj , etaVal);
+        // Fill the Total Uncertainties
+        for (auto& e : eff) {
+          e.second.at("Err_Tot_Low" ).at(b.first) = sumErrors(e.second.at("Err_Stat_Low" ).at(b.first), e.second.at("Err_Syst_Low" ).at(b.first));
+          e.second.at("Err_Tot_High").at(b.first) = sumErrors(e.second.at("Err_Stat_High").at(b.first), e.second.at("Err_Syst_High").at(b.first));
+        }
       }
     }
   }
@@ -414,12 +433,12 @@ bool correctRawYields( VarBinMap& inputVar , const BinPentaMap& effMap , const s
         std::map< std::string , double > Acceptance , Efficiency;
         if (accName!="") { for (const auto& t : eff.at(accName)) { Acceptance[t.first] = t.second.at(b.first); } }
         else {
-          Acceptance["Val"] = 1.0;
+          Acceptance["Val"] = 1.0; Acceptance["Err_Tot_Low"] = 0.0; Acceptance["Err_Tot_High"] = 0.0;
           for (const auto& t : ch.second.at("N_WToMu")) { if (t.first=="Val") continue; Acceptance[t.first] = 0.0; }
         }
         if (effName!="") { for (const auto& t : eff.at(effName)) { Efficiency[t.first] = t.second.at(b.first); } }
         else {
-          Efficiency["Val"] = 1.0;
+          Efficiency["Val"] = 1.0; Efficiency["Err_Tot_Low"] = 0.0; Efficiency["Err_Tot_High"] = 0.0;
           for (const auto& t : ch.second.at("N_WToMu")) { if (t.first=="Val") continue; Efficiency[t.first] = 0.0; }
         }
         //
@@ -430,10 +449,10 @@ bool correctRawYields( VarBinMap& inputVar , const BinPentaMap& effMap , const s
         //
         // Fill with the corrected values
         N_Corr.at("Val") = getCorrectedYieldValue(N_Raw.at("Val") , Acceptance.at("Val") , Efficiency.at("Val"));
-        for (const auto& t : N_Raw) {
-          if (t.first=="Val") continue;
-          N_Corr.at(t.first) = getCorrectedYieldError(N_Raw.at("Val") , Acceptance.at("Val") , Efficiency.at("Val") , N_Raw.at(t.first) , Acceptance.at(t.first) , Efficiency.at(t.first));
-        }
+        N_Corr.at("Err_Stat_Low" ) = getCorrectedYieldError(N_Raw.at("Val") , Acceptance.at("Val") , Efficiency.at("Val") , N_Raw.at("Err_Stat_Low" ) , 0.0 , 0.0);
+        N_Corr.at("Err_Stat_High") = getCorrectedYieldError(N_Raw.at("Val") , Acceptance.at("Val") , Efficiency.at("Val") , N_Raw.at("Err_Stat_High") , 0.0 , 0.0);
+        N_Corr.at("Err_Syst_Low" ) = getCorrectedYieldError(N_Raw.at("Val") , Acceptance.at("Val") , Efficiency.at("Val") , N_Raw.at("Err_Syst_Low" ) , Acceptance.at("Err_Tot_Low" ) , Efficiency.at("Err_Tot_Low" ));
+        N_Corr.at("Err_Syst_High") = getCorrectedYieldError(N_Raw.at("Val") , Acceptance.at("Val") , Efficiency.at("Val") , N_Raw.at("Err_Syst_High") , Acceptance.at("Err_Tot_High") , Efficiency.at("Err_Tot_High"));
       }
     }
   }
@@ -522,7 +541,7 @@ bool computeForwardBackwardRatio( BinPentaMap& var , const VarBinMap& inputVar )
       const auto& binFw = b.first;
       const auto  binBw = anabin<0>(-1.0*binFw.etabin().high() , ( (binFw.etabin().low() == 0.0) ? 0.0 : -1.0*binFw.etabin().low() ));
       // Check that everything is fine
-      if (c.second.count(binBw)==0) { std::cout << "[ERROR] Backward bin [" << binBw.etabin().low() << " , " << binBw.etabin().high() << "] is not defined" << std::endl; return false; }
+      if (c.second.count(binBw)==0) { std::cout << "[WARNING] Backward bin [" << binBw.etabin().low() << " , " << binBw.etabin().high() << "] is not defined" << std::endl; continue; }
       if (c.second.count(binFw)==0) { std::cout << "[ERROR] Forward bin [" << binBw.etabin().low() << " , " << binBw.etabin().high() << "] is not defined" << std::endl; return false; }
       if (c.second.at(binFw).count("Pl")==0) { std::cout << "[ERROR] Plus charge is missing in bin [" << binFw.etabin().low() << " , " << binFw.etabin().high() << "]" << std::endl; return false; }
       if (c.second.at(binFw).count("Mi")==0) { std::cout << "[ERROR] Minus charge is missing in bin [" << binFw.etabin().low() << " , " << binFw.etabin().high() << "]" << std::endl; return false; }
@@ -599,10 +618,10 @@ bool computeCrossSection( BinPentaMap& var , const VarBinMap& inputVar )
       if (c.first=="pPb") { Luminosity = PA::LUMI::Data_pPb; }
       if (c.first=="Pbp") { Luminosity = PA::LUMI::Data_Pbp; }
       std::map< std::string , double > Err_Luminosity;
-      Err_Luminosity["Err_Stat_High"] = ( 0.05 * Luminosity ); // 5% relative error
-      Err_Luminosity["Err_Stat_Low" ] = ( 0.05 * Luminosity ); // 5% relative error
       Err_Luminosity["Err_Syst_High"] = 0.0; // Not assigned
       Err_Luminosity["Err_Syst_Low" ] = 0.0; // Not assigned
+      Err_Luminosity["Err_Stat_High"] = 0.0; // Not assigned
+      Err_Luminosity["Err_Stat_Low" ] = 0.0; // Not assigned
       //
       const double BinWidth = ( b.first.etabin().high() - b.first.etabin().low() );
       //
@@ -619,12 +638,13 @@ bool computeCrossSection( BinPentaMap& var , const VarBinMap& inputVar )
 };
 
 
-std::string formatResultVarName(const std::string varName)
+std::string formatResultVarName(const std::string varName, const bool useEtaCM)
 {
   std::string label = "";
+  const std::string etaLbl = ( useEtaCM ? "#eta_{CM}" : "#eta" );
   if (varName == "Charge_Asymmetry"      ) { label = "( N^{+} - N^{-} ) / ( N^{+} + N^{-} )"; }
   if (varName == "ForwardBackward_Ratio" ) { label = "R_{FB}"; }
-  if (varName == "Cross_Section"         ) { label = "B #times d#sigma/d#eta (nb)"; }
+  if (varName == "Cross_Section"         ) { label = Form("B #times d#sigma/d%s (nb)", etaLbl.c_str()); }
   return label;
 };
 
@@ -731,14 +751,14 @@ void formatLegendEntry(TLegendEntry& e)
 };
 
 
-void formatResultsGraph(TGraphAsymmErrors& graph, const std::string& var, const std::string& chg, const bool& useEtaCM, const bool& isEffCorr)
+void formatResultsGraph(TGraphAsymmErrors& graph, const std::string& col, const std::string& var, const std::string& chg, const bool& useEtaCM, const bool& incAcc)
 {
   //
   // Set the Axis Titles
   std::string xLabel = "#mu"; if (chg == "Pl") { xLabel += "^{+}"; }; if (chg == "Mi") { xLabel += "^{-}"; }; xLabel += " #eta";
   if (useEtaCM) { xLabel += "_{CM}"; }
   else { xLabel += "_{LAB}"; }
-  std::string yLabel = formatResultVarName(var);
+  std::string yLabel = formatResultVarName(var, useEtaCM);
   graph.SetTitle(Form(";%s;%s", xLabel.c_str(), yLabel.c_str()));
   //
   // General
@@ -751,25 +771,23 @@ void formatResultsGraph(TGraphAsymmErrors& graph, const std::string& var, const 
   graph.GetXaxis()->SetTitleOffset(0.9);
   graph.GetXaxis()->SetTitleSize(0.050);
   graph.GetXaxis()->SetLabelSize(0.035);
-  if (useEtaCM) {
-    if ( var == "Charge_Asymmetry"      ) { graph.GetXaxis()->SetLimits(-2.0, 2.0); }
-    if ( var == "ForwardBackward_Ratio" ) { graph.GetXaxis()->SetLimits( 0.0, 2.0); }
-    if ( var == "Cross_Section"         ) { graph.GetXaxis()->SetLimits(-2.0, 2.0); }
-  }
-  else {
-    if ( var == "Charge_Asymmetry"      ) { graph.GetXaxis()->SetLimits(-2.5, 2.5); }
-    if ( var == "ForwardBackward_Ratio" ) { graph.GetXaxis()->SetLimits( 0.0, 2.5); }
-    if ( var == "Cross_Section"         ) { graph.GetXaxis()->SetLimits(-2.5, 2.5); }
-  }
+  double xMin, xMax, yDummy;
+  graph.GetPoint(0, xMin, yDummy); xMin -= graph.GetErrorXlow(0);
+  int n = (graph.GetN()-1);
+  graph.GetPoint(n, xMax, yDummy); xMax += graph.GetErrorXhigh(n);
+  xMin = (std::floor((xMin-0.1)*10.0)/10.0);
+  xMax = (std::ceil((xMax+0.1)*10.0)/10.0);
+  graph.GetXaxis()->SetLimits(xMin , xMax);
   // Y-axis
   graph.GetYaxis()->CenterTitle(kFALSE);
-  graph.GetYaxis()->SetTitleOffset(1.45);
+  graph.GetYaxis()->SetTitleOffset(1.41);
   graph.GetYaxis()->SetTitleSize(0.050);
   if ( var == "Charge_Asymmetry" ) { graph.GetYaxis()->SetTitleSize(0.040); }
   graph.GetYaxis()->SetLabelSize(0.035);
-  if ( var == "Charge_Asymmetry"      ) { graph.GetYaxis()->SetRangeUser(   0.0,   0.5); }
+  if ( var == "Charge_Asymmetry"      ) { graph.GetYaxis()->SetRangeUser(  -0.2,   0.4); }
   if ( var == "ForwardBackward_Ratio" ) { graph.GetYaxis()->SetRangeUser(   0.6,   1.5); }
-  if ( var == "Cross_Section"         ) { graph.GetYaxis()->SetRangeUser(  50.0, 350.0); }
+  if (incAcc){ if ( var == "Cross_Section" ) { graph.GetYaxis()->SetRangeUser( 0.0, 300.0); } }
+  else       { if ( var == "Cross_Section" ) { graph.GetYaxis()->SetRangeUser( 0.0, 250.0); } }
 };
 
 
@@ -801,28 +819,31 @@ void drawGraph( GraphQuadMap& graphMap , const std::string& outDir , const bool 
         if (chg == "Pl") { sampleLabel = "W^{+} #rightarrow #mu^{+} + #nu_{#mu}"; }
         if (chg == "Mi") { sampleLabel = "W^{-} #rightarrow #mu^{-} + #nu_{#mu}"; }
         textToPrint.push_back(sampleLabel);
+        if (accType=="") { textToPrint.push_back("p^{#mu}_{T} > 25 GeV/c"); }
         //
         // Create Legend
-        TLegend leg(0.2, 0.71, 0.4, 0.84);
+        double legOff = 0.0; if (accType=="") { legOff = 0.05; }
+        TLegend leg(0.2, (0.71 - legOff), 0.4, (0.84 - legOff));
         formatLegendEntry(*leg.AddEntry(&graph.at("Err_Tot") , "Data", "pe"));
         formatLegendEntry(*leg.AddEntry(&graph.at("Err_Stat"), "Statistical Uncertainty", "f"));
         formatLegendEntry(*leg.AddEntry(&graph.at("Err_Syst"), "Systematic Uncertainty", "f"));
         //
         // Format the graphs
-        const bool isEffCorr = (accType!="" || effType!="");
-        for (auto& gr : graph) { formatResultsGraph(gr.second, var, chg, useEtaCM, isEffCorr); }
+        const bool incAcc = (accType!="");
+        for (auto& gr : graph) { formatResultsGraph(gr.second, col, var, chg, useEtaCM, incAcc); }
         graph.at("Err_Tot").SetMarkerColor(kBlack);
         graph.at("Err_Stat").SetFillColor(kOrange);
         graph.at("Err_Syst").SetFillColor(kGreen+3);
         //
         // Draw the graphs
-        graph.at("Err_Syst").Draw("a2");
+        graph.at("Err_Tot").Draw("ap");
+        graph.at("Err_Syst").Draw("same2");
         graph.at("Err_Stat").Draw("same2");
         graph.at("Err_Tot").Draw("samep");
         // Draw the Line
-        double etaMin = -2.5; if (useEtaCM) { etaMin = -2.0; }
-        double etaMax = 2.5; if (useEtaCM) { etaMax = 2.0; }
-        TLine line_FB(0.0, 1.0, etaMax, 1.0); line_FB.SetLineStyle(2);
+        double etaMin = graph.at("Err_Tot").GetXaxis()->GetXmin();
+        double etaMax = graph.at("Err_Tot").GetXaxis()->GetXmax();
+        TLine line_FB(etaMin, 1.0, etaMax, 1.0); line_FB.SetLineStyle(2);
         if (var=="ForwardBackward_Ratio") { line_FB.Draw("same"); }
         TLine line_CA(etaMin, 0.0, etaMax, 0.0); line_CA.SetLineStyle(2);
         if (var=="Charge_Asymmetry") { line_CA.Draw("same"); }
@@ -831,7 +852,7 @@ void drawGraph( GraphQuadMap& graphMap , const std::string& outDir , const bool 
         // Update
         c.Modified(); c.Update();
         // Draw the text
-        for (const auto& s: textToPrint) { tex.DrawLatex(0.22, 0.86-dy, s.c_str()); dy+=0.04; }
+        for (const auto& s: textToPrint) { tex.DrawLatex(0.22, 0.86-dy, s.c_str()); dy+=0.045; }
         // Update
         c.Modified(); c.Update(); // Pure paranoia
         //
@@ -844,7 +865,7 @@ void drawGraph( GraphQuadMap& graphMap , const std::string& outDir , const bool 
         c.Modified(); c.Update(); // Pure paranoia
         //
         // Create Output Directory
-        const std::string plotDir = outDir + "/Output/" + col+"/" + var;
+        const std::string plotDir = outDir+"/" + col+"/" + var;
         makeDir(plotDir + "/png/");
         makeDir(plotDir + "/pdf/");
         makeDir(plotDir + "/root/");

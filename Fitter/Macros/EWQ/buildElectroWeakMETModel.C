@@ -6,10 +6,10 @@
 void setMETModelParameters ( GlobalInfo& info );
 TH1* rebinhist             ( const TH1& hist, double xmin, double xmax );
 bool histToPdf             ( RooWorkspace& ws, const string& pdfName, const string& dsName, const std::string& var, const std::vector< float >& range );
-bool addMETModel           ( RooWorkspace& ws, const std::string& decay, const StrMapMap& models,  const GlobalInfo& info );
+bool addMETModel           ( RooWorkspace& ws, const std::string& decay, const StrMapMap_t& models,  const GlobalInfo& info );
 
 
-bool buildElectroWeakMETModel(RooWorkspace& ws, const StrMapMap& models, GlobalInfo&  info)
+bool buildElectroWeakMETModel(RooWorkspace& ws, const StrMapMap_t& models, GlobalInfo&  info)
 {
  // Initialize all the MET Model parameters needed for fitting
   setMETModelParameters(info);
@@ -22,7 +22,7 @@ bool buildElectroWeakMETModel(RooWorkspace& ws, const StrMapMap& models, GlobalI
   return true;
 };
 
-bool addMETModel(RooWorkspace& ws, const std::string& decay, const StrMapMap& models,  const GlobalInfo& info)
+bool addMETModel(RooWorkspace& ws, const std::string& decay, const StrMapMap_t& models,  const GlobalInfo& info)
 {
   std::string cha = info.Par.at("channel");
   for (const auto& col : info.StrV.at("fitSystem")) {
@@ -79,7 +79,7 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StrMapMap& mo
                 }
                 if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
                 // create the PDF
-                ws.factory(Form("RooGenericPdf::%s('exp(sqrt(@0+@1)*@2)*pow((@0+@1),@3)', {%s, %s, %s, %s})", Form("pdfMET_%s", label.c_str()), "MET", 
+                ws.factory(Form("RooGenericPdf::%s('TMath::Exp(TMath::Sqrt(@0+@1)*@2)*TMath::Power((@0+@1),@3)', {%s, %s, %s, %s})", Form("pdfMET_%s", label.c_str()), "MET", 
                                 Form("x0_%s", label.c_str()), 
                                 Form("Beta_%s", label.c_str()), 
                                 Form("Alpha_%s", label.c_str())
@@ -91,6 +91,44 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StrMapMap& mo
                 ws.pdf(Form("pdfMET_%s", label.c_str()))->setNormRange("METWindow");
                 pdfList.add( *ws.pdf(Form("pdfMETTot_%s", label.c_str())) );
                 std::cout << Form("[INFO] %s MultiJetBkg MET PDF in %s added!", tag.c_str(), col.c_str()) << std::endl; break;
+              }
+            case (int(METModel::ModifiedRayleigh)):
+              {
+                // check that all input parameters are defined
+                if (!( 
+                      info.Par.count("N_"+label) &&
+                      info.Par.count("Sigma0_"+label) &&
+                      info.Par.count("Sigma1_"+label) &&
+                      info.Par.count("Sigma2_"+label)
+                       )) {
+                  std::cout << Form("[ERROR] Initial parameters where not found for %s Modified Rayleigh Model in %s", tag.c_str(), col.c_str()) << std::endl; return false;
+                }
+                // create the variables for this model
+                ws.factory( info.Par.at("N_"+label).c_str() );
+                RooArgList pdfConstrains;
+                std::vector< std::string > varNames = {"Sigma0", "Sigma1", "Sigma2"};
+                for (const auto v : varNames) {
+                  ws.factory( info.Par.at(v+"_"+label).c_str() );
+                  // create the Gaussian PDFs for Constrain fits
+                  if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+                    ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
+                    pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
+                  }
+                }
+                if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
+                // create the PDF
+                ws.factory(Form("RooGenericPdf::%s('@0*TMath::Exp(-1.0*((@0*@0)/((@1*@1)+(@2*@0)+(@3*@0*@0))))', {%s, %s, %s, %s})", Form("pdfMET_%s", label.c_str()), "MET", 
+                                Form("Sigma0_%s", label.c_str()), 
+                                Form("Sigma1_%s", label.c_str()), 
+                                Form("Sigma2_%s", label.c_str())
+                                ));
+                ws.factory(Form("RooExtendPdf::%s(%s,%s)", Form("pdfMETTot_%s", label.c_str()),
+                                Form("pdfMET_%s", label.c_str()),
+                                Form("N_%s", label.c_str())
+                                ));
+                ws.pdf(Form("pdfMET_%s", label.c_str()))->setNormRange("METWindow");
+                pdfList.add( *ws.pdf(Form("pdfMETTot_%s", label.c_str())) );
+                std::cout << Form("[INFO] %s Modified Rayleigh MET PDF in %s added!", tag.c_str(), col.c_str()) << std::endl; break;
               }
             case (int(METModel::Template)):
               {
@@ -256,7 +294,7 @@ void setMETModelParameters(GlobalInfo& info)
             }
           }
           // Multi Jet Model MODEL PARAMETERS
-          std::vector< std::string > varNames = {"Alpha", "Beta", "x0"};
+          std::vector< std::string > varNames = {"Alpha", "Beta", "x0", "Sigma0", "Sigma1", "Sigma2"};
           for (const auto v : varNames) {
             if (info.Par.count(v+"_"+label)==0 || info.Par.at(v+"_"+label)=="") {
               if (info.Par.count(v+"_"+inputLabel) && info.Par.at(v+"_"+inputLabel)!="") {
@@ -264,9 +302,12 @@ void setMETModelParameters(GlobalInfo& info)
                 info.Par[v+"_"+label] = Form("%s%s", (v+"_"+label).c_str(), value.c_str());
               }
               else {
-                if (v=="Beta" ) { info.Par[v+"_"+label] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+label).c_str(), -3.28, -10.00, -0.01); }
-                if (v=="Alpha") { info.Par[v+"_"+label] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+label).c_str(),  5.94,   0.01, 20.00); }
-                if (v=="x0"   ) { info.Par[v+"_"+label] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+label).c_str(),  2.39,   0.01, 10.00); }
+                if (v=="Beta"   ) { info.Par[v+"_"+label] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+label).c_str(),  -3.28,  -20.00,  -0.01); }
+                if (v=="Alpha"  ) { info.Par[v+"_"+label] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+label).c_str(),   5.94,    0.01,  40.00); }
+                if (v=="x0"     ) { info.Par[v+"_"+label] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+label).c_str(),   2.39,  -10.00,  40.00); }
+                if (v=="Sigma0" ) { info.Par[v+"_"+label] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+label).c_str(),  10.00,  -20.00, 100.00); }
+                if (v=="Sigma1" ) { info.Par[v+"_"+label] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+label).c_str(),   6.00,  -20.00,  30.00); }
+                if (v=="Sigma2" ) { info.Par[v+"_"+label] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+label).c_str(),   0.00,   -5.00,   5.00); }
               }
             }
             // Check Parameters for Constrain Fits

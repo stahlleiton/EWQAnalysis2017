@@ -3,13 +3,13 @@
 #include "Macros/EWQ/fitElectroWeakMETModel.C"
 
 bool checkSettings     ( const GlobalInfo& userInput);
-bool parseFile         ( std::string FileName  , std::vector< StringMap >& data );
+bool parseFile         ( std::string FileName  , std::vector< StringMap_t >& data );
 bool parseString       ( std::string input     , std::vector< double >& output );
-bool iniWorkEnv        ( StringVectorMap& DIR  , const std::string& workDirName );
+bool iniWorkEnv        ( StringVectorMap_t& DIR  , const std::string& workDirName );
 void findSubDir        ( std::vector< std::string >& dirlist, std::string dirname );
 bool readFile          ( std::string FileName  , std::vector< std::vector< std::string > >& content, const int nCol=-1, int nRow=-1 );
 bool getInputFileNames ( const std::string& InputTrees, std::map< std::string, std::vector< std::vector< std::string > > >& InputFileCollection );
-bool setParameters     ( const StringMap& row , GlobalInfo& info , const std::string& Analysis );
+bool setParameters     ( const StringMap_t& row , GlobalInfo& info , const std::string& Analysis );
 bool addParameters     ( std::string InputFile , std::vector< GlobalInfo >& infoVector , const std::string& Analysis );
 
 void fitter(
@@ -17,10 +17,10 @@ void fitter(
             const std::bitset<1> useExt   = 0,          // Use external: (bit 0 (1)) Input DataSets
             // Select the type of datasets to fit
             const std::bitset<2> fitData  = 1,          // Fit Sample: (bit 0 (1)) Data , (bit 1 (2)) MC
-            const std::bitset<3> fitColl  = 7,          // Fit System: (bit 0 (1)) pPb  , (bit 1 (2)) Pbp   , (bit 2 (4)) PA
+            const std::bitset<3> fitColl  = 5,          // Fit System: (bit 0 (1)) pPb  , (bit 1 (2)) Pbp   , (bit 2 (4)) PA
             const std::bitset<3> fitChg   = 3,          // Fit Charge: (bit 0 (1)) Plus , (bit 1 (2)) Minus , (bit 2 (4)) Inclusive
             // Select the type of objects to fit
-            const std::bitset<3> fitObj   = 2,          // Fit Objects: (bit 0 (1)) W , (bit 1 (2)) QCD
+                  std::bitset<3> fitObj   = 2,          // Fit Objects: (bit 0 (1)) W , (bit 1 (2)) QCD
             // Select the fitting options
             const unsigned int   numCores = 32,         // Number of cores used for fitting
             const std::bitset<1> fitVar   = 1,          // Fit Variable: 1: MET
@@ -47,9 +47,36 @@ void fitter(
   RooMsgService::instance().getStream(1).removeTopic(RooFit::Integration);
   RooMsgService::instance().getStream(1).removeTopic(RooFit::NumIntegration);
   RooMsgService::instance().getStream(1).removeTopic(RooFit::Minimization);
-  RooMsgService::instance().setGlobalKillBelow(RooFit::WARNING) ;
-
+  RooMsgService::instance().setGlobalKillBelow(RooFit::WARNING);
+  //
   GlobalInfo userInput;
+  //
+  userInput.Flag["applyRecoilCorr"] = false;
+  userInput.Flag["applyTnPCorr"]    = true;
+  userInput.Par["RecoilCorrMethod"] = "Smearing";
+  //
+  if (workDirName=="QCDTemplateCM_MultiJet" || workDirName=="QCDTemplateCM_Rayleigh") {
+    userInput.Flag["applyTnPCorr"]    = false;
+    userInput.Flag["applyRecoilCorr"] = false;
+    fitObj = 2;
+  }
+  else if (workDirName=="NominalCM_NoRecoilCorr" ) {
+    userInput.Flag["applyRecoilCorr"] = false;
+    fitObj = 1;
+  }
+  else if (workDirName=="NominalCM_RecoilScaling" ) {
+    userInput.Flag["applyRecoilCorr"] = true;
+    userInput.Par["RecoilCorrMethod"] = "Scaling";
+    fitObj = 1;
+  }
+  else if (workDirName=="NominalCM_RecoilSmearing" ) {
+    userInput.Flag["applyRecoilCorr"] = true;
+    userInput.Par["RecoilCorrMethod"] = "Smearing";
+    fitObj = 1;
+  }
+  else if (workDirName=="SystematicCM_QCD") { fitObj = 1; }
+  else { std::cout << "[ERROR] Workdirname has not been defined!" << std::endl; return; }
+  //
   // Store more information for fitting
   userInput.Par["extTreesFileDir"]    = "";
   userInput.Par["extDSDir_DATA"]      = "";
@@ -106,7 +133,7 @@ void fitter(
   if (!checkSettings(userInput)){ return; }
   
   // Set the Local Work Enviroment
-  StringVectorMap DIR;
+  StringVectorMap_t DIR;
   if(!iniWorkEnv(DIR, workDirName)){ return; }
   /////////////////////
   std::map< std::string, std::string> inputFitDir;
@@ -239,11 +266,11 @@ void fitter(
       }
     }
     if (dir!="") {
-      StringVectorMap FileInfo;
-      FileInfo["InputFileNames"].clear(); FileInfo["XSectionTags"].clear(); 
+      StringVectorMap_t FileInfo;
+      FileInfo["InputFileNames"].clear(); FileInfo["TreeTags"].clear(); 
       for (const auto& row : FileCollection.second) {
         FileInfo.at("InputFileNames").push_back(row[0]);
-        if (row.size()>1) { FileInfo.at("XSectionTags").push_back(row[1]); }
+        if (row.size()>1) { FileInfo.at("TreeTags").push_back(row[1]); }
       }
       FileInfo["OutputFileDir"].push_back(dir);
       FileInfo["OutputFileDir"].push_back(DIR["dataset"][0]);
@@ -263,7 +290,19 @@ void fitter(
   }
 
   // -------------------------------------------------------------------------------
-  // STEP 3: COMBINE THE ROODATASETS
+  // STEP 3: APPLY THE CORRECTIONS
+  /*
+    Input : Collection of RooWorkspaces containing the RooDataSets without corrections
+    Output: Collection of RooWorkspaces including the RooDatasets with corrections
+  */
+
+  // Reweight Lumi in MC
+  if (!reweightMCLumi(Workspace)) { return; }
+  // Apply MC corrections
+  if (!correctMC(Workspace, userInput)) { return; }
+
+  // -------------------------------------------------------------------------------
+  // STEP 4: COMBINE THE ROODATASETS
   /*
     Input : Collection of RooWorkspaces containing the pPb and Pbp RooDataSets
     Output: Collection of RooWorkspaces including the combined PA RooDataSets
@@ -284,7 +323,7 @@ void fitter(
   }
 
   // -------------------------------------------------------------------------------  
-  // STEP 4: FIT THE DATASETS
+  // STEP 5: FIT THE DATASETS
   /*
     Input : 
               -> The cuts and initial parameters per kinematic bin
@@ -336,7 +375,7 @@ void fitter(
 
 bool addParameters(std::string InputFile, std::vector< GlobalInfo >& infoVector, const std::string& Analysis)
 {
-  std::vector< StringMap >  data;
+  std::vector< StringMap_t >  data;
   if(!parseFile(InputFile, data)) { return false; }
   if (infoVector.size()==0) {
     for (const auto& row : data) {
@@ -358,7 +397,7 @@ bool addParameters(std::string InputFile, std::vector< GlobalInfo >& infoVector,
 };
 
 
-bool setParameters(const StringMap& row, GlobalInfo& info, const std::string& Analysis)
+bool setParameters(const StringMap_t& row, GlobalInfo& info, const std::string& Analysis)
 {
   // set initial values of variables
   if (Analysis.find("WToMuNu")!=std::string::npos) {
@@ -479,7 +518,7 @@ bool parseString(std::string input, std::vector< double >& output)
 };
 
 
-bool parseFile(std::string FileName, std::vector< StringMap >& data)
+bool parseFile(std::string FileName, std::vector< StringMap_t >& data)
 {
   std::vector< std::vector< std::string > > content, tmp; 
   if(!readFile(FileName, tmp, -1, 1)){ return false; }
@@ -491,7 +530,7 @@ bool parseFile(std::string FileName, std::vector< StringMap >& data)
   }
   content.erase(content.begin()); // remove header
   for (const auto& row : content) {
-    StringMap col;
+    StringMap_t col;
     for (unsigned int i=0; i<header.size(); i++) {
       if (i<row.size()) {
 	col[header.at(i)] = row.at(i);
