@@ -11,12 +11,15 @@
 // ROOT Headers
 #include "TLorentzVector.h"
 // c++ headers
+#include <sys/stat.h>
 #include <dirent.h>
+#include <stdio.h>
 #include <memory>
 #include <iostream>
 #include <map>
 #include <vector>
 #include <string>
+#include <chrono>
 
 
 // Utiliy Functions
@@ -27,6 +30,12 @@ bool existDir(const std::string& dir)
   void * dirp = gSystem->OpenDirectory(dir.c_str());
   if (dirp) { gSystem->FreeDirectory(dirp); exist = true; }
   return exist;
+};
+
+bool existFile(const std::string& file)
+{
+  struct stat buffer;   
+  return (stat (file.c_str(), &buffer) == 0);
 };
 
 void makeDir(const std::string& dir)
@@ -44,6 +53,34 @@ void roundValue( double& value , const uint& nDecimals )
   tmp = std::round(tmp);
   tmp /= std::pow(10.0, nDecimals);
   value = tmp;
+};
+
+auto TIME_START_ = std::chrono::high_resolution_clock::now();
+auto TIME_END_ = TIME_START_;
+int  TIME_DIF_ = 0;
+static inline void loadBar(const int iEvent, const int nEvents, const int r = 100, const int w = 100)
+{
+  // Only update r times.
+  if ( iEvent == (nEvents-1) ) { std::cout << std::endl; }
+  if ( (iEvent % ((nEvents/r) + 1)) != 0 ) return;
+  // Calculuate the ratio of complete-to-incomplete.
+  const float ratio = (iEvent / (float)nEvents);
+  const int   c     = (ratio * w);
+  // Get Time Difference
+  TIME_END_   = std::chrono::high_resolution_clock::now();
+  TIME_DIF_   = std::chrono::duration_cast<std::chrono::seconds>(TIME_END_ - TIME_START_).count();
+  TIME_START_ = std::chrono::high_resolution_clock::now();
+  // Show the percentage complete.
+  const int sec  = int( double(TIME_DIF_) * (1.0-ratio) *100. );
+  const int min  = (sec / 60);
+  const int hour = (min / 60);
+  printf("[INFO] %3d%% (%02d:%02d:%02d) [", (int)(ratio*100), hour, int(min%60), int(sec%60));
+  // Show the load bar.
+  for (int i = 0; i < c; i++) { std::cout << "="; }
+  for (int i = c; i < w; i++) { std::cout << " "; }
+  // ANSI Control codes to go back to the
+  // previous line and clear it.
+  std::cout << "]\r" << std::flush;
 };
 
 
@@ -211,7 +248,7 @@ namespace PA {
     return int(MCType::Invalid);
   };
   //
-  bool getCrossSection(double& xSection, const std::string& MCTypeName, const bool verbose = false)
+  bool getCrossSection(double& xSection, const std::string& MCTypeName)
   {
     xSection = -1.0;
     std::string GENTAG  = MCTypeName; GENTAG.erase(GENTAG.find("_"), GENTAG.length());
@@ -230,13 +267,12 @@ namespace PA {
     else {
       std::cout << "[ERROR] Cross-section for enerator " << GENTAG << " has not been defined!" << std::endl; return false;
     }
-    if (verbose) { std::cout << "[INFO] Cross-section for " << MCTypeName << " set to " << xSection << " nb " << std::endl; }
     return true;
   };
   //
-  bool getCrossSection(double& xSection, const int& MCTypeID, const bool verbose = false)
+  bool getCrossSection(double& xSection, const int& MCTypeID)
   {
-    return getCrossSection(xSection, getMCTypeName(MCTypeID), verbose);
+    return getCrossSection(xSection, getMCTypeName(MCTypeID));
   };
 };
 

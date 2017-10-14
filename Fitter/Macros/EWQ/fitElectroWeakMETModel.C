@@ -143,10 +143,10 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
         std::string dsName = ( "d" + chg + "_" + DSTAG );
         // check if we have already done this fit. If yes, do nothing and return true.
         bool found =  true; bool skipFit = false;
-        RooArgSet newpars;
-        if (myws.pdf(pdfName.c_str())) { newpars = *(myws.pdf(pdfName.c_str())->getParameters(*myws.data(dsName.c_str()))); }
-        else { newpars = myws.allVars(); }
-        found = found && isFitAlreadyFound(newpars, Form("%sresult/%s.root", outDir.c_str(), ("FIT_"+fileName).c_str()), pdfName.c_str());
+        std::unique_ptr<RooArgSet> newpars;
+        if (myws.pdf(pdfName.c_str())) { newpars = std::unique_ptr<RooArgSet>(myws.pdf(pdfName.c_str())->getParameters(*myws.data(dsName.c_str()))); }
+        else { newpars = std::unique_ptr<RooArgSet>(new RooArgSet(myws.allVars())); }
+        found = found && isFitAlreadyFound(*newpars, Form("%sresult/%s.root", outDir.c_str(), ("FIT_"+fileName).c_str()), pdfName.c_str());
         if (found) {
           std::cout << "[INFO] This fit was already done, so I'll just go to the next one." << std::endl;
           return true;
@@ -157,22 +157,27 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
             bool isWeighted = myws.data(dsName.c_str())->isWeighted();
             int numCores = info.Int.at("numCores");
             RooArgList* pdfConstrains = (RooArgList*)myws.genobj(Form("pdfConstr%s", label.c_str()));
-            RooFitResult* fitResult;
+            std::unique_ptr<RooFitResult> fitResult;
             if (pdfConstrains!=NULL && pdfConstrains->getSize()>0) {
-              fitResult = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsName.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), 
-                                                           RooFit::Range("METWindow"), RooFit::ExternalConstraints(*pdfConstrains), RooFit::NumCPU(numCores), RooFit::Save());
+              auto tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsName.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), 
+                                                          RooFit::Range("METWindow"), RooFit::ExternalConstraints(*pdfConstrains), RooFit::NumCPU(numCores), RooFit::Save());
+              fitResult = std::unique_ptr<RooFitResult>(tmp);
             }
             else {
-              fitResult = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsName.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), 
+              auto tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsName.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Minos(false), 
                                                            RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
+              fitResult = std::unique_ptr<RooFitResult>(tmp);
             }
-            fitResult->Print("v");
-            myws.import(*fitResult, Form("fitResult_%s", pdfName.c_str()));
+            if (fitResult!=NULL) {
+              fitResult->Print("v");
+              myws.import(*fitResult, Form("fitResult_%s", pdfName.c_str()));
+            }
+            else { std::cout << "[ERROR] Fit Result returned by the PDF is NULL!" << std::endl; return false; }
           }
           else if ( myws.obj(("CutAndCount_"+label).c_str()) ) {
             // cut and count
             cout << Form("[INFO] Using the CutAndCount Method with the following cut: %s", info.Par.at("Cut_"+label).c_str()) << std::endl;
-            RooDataSet* ds = (RooDataSet*)myws.data(dsName.c_str())->reduce(RooFit::Cut(info.Par.at("Cut_"+label).c_str()), RooFit::Name(("CutAndCount_"+dsName).c_str()));
+            std::unique_ptr<RooDataSet> ds = std::unique_ptr<RooDataSet>((RooDataSet*)myws.data(dsName.c_str())->reduce(RooFit::Cut(info.Par.at("Cut_"+label).c_str()), RooFit::Name(("CutAndCount_"+dsName).c_str())));
             myws.var( ("N_"+label).c_str() )->setVal( ds->sumEntries() );
             myws.var( ("N_"+label).c_str() )->setError( sqrt(ds->sumEntries()) );
             myws.import(*ds);
@@ -309,8 +314,8 @@ int importDataset(RooWorkspace& myws  , const std::map<string, RooWorkspace>& in
   if (info.Par.at("Event_Type")!="") { cutDS += Form("(Event_Type==Event_Type::%s)&&", info.Par.at("Event_Type").c_str()); }
   for (const auto var : info.Var) {
     if (var.first!="MET" && var.first!="Muon_Pt" && var.first!="Muon_Eta" && var.first!="Muon_Iso" && var.first!="Muon_MT") continue; // Only cut on this variables
-    if (var.second.at("Min")==var.second.at("Max")) { cutDS += Form("(%s == %.4f)", var.first.c_str(), var.second.at("Max")); }
-    else { cutDS += Form("(%.4f <= %s && %s < %.4f)", var.second.at("Min"), var.first.c_str(), var.first.c_str(), var.second.at("Max")); }
+    if (var.second.at("Min")==var.second.at("Max")) { cutDS += Form("(%s == %g)", var.first.c_str(), var.second.at("Max")); }
+    else { cutDS += Form("(%g <= %s && %s < %g)", var.second.at("Min"), var.first.c_str(), var.first.c_str(), var.second.at("Max")); }
     cutDS += "&&";
   }
   cutDS.erase(cutDS.size()-string("&&").length(), cutDS.size());
@@ -331,23 +336,29 @@ int importDataset(RooWorkspace& myws  , const std::map<string, RooWorkspace>& in
         std::cout << "[ERROR] The dataset " <<  Form("d%s_%s", chg.c_str(), extLabel.c_str()) << " was not found!" << std::endl;
         return -1;
       }
-      RooDataSet* data  = (RooDataSet*)inputWS.at(label).data(Form("d%s_%s", chg.c_str(), extLabel.c_str()))->reduce(cutDS.c_str());
-      if (data==NULL || data->sumEntries()==0){ 
-        std::cout << "[ERROR] No events from dataset " <<  Form("d%s_%s", chg.c_str(), extLabel.c_str()) << " passed the kinematic cuts!" << std::endl; return -1;
+      std::unique_ptr<RooDataSet> data = std::unique_ptr<RooDataSet>((RooDataSet*)inputWS.at(label).data(Form("d%s_%s", chg.c_str(), extLabel.c_str()))->reduce(cutDS.c_str()));
+      if (data==NULL || data->sumEntries()==0){
+        if (extLabel.find("MC_")!=std::string::npos) {
+          std::cout << "[WARNING] No events from dataset " <<  Form("d%s_%s", chg.c_str(), extLabel.c_str()) << " passed the kinematic cuts!" << std::endl;
+        }
+        else { std::cout << "[ERROR] No events from dataset " <<  Form("d%s_%s", chg.c_str(), extLabel.c_str()) << " passed the kinematic cuts!" << std::endl; return -1; }
       }
       else {
         data->SetName(Form("d%s_%s", chg.c_str(), label.c_str()));
         myws.import(*data);
-}
+      }
       std::cout << "[INFO] " << Form("%.0f", data->sumEntries()) << " weighted entries imported from local RooDataSet " << Form("d%s_%s", chg.c_str(), label.c_str()) << std::endl;
-      if (data) { delete data; }
-      if (myws.obj("METType")==NULL) { myws.import(*((TObjString*)inputWS.at(label).obj("METType")), "METType"); }
+      //
+      if ( (myws.obj("METType")==NULL) && (inputWS.at(label).obj("METType")!=NULL)) { myws.import(*((TObjString*)inputWS.at(label).obj("METType")), "METType"); }
+      //
       // Set the range of each global parameter in the local roodataset
-      const RooArgSet* row = myws.data(Form("d%s_%s", chg.c_str(), label.c_str()))->get();
-      for (const auto& var : info.Var) {
-        if ( (var.first!="Event_Type") && row->find(Form("%s", var.first.c_str())) ) {
-          ((RooRealVar*)row->find(Form("%s", var.first.c_str())))->setMin(var.second.at("Min"));
-          ((RooRealVar*)row->find(Form("%s", var.first.c_str())))->setMax(var.second.at("Max"));
+      if (myws.data(Form("d%s_%s", chg.c_str(), label.c_str()))!=NULL) {
+        const RooArgSet* row = myws.data(Form("d%s_%s", chg.c_str(), label.c_str()))->get();
+        for (const auto& var : info.Var) {
+          if ( (var.first!="Event_Type") && row->find(Form("%s", var.first.c_str())) ) {
+            ((RooRealVar*)row->find(Form("%s", var.first.c_str())))->setMin(var.second.at("Min"));
+            ((RooRealVar*)row->find(Form("%s", var.first.c_str())))->setMax(var.second.at("Max"));
+          }
         }
       }
     }
@@ -356,16 +367,19 @@ int importDataset(RooWorkspace& myws  , const std::map<string, RooWorkspace>& in
   if (info.Flag.at("useEtaCM")) { myws.factory("useEtaCM[1.0]"); }
   // Set the range of each global parameter in the local workspace
   for (const auto& var : info.Var) {
-    if ( myws.var(Form("%s", var.first.c_str())) ) {
+    if ( myws.var(Form("%s", var.first.c_str())) && (var.second.count("Min")>0) ) {
       myws.var(Form("%s", var.first.c_str()))->setMin(var.second.at("Min"));
       myws.var(Form("%s", var.first.c_str()))->setMax(var.second.at("Max"));
+    }
+    else if ( (myws.var(Form("%s", var.first.c_str()))==NULL) && (var.second.count("Val")>0) ) {
+      myws.factory(Form("%s[%g]", var.first.c_str(), var.second.at("Val")));
     }
   }
   if (info.Flag.at("useEtaCM")) {
     const bool ispPb = ( info.Flag.at("fitpPb") || info.Flag.at("fitPA") );
-    std::cout << "[INFO] Analyzing bin: " << Form("%.4f < Muon_EtaCM < %.4f", PA::EtaLABtoCM(myws.var("Muon_Eta")->getMin(), ispPb), PA::EtaLABtoCM(myws.var("Muon_Eta")->getMax(), ispPb)) << std::endl;
+    std::cout << "[INFO] Analyzing bin: " << Form("%g < Muon_EtaCM < %g", PA::EtaLABtoCM(myws.var("Muon_Eta")->getMin(), ispPb), PA::EtaLABtoCM(myws.var("Muon_Eta")->getMax(), ispPb)) << std::endl;
   }
-  else { std::cout << "[INFO] Analyzing bin: " << Form("%.4f < Muon_Eta < %.4f"  , myws.var("Muon_Eta")->getMin()  , myws.var("Muon_Eta")->getMax())   << std::endl; }
+  else { std::cout << "[INFO] Analyzing bin: " << Form("%g < Muon_Eta < %g"  , myws.var("Muon_Eta")->getMin()  , myws.var("Muon_Eta")->getMax())   << std::endl; }
   return 1;
 };
 
@@ -373,7 +387,7 @@ int importDataset(RooWorkspace& myws  , const std::map<string, RooWorkspace>& in
 void setMETGlobalParameterRange(RooWorkspace& myws, GlobalInfo& info)
 {
   myws.var("MET")->setRange("METWindow", info.Var.at("MET").at("Min"), info.Var.at("MET").at("Max"));
-  info.Par["METRange_Cut"] = Form("(MET>%.3f && MET<%.3f)", info.Var.at("MET").at("Min"), info.Var.at("MET").at("Max"));
+  info.Par["METRange_Cut"] = Form("(MET>%g && MET<%g)", info.Var.at("MET").at("Min"), info.Var.at("MET").at("Max"));
   return;
 };
 
@@ -391,7 +405,7 @@ void setMETFileName(string& fileName, string& outputDir, const string& DSTAG, co
                   dsTag.c_str(),
                   plotLabel.c_str(),
                   ( info.Flag.at("useEtaCM") ? "MuEtaCM" : "MuEta" ),
-                  (etaMin*10.0), (etaMax*10.0),
+                  (etaMin*100.0), (etaMax*100.0),
                   (info.Var.at("Muon_Iso").at("Min")*100.0), (info.Var.at("Muon_Iso").at("Max")*100.0)
                   );
   return;

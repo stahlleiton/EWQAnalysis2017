@@ -19,10 +19,11 @@
 #include "../../../Utilities/HiMETTree.h"
 #include "../../../Utilities/HiMuonTree.h"
 #include "../../../Utilities/HiEvtTree.h"
+#include "../../../Utilities/HiEvtTree.h"
 #include "../../../Utilities/tnp_weight.h"
+#include "../../../Utilities/HFweight.h"
 #include "../../../Corrections/MET_Recoil/RecoilCorrector.C"
 #include "../Utilities/initClasses.h"
-#include <chrono>
 
 
 bool checkEWQDS          ( RooDataSet* DS                , const std::string& DSName         , const std::string& Analysis );
@@ -52,28 +53,25 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
     if (gSystem->AccessPathName(o.c_str())) { makeDir(OutputFileDir[1] + chaDir + "/"); o = (OutputFileDir[1] + chaDir + "/") + "DATASET_" + metTAG + tag + ".root"; }
     OutputFileNames.push_back(o);
   }
-  // For computing time optimization
-  auto t1_ALL = std::chrono::high_resolution_clock::now();
-  auto t1 = t1_ALL;
   // Extract Input Information
   std::string  TYPE = info.Par.at("Analysis");
   int triggerIndex  = info.Int.at("triggerIndex");
   // Create RooDataSets
-  std::vector< RooDataSet* > dataPl, dataMi, mcPl, mcMi;
+  std::vector< std::unique_ptr<RooDataSet> > dataPl, dataMi, mcPl, mcMi;
   bool createDS = info.Flag.at("updateDS");
   // Check if RooDataSets exist and are not corrupt
   for (uint i=0; i<OutputFileNames.size(); i++) {
     if ( !gSystem->AccessPathName(OutputFileNames[i].c_str()) ) {
       std::cout << "[INFO] Loading RooDataSets from " << OutputFileNames[i] << std::endl;
-      TFile *DBFile = TFile::Open(OutputFileNames[i].c_str(),"READ");
+      std::unique_ptr<TFile> DBFile = std::unique_ptr<TFile>(TFile::Open(OutputFileNames[i].c_str(),"READ"));
       if (!DBFile) { std::cout << "[ERROR] File: " << OutputFileNames[i] << " is corrupted!" << std::endl; return false; }
-      dataPl.push_back( (RooDataSet*)DBFile->Get(Form("dPl_RAW_%s", DSNames[i].c_str())) );
-      dataMi.push_back( (RooDataSet*)DBFile->Get(Form("dMi_RAW_%s", DSNames[i].c_str())) );
-      if (isMC) { mcPl.push_back( (RooDataSet*)DBFile->Get(Form("mcPl_RAW_%s", DSNames[i].c_str())) ); }
-      if (isMC) { mcMi.push_back( (RooDataSet*)DBFile->Get(Form("mcMi_RAW_%s", DSNames[i].c_str())) ); }
-      if (checkEWQDS(dataPl[i], DSNames[i], TYPE)==false) { createDS = true; }
-      if (checkEWQDS(dataMi[i], DSNames[i], TYPE)==false) { createDS = true; }
-      DBFile->Close(); delete DBFile;
+      dataPl.push_back( std::unique_ptr<RooDataSet>((RooDataSet*)DBFile->Get(Form("dPl_RAW_%s", DSNames[i].c_str()))) );
+      dataMi.push_back( std::unique_ptr<RooDataSet>((RooDataSet*)DBFile->Get(Form("dMi_RAW_%s", DSNames[i].c_str()))) );
+      if (isMC) { mcPl.push_back( std::unique_ptr<RooDataSet>((RooDataSet*)DBFile->Get(Form("mcPl_RAW_%s", DSNames[i].c_str()))) ); }
+      if (isMC) { mcMi.push_back( std::unique_ptr<RooDataSet>((RooDataSet*)DBFile->Get(Form("mcMi_RAW_%s", DSNames[i].c_str()))) ); }
+      if (checkEWQDS(dataPl[i].get(), DSNames[i], TYPE)==false) { createDS = true; }
+      if (checkEWQDS(dataMi[i].get(), DSNames[i], TYPE)==false) { createDS = true; }
+      DBFile->Close();
     }
     else { createDS = true; break; }
   }
@@ -99,8 +97,9 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
     RooRealVar refPhi   = RooRealVar ( "Ref_Phi"   , "Reference #phi"             ,   -9.0 ,            9.0 , ""      );
     RooRealVar metPhi   = RooRealVar ( "MET_Phi"   , "#slash{E}_{T} #phi"         ,   -9.0 ,            9.0 , ""      );
     RooRealVar muPhi    = RooRealVar ( "Muon_Phi"  , "#mu #phi"                   ,   -9.0 ,            9.0 , ""      );
+    RooRealVar hiHF     = RooRealVar ( "hiHF"      , "Total E_{HF}"               ,   -1.0 ,       100000.0 , "GeV/c" );
     RooArgSet  mcCols = RooArgSet(mcNGen, mcType, bosonPt, bosonPhi, refPt, refPhi);
-    mcCols.add(metPhi); mcCols.add(muPhi);
+    mcCols.add(metPhi); mcCols.add(muPhi); mcCols.add(hiHF);
     ///// RooDataSet Variables
     RooRealVar   met    = RooRealVar ( "MET"        , "|#slash{E}_{T}|"   ,  -1.0 , 100000.0 ,  "GeV/c"     );
     RooRealVar   muPt   = RooRealVar ( "Muon_Pt"    , "#mu p_{T}"         ,  -1.0 , 100000.0 ,  "GeV/c"     );
@@ -116,10 +115,10 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
     dataPl.clear(); dataMi.clear(); mcPl.clear(); mcMi.clear();
     for (uint i=0; i<DSNames.size(); i++) {
       std::cout << "[INFO] Creating " << "RooDataSet for " << DSNames[i] << std::endl;
-      dataPl.push_back( new RooDataSet(Form("dPl_RAW_%s", DSNames[i].c_str()), "dPl", cols) );
-      dataMi.push_back( new RooDataSet(Form("dMi_RAW_%s", DSNames[i].c_str()), "dMi", cols) );
-      if (isMC) { mcPl.push_back( new RooDataSet(Form("mcPl_RAW_%s", DSNames[i].c_str()), "mcPl", mcCols ) ); }
-      if (isMC) { mcMi.push_back( new RooDataSet(Form("mcMi_RAW_%s", DSNames[i].c_str()), "mcMi", mcCols ) ); }
+      dataPl.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("dPl_RAW_%s", DSNames[i].c_str()), "dPl", cols)) );
+      dataMi.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("dMi_RAW_%s", DSNames[i].c_str()), "dMi", cols)) );
+      if (isMC) { mcPl.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("mcPl_RAW_%s", DSNames[i].c_str()), "mcPl", mcCols )) ); }
+      if (isMC) { mcMi.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("mcMi_RAW_%s", DSNames[i].c_str()), "mcMi", mcCols )) ); }
     }
     ///// Iterate over the Input Forest
     int treeIdx = -1;
@@ -148,11 +147,8 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
           mcType.setVal ( mcID );
         }
       }
-      if (jentry%200000==0) std::cout << "[INFO] Processed : " << jentry << "/" << nentries << std::endl;
-      if (jentry%200000==0) { 
-        std::cout << "[INFO] Processing time: " << std::chrono::duration_cast<std::chrono::seconds>( std::chrono::high_resolution_clock::now() - t1 ).count() << " sec" << std::endl;
-        t1 = std::chrono::high_resolution_clock::now();
-      }
+      //
+      loadBar(jentry, nentries);
       //
       // Determine the collision system of the sample
       std::string evtCol = "";
@@ -242,6 +238,7 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
         refPhi.setVal   ( ref_Pt.Phi()   );
         metPhi.setVal   ( MET.Phi()      );
         muPhi.setVal    ( muP4.Phi()     );
+        hiHF.setVal     ( evtTree->hiHF());
       }
       //
       //// Fill the RooDataSets
@@ -256,13 +253,13 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
     }
     //// Save the RooDataSets
     for (uint i=0; i<DSNames.size(); i++) {
-      TFile *DBFile = TFile::Open(OutputFileNames[i].c_str(),"RECREATE");
+      std::unique_ptr<TFile> DBFile = std::unique_ptr<TFile>(TFile::Open(OutputFileNames[i].c_str(),"RECREATE"));
       DBFile->cd();
       dataPl[i]->Write(Form("dPl_RAW_%s", DSNames[i].c_str()));
       dataMi[i]->Write(Form("dMi_RAW_%s", DSNames[i].c_str()));
       if (isMC) { mcPl[i]->Write(Form("mcPl_RAW_%s", DSNames[i].c_str())); }
       if (isMC) { mcMi[i]->Write(Form("mcMi_RAW_%s", DSNames[i].c_str())); }
-      DBFile->Write(); DBFile->Close(); delete DBFile;
+      DBFile->Write(); DBFile->Close();
     }
   }
   // Import datasets to the workspaces
@@ -276,15 +273,10 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
     if (isMC) {
       if(mcPl[i] && mcPl[i]->numEntries()>0) Workspaces[DSNames[i]].import(*mcPl[i]);
       if(mcMi[i] && mcMi[i]->numEntries()>0) Workspaces[DSNames[i]].import(*mcMi[i]);
-      if (mcPl[i]) delete mcPl[i];
-      if (mcMi[i]) delete mcMi[i];
     }
     TObjString tmp; tmp.SetString(info.Par.at("VarType").c_str()); Workspaces[DSNames[i]].import(*((TObject*)&tmp), "METType");
-    // delete the local datasets
-    delete dataPl[i];
-    delete dataMi[i];
   }
-  dataPl.clear(); dataMi.clear();
+  dataPl.clear(); dataMi.clear(); mcPl.clear(); mcMi.clear();
   return true;
 };
 
@@ -310,7 +302,7 @@ bool checkEWQDS(RooDataSet* DS, const string& DSName, const std::string& Analysi
 };
 
 
-bool applyLumiWeight(RooWorkspace& ws, const std::string dDSName, const std::string& mcDSName, const bool verbose = false)
+bool applyLumiWeight(RooWorkspace& ws, GlobalInfo& info, const std::string dDSName, const std::string& mcDSName, const bool verbose = false)
 {
   //
   if (dDSName.find("MC_")==std::string::npos) { std::cout << "[ERROR] applyLumiWeight: Dataset " << dDSName << " is not from MC!" << std::endl; return false; }
@@ -323,6 +315,8 @@ bool applyLumiWeight(RooWorkspace& ws, const std::string dDSName, const std::str
   std::string sample = dDS->GetName(); sample = sample.substr(sample.find("MC_"));
   std::string chg    = dDS->GetName(); chg    = chg.substr(1, sample.find("_"));
   std::string col    = dDS->GetName(); col    = col.substr(col.find_last_of("_")+1);
+  if ( (col!="pPb") && (col!="Pbp") ) { std::cout << "[ERROR] Collision system " << col << " is invalid!" << std::endl; return false; }
+  if ( (chg!="Pl" ) && (chg!="Mi" ) ) { std::cout << "[ERROR] Charge "           << chg << " is invalid!" << std::endl; return false; }
   // Initialize the new RooRealVars
   RooRealVar weight = RooRealVar ( "Weight" , "Weight"        , -1.0 , 1000000000.0, ""        );
   RooRealVar mcXSec = RooRealVar ( "XSec"   , "Cross Section" , -1.0 , 1000000000.0, "nb"      );
@@ -334,23 +328,43 @@ bool applyLumiWeight(RooWorkspace& ws, const std::string dDSName, const std::str
   mcCols.add(mcXSec);
   mcCols.add(mcLumi);
   // Initialize the new RooDataSets
-  auto dWDS  = new RooDataSet( Form("d%s_LUM_%s" , chg.c_str(), sample.c_str()) , Form("d%s" , chg.c_str()) , cols   , RooFit::WeightVar(weight) );
-  auto mcWDS = new RooDataSet( Form("mc%s_LUM_%s", chg.c_str(), sample.c_str()) , Form("mc%s", chg.c_str()) , mcCols );
+  auto dWDS  = std::unique_ptr<RooDataSet>(new RooDataSet( Form("d%s_LUM_%s" , chg.c_str(), sample.c_str()) , Form("d%s" , chg.c_str()) , cols   , RooFit::WeightVar(weight)) );
+  auto mcWDS = std::unique_ptr<RooDataSet>(new RooDataSet( Form("mc%s_LUM_%s", chg.c_str(), sample.c_str()) , Form("mc%s", chg.c_str()) , mcCols) );
   // Apply the Lumi re-weighting to positive muon dataset
-  int mcID = -99; double xSection = -1.0;
+  int mcID = -99; double xSection = -1.0 , luminosity = -1.0;
   for (int i = 0; i < dDS->numEntries(); i++) {
     dDS->get(i);
     mcDS->get(i);
-    // Get the Luminosity
-    mcLumi.setVal( (col=="pPb") ? PA::LUMI::Data_pPb : PA::LUMI::Data_Pbp );
-    // Get the Cross-Section
+    // Extract the Cross-Section
     auto mcType = (RooRealVar*)mcCols.find("MC_Type");
     if (mcType==NULL) { std::cout << "[ERROR] applyLumiWeight: Variable MC_Type was not found in " << mcDSName << std::endl; return false; }
-    if (mcID != mcType->getVal()) {
-      if (!PA::getCrossSection(xSection, int(mcType->getVal()), verbose)) { return false; }
+    if (mcID != mcType->getVal()) { // Do every time there is a change of cross-section
+      // Get the Luminosity
+      luminosity = ( (col=="pPb") ? PA::LUMI::Data_pPb : PA::LUMI::Data_Pbp );
+      if (info.Var.count("rLumi")>0) { luminosity *= info.Var.at("rLumi").at("Val"); }
+      if (info.Var.count(("Luminosity_"+col).c_str())==0) { info.Var["Luminosity_"+col]["Val"] = luminosity; }
+      // Get the Cross-Section
+      const std::string mcTypeName = PA::getMCTypeName(int(mcType->getVal()));
+      const std::string mcSample   = mcTypeName.substr(mcTypeName.find("_")+1);
+      const std::string mcTag      = mcSample.substr(0, mcSample.find_last_of("_"));
+      if (!PA::getCrossSection(xSection, mcTypeName)) { return false; }
+      if (info.Var.count(("rXSection_"+mcTag).c_str())>0) { xSection *= info.Var.at(("rXSection_"+mcTag).c_str()).at("Val"); }
       mcID = mcType->getVal();
+      if (info.Var.count(("XSection_"+mcSample).c_str())==0) { info.Var["XSection_"+mcSample]["Val"] = xSection; }
+      std::string oStr = std::string("[INFO] ") + mcTypeName + " set to : Cross-section " + Form("%g", xSection) + " nb ";
+      if (info.Var.count(("rXSection_"+mcTag).c_str())>0) {
+        const double v = info.Var.at(("rXSection_"+mcTag).c_str()).at("Val");
+        oStr += std::string("(") + Form("%s%.0f%%", ((v>0) ? "+" : "-"), std::abs((v-1.0)*100.0)) + ") ";
+      }
+      oStr += std::string("and Luminosity ") + Form("%g", luminosity) + " /nb ";
+      if (info.Var.count("rLumi")>0) {
+        const double v = info.Var.at("rLumi").at("Val");
+        oStr += std::string("(") + Form("%s%.0f%%", ((v>0) ? "+" : "-"), std::abs((v-1.0)*100.0)) + ") ";
+      }
+      if (verbose) { std::cout << oStr << std::endl; }
     }
-    mcXSec.setVal( xSection );
+    mcLumi.setVal( luminosity );
+    mcXSec.setVal( xSection   );
     // Compute the Luminosity MC Weight
     auto mcNGen = (RooRealVar*)mcCols.find("NGen");
     if (mcNGen==NULL) { std::cout << "[ERROR] applyLumiWeight: Variable NGen was not found in " << mcDSName << std::endl; return false; }
@@ -365,16 +379,13 @@ bool applyLumiWeight(RooWorkspace& ws, const std::string dDSName, const std::str
   // Import to RooWorkspace
   ws.import(*dWDS);
   ws.import(*mcWDS);
-  // Clean the memory
-  if (dWDS ) { delete dWDS;  }
-  if (mcWDS) { delete mcWDS; }
   // Return
   return true;
   //
 };
 
 
-bool reweightMCLumi(RooWorkspaceMap_t& Workspaces)
+bool reweightMCLumi(RooWorkspaceMap_t& Workspaces, GlobalInfo& info)
 {
   //
   for (auto& ws : Workspaces) {
@@ -385,10 +396,10 @@ bool reweightMCLumi(RooWorkspaceMap_t& Workspaces)
       std::string sample = dsList.front()->GetName(); sample = sample.substr(sample.find("_")+1);
       std::cout << "[INFO] Re-weighting the Luminosity of " << sample << std::endl;
       // Apply the Lumi re-weighting to positive muon dataset
-      if (!applyLumiWeight(myws, ("dPl_"+sample), ("mcPl_"+sample), true)) { return false; }
+      if (!applyLumiWeight(myws, info, ("dPl_"+sample), ("mcPl_"+sample), true)) { return false; }
       // Apply the Lumi re-weighting to negative muon dataset
       const bool printXSec = (sample.find("MC_W")!=std::string::npos);
-      if (!applyLumiWeight(myws, ("dMi_"+sample), ("mcMi_"+sample), printXSec)) { return false; }
+      if (!applyLumiWeight(myws, info, ("dMi_"+sample), ("mcMi_"+sample), printXSec)) { return false; }
     }
   }
   //
@@ -397,11 +408,12 @@ bool reweightMCLumi(RooWorkspaceMap_t& Workspaces)
 };
 
 
-bool applyMCCorrection(RooWorkspace& ws, const std::string dDSName, const std::string& mcDSName, const bool& applyTnPCorr, RecoilCorrector& recoilCorr, const std::string& recoilMethod)
+bool applyMCCorrection(RooWorkspace& ws, const std::string dDSName, const std::string& mcDSName, const bool& applyTnPCorr, HFweight* HFCorr, RecoilCorrector& recoilCorr, const std::string& recoilMethod)
 {
   //
+  const bool applyHFCorr     = (HFCorr != NULL);
   const bool applyRecoilCorr = recoilCorr.isValid();
-  if (!applyTnPCorr && !applyRecoilCorr) { return true; }
+  if (!applyTnPCorr && !applyHFCorr && !applyRecoilCorr) { return true; }
   if (dDSName.find("MC_")==std::string::npos) { std::cout << "[ERROR] applyMCCorrection: Dataset " << dDSName << " is not from MC!" << std::endl; return false; }
   // Get the RooDatasets
   auto  dDS = (RooDataSet*)ws.data(dDSName.c_str());
@@ -416,17 +428,19 @@ bool applyMCCorrection(RooWorkspace& ws, const std::string dDSName, const std::s
   RooRealVar mcRawMET = RooRealVar( "MET"     , "|#slash{E}_{T}|"          ,  -1.0 ,     100000.0 , "GeV/c"     );
   RooRealVar mcRawMT  = RooRealVar( "Muon_MT" , "W Transverse Mass"        ,  -1.0 ,     100000.0 , "GeV/c^{2}" );
   RooRealVar mcSFTnP  = RooRealVar( "SFTnP"   , "TagAndProbe Scale Factor" , -10.0 ,         10.0 , ""          );
+  RooRealVar mcWHF    = RooRealVar( "wHF"     , "HF Weight"                ,  -1.0 , 1000000000.0 , ""          );
   RooRealVar weight   = RooRealVar( "Weight"  , "Weight"                   ,  -1.0 , 1000000000.0 , ""          );
   // Initialize the RooArgSets
   RooArgSet cols   = *dDS->get();
   cols.add(weight);
   RooArgSet mcCols = *mcDS->get();
-  if (applyTnPCorr) { mcCols.add(mcSFTnP); }
+  if (applyTnPCorr   ) { mcCols.add(mcSFTnP); }
+  if (applyHFCorr    ) { mcCols.add(mcWHF);   }
   if (applyRecoilCorr) { mcCols.add(mcRawMET); mcCols.add(mcRawMT); }
   //
   // Initialize the new RooDataSets
-  auto dWDS  = new RooDataSet( Form("d%s_COR_%s" , chg.c_str(), sample.c_str()) , Form("d%s" , chg.c_str()) , cols   , RooFit::WeightVar(weight) );
-  auto mcWDS = new RooDataSet( Form("mc%s_COR_%s", chg.c_str(), sample.c_str()) , Form("mc%s", chg.c_str()) , mcCols );
+  auto dWDS  = std::unique_ptr<RooDataSet>(new RooDataSet( Form("d%s_COR_%s" , chg.c_str(), sample.c_str()) , Form("d%s" , chg.c_str()) , cols   , RooFit::WeightVar(weight)) );
+  auto mcWDS = std::unique_ptr<RooDataSet>(new RooDataSet( Form("mc%s_COR_%s", chg.c_str(), sample.c_str()) , Form("mc%s", chg.c_str()) , mcCols) );
   // Apply the Lumi re-weighting to positive muon dataset
   int mcID = -99;
   for (int i = 0; i < dDS->numEntries(); i++) {
@@ -442,13 +456,26 @@ bool applyMCCorrection(RooWorkspace& ws, const std::string dDSName, const std::s
       if (muPt==NULL) { std::cout << "[ERROR] applyMCCorrection: Variable Muon_Pt was not found in " << dDSName << std::endl; return false; }
       auto muEta = (RooRealVar*)cols.find("Muon_Eta");
       if (muEta==NULL) { std::cout << "[ERROR] applyMCCorrection: Variable Muon_Eta was not found in " << dDSName << std::endl; return false; }
-      // Get Nominal Tag and Probe Scale Factors
+      // Get the Nominal Tag and Probe Scale Factors
       const double sf_MuID = tnp_weight_muid_ppb( muPt->getVal() , muEta->getVal() , 0 );
       const double sf_Trig = tnp_weight_trg_ppb (                  muEta->getVal() , 0 );
       const double sf_Iso  = tnp_weight_iso_ppb ( muPt->getVal() , muEta->getVal() , 0 );
       mcSFTnP.setVal( sf_MuID * sf_Trig * sf_Iso );
       // Set the TnP Scale Factor weight
       weight.setVal( weight.getVal() * mcSFTnP.getVal() );
+    }
+    //
+    // Apply HF Re-Weighting
+    //
+    if (applyHFCorr) {
+      // Get the HF Energy
+      auto hiHF = (RooRealVar*)mcCols.find("hiHF");
+      if (hiHF==NULL) { std::cout << "[ERROR] applyMCCorrection: Variable HF was not found in " << dDSName << std::endl; return false; }
+      // Get the HF Weight
+      const double weightHF = HFCorr->weight(hiHF->getVal(), HFweight::HFside::both, false);
+      mcWHF.setVal( weightHF );
+      // Set the TnP Scale Factor weight
+      weight.setVal( weight.getVal() * mcWHF.getVal() );
     }
     //
     // Apply the MET Recoil corrections
@@ -501,9 +528,6 @@ bool applyMCCorrection(RooWorkspace& ws, const std::string dDSName, const std::s
   // Import to RooWorkspace
   ws.import(*dWDS);
   ws.import(*mcWDS);
-  // Clean the memory
-  if (dWDS ) { delete dWDS;  }
-  if (mcWDS) { delete mcWDS; }
   // Return
   return true;
 };
@@ -513,8 +537,13 @@ bool correctMC(RooWorkspaceMap_t& Workspaces, const GlobalInfo& info)
 {
   //
   const bool applyTnPCorr    = info.Flag.at("applyTnPCorr");
+  const bool applyHFCorr     = info.Flag.at("applyHFCorr");
   const bool applyRecoilCorr = info.Flag.at("applyRecoilCorr");
-  if (!applyTnPCorr && !applyRecoilCorr) { std::cout << "[INFO] Corrections disabled, no MC corrections will be applied!" << std::endl; return true; }
+  if (!applyTnPCorr && !applyHFCorr && !applyRecoilCorr) { std::cout << "[INFO] Corrections disabled, no MC corrections will be applied!" << std::endl; return true; }
+  //
+  // Define the HF Weight
+  std::unique_ptr<HFweight> HFCorr;
+  if (applyHFCorr) { HFCorr = std::unique_ptr<HFweight>(new HFweight("/afs/cern.ch/work/e/echapon/public/DY_pA_2016/HFweight.root")); }
   //
   // Define the MET Recoil Corrector
   RecoilCorrector recoilCorr = RecoilCorrector();
@@ -522,10 +551,12 @@ bool correctMC(RooWorkspaceMap_t& Workspaces, const GlobalInfo& info)
   if (applyRecoilCorr) {
     recoilMethod = info.Par.at("RecoilCorrMethod");
     const std::string met = info.Par.at("METType");
+    std::string recoilPath = ""; if (info.Par.count("RecoilPath")>0) { recoilPath = info.Par.at("RecoilPath"); }
+    if (recoilPath!="") { recoilPath += "/"; }
     std::string preCWD = getcwd(NULL, 0); preCWD.erase(preCWD.find_last_of("/"), 100);
-    const std::string recoilDir     = Form("%s/Corrections/MET_Recoil", preCWD.c_str());
-    const std::string fileName_MC   = Form("%s/FitRecoil/MC_DYToMuMu_PYQUEN/MET_%s/PA/Results/fits_RecoilPDF_%s_PA.root", recoilDir.c_str(), met.c_str(), met.c_str());
-    const std::string fileName_DATA = Form("%s/FitRecoil/DATA/MET_%s/PA/Results/fits_RecoilPDF_%s_PA.root", recoilDir.c_str(), met.c_str(), met.c_str());
+    const std::string recoilDir     = Form("%s/Corrections/MET_Recoil/FitRecoil/%s", preCWD.c_str(), recoilPath.c_str());
+    const std::string fileName_MC   = Form("%sMC_DYToMuMu_PYQUEN/MET_%s/PA/Results/fits_RecoilPDF_%s_PA.root", recoilDir.c_str(), met.c_str(), met.c_str());
+    const std::string fileName_DATA = Form("%sDATA/MET_%s/PA/Results/fits_RecoilPDF_%s_PA.root", recoilDir.c_str(), met.c_str(), met.c_str());
     if (!recoilCorr.setInputFiles(met, fileName_MC, fileName_DATA)) { return false; }
   }
   //
@@ -535,13 +566,13 @@ bool correctMC(RooWorkspaceMap_t& Workspaces, const GlobalInfo& info)
       // Get the sample name
       std::string sample = "LUM_" + ws.first;
       if (myws.data(Form("dPl_%s", sample.c_str()))==NULL) { sample = "RAW_" + ws.first; }
-      std::cout << "[INFO] Applying corrections ( " << (applyTnPCorr ? "TnPCorr ," : "") << (applyRecoilCorr ? " RecoilCorr" : "") << " ) to " << sample << std::endl;
+      std::cout << "[INFO] Applying corrections ( " << (applyTnPCorr ? "TnPCorr " : "") << (applyHFCorr ? ", HFCorr" : "")  << (applyRecoilCorr ? ", RecoilCorr" : "") << " ) to " << sample << std::endl;
       // Initialize the MET Recoil Corrector
       if (applyRecoilCorr) { recoilCorr.setInitialSetup(sample); }
       // Apply the MC correction to positive muon dataset
-      if (!applyMCCorrection(myws, ("dPl_"+sample), ("mcPl_"+sample), applyTnPCorr, recoilCorr, recoilMethod)) { return false; }
+      if (!applyMCCorrection(myws, ("dPl_"+sample), ("mcPl_"+sample), applyTnPCorr, HFCorr.get(), recoilCorr, recoilMethod)) { return false; }
       // Apply the MC correction to negative muon dataset
-      if (!applyMCCorrection(myws, ("dMi_"+sample), ("mcMi_"+sample), applyTnPCorr, recoilCorr, recoilMethod)) { return false; }
+      if (!applyMCCorrection(myws, ("dMi_"+sample), ("mcMi_"+sample), applyTnPCorr, HFCorr.get(), recoilCorr, recoilMethod)) { return false; }
     }
   }
   //
@@ -604,18 +635,19 @@ bool createPADataset(RooWorkspaceMap_t& Workspaces, const std::string& sampleTag
   std::cout << "[INFO] Creating combined PA RooDataSet for " << dsSampleTag << std::endl;
   //
   // Copy the pPb datasets
-  auto dPl_PA = (RooDataSet*)dPl_pPb->Clone(("dPl_"+dsSample_PA).c_str());
+  auto dPl_PA = std::unique_ptr<RooDataSet>((RooDataSet*)dPl_pPb->Clone(("dPl_"+dsSample_PA).c_str()));
   if (dPl_PA==NULL || dPl_PA->sumEntries()==0) { std::cout << "[ERROR] RooDataSet " << ("dPl_"+dsSample_PA) << " was not created!" << std::endl; return false; }
-  auto dMi_PA = (RooDataSet*)dMi_pPb->Clone(("dMi_"+dsSample_PA).c_str());
+  auto dMi_PA = std::unique_ptr<RooDataSet>((RooDataSet*)dMi_pPb->Clone(("dMi_"+dsSample_PA).c_str()));
   if (dMi_PA==NULL || dMi_PA->sumEntries()==0) { std::cout << "[ERROR] RooDataSet " << ("dMi_"+dsSample_PA) << " was not created!" << std::endl; return false; }
-  RooDataSet* mcPl_PA = NULL; if (mcPl_pPb!=NULL) { mcPl_PA = (RooDataSet*)mcPl_pPb->Clone(("mcPl_"+dsSample_PA).c_str()); }
-  RooDataSet* mcMi_PA = NULL; if (mcMi_pPb!=NULL) { mcMi_PA = (RooDataSet*)mcPl_pPb->Clone(("mcMi_"+dsSample_PA).c_str()); }
+  //
+  std::unique_ptr<RooDataSet> mcPl_PA = NULL; if (mcPl_pPb!=NULL) { mcPl_PA = std::unique_ptr<RooDataSet>((RooDataSet*)mcPl_pPb->Clone(("mcPl_"+dsSample_PA).c_str())); }
+  std::unique_ptr<RooDataSet> mcMi_PA = NULL; if (mcMi_pPb!=NULL) { mcMi_PA = std::unique_ptr<RooDataSet>((RooDataSet*)mcPl_pPb->Clone(("mcMi_"+dsSample_PA).c_str())); }
   //
   // Invert the eta of Pbp dataset and fill the PA dataset
   if (!invertEtaAndFill(*dPl_PA, *dPl_Pbp)) { return false; }
   if (!invertEtaAndFill(*dMi_PA, *dMi_Pbp)) { return false; }
-  if (mcPl_pPb!=NULL && mcPl_PA!=NULL) { mcPl_PA->append(*mcPl_Pbp); }
-  if (mcMi_pPb!=NULL && mcMi_PA!=NULL) { mcMi_PA->append(*mcMi_Pbp); }
+  if (mcPl_Pbp!=NULL && mcPl_PA!=NULL) { mcPl_PA->append(*mcPl_Pbp); }
+  if (mcMi_Pbp!=NULL && mcMi_PA!=NULL) { mcMi_PA->append(*mcMi_Pbp); }
   //
   // Check the consistency of the combined dataset
   if (dPl_PA->numEntries()!=(dPl_pPb->numEntries()+dPl_Pbp->numEntries())) { std::cout << "[ERROR] Number of entries for the combined Pl " << dsSampleTag << " dataset is inconsistent!" << std::endl; return false; }
@@ -635,12 +667,16 @@ bool createPADataset(RooWorkspaceMap_t& Workspaces, const std::string& sampleTag
   if (mcPl_PA!=NULL) { Workspaces.at(sample_PA).import(*mcPl_PA); }
   if (mcMi_PA!=NULL) { Workspaces.at(sample_PA).import(*mcMi_PA); }
   Workspaces.at(sample_PA).import(*((TObjString*)Workspaces.at(sample_pPb).obj("METType")), "METType");
-  //
-  // Clean up the memory
-  if (dPl_PA) delete dPl_PA;
-  if (dMi_PA) delete dMi_PA;
-  if (mcPl_PA) delete mcPl_PA;
-  if (mcMi_PA) delete mcMi_PA;
+  // Import the Luminosity Ratio and xSections (used for systematics)
+  if (sample_pPb.find("MC_")!=std::string::npos) {
+    std::unique_ptr<TIterator> parIt = std::unique_ptr<TIterator>(Workspaces.at(sample_pPb).allVars().createIterator());
+    for (auto it = (RooRealVar*)parIt->Next(); it!=NULL; it = (RooRealVar*)parIt->Next() ) {
+      const std::string name = it->GetName();
+      if ( (name=="rLumi") || (name.find("rXSection_")!=std::string::npos) ){
+        if (Workspaces.at(sample_pPb).var(name.c_str())!=NULL) { Workspaces.at(sample_PA).import(*Workspaces.at(sample_pPb).var(name.c_str())); }
+      }
+    }
+  }
   //
   // return
   return true;
