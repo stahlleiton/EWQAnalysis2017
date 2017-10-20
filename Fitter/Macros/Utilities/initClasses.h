@@ -51,7 +51,7 @@ typedef std::map< std::string , RooWorkspace                    > RooWorkspaceMa
 typedef std::map< std::string , std::vector< std::string >      > StringVectorMap_t;
 typedef std::map< std::string , StringVectorMap_t               > StringVectorDiMap_t;
 typedef std::map< std::string , StringVectorDiMap_t             > StringVectorTriMap_t;
-typedef std::map< std::string , std::map< std::string , float > > FloatMapMap_t;
+typedef std::map< std::string , std::map< std::string , double >> DoubleMapMap_t;
 typedef std::map< std::string , std::string                     > StringMap_t;
 typedef std::map< std::string , int                             > IntMap_t;
 typedef std::map< std::string , IntMap_t                        > IntMapMap_t;
@@ -94,7 +94,7 @@ const StringMap_t varEWQLabel = {
 
 // Global Info Structure (wrapper to carry information around)
 typedef struct GlobalInfo {
-  FloatMapMap_t     Var;
+  DoubleMapMap_t    Var;
   StringMap_t       Par;
   IntMap_t          Int;
   StringVectorMap_t StrV;
@@ -107,7 +107,7 @@ typedef struct GlobalInfo {
   ~GlobalInfo() {
     this->Clear();
   }
-  void Copy(const FloatMapMap_t &ref, bool keep = true) {
+  void Copy(const DoubleMapMap_t &ref, bool keep = true) {
     if (!keep) this->Var.clear();
     for (const auto& var : ref) {
       for (const auto& ele : var.second) {
@@ -146,7 +146,7 @@ typedef struct GlobalInfo {
     this->Copy(ref.StrV, keep);
     this->Copy(ref.Flag, keep);
   }
-  bool operator == (const FloatMapMap_t &ref) const 
+  bool operator == (const DoubleMapMap_t &ref) const 
   {
     if (ref.size() != this->Var.size()) return false;
     for (const auto& var : this->Var) {
@@ -192,7 +192,7 @@ typedef struct GlobalInfo {
     }
     return true;
   }
-  bool operator != ( const FloatMapMap_t      &ref ) const { if (*this == ref) { return false; } return true; }
+  bool operator != ( const DoubleMapMap_t     &ref ) const { if (*this == ref) { return false; } return true; }
   bool operator != ( const StringMap_t        &ref ) const { if (*this == ref) { return false; } return true; }
   bool operator != ( const IntMap_t           &ref ) const { if (*this == ref) { return false; } return true; }
   bool operator != ( const StringVectorMap_t  &ref ) const { if (*this == ref) { return false; } return true; }

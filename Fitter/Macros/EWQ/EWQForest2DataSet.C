@@ -354,12 +354,12 @@ bool applyLumiWeight(RooWorkspace& ws, GlobalInfo& info, const std::string dDSNa
       std::string oStr = std::string("[INFO] ") + mcTypeName + " set to : Cross-section " + Form("%g", xSection) + " nb ";
       if (info.Var.count(("rXSection_"+mcTag).c_str())>0) {
         const double v = info.Var.at(("rXSection_"+mcTag).c_str()).at("Val");
-        oStr += std::string("(") + Form("%s%.0f%%", ((v>0) ? "+" : "-"), std::abs((v-1.0)*100.0)) + ") ";
+        oStr += std::string("(") + Form("%s%.0f%%", ((v>=1.0) ? "+" : "-"), std::abs((v-1.0)*100.0)) + ") ";
       }
       oStr += std::string("and Luminosity ") + Form("%g", luminosity) + " /nb ";
       if (info.Var.count("rLumi")>0) {
         const double v = info.Var.at("rLumi").at("Val");
-        oStr += std::string("(") + Form("%s%.0f%%", ((v>0) ? "+" : "-"), std::abs((v-1.0)*100.0)) + ") ";
+        oStr += std::string("(") + Form("%s%.0f%%", ((v>=1.0) ? "+" : "-"), std::abs((v-1.0)*100.0)) + ") ";
       }
       if (verbose) { std::cout << oStr << std::endl; }
     }
@@ -370,9 +370,7 @@ bool applyLumiWeight(RooWorkspace& ws, GlobalInfo& info, const std::string dDSNa
     if (mcNGen==NULL) { std::cout << "[ERROR] applyLumiWeight: Variable NGen was not found in " << mcDSName << std::endl; return false; }
     weight.setVal( (mcXSec.getVal() * mcLumi.getVal()) / mcNGen->getVal() );
     // Fill the new RooDataSets
-    if (weight.getVal() <= 0.0) {
-      std::cout << mcXSec.getVal() << "  " <<  mcLumi.getVal() << "  " << mcNGen->getVal() << std::endl;
-      std::cout << "[ERROR] applyLumiWeight : Weight is negative ( " << weight.getVal() << " ) in " << mcDSName << std::endl; return false; }
+    if (weight.getVal() <= 0.0) { std::cout << "[ERROR] applyLumiWeight : Weight is negative ( " << weight.getVal() << " ) in " << mcDSName << std::endl; return false; }
     dWDS->addFast(cols, weight.getVal());
     mcWDS->addFast(mcCols);
   }

@@ -51,36 +51,49 @@ void fitter(
   //
   GlobalInfo userInput;
   //
-  userInput.Flag["applyHFCorr"]     = true;
-  userInput.Flag["applyTnPCorr"]    = true;
-  userInput.Flag["applyRecoilCorr"] = true;
-  userInput.Par["RecoilCorrMethod"] = "Smearing";
-  fitObj = 1;
+  userInput.StrV["sample"] = std::vector<std::string>({"Data", "MC"});
+  for (uint i=0; i<userInput.StrV.at("sample").size(); i++) { userInput.Flag["fit"+userInput.StrV.at("sample")[i]] = fitData[i]; }
   //
   if (workDirName.find("QCDTemplateCM")!=std::string::npos) {
-    if (workDirName.find("WithMC")==std::string::npos) {
-      userInput.Flag.at("applyTnPCorr")    = false;
-      userInput.Flag.at("applyHFCorr")     = false;
-      userInput.Flag.at("applyRecoilCorr") = false;
-    }
-    fitObj = 2;
-  }
-  else if (workDirName=="NominalCM_NoRecoilCorr" ) {
+    userInput.Flag["applyHFCorr"]     = true;
+    userInput.Flag["applyTnPCorr"]    = true;
     userInput.Flag["applyRecoilCorr"] = false;
-    fitObj = 1;
+    userInput.Par["RecoilCorrMethod"] = "";
+    fitObj = 2;
+    //
+    if (workDirName.find("WithMC")==std::string::npos) {
+      userInput.Flag.at("applyTnPCorr") = false;
+      userInput.Flag.at("applyHFCorr")  = false;
+    }    
   }
-  else if (workDirName=="NominalCM_RecoilScaling" ) {
-    userInput.Flag["applyRecoilCorr"] = true;
-    userInput.Par["RecoilCorrMethod"] = "Scaling";
-    fitObj = 1;
-  }
-  else if (workDirName=="NominalCM_RecoilSmearing" ) {
+  else if (workDirName.find("NominalCM")!=std::string::npos) {
+    userInput.Flag["applyHFCorr"]     = true;
+    userInput.Flag["applyTnPCorr"]    = true;
     userInput.Flag["applyRecoilCorr"] = true;
     userInput.Par["RecoilCorrMethod"] = "Smearing";
     fitObj = 1;
+    //
+    if (workDirName=="NominalCM_NoCorr"         ) { userInput.Flag.at("applyTnPCorr") = false; userInput.Flag.at("applyHFCorr")     = false; userInput.Flag.at("applyRecoilCorr") = false; }
+    //
+    if (workDirName=="NominalCM_RecoilCorrOnly" ) { userInput.Flag.at("applyTnPCorr") = false; userInput.Flag.at("applyHFCorr")     = false; }
+    if (workDirName=="NominalCM_HFCorrOnly"     ) { userInput.Flag.at("applyTnPCorr") = false; userInput.Flag.at("applyRecoilCorr") = false; }
+    if (workDirName=="NominalCM_TnPCorrOnly"    ) { userInput.Flag.at("applyHFCorr")  = false; userInput.Flag.at("applyRecoilCorr") = false; }
+    //
+    if (workDirName=="NominalCM_NoRecoilCorr"   ) { userInput.Flag.at("applyRecoilCorr") = false; }
+    if (workDirName=="NominalCM_NoHFCorr"       ) { userInput.Flag.at("applyHFCorr")     = false; }
+    if (workDirName=="NominalCM_NoTnPCorr"      ) { userInput.Flag.at("applyTnPCorr")    = false; }
+    //
+    if (workDirName=="NominalCM_RecoilScaling"  ) { userInput.Par.at("RecoilCorrMethod") = "Scaling"; }
   }
-  else if (workDirName=="SystematicCM_QCD") { fitObj = 1; }
+  else if (workDirName.find("SystematicCM_")!=std::string::npos) {
+    userInput.Flag["applyHFCorr"]     = true;
+    userInput.Flag["applyTnPCorr"]    = true;
+    userInput.Flag["applyRecoilCorr"] = false;
+    userInput.Par["RecoilCorrMethod"] = "Smearing";
+    fitObj = 1;
+  }
   else { std::cout << "[ERROR] Workdirname has not been defined!" << std::endl; return; }
+  //
   //
   // Store more information for fitting
   const std::string CWD = getcwd(NULL, 0); 
@@ -92,7 +105,7 @@ void fitter(
     userInput.Var["MET"]["binWidth"]    = 2.0;
     userInput.Par["extFitDir_MET"]      = "";
     if (workDirName.find("QCDTemplate")!=std::string::npos) { userInput.Par["extInitFileDir_MET_QCD"] = ""; }
-    else if (workDirName.find("CM_")!=std::string::npos   ) { userInput.Par["extInitFileDir_MET_QCD"] = Form("%s/Input/NominalCM/", CWD.c_str()); }
+    else if (workDirName.find("CM")!=std::string::npos    ) { userInput.Par["extInitFileDir_MET_QCD"] = Form("%s/Input/NominalCM/", CWD.c_str()); }
     else                                                    { userInput.Par["extInitFileDir_MET_QCD"] = Form("%s/Input/Nominal/", CWD.c_str());   }
     userInput.Par["extInitFileDir_MET_W"  ] = "";
     userInput.Par["extInitFileDir_MET_DY" ] = "";
@@ -101,9 +114,6 @@ void fitter(
   //
   userInput.StrV["setext"] = std::vector<std::string>({"ExtDS"});
   for (uint i=0; i<userInput.StrV.at("setext").size(); i++) { userInput.Flag["use"+userInput.StrV.at("setext")[i]] = useExt[i]; }
-  //
-  userInput.StrV["sample"] = std::vector<std::string>({"Data", "MC"});
-  for (uint i=0; i<userInput.StrV.at("sample").size(); i++) { userInput.Flag["fit"+userInput.StrV.at("sample")[i]] = fitData[i]; }
   //
   userInput.StrV["system"] = std::vector<std::string>({"pPb", "Pbp", "PA"});
   for (uint i=0; i<userInput.StrV.at("system").size(); i++) { userInput.Flag["fit"+userInput.StrV.at("system")[i]] = fitColl[i]; }
@@ -136,7 +146,10 @@ void fitter(
   for (uint i=0; i<userInput.StrV.at("variable").size(); i++) { userInput.Flag["fit"+userInput.StrV.at("variable")[i]] = fitVar[i]; }
   for (const auto& var : userInput.StrV.at("variable") ) { if (userInput.Flag.at("fit"+var)) { userInput.StrV["fitVariable"].push_back(var); } }
   //
-  for (const auto& obj : userInput.StrV.at("object") ) { userInput.Flag["incMCTemp_"+obj]   = false; } // Value set in STEP 1 (loading initial parameters)
+  for (const auto& obj : userInput.StrV.at("object") ) {
+    userInput.Flag["incMCTemp_"+obj] = false;
+    for (const auto& tmp : userInput.StrV.at("template") ) { userInput.Flag["incMCTemp_"+obj+"_"+tmp] = false; }
+  }
   //
   userInput.Flag["setLogScale"] = setLogScale;
   //
@@ -155,6 +168,7 @@ void fitter(
   //
   bool fitTest = (workDirName.find("Test")!=std::string::npos);
   for (const auto& variab : userInput.StrV.at("variable")) { if (userInput.Flag.at("fit"+variab) || fitTest) { userInput.Par["extFitDir_"+variab] = ""; userInput.Par["extInitFileDir_"+variab] = "";} }
+  //
   //
   // Check the User Input Settings
   if (!checkSettings(userInput)){ return; }
@@ -240,7 +254,11 @@ void fitter(
               }
               if (!addParameters(InputFile, infoMapVector[COL.first], userInput)) { return; }
               if (!userInput.Flag.at("incMCTemp_"+PAR.first)) {
-                for (const auto& info : infoMapVector.at(COL.first)) { if(info.Flag.at("incMCTemp_"+PAR.first)) { userInput.Flag.at("incMCTemp_"+PAR.first) = true; break; } }
+                for (const auto& info : infoMapVector.at(COL.first)) {
+                  if(info.Flag.at("incMCTemp_"+PAR.first)) { userInput.Flag.at("incMCTemp_"+PAR.first) = true; }
+                  for (const auto& o : userInput.StrV.at("template")) { if(info.Flag.at("incMCTemp_"+PAR.first+"_"+o)) { userInput.Flag.at("incMCTemp_"+PAR.first+"_"+o) = true; } }
+                  break;
+                }
               }
             }
           }
@@ -291,8 +309,11 @@ void fitter(
     if ( (FILETAG.find("MC")!=std::string::npos) ) {
       bool keep = false;
       if (userInput.Flag.at("fitMC")) { for (const auto& obj : userInput.StrV.at("object")) { if ( (FILETAG.find(obj)!=std::string::npos) && userInput.Flag.at("fit"+obj)) { keep = true; fitDS = true; break; } } }
-      bool checkTemp = false; for(const auto& s : userInput.StrV.at("object")) { if (userInput.Flag.at("incMCTemp_"+s)) { checkTemp = true; break; } }
-      if (!keep && checkTemp) { for (const auto& tmp : userInput.StrV.at("template")) { if ( (FILETAG.find(tmp)!=std::string::npos) ) { keep = true; fitDS = false; break; } } }
+      for(const auto& s : userInput.StrV.at("object")) {
+        if (userInput.Flag.at("incMCTemp_"+s)) {
+          for (const auto& tmp : userInput.StrV.at("template")) { if ( (userInput.Flag.at("incMCTemp_"+s+"_"+tmp)) && (FILETAG.find(tmp)!=std::string::npos) ) { keep = true; fitDS = false; break; } }
+        }
+      }
       if (keep) {
         dir = userInput.Par.at("localDSDir");
         if (userInput.Flag.at("useExtDS") && userInput.Par.at("extDSDir_MC")!="" && (existDir(userInput.Par.at("extDSDir_MC"))==true)) { dir = userInput.Par.at("extDSDir_MC"); }
@@ -442,7 +463,7 @@ bool setParameters(const StringMap_t& row, GlobalInfo& info, GlobalInfo& userInf
     info.Var["Muon_Pt"]["Max"]    = 100000.0;
     info.Var["Muon_Eta"]["Min"]   = -2.5;
     info.Var["Muon_Eta"]["Max"]   = 2.5;
-    info.Var["Muon_Iso"]["Min"]   = 0.0;
+    info.Var["Muon_Iso"]["Min"]   = -1.0;
     info.Var["Muon_Iso"]["Max"]   = 100000.0;
     info.Var["Muon_MT"]["Min"]    = 0.0;
     info.Var["Muon_MT"]["Max"]    = 100000.0;
@@ -455,7 +476,10 @@ bool setParameters(const StringMap_t& row, GlobalInfo& info, GlobalInfo& userInf
   info.Par["Model"] = "";
   info.Par["Cut"]   = "";
   userInfo.Par["RecoilPath"] = "";
-  for(const auto& s : userInfo.StrV.at("object")) { info.Flag["incMCTemp_"+s]   = false; }
+  for(const auto& s : userInfo.StrV.at("object")) {
+    info.Flag["incMCTemp_"+s] = false;
+    for(const auto& o : userInfo.StrV.at("template")) { info.Flag["incMCTemp_"+s+"_"+o]   = false; }
+  }
   info.Flag["useEtaCM"] = (row.count("Muon_EtaCM") > 0);
   // set parameters from file
   for (const auto& col : row) {
@@ -487,7 +511,13 @@ bool setParameters(const StringMap_t& row, GlobalInfo& info, GlobalInfo& userInf
           }
           info.Par[colName] = col.second;
           for(const auto& s : userInfo.StrV.at("object")) {
-            if ( (par.first=="Model") && (colName.find(s)!=std::string::npos)   && (col.second.find("TEMP")!=std::string::npos) ) { info.Flag.at("incMCTemp_"+s)   = true; }
+            if ( (userInfo.Flag.at("fitMC")==false) && (par.first=="Model") && (colName.find(s)!=std::string::npos) && (col.second.find("TEMP")!=std::string::npos) ) {
+              info.Flag.at("incMCTemp_"+s) = true;
+              std::string tempModel = col.second;
+              if (tempModel.find("TEMP[")!=std::string::npos) { tempModel = tempModel.substr(tempModel.find("TEMP[")+5); } else { tempModel = ""; }
+              if (tempModel.find("]")!=std::string::npos    ) { tempModel = tempModel.substr(0, tempModel.find("]"));  }
+              for(const auto& o : userInfo.StrV.at("template")) { if (tempModel.find(o)!=std::string::npos) { info.Flag.at("incMCTemp_"+s+"_"+o) = true; } }
+            }
           }
           found = true;
         }
@@ -526,18 +556,18 @@ bool setParameters(const StringMap_t& row, GlobalInfo& info, GlobalInfo& userInf
 	// everything seems alright, then proceed to save the values
 	if (v.size()==1) {
 	  // if only one value is given i.e. [ num ], consider it a constant value
-	  info.Par[col.first] = Form("%s[%g]", col.first.c_str(), v.at(0));
+	  info.Par[col.first] = Form("%s[%.10f]", col.first.c_str(), v.at(0));
 	} else if (v.size()==2) {
           if (col.second.find("RNG")!=std::string::npos) {
-            info.Par[col.first] = Form("%s[%g, %g]", col.first.c_str(), v.at(0), v.at(1));
+            info.Par[col.first] = Form("%s[%.10f, %.10f]", col.first.c_str(), v.at(0), v.at(1));
           } 
           else { // For Constrained Fits
-            info.Par[col.first] = Form("%s[%g, %g, %g]", col.first.c_str(), v.at(0), (v.at(0)-20.*v.at(1)), (v.at(0)+20.*v.at(1)));
-            info.Par["val"+col.first] = Form("%s[%g]", ("val"+col.first).c_str(), v.at(0));
-            info.Par["sig"+col.first] = Form("%s[%g]", ("sig"+col.first).c_str(), v.at(1));
+            info.Par[col.first] = Form("%s[%.10f, %.10f, %.10f]", col.first.c_str(), v.at(0), (v.at(0)-20.*v.at(1)), (v.at(0)+20.*v.at(1)));
+            info.Par["val"+col.first] = Form("%s[%.10f]", ("val"+col.first).c_str(), v.at(0));
+            info.Par["sig"+col.first] = Form("%s[%.10f]", ("sig"+col.first).c_str(), v.at(1));
           }
 	} else if (v.size()==3) {
-	  info.Par[col.first] = Form("%s[%g, %g, %g]", col.first.c_str(), v.at(0), v.at(1), v.at(2));
+	  info.Par[col.first] = Form("%s[%.10f, %.10f, %.10f]", col.first.c_str(), v.at(0), v.at(1), v.at(2));
 	}
       } else {
         info.Par[col.first] = "";

@@ -5,7 +5,7 @@
 
 void setMETModelParameters ( GlobalInfo& info );
 TH1* rebinhist             ( const TH1& hist, double xmin, double xmax );
-bool histToPdf             ( RooWorkspace& ws, const string& pdfName, const string& dsName, const std::string& var, const std::vector< float >& range );
+bool histToPdf             ( RooWorkspace& ws, const string& pdfName, const string& dsName, const std::string& var, const std::vector< double >& range );
 bool addMETModel           ( RooWorkspace& ws, const std::string& decay, const StrMapMap_t& models,  const GlobalInfo& info );
 
 
@@ -16,7 +16,7 @@ bool buildElectroWeakMETModel(RooWorkspace& ws, const StrMapMap_t& models, Globa
   // Import the MET Models to the local workspace
   if (!addMETModel(ws, "WToMu", models, info)) { return false; }
   // Set Fixed parameters to constant (clean up)
-  setFixedVarsToContantVars(ws);
+  setFixedVarsToContantVars(ws);  
   // save the initial values of the model we've just created
   ws.saveSnapshot("initialParameters",ws.allVars(),kTRUE);
   return true;
@@ -141,18 +141,21 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StrMapMap_t& 
                 // create the Template
                 std::string dsName = ( "d" + chg + "_" + "MC_" + model.first + "_" + info.Par.at("channelDS") + "_" + col );
                 int nBins = min(int( round((info.Var.at("MET").at("Max") -  info.Var.at("MET").at("Min"))/info.Var.at("MET").at("binWidth")) ), 1000);
-                const std::vector< float > range = { float(nBins) , info.Var.at("MET").at("Min") , info.Var.at("MET").at("Max") };
+                const std::vector< double > range = { double(nBins) , info.Var.at("MET").at("Min") , info.Var.at("MET").at("Max") };
                 bool proceed = histToPdf(ws, Form("pdfMET_%s", label.c_str()), dsName, "MET", range);
                 //
                 if (proceed) {
                   // create the variables for this model
-                  if ( (label.find("DYTo")!=std::string::npos) || (label.find("WToTauTo")!=std::string::npos) ) {
+                  if ( (label.find("WToMu")==std::string::npos) && (label.find("QCDTo")==std::string::npos) ) {
                     const std::string refLabel = "W" + cha + chg + "_" + col;
                     if (info.Par.count("N_"+refLabel)==0) { std::cout << "[ERROR] Parameter " << ("N_"+refLabel) << " was not found" << std::endl; return false; }
-                    if (!ws.var(("rN_"+label).c_str())) ws.factory(Form("%s[%g]", ("rN_"+label).c_str(), 1.0));
-                    RooWorkspace tmp; tmp.factory( info.Par.at("N_"+label).c_str() ); tmp.factory( info.Par.at("N_"+refLabel).c_str() );
-                    ws.var(("rN_"+label).c_str())->setVal( tmp.var(("N_"+label).c_str())->getVal()/tmp.var(("N_"+refLabel).c_str())->getVal() );
+                    if (!ws.var(("rN_"+label).c_str())     ) { ws.factory(Form("%s[1.0]", ("rN_"+label).c_str())); }
+                    if (!ws.var(("NRef_"+refLabel).c_str())) { ws.factory(info.Par.at("NRef_"+refLabel).c_str());  }
+                    //
+                    RooWorkspace tmp; tmp.factory( info.Par.at("N_"+label).c_str() );
+                    ws.var(("rN_"+label).c_str())->setVal( tmp.var(("N_"+label).c_str())->getVal() / ws.var(("NRef_"+refLabel).c_str())->getVal() );
                     ws.var(("rN_"+label).c_str())->setConstant(kTRUE);
+                    //
                     if (info.Par.count("rRN_"+label )>0 && info.Par.at("rRN_"+label )!="") { tmp.factory(info.Par.at("rRN_"+label).c_str()); }
                     if (tmp.var(info.Par.at("rRN_"+label).c_str())!=NULL && tmp.var(info.Par.at("rRN_"+label).c_str())->getVal()!=1.0) {
                       if (!ws.var(("rRN_"+label).c_str())) ws.factory(info.Par.at("rRN_"+label).c_str());
@@ -162,10 +165,6 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StrMapMap_t& 
                     else {
                       ws.factory(Form("RooFormulaVar::%s('@0*@1',{%s,%s})", ("N_"+label).c_str(), ("rN_"+label).c_str(), info.Par.at("N_"+refLabel).c_str()));
                     }
-                  }
-                  else if ( (label.find("WTo")==std::string::npos) && (label.find("QCDTo")==std::string::npos) ) {
-                    ws.factory( info.Par.at("N_"+label).c_str() );
-                    ws.var(("N_"+label).c_str())->setConstant(kTRUE);
                   }
                   else {
                     ws.factory( info.Par.at("N_"+label).c_str() );
@@ -203,7 +202,7 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StrMapMap_t& 
   return true;
 };
 
-bool histToPdf(RooWorkspace& ws, const string& pdfName, const string& dsName, const std::string& var, const std::vector< float >& range)
+bool histToPdf(RooWorkspace& ws, const string& pdfName, const string& dsName, const std::string& var, const std::vector< double >& range)
 {
   //
   if (ws.pdf(pdfName.c_str())) { std::cout << Form("[INFO] The %s Template has already been created!", pdfName.c_str()) << std::endl; return true; }
@@ -308,8 +307,12 @@ void setMETModelParameters(GlobalInfo& info)
           if (info.Par.count("N_"+objLabel)==0 || info.Par.at("N_"+objLabel)=="") {
             if (info.Par.count("N_"+objFoundLabel)==0 || info.Par.at("N_"+objFoundLabel)=="") {
               double value = numEntries;
-              if (info.Var.count("recoMCEntries")>0 && info.Var.at("recoMCEntries").count(objLabel)>0) { value = info.Var.at("recoMCEntries").at(objLabel); }
-              info.Par["N_"+objLabel] = Form("%s[%g,%g,%g]", ("N_"+objLabel).c_str(), value, 0.0, 10.0*numEntries);
+              if ( info.Var.count("recoMCEntries")>0 && info.Var.at("recoMCEntries").count(objLabel)>0) { value = info.Var.at("recoMCEntries").at(objLabel); }
+              info.Par["N_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", ("N_"+objLabel).c_str(), value, 0.0, 10.0*numEntries);
+              if (obj==mainObj) {
+                info.Par["N_"+objLabel]    = Form("%s[%.10f,%.10f,%.10f]", ("N_"+objLabel).c_str(),    numEntries, 0.0, 10.0*numEntries);
+                info.Par["NRef_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", ("NRef_"+objLabel).c_str(), value,      0.0, 10.0*numEntries);
+              }
             }
             else {
               std::string content = info.Par.at("N_"+objFoundLabel); content = content.substr( content.find("[") );
@@ -322,11 +325,11 @@ void setMETModelParameters(GlobalInfo& info)
               info.Par["rRN_"+objLabel] = Form("%s[1.0]", ("rRN_"+objLabel).c_str());
             }
             else {
-              info.Par["rRN_"+objLabel] = Form("%s[%g]", ("rRN_"+objLabel).c_str(), info.Var.at("rRN_"+objFoundLabel).at("Val"));
+              info.Par["rRN_"+objLabel] = Form("%s[%.10f]", ("rRN_"+objLabel).c_str(), info.Var.at("rRN_"+objFoundLabel).at("Val"));
             }
           }
           else {
-            info.Par["rRN_"+objLabel] = Form("%s[%g]", ("rRN_"+objLabel).c_str(), info.Var.at("rRN_"+objLabel).at("Val"));
+            info.Par["rRN_"+objLabel] = Form("%s[%.10f]", ("rRN_"+objLabel).c_str(), info.Var.at("rRN_"+objLabel).at("Val"));
           }
           // CUTS FOR CUT AND COUNT ALGO
           if (info.Par.count("Cut_"+inputObjLabel)==0 || info.Par.at("Cut_"+inputObjLabel)=="") {
@@ -342,12 +345,12 @@ void setMETModelParameters(GlobalInfo& info)
           for (const auto v : varNames) {
             if (info.Par.count(v+"_"+objLabel)==0 || info.Par.at(v+"_"+objLabel)=="") {
               if (info.Par.count(v+"_"+objFoundLabel)==0 || info.Par.at(v+"_"+objFoundLabel)=="") {
-                if (v=="Beta"   ) { info.Par[v+"_"+objLabel] = Form("%s[%g,%g,%g]", (v+"_"+objLabel).c_str(),  -3.280 ,  -20.000,   -0.001); }
-                if (v=="Alpha"  ) { info.Par[v+"_"+objLabel] = Form("%s[%g,%g,%g]", (v+"_"+objLabel).c_str(),   5.940,     0.001,   40.000); }
-                if (v=="x0"     ) { info.Par[v+"_"+objLabel] = Form("%s[%g,%g,%g]", (v+"_"+objLabel).c_str(),   2.390,   -10.000,   40.000); }
-                if (v=="Sigma0" ) { info.Par[v+"_"+objLabel] = Form("%s[%g,%g,%g]", (v+"_"+objLabel).c_str(),  10.000,  -100.000,  100.000); }
-                if (v=="Sigma1" ) { info.Par[v+"_"+objLabel] = Form("%s[%g,%g,%g]", (v+"_"+objLabel).c_str(),   6.000,   -50.000,   50.000); }
-                if (v=="Sigma2" ) { info.Par[v+"_"+objLabel] = Form("%s[%g,%g,%g]", (v+"_"+objLabel).c_str(),   0.000,    -5.000,    5.000); }
+                if (v=="Beta"   ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),  -3.280 ,  -20.000,   -0.001); }
+                if (v=="Alpha"  ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   5.940,     0.001,   40.000); }
+                if (v=="x0"     ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   2.390,   -10.000,   40.000); }
+                if (v=="Sigma0" ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),  10.000,  -100.000,  100.000); }
+                if (v=="Sigma1" ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   6.000,   -50.000,   50.000); }
+                if (v=="Sigma2" ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   0.000,    -5.000,    5.000); }
               }
               else {
                 std::string content = info.Par.at(v+"_"+objFoundLabel); content = content.substr( content.find("[") );

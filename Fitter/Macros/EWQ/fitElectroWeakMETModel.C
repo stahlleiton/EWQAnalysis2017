@@ -218,7 +218,7 @@ void setEWQCutParameters(GlobalInfo& info)
     // Selecting QCD Enhanced Events
     if (info.Flag.at("fitQCD")) {
       // Define the Muon Iso range
-      if (info.Var.at("Muon_Iso").at("Min")==0.0) { info.Var.at("Muon_Iso").at("Min") = 0.15; }
+      if (info.Var.at("Muon_Iso").at("Min")<0.0) { info.Var.at("Muon_Iso").at("Min") = 0.15; }
       if (info.Var.at("Muon_Iso").at("Max")<=info.Var.at("Muon_Iso").at("Min")) { info.Var.at("Muon_Iso").at("Max") = 100000.0; }
       // Define the Event Type range
       if (info.Par.at("Event_Type")=="") { info.Par.at("Event_Type") = "Other"; }
@@ -285,6 +285,7 @@ bool setEWQModel(StrMapMap_t& model, GlobalInfo&  info)
             else { p.push_back(obj); }
             for (const auto& ll : p) {
               std::string objectName  = Form("%s", (ll+cha+chg).c_str());;
+              if (info.Flag.at("fitMC") && ll!=obj && modelName=="TEMP") continue;
               if (modelName=="TEMP") { modelName = "Template";    }
               if (modelName=="MJET") { modelName = "MultiJetBkg"; }
               if (ModelDictionary.at("MET").at(modelName)==0) {
@@ -372,7 +373,7 @@ int importDataset(RooWorkspace& myws  , const std::map<string, RooWorkspace>& in
       myws.var(Form("%s", var.first.c_str()))->setMax(var.second.at("Max"));
     }
     else if ( (myws.var(Form("%s", var.first.c_str()))==NULL) && (var.second.count("Val")>0) ) {
-      myws.factory(Form("%s[%g]", var.first.c_str(), var.second.at("Val")));
+      myws.factory(Form("%s[%.10f]", var.first.c_str(), var.second.at("Val")));
     }
   }
   if (info.Flag.at("useEtaCM")) {
