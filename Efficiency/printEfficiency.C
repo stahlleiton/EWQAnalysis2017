@@ -69,11 +69,11 @@ const char*  sgn                 ( const double n ) { if (n >= 0.) { return "+";
 const std::vector< std::string > CHG_  = { "Plus" , "Minus" };
 
 
-void printEfficiency(const std::string workDirName = "NominalCM")
+void printEfficiency(const std::string workDirName = "NominalCM", const bool applyHFCorr = false)
 {
   // Change the working directory
   const std::string CWD = getcwd(NULL, 0);
-  const std::string mainDir = Form("%s/TnPEfficiency/%s/", CWD.c_str(), workDirName.c_str());
+  const std::string mainDir = Form("%s/TnPEfficiency/%s/", CWD.c_str(), (workDirName+(applyHFCorr ? "_WithHF" : "")).c_str());
   gSystem->mkdir(mainDir.c_str(), kTRUE);
   gSystem->ChangeDirectory(mainDir.c_str());
   //
@@ -87,17 +87,21 @@ void printEfficiency(const std::string workDirName = "NominalCM")
   //
   // Extract information from the input file
   const std::string inputFileName = "efficiencyTnP.root";
+  std::cout << "1" << std::endl;
   if (!getObjectsFromFile(eff1D, unc1D, inputFileName)) { return; }
+  std::cout << "2" << std::endl;
   //
   // ------------------------------------------------------------------------------------------------------------------------
   //
   // Draw the Efficiencies
   drawEff1D(mainDir, eff1D, unc1D, isCutAndCount);
+  std::cout << "3" << std::endl;
   //
   // ------------------------------------------------------------------------------------------------------------------------
   //
   // Create Tables
   if (!printTableEff1D(mainDir, eff1D, unc1D, isCutAndCount)) { return; };
+  std::cout << "4" << std::endl;
   //
 };
 
@@ -170,11 +174,18 @@ bool getObjectsFromFile(EffMap_t& eff, Unc1DMap_t& unc, const std::string& fileP
                     }
                   }
                 }
-                if (std::string(t->GetName())!="Acceptance") {
+                std::cout << v->GetName() << std::endl;
+                if (eff.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).count("NoCorr")>0) {
                   eff[v->GetName()][s->GetName()][c->GetName()][ch][t->GetName()]["NoCorrOnly"] = eff.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).at("NoCorr");
                   std::string name = eff.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).at("NoCorr")[0].GetName();
                   name.replace(name.find("NoCorr"), name.find("NoCorr")+6, "NoCorrOnly");
                   eff.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).at("NoCorrOnly")[0].SetName(name.c_str());
+                }
+                if (eff.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).count("HFCorr")>0) {
+                  eff[v->GetName()][s->GetName()][c->GetName()][ch][t->GetName()]["HFCorrOnly"] = eff.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).at("HFCorr");
+                  std::string name = eff.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).at("HFCorr")[0].GetName();
+                  name.replace(name.find("HFCorr"), name.find("HFCorr")+6, "HFCorrOnly");
+                  eff.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).at("HFCorrOnly")[0].SetName(name.c_str());
                 }
               }
               typeDir->cd();
@@ -186,6 +197,7 @@ bool getObjectsFromFile(EffMap_t& eff, Unc1DMap_t& unc, const std::string& fileP
                   if (std::string(co->GetName()).find("TnP_Stat")!=std::string::npos) { corrName = "TnP_Stat"; }
                   if (std::string(co->GetName()).find("TnP_Syst")!=std::string::npos) { corrName = "TnP_Syst"; }
                   if (std::string(co->GetName()).find("TnP_Tot" )!=std::string::npos) { corrName = "TnP_Tot";  }
+                  if (std::string(co->GetName()).find("MC_Syst" )!=std::string::npos) { corrName = "MC_Syst";  }
                   if (corrName!="") {
                     unc[v->GetName()][s->GetName()][c->GetName()][ch][t->GetName()][corrName].ResizeTo( ((TVector*)co->ReadObj())->GetNrows() );
                     unc.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).at(corrName) = *((TVector*)co->ReadObj());
@@ -297,25 +309,36 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
               if (var=="Eta" || var=="EtaCM") { textToPrint.push_back("p^{#mu}_{T} > 25 GeV/c"); }
               if (var=="Pt") { textToPrint.push_back("|#eta^{#mu}| < 2.4"); }
               if (isCutAndCount) { textToPrint.push_back("20 GeV/c #geq |#slash{E}_{T}| & 40 GeV/c^{2} #geq M_{T}^{#mu}"); }
+              //
               // Declare the graph vector (for drawing with markers)
               std::vector< TGraphAsymmErrors > grVec;
               TLegend leg(0.2, 0.66, 0.4, 0.79);
               double xMin , xMax;
               // Draw graph
-              if (corr=="NoCorrOnly") {
+              if ( (corr=="NoCorrOnly") || (corr=="HFCorrOnly") )  {
                 // Extract the Uncorrected Efficiency graph
                 eff[0].Draw(); gPad->Update();
                 grVec.push_back(*(eff[0].GetPaintedGraph()));
                 // Format the Graphs
                 for (auto& g : grVec) { formatEff1D(g, col, var, charge, type); }
                 // Create Legend
-                formatLegendEntry(*leg.AddEntry(&grVec[0], "MC Truth Efficiency", "pe"));
+                if (type=="Acceptance") {
+                  if (corr=="NoCorrOnly") { formatLegendEntry(*leg.AddEntry(&grVec[0], "MC Acceptance", "pe")); }
+                  if (corr=="HFCorrOnly") { formatLegendEntry(*leg.AddEntry(&grVec[0], "MC Acceptance HF Reweighted", "pe")); }
+                }
+                else {
+                  if (corr=="NoCorrOnly") { formatLegendEntry(*leg.AddEntry(&grVec[0], "MC Truth Efficiency", "pe")); }
+                  if (corr=="HFCorrOnly") { formatLegendEntry(*leg.AddEntry(&grVec[0], "MC Truth Efficiency HF Reweighted", "pe")); }
+                }
                 // Draw the graph
                 grVec[0].Draw("ap");
                 xMin = grVec[0].GetXaxis()->GetXmin(); xMax = grVec[0].GetXaxis()->GetXmax();
               }
-              else if (corr=="NoCorr" && type=="Acceptance") {
+              else if (corr=="HFCorr" && type=="Acceptance") {
                 // Extract the Uncorrected Efficiency graph
+                t.second.at("NoCorr")[0].Draw(); gPad->Update();
+                grVec.push_back(*(t.second.at("NoCorr")[0].GetPaintedGraph()));
+                // Extract the HF Corrected Efficiency graph
                 eff[0].Draw(); gPad->Update();
                 grVec.push_back(*(eff[0].GetPaintedGraph()));
                 // Format the Graphs
@@ -323,11 +346,44 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                 grVec[0].SetMarkerColor(kRed);
                 // Create Legend
                 formatLegendEntry(*leg.AddEntry(&grVec[0], "MC Acceptance", "pe"));
+                formatLegendEntry(*leg.AddEntry(&grVec[1], "MC Acceptance HF Reweighted", "pe"));
                 // Draw the graph
                 grVec[0].Draw("ap");
+                grVec[1].Draw("samep");
                 xMin = grVec[0].GetXaxis()->GetXmin(); xMax = grVec[0].GetXaxis()->GetXmax();
               }
-              else if (corr=="NoCorr") {
+              else if (corr=="HFCorr") {
+                // Extract the Uncorrected Efficiency graph
+                t.second.at("NoCorr")[0].Draw(); gPad->Update();
+                grVec.push_back(*(t.second.at("NoCorr")[0].GetPaintedGraph()));
+                // Extract the HF Corrected Efficiency graph
+                eff[0].Draw(); gPad->Update();
+                grVec.push_back(*(eff[0].GetPaintedGraph()));
+                // Extract the TnP Corrected Efficiency graph
+                t.second.at("TnP_Nominal")[0].Draw(); gPad->Update();
+                grVec.push_back(*(t.second.at("TnP_Nominal")[0].GetPaintedGraph()));
+                // Fill Corrected Efficiency graph with total TnP Uncertainties
+                Unc1DVec_t& unc = uncMap.at(v.first).at(s.first).at(cl.first).at(ch.first).at(t.first);
+                for (int j = 0; j < grVec[2].GetN(); j++) {
+                  const double errorYlow  = std::sqrt( std::pow(grVec[2].GetErrorYlow(j)  , 2.0) + std::pow(unc.at("TnP_Tot")[j] , 2.0) );
+                  const double errorYhigh = std::sqrt( std::pow(grVec[2].GetErrorYhigh(j) , 2.0) + std::pow(unc.at("TnP_Tot")[j] , 2.0) );
+                  grVec[2].SetPointError(j, grVec[1].GetErrorXlow(j), grVec[1].GetErrorXhigh(j), errorYlow, errorYhigh);
+                }
+                // Format the Graphs
+                for (auto& g : grVec) { formatEff1D(g, col, var, charge, type); }
+                grVec[0].SetMarkerColor(kRed);
+                grVec[1].SetMarkerColor(kGreen+2);
+                // Create Legend
+                formatLegendEntry(*leg.AddEntry(&grVec[0], "MC Truth Efficiency", "pe"));
+                formatLegendEntry(*leg.AddEntry(&grVec[1], "MC Truth Efficiency HF Reweighted", "pe"));
+                formatLegendEntry(*leg.AddEntry(&grVec[2], "Corrected Efficiency", "pe"));
+                // Draw the graph
+                grVec[0].Draw("ap");
+                grVec[1].Draw("samep");
+                grVec[2].Draw("samep");
+                xMin = grVec[0].GetXaxis()->GetXmin(); xMax = grVec[0].GetXaxis()->GetXmax();
+              }
+              else if (corr=="NoCorr" && type!="Acceptance") {
                 // Extract the Uncorrected Efficiency graph
                 eff[0].Draw(); gPad->Update();
                 grVec.push_back(*(eff[0].GetPaintedGraph()));
@@ -336,10 +392,10 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                 grVec.push_back(*(t.second.at("TnP_Nominal")[0].GetPaintedGraph()));
                 // Fill Corrected Efficiency graph with total TnP Uncertainties
                 Unc1DVec_t& unc = uncMap.at(v.first).at(s.first).at(cl.first).at(ch.first).at(t.first);
-                for (int l = 0; l < grVec[1].GetN(); l++) {
-                  const double errorYlow  = std::sqrt( (grVec[1].GetErrorYlow(l)*grVec[1].GetErrorYlow(l)) + (unc.at("TnP_Tot")[l]*unc.at("TnP_Tot")[l]) );
-                  const double errorYhigh = std::sqrt( (grVec[1].GetErrorYhigh(l)*grVec[1].GetErrorYhigh(l)) + (unc.at("TnP_Tot")[l]*unc.at("TnP_Tot")[l]) );
-                  grVec[1].SetPointError(l, grVec[1].GetErrorXlow(l), grVec[1].GetErrorXhigh(l), errorYlow, errorYhigh);
+                for (int j = 0; j < grVec[1].GetN(); j++) {
+                  const double errorYlow  = std::sqrt( std::pow(grVec[1].GetErrorYlow(j)  , 2.0) + std::pow(unc.at("TnP_Tot")[j] , 2.0) );
+                  const double errorYhigh = std::sqrt( std::pow(grVec[1].GetErrorYhigh(j) , 2.0) + std::pow(unc.at("TnP_Tot")[j] , 2.0) );
+                  grVec[1].SetPointError(j, grVec[1].GetErrorXlow(j), grVec[1].GetErrorXhigh(j), errorYlow, errorYhigh);
                 }
                 // Format the Graphs
                 for (auto& g : grVec) { formatEff1D(g, col, var, charge, type); }
@@ -352,6 +408,7 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                 grVec[1].Draw("samep");
                 xMin = grVec[0].GetXaxis()->GetXmin(); xMax = grVec[0].GetXaxis()->GetXmax();
               }
+              else if (corr=="NoCorr" && type=="Acceptance") continue;
               else if (corr=="TnP_Nominal") {
                 // Extract the Corrected Efficiency graph
                 eff[0].Draw(); gPad->Update();
@@ -359,6 +416,8 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                 grVec.push_back(*graph);
                 // Fill Corrected Efficiency graph with total TnP Uncertainties
                 Unc1DVec_t& unc = uncMap.at(v.first).at(s.first).at(cl.first).at(ch.first).at(t.first);
+                const bool useMCSyst = (unc.count("MC_Syst")>0);
+                //
                 for (int l = 0; l < grVec[0].GetN(); l++) {
                   const double errorYlow  = std::sqrt( (grVec[0].GetErrorYlow(l)*grVec[0].GetErrorYlow(l)) + (unc.at("TnP_Tot")[l]*unc.at("TnP_Tot")[l]) );
                   const double errorYhigh = std::sqrt( (grVec[0].GetErrorYhigh(l)*grVec[0].GetErrorYhigh(l)) + (unc.at("TnP_Tot")[l]*unc.at("TnP_Tot")[l]) );
@@ -379,9 +438,17 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                 for (int l = 0; l < grVec[3].GetN(); l++) {
                   grVec[3].SetPointError(l, grVec[3].GetErrorXlow(l)*0.5, grVec[3].GetErrorXhigh(l)*0.5, grVec[3].GetErrorYlow(l), grVec[3].GetErrorYhigh(l));
                 }
+                // Fill graph for MC Systematic Uncertainties
+                if (useMCSyst) {
+                  grVec.push_back(*graph);
+                  for (int l = 0; l < grVec[4].GetN(); l++) {
+                    grVec[4].SetPointError(l, grVec[4].GetErrorXlow(l)*0.5, grVec[4].GetErrorXhigh(l)*0.5, unc.at("MC_Syst")[l], unc.at("MC_Syst")[l]);
+                  }
+                }
                 // Create Legend
                 formatLegendEntry(*leg.AddEntry(&grVec[0], "Corrected Efficiency", "pe"));
                 formatLegendEntry(*leg.AddEntry(&grVec[3], "MC Statistical Uncertainty", "f"));
+                if (useMCSyst) { formatLegendEntry(*leg.AddEntry(&grVec[4], "MC Systematic Uncertainty", "f")); }
                 formatLegendEntry(*leg.AddEntry(&grVec[1], "TnP Statistical Uncertainty", "f"));
                 formatLegendEntry(*leg.AddEntry(&grVec[2], "TnP Systematic Uncertainty", "f"));
                 // Format the graphs
@@ -390,11 +457,13 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                 grVec[1].SetFillColor(kOrange);
                 grVec[2].SetFillColor(kGreen+3);
                 grVec[3].SetFillColor(kRed);
+                if (useMCSyst) { grVec[4].SetFillColor(kBlue+2); }
                 // Draw the graphs
                 grVec[0].Draw("ap");
                 grVec[2].Draw("same2");
                 grVec[1].Draw("same2");
                 grVec[3].Draw("same2");
+                if (useMCSyst) { grVec[4].Draw("same2");; }
                 grVec[0].Draw("samep");
                 xMin = grVec[0].GetXaxis()->GetXmin(); xMax = grVec[0].GetXaxis()->GetXmax();
               }
@@ -440,18 +509,6 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
               // Update
               c.Modified(); c.Update();
               //
-              if (corr=="NoCorr" || corr=="TnP_Nominal") {
-                // Add Min, Max and Mean value of efficiency
-                auto graph = eff[0].GetPaintedGraph();
-                if (graph) {
-                  const double min = TMath::MinElement(graph->GetN(), graph->GetY())*100.;
-                  const double max = TMath::MaxElement(graph->GetN(), graph->GetY())*100.;
-                  const double avg = graph->GetMean(2)*100.;
-                  const double err = graph->GetRMS(2)*100.;
-                  //textToPrint.push_back(Form("min: %.2f %% , max: %.2f %%", min, max));
-                  //textToPrint.push_back(Form("mean: %.2f #pm %.2f %%", avg, err));
-                }
-              }
               // Draw the text
               for (const auto& s: textToPrint) { tex.DrawLatex(0.22, 0.86-dy, s.c_str()); dy+=0.04; }
               c.Modified(); c.Update();
@@ -504,7 +561,7 @@ void makeTable(std::ofstream& file, const std::vector< TEfficiency >& eff, const
     if (info[0]=="Eta"  ) { bin = Form("$%s%.1f < \\eta < %s%.1f$", sgn(min), min, sgn(max) , max);      }
     if (info[0]=="EtaCM") { bin = Form("$%s%.1f < \\eta_{CM} < %s%.1f$", sgn(min), min, sgn(max) , max); }
     std::string eff_Pl, eff_Mi;
-    if (type=="NoCorr") {
+    if ( (type=="NoCorr") || (type=="HFCorr") ) {
       eff_Pl = Form("$%.3f^{+%.3f}_{-%.3f}$", eff[0].GetEfficiency(i), eff[0].GetEfficiencyErrorUp(i), eff[0].GetEfficiencyErrorLow(i));
       eff_Mi = Form("$%.3f^{+%.3f}_{-%.3f}$", eff[1].GetEfficiency(i), eff[1].GetEfficiencyErrorUp(i), eff[1].GetEfficiencyErrorLow(i));
     }
@@ -525,7 +582,7 @@ void makeTable(std::ofstream& file, const std::vector< TEfficiency >& eff, const
   std::string colType = (" "+info[2]);
   if (info[2]=="PA") { colType = ""; }
   std::string varInfo = ""; if (info[0]=="Pt") { varInfo = "\\pt"; }; if (info[0]=="Eta") { varInfo = "\\eta"; } if (info[0]=="EtaCM") { varInfo = "\\eta_{CM}"; }
-  std::string mcInfo = ""; if (type=="NoCorr") { mcInfo = "truth efficiency"; }; if (type=="TnP_Nominal") { mcInfo = "TnP corrected efficiency"; }
+  std::string mcInfo = ""; if (type=="NoCorr") { mcInfo = "truth efficiency"; }; if (type=="HFCorr") { mcInfo = "truth efficiency after HF reweighting"; } if (type=="TnP_Nominal") { mcInfo = "TnP corrected efficiency"; }
   std::string tnpInfo = " The labels \"stat\" and \"syst\" represent the TnP statisitical and systematic uncertainties, respectively.";
   if (type!="TnP_Nominal") { tnpInfo = ""; }
   if (isAcceptance) { texTable.push_back(Form("  \\label{tab:Acceptance_%s_%s_%s}", info[0].c_str(), info[1].c_str(), info[2].c_str())); }

@@ -18,6 +18,7 @@
 #include "RooAbsData.h"
 // c++ headers
 #include <dirent.h>
+#include <memory>
 #include <iostream>
 #include <fstream>
 #include <map>
@@ -35,11 +36,11 @@ using Par_t        = std::pair< double , double >;
 using Bin_t        = std::tuple< Par_t , Par_t >;
 using Val_t        = std::tuple< Par_t , Par_t >;
 using ContentMap_t = std::map< std::string , std::map< std::string , std::map< Bin_t , std::vector< Val_t > > > >;
-using GraphMap_t   = std::map< std::string , std::map< std::string , std::map< Bin_t , TGraphErrors* > > >;
-using FitMap_t     = std::map< std::string , std::map< std::string , std::map< Bin_t , TF1* > > >;
+using GraphMap_t   = std::map< std::string , std::map< std::string , std::map< Bin_t , std::unique_ptr<TGraphErrors> > > >;
+using FitMap_t     = std::map< std::string , std::map< std::string , std::map< Bin_t , std::unique_ptr<TF1> > > >;
 using FitMap2_t    = std::map< std::string , std::map< Bin_t , std::map< std::string , TF1* > > >;
-using BinMap_t     =  std::map< std::string , std::vector< double > >;
-using BinMapMap_t  =  std::map< std::string , BinMap_t >;
+using BinMap_t     = std::map< std::string , std::vector< double > >;
+using BinMapMap_t  = std::map< std::string , BinMap_t >;
 
 // Function declaration
 bool     findFiles   ( const std::string&  dirPath , std::vector<std::string>& fileNames );
@@ -50,19 +51,17 @@ bool     getFitPars  ( const RooWorkspace& myws , RooRealVarMap_t& fitPars , std
 void     findBinLimits ( BinMapMap_t& binMap , const ContentMap_t& contentMap , const bool& useEtaCM );
 bool     fillGraph   ( const ContentMap_t& contentMap , GraphMap_t& graphMap );
 void     formatGraph ( GraphMap_t& graphMap );
-void     drawGraph   ( const std::string& outDir , const GraphMap_t& graphMap , const FitMap_t& fitMap , const bool& useEtaCM );
-void     clearGraph  ( GraphMap_t& graphMap );
+void     drawGraph   ( const std::string& outDir , GraphMap_t& graphMap , const FitMap_t& fitMap , const bool& useEtaCM );
 bool     fitGraph    ( const GraphMap_t& graphMap , FitMap_t& fitMap );
 bool     computeMeanAndVariance ( FitMap_t& fitMap , const std::string& col , const bool& useEtaCM , const BinMapMap_t& binMap );
 void     formatFit   ( FitMap_t& fitMap );
-void     clearFit    ( FitMap_t& fitMap );
 bool     fillExGraph ( const FitMap_t& fitMap , GraphMap_t& exGraphMap );
 void     formatExGraph ( GraphMap_t& exGraphMap , const std::string& col , const bool& useEtaCM , const BinMapMap_t& binMap );
-void     drawExGraph ( const std::string& outDir , const GraphMap_t& exGraphMap , const bool& useEtaCM );
+void     drawExGraph ( const std::string& outDir , GraphMap_t& exGraphMap , const bool& useEtaCM );
 void     getBinText  ( const Bin_t& bin , std::vector<std::string>& text , const int& chg=-1 , const bool& useEtaCM = true );
 void     getFitText  ( const TF1& fit, std::vector<std::string>& text );
 void     formatLegendEntry ( TLegendEntry& e );
-void     updateYAxisRange ( TGraphErrors* graph , TF1* fit );
+void     updateYAxisRange ( std::unique_ptr<TGraphErrors>& graph , const std::unique_ptr<TF1>& fit );
 double   roundVal    ( const double& v, const uint& n=3 ) { return ( floor(v * pow(10, n)) / pow(10, n) ); }
 Double_t pol1        ( Double_t *x , Double_t *par ) { return ( par[0] + par[1]*(x[0] - par[2]) ); }
 bool     createInputFiles ( const std::string& dirPath , const FitMap_t& iniFitMap , const bool& useEtaCM , const BinMapMap_t& binMap );
@@ -73,13 +72,14 @@ const std::vector< std::string > cutSelection = {
 };
 std::map< std::string, std::tuple< std::string > > yAxis;
 const double isoPoint = 0.03;
-const std::string useBin = "Inclusive"; // Can also  be Inclusive
+const std::string useBin_  = "Inclusive"; // Can also  be Inclusive
+const std::string fitType_ = "Fixed";     // Can also  be Constrained
 std::string MODELNAME_ = "";
 
 void makeQCDTemplate(
-                     const std::string workDirName = "QCDTemplateCM",
-                     const std::string METTag      = "METPF_RAW",
-                     const std::string DSTag       = "DATA"
+                     const std::string workDirName = "QCDTemplateCM_Rayleigh",
+                     const std::string DSTag       = "DATA",
+                     const std::string METTag      = "METPF_RAW"
                      )
 {
   //
@@ -122,22 +122,22 @@ void makeQCDTemplate(
     // Draw the graphs
     drawGraph(outDir, graphMap, fitMap, useEtaCM);
     // Delete the graphs
-    clearGraph(graphMap);
+    graphMap.clear();
     // Draw the extrapolated graphs
     drawExGraph(outDir, exGraphMap, useEtaCM);
     // Delete the extrapolated graphs
-    clearGraph(exGraphMap);
+    exGraphMap.clear();
     // Create new input files
     createInputFiles((outDir+"InputFiles/"), fitMap, useEtaCM, MU_BIN_RANGE);
     // Create the fits
-    clearFit(fitMap);
+    fitMap.clear();
   }
 };
 
 
 bool findFiles(const std::string& dirPath, std::vector<std::string>& fileNames)
 {
-  DIR *dpdf; struct dirent *epdf;
+  DIR* dpdf; struct dirent *epdf;
   // Open the working directory
   dpdf = opendir(dirPath.c_str());
   // Search for all the files inside this directory
@@ -181,7 +181,9 @@ bool readFiles(const std::vector<std::string>& fileNames, ContentMap_t& contentM
       RooRealVar  parVar  = par.second;
       Par_t       yPar    = std::make_pair(parVar.getVal(), parVar.getError());
       Val_t       value   = std::make_tuple(xPar, yPar);
-      contentMap[parName][label][bin].push_back(value);
+      if ( (xPar.first>=0.15) && ((2.0*xPar.second)<0.5) ) {
+        contentMap[parName][label][bin].push_back(value);
+      }
     }
   }
   if (contentMap.size()==0) { std::cout << "[ERROR] The contentMap is empty!" << std::endl; return false; }
@@ -192,23 +194,23 @@ bool readFiles(const std::vector<std::string>& fileNames, ContentMap_t& contentM
 bool getInfo(const std::string& fileName, Content_t& content, bool& useEtaCM)
 {
   // Extract the workspace
-  TFile *f = TFile::Open( fileName.c_str() );
+  std::unique_ptr<TFile> f(TFile::Open( fileName.c_str() ));
   if (!f) { std::cout << "[Error] " << fileName << " not found" << std::endl; return false; }
   RooWorkspace *ws = (RooWorkspace*) f->Get("workspace");
-  if (!ws) { std::cout << "[ERROR] Workspace not found in " << fileName << std::endl; f->Close(); delete f; return false; }
+  if (!ws) { std::cout << "[ERROR] Workspace not found in " << fileName << std::endl; f->Close(); return false; }
   // Extract the muon parameters used for binning
   RooRealVarMap_t binPars;
-  if (!getBinPars(*ws, binPars)) { f->Close(); delete f; return false; }
+  if (!getBinPars(*ws, binPars)) { f->Close(); return false; }
   // Extract the MET fitted parameters
   std::string label;
   RooRealVarMap_t fitPars;
-  if(!getFitPars(*ws, fitPars, label)) { f->Close(); delete f; return false; }
+  if(!getFitPars(*ws, fitPars, label)) { f->Close(); return false; }
   // Organize the fit and bin information
   content = std::make_tuple(label, binPars, fitPars);
   // Check if we are using eta at Center of Mass
   if (ws->var("useEtaCM")!=NULL && ws->var("useEtaCM")->getVal()==1.0) { useEtaCM = true; }
   // Clean up
-  f->Close(); delete f;
+  f->Close();
   return true;
 };
 
@@ -311,7 +313,7 @@ void findBinLimits(BinMapMap_t& binMap, const ContentMap_t& contentMap, const bo
 bool fillGraph(const ContentMap_t& contentMap, GraphMap_t& graphMap)
 {
   // Clean the input graph Map
-  clearGraph(graphMap);
+  graphMap.clear();
   // Fill the new graphs
   for (const auto& var : contentMap) {
     for (const auto& lbl : var.second) {
@@ -324,7 +326,7 @@ bool fillGraph(const ContentMap_t& contentMap, GraphMap_t& graphMap)
           y[i]  = std::get<1>(bin.second[i]).first;
           ey[i] = std::get<1>(bin.second[i]).second;
         }
-        graphMap[var.first][lbl.first][bin.first] = new TGraphErrors(n, x, y, ex, ey);
+        graphMap[var.first][lbl.first][bin.first] = std::unique_ptr<TGraphErrors>(new TGraphErrors(n, x, y, ex, ey));
         if (graphMap.at(var.first).at(lbl.first).at(bin.first)==NULL) {
           std::cout << "[ERROR] Element in graphMap is NULL!" << std::endl; return false;
         }
@@ -381,7 +383,7 @@ void formatGraph(GraphMap_t& graphMap)
 };
 
 
-void drawGraph(const std::string& outDir, const GraphMap_t& graphMap, const FitMap_t& fitMap, const bool& useEtaCM)
+void drawGraph(const std::string& outDir, GraphMap_t& graphMap, const FitMap_t& fitMap, const bool& useEtaCM)
 {
   // Make output directories
   makeDir(outDir+"Plot/Initial/png/");
@@ -393,15 +395,15 @@ void drawGraph(const std::string& outDir, const GraphMap_t& graphMap, const FitM
     for (auto& lbl : var.second) {
       for (auto& graph : lbl.second) {
         if (graph.second) {
-          TF1 *f = fitMap.at(var.first).at(lbl.first).at(graph.first);
+          const std::unique_ptr<TF1>& f = fitMap.at(var.first).at(lbl.first).at(graph.first);
           // Create Canvas
-          TCanvas* c   = new TCanvas("c", "c", 1000, 1000); c->cd();
+          std::unique_ptr<TCanvas> c(new TCanvas("c", "c", 1000, 1000)); c->cd();
           // Create Legend
-          TLegend *leg = new TLegend(xl1,yl1,xl2,yl2);
-          formatLegendEntry(*leg->AddEntry(graph.second, "Data", "p"));
-          if (f) formatLegendEntry(*leg->AddEntry(f, "Fit", "l"));
+          std::unique_ptr<TLegend> leg(new TLegend(xl1,yl1,xl2,yl2));
+          formatLegendEntry(*leg->AddEntry(graph.second.get(), "Data", "p"));
+          if (f) formatLegendEntry(*leg->AddEntry(f.get(), "Fit", "l"));
           // Create the Text Info
-          TLatex *tex = new TLatex(); tex->SetNDC(); tex->SetTextSize(0.025); float dy = 0;
+          std::unique_ptr<TLatex> tex(new TLatex()); tex->SetNDC(); tex->SetTextSize(0.025); float dy = 0;
           std::vector< std::string > cutSelection;
           getBinText(graph.first, cutSelection, ((lbl.first.find("Pl")!=std::string::npos)*2-1), useEtaCM);
           std::vector< std::string > fitInfo;
@@ -410,11 +412,11 @@ void drawGraph(const std::string& outDir, const GraphMap_t& graphMap, const FitM
           updateYAxisRange(graph.second, f);
           graph.second->Draw("ap");
           // Draw the fit
-          TGraphErrors *tmp = NULL;
+          std::unique_ptr<TGraphErrors> tmp;
           if (f) {
             double x[]  = { f->GetParameter(2) } , y[]  = { f->GetParameter(0) };
             double ex[] = { f->GetParError(2)  } , ey[] = { f->GetParError(0)  };
-            tmp = new TGraphErrors(1, x, y, ex, ey);
+            tmp = std::unique_ptr<TGraphErrors>(new TGraphErrors(1, x, y, ex, ey));
             tmp->Draw("samep"); tmp->SetMarkerColor(kRed); tmp->SetMarkerStyle(20); tmp->SetMarkerSize(1.5);
             f->Draw("same");
           }
@@ -428,7 +430,7 @@ void drawGraph(const std::string& outDir, const GraphMap_t& graphMap, const FitM
           int option = 111;
           if (lbl.first.find("pPb")!=std::string::npos) option = 109;
           if (lbl.first.find("Pbp")!=std::string::npos) option = 110;
-          CMS_lumi(c, option, 33, "");
+          CMS_lumi(c.get(), option, 33, "");
           c->Modified(); c->Update();
           // Save Canvas
           c->SaveAs(( outDir + "Plot/Initial/png/" + graph.second->GetName() + ".png" ).c_str());
@@ -436,10 +438,6 @@ void drawGraph(const std::string& outDir, const GraphMap_t& graphMap, const FitM
           c->SaveAs(( outDir + "Plot/Initial/root/" + graph.second->GetName() + ".root" ).c_str());
           // Clean up memory
           c->Clear(); c->Close();
-          delete c;
-          delete leg;
-          delete tex;
-          if (tmp) delete tmp;
         }
       }
     }
@@ -447,7 +445,7 @@ void drawGraph(const std::string& outDir, const GraphMap_t& graphMap, const FitM
 };
 
 
-void updateYAxisRange(TGraphErrors* graph, TF1* fit)
+void updateYAxisRange(std::unique_ptr<TGraphErrors>& graph, const std::unique_ptr<TF1>& fit)
 {
   if (graph==NULL) return;
   // Find the max and min of graph
@@ -505,25 +503,10 @@ void formatLegendEntry(TLegendEntry& e)
 };
 
 
-void clearGraph(GraphMap_t& graphMap)
-{
-  // Delete pointers to TGraph
-  for (auto& var : graphMap) {
-    for (auto& lbl : var.second) {
-      for (auto& graph : lbl.second) {
-        if (graph.second) delete graph.second; 
-      }
-    }
-  }
-  // Clear the graph map
-  graphMap.clear();
-};
-
-
 bool fitGraph(const GraphMap_t& graphMap, FitMap_t& fitMap)
 {
   // Clean the input fit Map
-  clearFit(fitMap);
+  fitMap.clear();
   // Set the extrapolation point
   double x0 = isoPoint;
   // Fit the graphs
@@ -535,18 +518,18 @@ bool fitGraph(const GraphMap_t& graphMap, FitMap_t& fitMap)
                                 lbl.first.c_str(), 
                                 std::get<0>(graph.first).first*10., std::get<0>(graph.first).second*10.,
                                 std::get<1>(graph.first).first*10., std::get<1>(graph.first).second*10.);
-        fitMap[var.first][lbl.first][graph.first] = new TF1(name.c_str(), pol1, graph.second->GetXaxis()->GetXmin(), graph.second->GetXaxis()->GetXmax(), 3);
+        fitMap[var.first][lbl.first][graph.first] = std::unique_ptr<TF1>(new TF1(name.c_str(), pol1, 0.15, graph.second->GetXaxis()->GetXmax(), 3));
         if (fitMap.at(var.first).at(lbl.first).at(graph.first)==NULL) {
           std::cout << "[ERROR] Element in fitMap is NULL!" << std::endl; return false;
         }
         std::string v = std::get<0>(yAxis.at(var.first));
         fitMap.at(var.first).at(lbl.first).at(graph.first)->SetParNames(Form("%s", v.c_str()), "s", "Iso");
         // Estimate the initial parameters of the fit
-        double x1, y1, x2, y2, ex1, ex2;
-        graph.second->GetPoint(0, x1, y1);
-        graph.second->GetPoint((graph.second->GetN()-1), x2, y2);
-        ex1 = graph.second->GetErrorX(0);
-        ex2 = graph.second->GetErrorX(1);
+        int n1 = 0, n2 = 0;
+        double x1=0.0, y1, x2=0.0, y2, ex1=0.0, ex2=0.0;
+        for (int i = 0; i < graph.second->GetN(); i++) { graph.second->GetPoint(i, x1, y1); ex1 = graph.second->GetErrorX(i); n1 = i;     if ((x1 - ex1)>=0.15) { break; } }
+        for (int i = 1; i < graph.second->GetN(); i++) { graph.second->GetPoint(i, x2, y2); ex2 = graph.second->GetErrorX(i); n2 = (i-1); if ((x2 + ex2)>=1.00) { break; } }
+        graph.second->GetPoint(n2, x2, y2); ex2 = graph.second->GetErrorX(n2);
         double m  = ((y2 - y1)/(x2 - x1));
         double y0 = (y1 - m*(x1 - x0));
         fitMap.at(var.first).at(lbl.first).at(graph.first)->SetParameters(y0, m, x0);
@@ -554,7 +537,7 @@ bool fitGraph(const GraphMap_t& graphMap, FitMap_t& fitMap)
         fitMap.at(var.first).at(lbl.first).at(graph.first)->SetParLimits(1, -50., 50.);
         fitMap.at(var.first).at(lbl.first).at(graph.first)->FixParameter(2, x0);
         // Fit the graph
-        graph.second->Fit(name.c_str(), "0QEFS", "", (floor((x1-ex1)*10.)/10.), (ceil((x2+ex2)*10.)/10.));
+        graph.second->Fit(name.c_str(), "0QEFSWL", "", (floor((x1-ex1)*100.)/100.), (ceil((x2+ex2)*100.)/100.));
       }
     }
   }
@@ -564,7 +547,7 @@ bool fitGraph(const GraphMap_t& graphMap, FitMap_t& fitMap)
 
 bool computeMeanAndVariance(FitMap_t& fitMap, const std::string& col, const bool& useEtaCM, const BinMapMap_t& binMap)
 {
-  const FitMap_t tmp = fitMap;
+  const FitMap_t& tmp = fitMap;
   // Fill the new graphs
   for (const auto& var : tmp) {
     for (const auto& lbl : var.second) {
@@ -592,7 +575,7 @@ bool computeMeanAndVariance(FitMap_t& fitMap, const std::string& col, const bool
       const Par_t eta = std::make_pair(etaMin, etaMin+0.06);
       const Par_t pt  = std::make_pair(binMap.at(col).at("Pt")[0], binMap.at(col).at("Pt")[1]);
       const Bin_t bin = std::make_tuple(eta, pt);
-      fitMap.at(var.first).at(lbl.first)[bin] = new TF1(*fitMap.at(var.first).at(lbl.first).begin()->second);
+      fitMap.at(var.first).at(lbl.first)[bin] = std::unique_ptr<TF1>(new TF1(*fitMap.at(var.first).at(lbl.first).begin()->second));
       fitMap.at(var.first).at(lbl.first).at(bin)->SetParameter(0, wMean);
       fitMap.at(var.first).at(lbl.first).at(bin)->SetParError(0, wVar);
     }
@@ -633,25 +616,10 @@ void getFitText(const TF1& fit, std::vector<std::string>& text)
 };
 
 
-void clearFit(FitMap_t& fitMap)
-{
-  // Delete pointers to TGraph
-  for (auto& var : fitMap) {
-    for (auto& lbl : var.second) {
-      for (auto& fit : lbl.second) {
-        if (fit.second) delete fit.second; 
-      }
-    }
-  }
-  // Clear the graph map
-  fitMap.clear();
-};
-
-
 bool fillExGraph(const FitMap_t& fitMap, GraphMap_t& exGraphMap)
 {
   // Clean the input graph Map
-  clearGraph(exGraphMap);
+  exGraphMap.clear();
   // Fill the new graphs
   for (const auto& var : fitMap) {
     for (const auto& lbl : var.second) {
@@ -676,7 +644,7 @@ bool fillExGraph(const FitMap_t& fitMap, GraphMap_t& exGraphMap)
       Par_t eta = std::make_pair(0., 0.);
       Par_t pt  = std::make_pair(minPt, maxPt);
       Bin_t bin = std::make_tuple(eta, pt);
-      exGraphMap[var.first][lbl.first][bin] = new TGraphErrors(n, x, y, ex, ey);
+      exGraphMap[var.first][lbl.first][bin] = std::unique_ptr<TGraphErrors>(new TGraphErrors(n, x, y, ex, ey));
       if (exGraphMap.at(var.first).at(lbl.first).at(bin)==NULL) {
         std::cout << "[ERROR] Element in exGraphMap is NULL!" << std::endl; return false;
       }
@@ -711,7 +679,7 @@ void formatExGraph(GraphMap_t& exGraphMap, const std::string& col, const bool& u
 };
 
 
-void drawExGraph(const std::string& outDir, const GraphMap_t& exGraphMap, const bool& useEtaCM)
+void drawExGraph(const std::string& outDir, GraphMap_t& exGraphMap, const bool& useEtaCM)
 {
   // Make output directories
   makeDir(outDir+"Plot/Final/png/");
@@ -724,22 +692,33 @@ void drawExGraph(const std::string& outDir, const GraphMap_t& exGraphMap, const 
       for (auto& graph : lbl.second) {
         if (graph.second) {
           // Create Canvas
-          TCanvas* c   = new TCanvas("c", "c", 1000, 1000); c->cd();
+          std::unique_ptr<TCanvas> c(new TCanvas("c", "c", 1000, 1000)); c->cd();
           // Create Legend
-          TLegend *leg = new TLegend(xl1,yl1,xl2,yl2);
-          formatLegendEntry(*leg->AddEntry(graph.second, "Data", "p"));
+          std::unique_ptr<TLegend> leg(new TLegend(xl1,yl1,xl2,yl2));
+          formatLegendEntry(*leg->AddEntry(graph.second.get(), "Data", "p"));
           // Create the Text Info
-          TLatex *tex = new TLatex(); tex->SetNDC(); tex->SetTextSize(0.025); float dy = 0;
+          std::unique_ptr<TLatex> tex(new TLatex()); tex->SetNDC(); tex->SetTextSize(0.025); float dy = 0;
           std::vector< std::string > cutSelection;
           getBinText(graph.first, cutSelection, ((lbl.first.find("Pl")!=std::string::npos)*2-1), useEtaCM);
           // Draw graph
           updateYAxisRange(graph.second, NULL);
           graph.second->Draw("ap");
-          TGraphErrors* tmp = new TGraphErrors(*graph.second); tmp->Set(1);
+          std::unique_ptr<TGraphErrors> tmp(new TGraphErrors(*graph.second)); tmp->Set(1);
           tmp->SetFillColor(kGreen+3); tmp->SetMarkerColor(kOrange);
-          tmp->Draw("samep2");          
+          tmp->Draw("samep2");
           // Draw the text
-          for (const auto& s: cutSelection) { tex->DrawLatex(0.20, 0.85-dy, s.c_str()); dy+=0.04; }
+          for (const auto& s: cutSelection) { tex->DrawLatex(0.20, 0.85-dy, s.c_str()); dy+=0.04; }; dy = 0.0;
+          // Draw the text results
+          std::vector< std::string > resultText;
+          // Set each variable Label
+          double val  = 0.0, xDummy = 0.0, err = 0.0;
+          for (int i = 0; i < graph.second->GetN(); i++) { graph.second->GetPoint(i, xDummy, val); err = graph.second->GetErrorY(i); if (graph.second->GetErrorX(i)>2.0) { break; } }
+          resultText.push_back(Form("Inclusive : %.5f#pm%.5f", val, err));
+          //
+          tmp->GetPoint(0, xDummy, val); err = tmp->GetErrorY(0);
+          resultText.push_back(Form("Mean : %.5f#pm%.5f", val, err));
+          //
+          for (const auto& s: resultText  ) { tex->DrawLatex(0.20, 0.70-dy, s.c_str()); dy+=0.04; }; dy = 0.0;
           // Draw the legend
           leg->Draw("same");
           c->Modified(); c->Update();
@@ -747,7 +726,7 @@ void drawExGraph(const std::string& outDir, const GraphMap_t& exGraphMap, const 
           int option = 111;
           if (lbl.first.find("pPb")!=std::string::npos) option = 109;
           if (lbl.first.find("Pbp")!=std::string::npos) option = 110;
-          CMS_lumi(c, option, 33, "");
+          CMS_lumi(c.get(), option, 33, "");
           c->Modified(); c->Update();
           // Save Canvas
           c->SaveAs(( outDir + "Plot/Final/png/" + graph.second->GetName() + ".png" ).c_str());
@@ -755,10 +734,6 @@ void drawExGraph(const std::string& outDir, const GraphMap_t& exGraphMap, const 
           c->SaveAs(( outDir + "Plot/Final/root/" + graph.second->GetName() + ".root" ).c_str());
           // Clean up memory
           c->Clear(); c->Close();
-          delete c;
-          delete leg;
-          delete tex;
-          delete tmp;
         }
       }
     }
@@ -775,7 +750,7 @@ bool createInputFiles(const std::string& dirPath , const FitMap_t& iniFitMap, co
   for (const auto& var : iniFitMap) {
     for (const auto& lbl : var.second) {
       for (const auto& fit : lbl.second) {
-        fitMap[lbl.first][fit.first][var.first] = fit.second;
+        fitMap[lbl.first][fit.first][var.first] = fit.second.get();
       }
     }
   }
@@ -834,25 +809,31 @@ bool createInputFiles(const std::string& dirPath , const FitMap_t& iniFitMap, co
       const double etaIncMin  = binMap.at(col).at(useEtaCM ? "EtaCM_Inc" : "Eta_Inc")[0];
       const double etaIncMax  = binMap.at(col).at(useEtaCM ? "EtaCM_Inc" : "Eta_Inc")[1];
       // Set each variable Label
-      if ((useBin=="Inclusive") && lbl.second.count(std::make_tuple(std::make_pair(etaIncMin,etaIncMax), std::make_pair(ptMin, ptMax)))>0) {
+      if ((useBin_=="Inclusive") && lbl.second.count(std::make_tuple(std::make_pair(etaIncMin,etaIncMax), std::make_pair(ptMin, ptMax)))>0) {
         for (const auto& var : lbl.second.at(std::make_tuple(std::make_pair(etaIncMin,etaIncMax), std::make_pair(ptMin, ptMax)))) {
-          double val  = var.second->GetParameter(0);
-          double err = var.second->GetParError(0);
-          header = Form("%s_QCDToMu%s_%s", var.first.c_str(), chg.c_str(), col.c_str());  inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.4f;%.4f]", val, err);
+          const double val = var.second->GetParameter(0);
+          const double err = var.second->GetParError(0);
+          header = Form("%s_QCDToMu%s_%s", var.first.c_str(), chg.c_str(), col.c_str());
+          if (fitType_=="Constrain") { inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f;%.5f]", val, err); }
+          if (fitType_=="Fixed"    ) { inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f]", val); }
         }
       }
-      else if ((useBin=="Mean") && lbl.second.count(std::make_tuple(std::make_pair(etaMeanMin,etaMeanMin+0.06), std::make_pair(ptMin, ptMax)))>0) {
+      else if ((useBin_=="Mean") && lbl.second.count(std::make_tuple(std::make_pair(etaMeanMin,etaMeanMin+0.06), std::make_pair(ptMin, ptMax)))>0) {
         for (const auto& var : lbl.second.at(std::make_tuple(std::make_pair(etaMin,etaMin+0.06), std::make_pair(ptMin, ptMax)))) {
-          double val  = var.second->GetParameter(0);
-          double err = var.second->GetParError(0);
-          header = Form("%s_QCDToMu%s_%s", var.first.c_str(), chg.c_str(), col.c_str());  inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.4f;%.4f]", val, err);
+          const double val = var.second->GetParameter(0);
+          const double err = var.second->GetParError(0);
+          header = Form("%s_QCDToMu%s_%s", var.first.c_str(), chg.c_str(), col.c_str());
+          if (fitType_=="Constrain") { inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f;%.5f]", val, err); }
+          if (fitType_=="Fixed"    ) { inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f]", val); }
         }
       }
       else {
         for (const auto& var : bin.second) {
-          double val  = var.second->GetParameter(0);
-          double err = var.second->GetParError(0);
-          header = Form("%s_QCDToMu%s_%s", var.first.c_str(), chg.c_str(), col.c_str());  inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.4f;%.4f]", val, err);
+          const double val = var.second->GetParameter(0);
+          const double err = var.second->GetParError(0);
+          header = Form("%s_QCDToMu%s_%s", var.first.c_str(), chg.c_str(), col.c_str());
+          if (fitType_=="Constrain") { inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.4f;%.4f]", val, err); }
+          if (fitType_=="Fixed"    ) { inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f]", val); }
         }
       }      
     }

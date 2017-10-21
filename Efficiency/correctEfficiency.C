@@ -2,7 +2,9 @@
 // Auxiliary Headers
 #include "../Utilities/HiMETTree.h"
 #include "../Utilities/HiMuonTree.h"
+#include "../Utilities/HiEvtTree.h"
 #include "../Utilities/tnp_weight.h"
+#include "../Utilities/HFweight.h"
 #include "../Utilities/EVENTUTILS.h"
 // ROOT headers
 #include "TROOT.h"
@@ -25,8 +27,8 @@
 #include <iostream>
 #include <map>
 #include <vector>
+#include <tuple>
 #include <string>
-#include <chrono>
 // CMS headers
 #include "../Utilities/CMS/tdrstyle.C"
 #include "../Utilities/CMS/CMS_lumi.C"
@@ -49,12 +51,15 @@ using FileInfo_t   =  std::vector< std::pair< std::string , double > >;
 
 
 // ------------------ FUNCTION -------------------------------
+TnPVec_t getMCWeights        ( const std::unique_ptr<HiEvtTree>& evtTree );
+bool     getMCUncertainties  ( Unc1DVec_t& unc , const EffVec_t& eff );
+bool     getMCUncertainties  ( Unc1DMap_t& unc , const EffMap_t& eff );
 TnPVec_t getTnPScaleFactors  ( const double& pt, const double& eta );
 bool     getTnPUncertainties ( Unc1DVec_t& unc , const EffVec_t& eff );
 bool     getTnPUncertainties ( Unc1DMap_t& unc , const EffMap_t& eff );
 void     initEff1D           ( TH1DMap_t& h , const BinMapMap_t& binMap );
-bool     fillEff1D           ( TH1DVec_t& h , const bool& pass , const double& xVar , const TnPVec_t& sfTnP , const double& evtWeight );
-bool     fillEff1D           ( TH1DMap_t& h , const bool& pass , const std::string& type , const VarMap_t& var , const std::vector< TnPVec_t >& sfTnP , const double& evtWeight , const BinMapMap_t& MU_BIN );
+bool     fillEff1D           ( TH1DVec_t& h , const bool& pass , const double& xVar , const TnPVec_t& sfTnP , const TnPVec_t& wMC , const double& evtWeight );
+bool     fillEff1D           ( TH1DMap_t& h , const bool& pass , const std::string& type , const VarMap_t& var , const TnPVec_t& sfTnP , const TnPVec_t& wMC , const double& evtWeight , const BinMapMap_t& MU_BIN );
 bool     loadEff1D           ( EffMap_t& eff, const TH1DMap_t& h );
 void     mergeEff            ( EffMap_t& eff );
 void     writeEff            ( TFile& file , const EffMap_t& eff , const Unc1DMap_t& unc , const std::string& mainDirName );
@@ -79,7 +84,7 @@ const std::vector< std::string > CHG_  = { "Plus" , "Minus" };
 const std::vector< std::string > effType = {"Total", "Acceptance"};
 //
 // Correction Categories
-const std::map< std::string , uint > corrType = {
+std::map< std::string , uint > corrType = {
   { "NoCorr"           , 1   },
   { "TnP_Nominal"      , 1   },
   { "TnP_Stat_MuID"    , 100 },
@@ -89,7 +94,13 @@ const std::map< std::string , uint > corrType = {
   { "TnP_Syst_Trig"    , 2   },
   { "TnP_Syst_Iso"     , 2   },
   { "TnP_Syst_BinMuID" , 1   },
-  { "TnP_Syst_BinIso"  , 1   }
+  { "TnP_Syst_BinIso"  , 1   },
+  { "MC_Syst_SCALE"    , 8   },
+  { "MC_Syst_CT14"     , 58  },
+  { "MC_Syst_NNLO"     , 1   },
+  { "MC_Syst_CT10"     , 1   },
+  { "MC_Syst_MMHT"     , 1   },
+  { "MC_Syst_EPPS16"   , 40  }
 };
 //
 // Input Files for analysis
@@ -103,7 +114,7 @@ const std::map< std::string , std::vector< std::pair< std::string , double > > >
 std::map< std::string , std::vector< std::string > > sampleType_;
 
 
-void correctEfficiency(const std::string workDirName = "NominalCM")
+void correctEfficiency(const std::string workDirName = "NominalCM", const bool applyHFCorr = false)
 {
   //
   // Initialize the Kinematic Bin info
@@ -151,9 +162,14 @@ void correctEfficiency(const std::string workDirName = "NominalCM")
     if (std::find(sampleType_.at("sample").begin(), sampleType_.at("sample").end(), tmp)==sampleType_.at("sample").end()) { sampleType_.at("sample").push_back(tmp); }
   }
   //
-  // For computing time optimization
-  auto t1_ALL = std::chrono::high_resolution_clock::now();
-  auto t1 = t1_ALL;
+  // ------------------------------------------------------------------------------------------------------------------------
+  //
+  // Initialize the Correction Type Map
+  if (applyHFCorr) { corrType["HFCorr"] = 1; }
+  //
+  // Initialize the HF corrections
+  std::unique_ptr<HFweight> corrHF;
+  if (applyHFCorr) { corrHF = std::unique_ptr<HFweight>(new HFweight("/afs/cern.ch/work/e/echapon/public/DY_pA_2016/HFweight.root")); }
   //
   // ------------------------------------------------------------------------------------------------------------------------
   //
@@ -169,6 +185,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM")
   std::map< std::string , Long64_t > nentries;
   std::map< std::string , std::unique_ptr< HiMuonTree > > muonTree;
   std::map< std::string , std::unique_ptr< HiMETTree  > > metTree;
+  std::map< std::string , std::unique_ptr< HiEvtTree  > > evtTree;
   for (const auto & inputFile : inputFileMap_) {
     const std::string sample = inputFile.first;
     std::vector< std::string >  fileInfo;
@@ -183,6 +200,11 @@ void correctEfficiency(const std::string workDirName = "NominalCM")
     if (!metTree.at(sample)->GetTree(fileInfo)) return;
     if (metTree.at(sample)->GetEntries() != nentries.at(sample)) { std::cout << "[ERROR] Inconsistent number of entries between MET (" << 
         metTree.at(sample)->GetEntries() << ") and Muon Tree (" << muonTree.at(sample)->GetEntries() << ") !" << std::endl; return; }
+    //
+    evtTree[sample] = std::unique_ptr<HiEvtTree>(new HiEvtTree());
+    if (!evtTree.at(sample)->GetTree(fileInfo)) return;
+    if (evtTree.at(sample)->GetEntries() != nentries.at(sample)) { std::cout << "[ERROR] Inconsistent number of entries between Event (" << 
+        evtTree.at(sample)->GetEntries() << ") and Muon Tree (" << muonTree.at(sample)->GetEntries() << ") !" << std::endl; return; }
   }
   //
   // ------------------------------------------------------------------------------------------------------------------------
@@ -200,6 +222,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM")
       // Get the entry in the trees
       if (muonTree.at(sample)->GetEntry(jentry)<0) { std::cout << "[ERROR] Muon Tree invalid entry!"  << std::endl; return; }
       if ( metTree.at(sample)->GetEntry(jentry)<0) { std::cout << "[ERROR] MET Tree invalid entry!"   << std::endl; return; }
+      if ( evtTree.at(sample)->GetEntry(jentry)<0) { std::cout << "[ERROR] HiEVT Tree invalid entry!" << std::endl; return; }
       //
       if (muonTree.at(sample)->Chain()->GetTreeNumber()!=treeIdx) {
         treeIdx = muonTree.at(sample)->Chain()->GetTreeNumber();
@@ -208,15 +231,13 @@ void correctEfficiency(const std::string workDirName = "NominalCM")
         crossSection = inputFile.second[treeIdx].second;
       }
       //
-      if (jentry%200000==0) std::cout << "[INFO] " << sample << " : " << jentry << "/" << nentries[sample] << std::endl;
-      if (jentry%200000==0) { 
-        std::cout << "[INFO] Processing time: " << std::chrono::duration_cast<std::chrono::seconds>( std::chrono::high_resolution_clock::now() - t1 ).count() << " sec" << std::endl;
-        t1 = std::chrono::high_resolution_clock::now();
-      }
+      loadBar(jentry, nentries.at(sample));
       // 
       // Check that the different tree agrees well
-      if (muonTree.at(sample)->Event_Run()    != metTree.at(sample)->Event_Run()   ) { std::cout << "[ERROR] MET Run does not agree!"   << std::endl; return; }
-      if (muonTree.at(sample)->Event_Number() != metTree.at(sample)->Event_Number()) { std::cout << "[ERROR] MET Event does not agree!" << std::endl; return; }
+      if (muonTree.at(sample)->Event_Run()    != metTree.at(sample)->Event_Run()   ) { std::cout << "[ERROR] MET Run does not agree!"     << std::endl; return; }
+      if (muonTree.at(sample)->Event_Number() != metTree.at(sample)->Event_Number()) { std::cout << "[ERROR] MET Event does not agree!"   << std::endl; return; }
+      if (muonTree.at(sample)->Event_Run()    != evtTree.at(sample)->run()         ) { std::cout << "[ERROR] HiEVT Run does not agree!"   << std::endl; return; }
+      if (muonTree.at(sample)->Event_Number() != evtTree.at(sample)->evt()         ) { std::cout << "[ERROR] HiEVT Event does not agree!" << std::endl; return; }
       //
       // Determine the collision system of the sample
       std::string col = "";
@@ -232,14 +253,12 @@ void correctEfficiency(const std::string workDirName = "NominalCM")
       const double lumi = ( (col=="pPb") ? PA::LUMI::Data_pPb : PA::LUMI::Data_Pbp );
       const double mcWeight = ( ( crossSection * lumi ) / muonTree.at(sample)->GetTreeEntries() );
       // Set the global weight only in the first event (i.e. once per sample)
-      if (jentry==0) {
-        setGlobalWeight(h1D, mcWeight, sampleType, col);
-      }
+      if (jentry==0) { setGlobalWeight(h1D, mcWeight, sampleType, col); }
       // Define the event weight (set to 1.0 by default)
-      const double evtWeight = 1.0;
+      double evtWeight = 1.0;
       //
-      // Define the TnP scale factor (set to 1.0 by default)
-      const double sfTnP = 1.0;
+      // Get the MC PDF Weights
+      const TnPVec_t wMC = getMCWeights(evtTree.at(sample));
       //
       // Check Event Conditions
       //
@@ -247,6 +266,9 @@ void correctEfficiency(const std::string workDirName = "NominalCM")
       const bool passEvent  = PA::passEventFilter(metTree.at(sample));
       // Determine if the event pass the Drell-Yan veto
       const bool passDYVeto = PA::passDrellYanVeto(muonTree.at(sample));
+      //
+      // Determine the HF Weight
+      if (applyHFCorr) { evtWeight *= corrHF->weight(evtTree.at(sample)->hiHF(), HFweight::HFside::both, false); }
       //
       // Check Muon Conditions
       //
@@ -280,7 +302,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM")
         bool passTrigger        = false;
         bool passIsolation      = false;
         // Initialize the Tag-And-Probe scale factos
-        std::vector< TnPVec_t > sfTnP = { {} , {} };
+       TnPVec_t sfTnP = {};
         //
         // Check that the generated muon is within the analysis kinematic range
         if (isGoodGenMuon) {
@@ -294,9 +316,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM")
             const double mu_PF_Pt  = muonTree.at(sample)->PF_Muon_Mom()[iPFMu].Pt();
             const double mu_PF_Eta = muonTree.at(sample)->PF_Muon_Mom()[iPFMu].Eta();
             // Determine the Tag-And-Probe scale factos
-            sfTnP.clear();
-            sfTnP.push_back(getTnPScaleFactors(mu_PF_Pt,  mu_PF_Eta));
-            sfTnP.push_back(getTnPScaleFactors(mu_PF_Pt, -mu_PF_Eta));
+            sfTnP = getTnPScaleFactors(mu_PF_Pt,  mu_PF_Eta);
             //
             const short iRecoMu = muonTree.at(sample)->PF_Muon_Reco_Idx()[iPFMu];
             if (iRecoMu < 0) { std::cout << "[ERROR] Reco idx is negative" << std::endl; return; }
@@ -326,12 +346,12 @@ void correctEfficiency(const std::string workDirName = "NominalCM")
           //
           // Total Efficiency (Based on Generated muons)
           //
-          if (!fillEff1D(h1D, (passIdentification && passTrigger && passIsolation), "Total", genMuonVar, sfTnP, evtWeight, MU_BIN)) { return; }
+          if (!fillEff1D(h1D, (passIdentification && passTrigger && passIsolation), "Total", genMuonVar, sfTnP, wMC, evtWeight, MU_BIN)) { return; }
         }
         //
         // Total Acceptance (Based on Generated muons)
         //
-        if (!fillEff1D(h1D, isGoodGenMuon, "Acceptance", genMuonVar, sfTnP, evtWeight, MU_BIN)) { return; }
+        if (!fillEff1D(h1D, isGoodGenMuon, "Acceptance", genMuonVar, sfTnP, wMC, evtWeight, MU_BIN)) { return; }
       }
     }
   }
@@ -357,15 +377,46 @@ void correctEfficiency(const std::string workDirName = "NominalCM")
   // Calculate Uncertainties
   if (!getTnPUncertainties(unc1D, eff1D)) { return; };
   //
+  if ( !getMCUncertainties(unc1D, eff1D)) { return; };
+  //
   // ------------------------------------------------------------------------------------------------------------------------
   //
   // Define the output directory
   //
   // Store the Efficiencies
   //
-  const std::string outDir = mainDir + workDirName +"/";
+  const std::string outDir = mainDir + workDirName + (applyHFCorr ? "_WithHF" : "") +"/";
   gSystem->mkdir(outDir.c_str(), kTRUE);
   saveEff(outDir, eff1D, unc1D);
+};
+
+
+TnPVec_t getMCWeights(const std::unique_ptr<HiEvtTree>& evtTree)
+{
+  TnPVec_t wMC;
+  for (const auto& cor : corrType) {
+    //
+    wMC[cor.first].clear();
+    //
+    int    idx  = -1;
+    double w_MC =  1.0;
+    //
+    if (cor.first=="MC_Syst_SCALE"  ) { idx = 1;   }
+    if (cor.first=="MC_Syst_CT14"   ) { idx = 112; }
+    if (cor.first=="MC_Syst_NNLO"   ) { idx = 227; }
+    if (cor.first=="MC_Syst_CT10"   ) { idx = 170; }
+    if (cor.first=="MC_Syst_MMHT"   ) { idx = 171; }
+    if (cor.first=="MC_Syst_EPPS16" ) { idx = 285; }
+    //
+    for (uint i = 0; i < cor.second; i++) {
+      //
+      if (idx >= 0) { w_MC = evtTree->ttbar_w()[idx+i]; }
+      //
+      wMC.at(cor.first).push_back( w_MC );
+    }
+  }
+  //
+  return wMC;
 };
 
 
@@ -390,7 +441,7 @@ TnPVec_t getTnPScaleFactors(const double& pt, const double& eta)
       if (cor.first=="TnP_Syst_BinMuID" ) { sf_MuID = tnp_weight_muid_ppb( pt , eta , -10 ); }
       if (cor.first=="TnP_Syst_BinIso"  ) { sf_Iso  = tnp_weight_iso_ppb ( pt , eta , -10 ); }
       //
-      if (cor.first=="NoCorr") { sf_TnP = 1.0; }
+      if ( (cor.first=="NoCorr") ||  (cor.first=="HFCorr") ) { sf_TnP = 1.0; }
       else { sf_TnP = ( sf_MuID * sf_Trig * sf_Iso ); }
       //
       sfTnP.at(cor.first).push_back( sf_TnP );
@@ -401,6 +452,70 @@ TnPVec_t getTnPScaleFactors(const double& pt, const double& eta)
 };
 
 
+bool getMCUncertainties(Unc1DVec_t& unc, const EffVec_t& eff)
+{
+  if (eff.count("TnP_Nominal") == 0) { return true; }
+  // Compute individual uncertainties
+  const TEfficiency& nom = eff.at("TnP_Nominal")[0];
+  const uint nBin = nom.GetCopyTotalHisto()->GetNbinsX();
+  for (const auto& co : eff) {
+    if (co.first.find("MC_")==std::string::npos) continue;
+    unc[co.first].ResizeTo(nBin);
+    for (uint iBin = 1; iBin <= nBin; iBin++) {
+      double uncVal = 0.0;
+      if (co.second.size() > 2) {
+        double sum = 0.0;
+        for(uint i = 0; i < co.second.size(); i++) {
+          const double diff = ( co.second[i].GetEfficiency(iBin) - nom.GetEfficiency(iBin) );
+          sum += ( diff * diff );
+        }
+        uncVal = std::sqrt( sum / co.second.size() );
+      }
+      else if (co.second.size() == 2) {
+        uncVal = std::max(std::abs(co.second[0].GetEfficiency(iBin) - nom.GetEfficiency(iBin)) , std::abs(co.second[1].GetEfficiency(iBin) - nom.GetEfficiency(iBin)));
+      }
+      else if (co.second.size() == 1) {
+        uncVal = std::abs(co.second[0].GetEfficiency(iBin) - nom.GetEfficiency(iBin));
+      }
+      else {
+        std::cout << "[ERROR] Number of variations " << co.second.size() << " is wrong!" << std::endl; return false;
+      }
+      unc.at(co.first)[iBin-1] = uncVal;
+    }
+  }
+  // Compute total systematic uncertainty
+  unc["MC_Syst"].ResizeTo(nBin);
+  for (uint iBin = 0; iBin < nBin; iBin++) {
+    double uncVal = 0.0;
+    for (const auto& co : eff) {
+      if (co.first.find("MC_Syst")!=std::string::npos) {
+        uncVal += ( unc.at(co.first)[iBin] * unc.at(co.first)[iBin] );
+      }
+    }
+    unc.at("MC_Syst")[iBin] = std::sqrt( uncVal );
+  }
+  //
+  return true;
+};
+
+
+bool getMCUncertainties(Unc1DMap_t& unc, const EffMap_t& eff)
+{
+  for (const auto& v : eff) {
+    for (const auto& s : v.second) {
+      for (const auto& c : s.second) {
+        for (const auto& ch : c.second) {
+          for (const auto& t : ch.second) {
+            if (!getMCUncertainties(unc[v.first][s.first][c.first][ch.first][t.first], t.second)) { return false; };
+          }
+        }
+      }
+    }
+  }
+  return true;
+};
+
+
 bool getTnPUncertainties(Unc1DVec_t& unc, const EffVec_t& eff)
 {
   if (eff.count("TnP_Nominal") == 0) { return true; }
@@ -408,7 +523,7 @@ bool getTnPUncertainties(Unc1DVec_t& unc, const EffVec_t& eff)
   const TEfficiency& nom = eff.at("TnP_Nominal")[0];
   const uint nBin = nom.GetCopyTotalHisto()->GetNbinsX();
   for (const auto& co : eff) {
-    if (co.first=="NoCorr" || co.first=="TnP_Nominal") continue;
+    if (co.first=="TnP_Nominal" || co.first.find("TnP_")==std::string::npos) continue;
     unc[co.first].ResizeTo(nBin);
     for (uint iBin = 1; iBin <= nBin; iBin++) {
       double uncVal = 0.0;
@@ -496,7 +611,7 @@ void initEff1D(TH1DMap_t& h, const BinMapMap_t& binMap)
         for (const auto& chg : CHG_) {
           for (const auto& type : effType) {
             for (const auto& cor : corrType) {
-              if (type=="Acceptance" && cor.first!="NoCorr") continue;
+              if (type=="Acceptance" && (cor.first!="NoCorr" && cor.first!="HFCorr")) continue;
               for (uint i = 0; i < cor.second; i++) {
                 h[bins.first][sample][col][chg][type][cor.first].push_back( std::make_tuple(TH1D() , TH1D() , 1.0) );
                 std::get<0>(h.at(bins.first).at(sample).at(col).at(chg).at(type).at(cor.first)[i]) = TH1D("Passed", "Passed", (bins.second.size()-1), bin);
@@ -518,27 +633,39 @@ void initEff1D(TH1DMap_t& h, const BinMapMap_t& binMap)
 };
 
 
-bool fillEff1D(TH1DVec_t& h, const bool& pass, const double& xVar, const TnPVec_t& sfTnP, const double& evtWeight)
+bool fillEff1D(TH1DVec_t& h, const bool& pass, const double& xVar, const TnPVec_t& sfTnP, const TnPVec_t& wMC, const double& evtWeight)
 {
   for (auto& cor : h) {
     for (uint i = 0; i < cor.second.size(); i++) {
+      //
       double sf = 1.0;
       if (sfTnP.count(cor.first)>0 && sfTnP.at(cor.first).size()>i) { sf = sfTnP.at(cor.first)[i]; }
       else if (sfTnP.size()==0) { sf = 1.0; }
       else if (sfTnP.count(cor.first)==0) { std::cout << "[ERROR] Correction " << cor.first << " was not found!" << std::endl; return false; }
       else { std::cout << "[ERROR] Correction " << cor.first << " has invalid number of entries: " << cor.second.size() << "  " << sfTnP.at(cor.first).size() << " !" << std::endl; return false; }
-      if (cor.first!="NoCorr" && pass && sfTnP.size()==0) { std::cout << "[ERROR] TnP scale factor vector is empty!" << std::endl; return false; } 
+      if ((cor.first!="NoCorr" && cor.first!="HFCorr") && pass && sfTnP.size()==0) { std::cout << "[ERROR] TnP scale factor vector is empty!" << std::endl; return false; }
+      //
+      double w_MC = 1.0;
+      if (wMC.count(cor.first)>0 && wMC.at(cor.first).size()>i) { w_MC = wMC.at(cor.first)[i]; }
+      else if (wMC.size()==0) { w_MC = 1.0; }
+      else if (wMC.count(cor.first)==0) { std::cout << "[ERROR] MC PDF Weight " << cor.first << " was not found!" << std::endl; return false; }
+      else { std::cout << "[ERROR] MC PDF Weight " << cor.first << " has invalid number of entries: " << cor.second.size() << "  " << wMC.at(cor.first).size() << " !" << std::endl; return false; }
+      //
       // Fill the Pass histogram
-      if (pass) { std::get<0>(cor.second[i]).Fill(xVar , (evtWeight*sf)); }
+      if      (cor.first=="NoCorr") { if (pass) { std::get<0>(cor.second[i]).Fill(xVar , 1.0                 ); } }
+      else if (cor.first=="HFCorr") { if (pass) { std::get<0>(cor.second[i]).Fill(xVar , evtWeight           ); } }
+      else                          { if (pass) { std::get<0>(cor.second[i]).Fill(xVar , (evtWeight*sf*w_MC) ); } }
       // Fill the total histogram
-      std::get<1>(cor.second[i]).Fill(xVar , evtWeight);
+      if      (cor.first=="NoCorr") { std::get<1>(cor.second[i]).Fill(xVar , 1.0              ); }
+      else if (cor.first=="HFCorr") { std::get<1>(cor.second[i]).Fill(xVar , evtWeight        ); }
+      else                          { std::get<1>(cor.second[i]).Fill(xVar , (evtWeight*w_MC) ); }
     }
   }
   return true;
 };
 
 
-bool fillEff1D(TH1DMap_t& h, const bool& pass, const std::string& type, const VarMap_t& var, const std::vector< TnPVec_t >& sfTnP, const double& evtWeight, const BinMapMap_t& MU_BIN)
+bool fillEff1D(TH1DMap_t& h, const bool& pass, const std::string& type, const VarMap_t& var, const TnPVec_t& sfTnP, const TnPVec_t& wMC, const double& evtWeight, const BinMapMap_t& MU_BIN)
 {
   const std::string sample = var.begin()->first;
   const std::string col    = var.at(sample).begin()->first;
@@ -555,9 +682,7 @@ bool fillEff1D(TH1DMap_t& h, const bool& pass, const std::string& type, const Va
           if ( (s.first.find("Minus")!=std::string::npos || s.first.find("Plus")!=std::string::npos) && (s.first.find(ch.first)==std::string::npos) ) continue;
           if (ch.second.count(type)==0) { std::cout << "[ERROR] Efficiency type " << type << " is not defined" << std::endl; return false; }
           double xVar = var.at(sample).at(col).at(charge).at(v.first)[0];
-          uint sfIdx = 0;
           if (c.first=="PA" && col=="Pbp") {
-            //sfIdx = 1; Ask about this on Monday
             if (v.first=="Eta") { xVar = -xVar; } // Invert in the LAB frame
             if (v.first=="EtaCM") {
               xVar = PA::EtaCMtoLAB(xVar, false); // Switch from CM -> LAB, in Pbp system
@@ -567,7 +692,7 @@ bool fillEff1D(TH1DMap_t& h, const bool& pass, const std::string& type, const Va
           }
           if (xVar >= MU_BIN.at(c.first).at(v.first)[0] && xVar <= MU_BIN.at(c.first).at(v.first)[MU_BIN.at(c.first).at(v.first).size()-1]) { // Don't include values outside of range
             // Fill histograms
-            if (!fillEff1D(ch.second.at(type), pass, xVar, sfTnP[sfIdx], evtWeight)) { return false; }
+            if (!fillEff1D(ch.second.at(type), pass, xVar, sfTnP, wMC, evtWeight)) { return false; }
           }
         }
       }
@@ -606,7 +731,6 @@ bool loadEff1D(EffMap_t& eff, const TH1DMap_t& h)
                       std::cout << "[ERROR] Bin " << i << " has Pass: " << hPassed.GetBinContent(i) << " Total: " << hTotal.GetBinContent(i) << std::endl;
                     }
                   }
-                  //return false;
                   eff[v.first][s.first][c.first][ch.first][t.first][co.first].push_back( TEfficiency() );
                   eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).at(co.first)[i].SetName(name.c_str());
                   eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).at(co.first)[i].SetTotalHistogram(hTotal, "f");
@@ -693,7 +817,7 @@ void mergeEff(EffMap_t& eff)
 void writeEff(TFile& file, const EffMap_t& eff, const Unc1DMap_t& unc, const std::string& mainDirName)
 {
   if (eff.size()>0) {
-    TDirectory* mainDir = file.mkdir(mainDirName.c_str());
+    TDirectory*  mainDir = file.mkdir(mainDirName.c_str());
     mainDir->cd();
     for (auto& v : eff) {
       TDirectory* varDir = mainDir->mkdir(v.first.c_str());
@@ -718,7 +842,10 @@ void writeEff(TFile& file, const EffMap_t& eff, const Unc1DMap_t& unc, const std
                 for (uint i = 0; i < co.second.size(); i++) {
                   co.second[i].Write(clStr(co.second[i].GetName()));
                 }
-                if (co.first!="NoCorr" && co.first!="TnP_Nominal") { u.at(co.first).Write((name + co.first).c_str()); }
+                if (u.count(co.first)>0) {
+                  if (co.first.find("TnP_S"  )!=std::string::npos) { u.at(co.first).Write((name + co.first).c_str()); }
+                  if (co.first.find("MC_Syst")!=std::string::npos) { u.at(co.first).Write((name + co.first).c_str()); }
+                }
                 typeDir->cd();
               }
               if (u.count("TnP_Tot") > 0) { 
@@ -726,6 +853,7 @@ void writeEff(TFile& file, const EffMap_t& eff, const Unc1DMap_t& unc, const std
                 u.at("TnP_Syst").Write((name + "TnP_Syst").c_str());
                 u.at("TnP_Tot").Write((name + "TnP_Tot").c_str());
               }
+              if (u.count("MC_Syst") > 0) { u.at("MC_Syst").Write((name + "MC_Syst").c_str()); }
               colDir->cd();
             }
           }
@@ -750,6 +878,7 @@ void saveEff(const std::string& outDir, const EffMap_t& eff1D, const Unc1DMap_t&
   // Step 3: Write and Close the file
   file.Write();
   file.Close("R");
+  std::cout << "[INFO] Information store in file " << outDir << fileName << std::endl;
 };
 
 
