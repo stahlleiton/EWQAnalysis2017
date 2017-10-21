@@ -317,4 +317,14 @@ std::string formatCut(const std::string& cut, const StringMap_t& map = StringMap
 };
 
 
+RooRealVar getVar(const RooArgSet& set, const std::string varName)
+{
+  if (set.find(varName.c_str()) != NULL) {
+    return *(RooRealVar*)set.find(varName.c_str());
+  }
+  std::cout << "[WARNING] Variable " << varName << " was not found in the set, return empty RooRealVar" << std::endl;
+  return RooRealVar();
+};
+
+
 #endif // #ifndef initClasses_h

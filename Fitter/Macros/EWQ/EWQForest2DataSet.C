@@ -406,7 +406,56 @@ bool reweightMCLumi(RooWorkspaceMap_t& Workspaces, GlobalInfo& info)
 };
 
 
-bool applyMCCorrection(RooWorkspace& ws, const std::string dDSName, const std::string& mcDSName, const bool& applyTnPCorr, HFweight* HFCorr, RecoilCorrector& recoilCorr, const std::string& recoilMethod)
+bool readCorrectionDS(RooWorkspace& corrWS, const std::string sampleTag, const std::string recoilMethod)
+{
+  //
+  bool done = false;
+  std::string sample = sampleTag; sample = sample.substr(sample.find("MC_"));
+  const std::string corrDirName  = Form("%s/Correction/Recoil_%s", getcwd(NULL, 0), recoilMethod.c_str());
+  const std::string corrFileName = Form("Corr_%s_Recoil_%s.root", sample.c_str(), recoilMethod.c_str());
+  const std::string corrFilePath = Form("%s/%s", corrDirName.c_str(), corrFileName.c_str());
+  //
+  if (existFile(corrFilePath)) {
+    TFile corrFile(corrFilePath.c_str(), "READ");
+    if (!corrFile.IsZombie() && corrFile.IsOpen() && corrFile.Get("workspace")) {
+      std::cout << "[INFO] Corrected MET extracted from " << corrFilePath << std::endl;
+      const RooWorkspace& ws = *(RooWorkspace*)corrFile.Get("workspace");
+      if ( (ws.data(("mcPl_COR_"+sample).c_str()) && ws.data(("mcMi_COR_"+sample).c_str())) && (ws.data(("dPl_COR_"+sample).c_str()) && ws.data(("dMi_COR_"+sample).c_str())) ) {
+        corrWS.import(*ws.data(("mcPl_COR_"+sample).c_str()));  corrWS.import(*ws.data(("mcMi_COR_"+sample).c_str()));
+        corrWS.import(*ws.data(("dPl_COR_"+sample).c_str()));   corrWS.import(*ws.data(("dMi_COR_"+sample).c_str()));
+        done = true;
+      }
+      else { std::cout << "[WARNING] Some correction datasets are missing, ignoring file " << corrFilePath << std::endl; }
+    }
+    corrFile.Close();
+  }
+  // Return
+  return done;
+};
+
+
+void writeCorrectionDS(const RooWorkspace& ws, const std::string sampleTag, const std::string recoilMethod)
+{
+  //
+  std::string sample = sampleTag; sample = sample.substr(sample.find("MC_"));
+  const std::string corrDirName  = Form("%s/Correction/Recoil_%s", getcwd(NULL, 0), recoilMethod.c_str());
+  const std::string corrFileName = Form("Corr_%s_Recoil_%s.root", sample.c_str(), recoilMethod.c_str());
+  const std::string corrFilePath = Form("%s/%s", corrDirName.c_str(), corrFileName.c_str());
+  if (!existDir(corrDirName)) { makeDir(corrDirName); }
+  //
+  if ( (ws.data(("mcPl_COR_"+sample).c_str()) && ws.data(("mcMi_COR_"+sample).c_str())) && (ws.data(("dPl_COR_"+sample).c_str()) && ws.data(("dMi_COR_"+sample).c_str())) ) {
+    std::cout << "[INFO] Corrected MET stored in " << corrFilePath << std::endl;
+    RooWorkspace corrWS;
+    corrWS.import(*ws.data(("mcPl_COR_"+sample).c_str()));  corrWS.import(*ws.data(("mcMi_COR_"+sample).c_str()));
+    corrWS.import(*ws.data(("dPl_COR_"+sample).c_str()));   corrWS.import(*ws.data(("dMi_COR_"+sample).c_str()));
+    TFile corrFile(corrFilePath.c_str(), "RECREATE"); if (!corrFile.IsZombie() && corrFile.IsOpen()) { corrFile.cd(); corrWS.Write("workspace"); corrFile.Write(); }; corrFile.Close();
+  }
+  //
+};
+
+
+bool applyMCCorrection(RooWorkspace& ws, const RooWorkspace& corrWS, const std::string dDSName, const std::string& mcDSName, 
+                       const bool& applyTnPCorr, HFweight* HFCorr, RecoilCorrector& recoilCorr, const std::string& recoilMethod)
 {
   //
   const bool applyHFCorr     = (HFCorr != NULL);
@@ -423,11 +472,11 @@ bool applyMCCorrection(RooWorkspace& ws, const std::string dDSName, const std::s
   std::string chg    = dDS->GetName(); chg    = chg.substr(1, sample.find("_"));
   std::string col    = dDS->GetName(); col    = col.substr(col.find_last_of("_")+1);
   // Initialize the new RooRealVars
-  RooRealVar mcRawMET = RooRealVar( "MET"     , "|#slash{E}_{T}|"          ,  -1.0 ,     100000.0 , "GeV/c"     );
-  RooRealVar mcRawMT  = RooRealVar( "Muon_MT" , "W Transverse Mass"        ,  -1.0 ,     100000.0 , "GeV/c^{2}" );
-  RooRealVar mcSFTnP  = RooRealVar( "SFTnP"   , "TagAndProbe Scale Factor" , -10.0 ,         10.0 , ""          );
-  RooRealVar mcWHF    = RooRealVar( "wHF"     , "HF Weight"                ,  -1.0 , 1000000000.0 , ""          );
-  RooRealVar weight   = RooRealVar( "Weight"  , "Weight"                   ,  -1.0 , 1000000000.0 , ""          );
+  RooRealVar mcRawMET = RooRealVar( "MET_RAW"     , "|#slash{E}_{T}|"          ,  -1.0 ,     100000.0 , "GeV/c"     );
+  RooRealVar mcRawMT  = RooRealVar( "Muon_MT_RAW" , "W Transverse Mass"        ,  -1.0 ,     100000.0 , "GeV/c^{2}" );
+  RooRealVar mcSFTnP  = RooRealVar( "SFTnP"       , "TagAndProbe Scale Factor" , -10.0 ,         10.0 , ""          );
+  RooRealVar mcWHF    = RooRealVar( "wHF"         , "HF Weight"                ,  -1.0 , 1000000000.0 , ""          );
+  RooRealVar weight   = RooRealVar( "Weight"      , "Weight"                   ,  -1.0 , 1000000000.0 , ""          );
   // Initialize the RooArgSets
   RooArgSet cols   = *dDS->get();
   cols.add(weight);
@@ -437,8 +486,16 @@ bool applyMCCorrection(RooWorkspace& ws, const std::string dDSName, const std::s
   if (applyRecoilCorr) { mcCols.add(mcRawMET); mcCols.add(mcRawMT); }
   //
   // Initialize the new RooDataSets
-  auto dWDS  = std::unique_ptr<RooDataSet>(new RooDataSet( Form("d%s_COR_%s" , chg.c_str(), sample.c_str()) , Form("d%s" , chg.c_str()) , cols   , RooFit::WeightVar(weight)) );
-  auto mcWDS = std::unique_ptr<RooDataSet>(new RooDataSet( Form("mc%s_COR_%s", chg.c_str(), sample.c_str()) , Form("mc%s", chg.c_str()) , mcCols) );
+  const std::string dCorrDSName  = Form("d%s_COR_%s" , chg.c_str(), sample.c_str());
+  const std::string mcCorrDSName = Form("mc%s_COR_%s" , chg.c_str(), sample.c_str());
+  auto dWDS  = std::unique_ptr<RooDataSet>(new RooDataSet( dCorrDSName.c_str()  , Form("d%s" , chg.c_str()) , cols   , RooFit::WeightVar(weight)) );
+  auto mcWDS = std::unique_ptr<RooDataSet>(new RooDataSet( mcCorrDSName.c_str() , Form("mc%s", chg.c_str()) , mcCols) );
+  // Extract the correction RooDataSet
+  RooDataSet* corrDS   = NULL; if ( corrWS.data(dCorrDSName.c_str())  ) { corrDS   = (RooDataSet*)corrWS.data(dCorrDSName.c_str());  }
+  RooDataSet* corrMCDS = NULL; if ( corrWS.data(mcCorrDSName.c_str()) ) { corrMCDS = (RooDataSet*)corrWS.data(mcCorrDSName.c_str()); }
+  if ( (corrDS==NULL && corrMCDS!=NULL) || (corrDS!=NULL && corrMCDS==NULL) ) { std::cout << "[ERROR] One of the correction datasets is missing" << std::endl; return false; }
+  if (corrDS!=NULL && corrMCDS!=NULL && corrDS->numEntries()!=corrMCDS->numEntries()) { std::cout << "[ERROR] Correction datasets have different number of entries" << std::endl; return false; }
+  if (corrDS!=NULL && corrDS->numEntries()!=dDS->numEntries()) { std::cout << "[ERROR] Wrong number of entries corrDS (" << corrDS->numEntries() << ") and dDS (" << dDS->numEntries() << ")" << std::endl; return false; }
   // Apply the Lumi re-weighting to positive muon dataset
   int mcID = -99;
   for (int i = 0; i < dDS->numEntries(); i++) {
@@ -507,16 +564,34 @@ bool applyMCCorrection(RooWorkspace& ws, const std::string dDSName, const std::s
       auto bosonPhi = (RooRealVar*)mcCols.find("Boson_Phi");
       if (bosonPhi==NULL) { std::cout << "[ERROR] applyMCCorrection: Variable Boson_Phi was not found in " << dDSName << std::endl; return false; }
       TVector2 boson_pT; boson_pT.SetMagPhi(bosonPt->getVal() , bosonPhi->getVal());
-      // Set the Reference and Boson pT vectors
-      recoilCorr.setPt(reference_pT, boson_pT);
-      // Correct the MET
-      TVector2 MET_CORR;
-      if (!recoilCorr.correctMET(MET_CORR, MET_RAW, recoilMethod)) { return false; }
-      // Correct the Muon Transverse Mass
-      const double muMTVal = PA::getWTransverseMass(muPt->getVal(), muPhi->getVal(), MET_CORR.Mod(), MET_CORR.Phi());
-      // Set the corrected MET and Transverse Mass
-      met->setVal(MET_CORR.Mod());
-      muMT->setVal(muMTVal);
+      // Check correction dataset
+      if (corrDS) {
+        const RooArgSet& corrCols   = *corrDS->get(i);
+        const RooArgSet& corrMCCols = *corrMCDS->get(i);
+        if ( ( muPt->getVal()     != getVar(corrCols,   "Muon_Pt").getVal()     ) || ( muPhi->getVal()    != getVar(corrMCCols, "Muon_Phi").getVal()  ) ||
+             ( met->getVal()      != getVar(corrMCCols, "MET_RAW").getVal()     ) || ( metPhi->getVal()   != getVar(corrMCCols, "MET_Phi").getVal()   ) ||
+             ( refPt->getVal()    != getVar(corrMCCols, "Ref_Pt").getVal()      ) || ( refPhi->getVal()   != getVar(corrMCCols, "Ref_Phi").getVal()   ) ||
+             ( bosonPt->getVal()  != getVar(corrMCCols, "Boson_Pt").getVal()    ) || ( bosonPhi->getVal() != getVar(corrMCCols, "Boson_Phi").getVal() ) ||
+             ( muMT->getVal()     != getVar(corrMCCols, "Muon_MT_RAW").getVal() ) ) {
+          std::cout << "[ERROR] Correction dataset " << mcCorrDSName << " is imcompatible with current dataset" << std::endl; return false;
+        }
+        else {
+          met->setVal(getVar(corrCols, "MET").getVal());
+          muMT->setVal(getVar(corrCols, "Muon_MT").getVal());
+        }
+      }
+      else {
+        // Set the Reference and Boson pT vectors
+        recoilCorr.setPt(reference_pT, boson_pT);
+        // Correct the MET
+        TVector2 MET_CORR;
+        if (!recoilCorr.correctMET(MET_CORR, MET_RAW, recoilMethod)) { return false; }
+        // Correct the Muon Transverse Mass
+        const double muMTVal = PA::getWTransverseMass(muPt->getVal(), muPhi->getVal(), MET_CORR.Mod(), MET_CORR.Phi());
+        // Set the corrected MET and Transverse Mass
+        met->setVal(MET_CORR.Mod());
+        muMT->setVal(muMTVal);
+      }
     }
     // Fill the new RooDataSets
     if (weight.getVal() <= 0.0) { std::cout << "[ERROR] applyMCCorrection: Weight is negative ( " << weight.getVal() << " ) in " << dDSName << std::endl; return false; }
@@ -565,12 +640,17 @@ bool correctMC(RooWorkspaceMap_t& Workspaces, const GlobalInfo& info)
       std::string sample = "LUM_" + ws.first;
       if (myws.data(Form("dPl_%s", sample.c_str()))==NULL) { sample = "RAW_" + ws.first; }
       std::cout << "[INFO] Applying corrections ( " << (applyTnPCorr ? "TnPCorr " : "") << (applyHFCorr ? ", HFCorr" : "")  << (applyRecoilCorr ? ", RecoilCorr" : "") << " ) to " << sample << std::endl;
+      // Extract the corrections
+      bool makeCorrFile = false; RooWorkspace corrWS;
+      if (applyRecoilCorr) { makeCorrFile = (!readCorrectionDS(corrWS, sample, recoilMethod)); }
       // Initialize the MET Recoil Corrector
       if (applyRecoilCorr) { recoilCorr.setInitialSetup(sample); }
       // Apply the MC correction to positive muon dataset
-      if (!applyMCCorrection(myws, ("dPl_"+sample), ("mcPl_"+sample), applyTnPCorr, HFCorr.get(), recoilCorr, recoilMethod)) { return false; }
+      if (!applyMCCorrection(myws, corrWS, ("dPl_"+sample), ("mcPl_"+sample), applyTnPCorr, HFCorr.get(), recoilCorr, recoilMethod)) { return false; }
       // Apply the MC correction to negative muon dataset
-      if (!applyMCCorrection(myws, ("dMi_"+sample), ("mcMi_"+sample), applyTnPCorr, HFCorr.get(), recoilCorr, recoilMethod)) { return false; }
+      if (!applyMCCorrection(myws, corrWS, ("dMi_"+sample), ("mcMi_"+sample), applyTnPCorr, HFCorr.get(), recoilCorr, recoilMethod)) { return false; }
+      // Save the corrections
+      if (applyRecoilCorr && makeCorrFile) { writeCorrectionDS(myws, sample, recoilMethod); }
     }
   }
   //

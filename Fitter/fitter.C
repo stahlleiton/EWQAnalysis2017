@@ -88,7 +88,7 @@ void fitter(
   else if (workDirName.find("SystematicCM_")!=std::string::npos) {
     userInput.Flag["applyHFCorr"]     = true;
     userInput.Flag["applyTnPCorr"]    = true;
-    userInput.Flag["applyRecoilCorr"] = false;
+    userInput.Flag["applyRecoilCorr"] = true;
     userInput.Par["RecoilCorrMethod"] = "Smearing";
     fitObj = 1;
   }
