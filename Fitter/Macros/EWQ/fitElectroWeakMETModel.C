@@ -159,6 +159,7 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
             RooArgList* pdfConstrains = (RooArgList*)myws.genobj(Form("pdfConstr%s", label.c_str()));
             std::unique_ptr<RooFitResult> fitResult;
             if (pdfConstrains!=NULL && pdfConstrains->getSize()>0) {
+              std::cout << "[INFO] Fitting with constrain PDFs" << std::endl;
               auto tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsName.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), 
                                                           RooFit::Range("METWindow"), RooFit::ExternalConstraints(*pdfConstrains), RooFit::NumCPU(numCores), RooFit::Save());
               fitResult = std::unique_ptr<RooFitResult>(tmp);
@@ -350,7 +351,8 @@ int importDataset(RooWorkspace& myws  , const std::map<string, RooWorkspace>& in
       }
       std::cout << "[INFO] " << Form("%.0f", data->sumEntries()) << " weighted entries imported from local RooDataSet " << Form("d%s_%s", chg.c_str(), label.c_str()) << std::endl;
       //
-      if ( (myws.obj("METType")==NULL) && (inputWS.at(label).obj("METType")!=NULL)) { myws.import(*((TObjString*)inputWS.at(label).obj("METType")), "METType"); }
+      const std::vector< std::string > strLabels = { "METType" , "CorrectionApplied" , "RecoilMethod" };
+      for (const auto& strL : strLabels) { if (inputWS.at(label).obj(strL.c_str()) && !myws.obj(strL.c_str())) { myws.import(*inputWS.at(label).obj(strL.c_str()), strL.c_str()); } }
       //
       // Set the range of each global parameter in the local roodataset
       if (myws.data(Form("d%s_%s", chg.c_str(), label.c_str()))!=NULL) {

@@ -156,8 +156,8 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StrMapMap_t& 
                     ws.var(("rN_"+label).c_str())->setVal( tmp.var(("N_"+label).c_str())->getVal() / ws.var(("NRef_"+refLabel).c_str())->getVal() );
                     ws.var(("rN_"+label).c_str())->setConstant(kTRUE);
                     //
-                    if (info.Par.count("rRN_"+label )>0 && info.Par.at("rRN_"+label )!="") { tmp.factory(info.Par.at("rRN_"+label).c_str()); }
-                    if (tmp.var(info.Par.at("rRN_"+label).c_str())!=NULL && tmp.var(info.Par.at("rRN_"+label).c_str())->getVal()!=1.0) {
+                    if (info.Par.count("rRN_"+label)>0 && info.Par.at("rRN_"+label)!="") { tmp.factory(info.Par.at("rRN_"+label).c_str()); }
+                    if (tmp.var(("rRN_"+label).c_str())!=NULL && tmp.var(("rRN_"+label).c_str())->getVal()!=1.0) {
                       if (!ws.var(("rRN_"+label).c_str())) ws.factory(info.Par.at("rRN_"+label).c_str());
                       ws.var(("rRN_"+label).c_str())->setConstant(kTRUE);
                       ws.factory(Form("RooFormulaVar::%s('@0*@1*@2',{%s,%s,%s})", ("N_"+label).c_str(), ("rRN_"+label).c_str(), ("rN_"+label).c_str(), info.Par.at("N_"+refLabel).c_str()));
@@ -279,29 +279,28 @@ void setMETModelParameters(GlobalInfo& info)
       double numEntries = info.Var.at("numEntries").at(chg);
       for (const auto& mainObj : info.StrV.at("fitObject")) {
         for (const auto& obj : (info.Flag.at("incMCTemp_"+mainObj) ? info.StrV.at("template") : std::vector<std::string>({mainObj}))) {
-          const std::string mainLabel  = cha + chg + "_" + col;
-          std::string foundLabel = mainLabel;
+          const std::string mainCha  = cha , mainChg  = chg , mainCol  = col;
+          std::string foundCha = cha , foundChg = chg , foundCol = col;
           std::vector<std::string> tryChannel = { cha , ""  };
-          std::vector<std::string> trySystem  = { col , "PA"};
+          std::vector<std::string> trySystem  = { col , "PA" , ""};
           std::vector<std::string> tryCharge  = { chg , ""  };
           for (const auto& tryCha : tryChannel) {
             bool trySuccess = false;
             for (const auto& tryCol : trySystem) {
               for (const auto& tryChg : tryCharge) {
-                if (info.Par.count("N_" +obj+foundLabel)==0     ) { foundLabel = (tryCha + tryChg + "_" + tryCol); } else { trySuccess = true; break; }
-                if (info.Var.count("rRN_" +obj+foundLabel)==0   ) { foundLabel = (tryCha + tryChg + "_" + tryCol); } else { trySuccess = true; break; }
-                if (info.Par.count("Beta_"  +obj+foundLabel)==0 ) { foundLabel = (tryCha + tryChg + "_" + tryCol); } else { trySuccess = true; break; }
-                if (info.Par.count("Sigma_"+obj+foundLabel)==0  ) { foundLabel = (tryCha + tryChg + "_" + tryCol); } else { trySuccess = true; break; }
+                foundCha = tryCha; foundChg = tryChg; foundCol = tryCol;
+                const std::string tryLabel = obj + foundCha + foundChg + ( (tryCol!="") ? ("_" + foundCol) : "" );
+                if ( (info.Var.count(("rRN_"    + tryLabel).c_str())>0) || (info.Var.count(("Cut_"   + tryLabel).c_str())>0) ||
+                     (info.Par.count(("Sigma0_" + tryLabel).c_str())>0) || (info.Par.count(("Alpha_" + tryLabel).c_str())>0) ) 
+                  { trySuccess = true; break; }
               }
               if (trySuccess) break;
             }
             if (trySuccess) break;
           }
           //
-          const std::string objLabel           = obj + mainLabel;
-          const std::string objFoundLabel      = obj + foundLabel;
-          const std::string inputObjLabel      = mainObj + mainLabel;
-          const std::string inputObjFoundLabel = mainObj + foundLabel;
+          const std::string objLabel      = obj + mainCha  + mainChg  + ( (mainCol !="") ? ("_" + mainCol ) : "" );
+          const std::string objFoundLabel = obj + foundCha + foundChg + ( (foundCol!="") ? ("_" + foundCol) : "" );
           //
           // NUMBER OF EVENTS
           if (info.Par.count("N_"+objLabel)==0 || info.Par.at("N_"+objLabel)=="") {
@@ -332,12 +331,12 @@ void setMETModelParameters(GlobalInfo& info)
             info.Par["rRN_"+objLabel] = Form("%s[%.10f]", ("rRN_"+objLabel).c_str(), info.Var.at("rRN_"+objLabel).at("Val"));
           }
           // CUTS FOR CUT AND COUNT ALGO
-          if (info.Par.count("Cut_"+inputObjLabel)==0 || info.Par.at("Cut_"+inputObjLabel)=="") {
-            if (info.Par.count("Cut_"+inputObjFoundLabel)==0 || info.Par.at("Cut_"+inputObjFoundLabel)=="") {
-              info.Par["Cut_"+inputObjLabel] = "( 20 <= MET )&&( 40 <= Muon_MT )";
+          if (info.Par.count("Cut_"+objLabel)==0 || info.Par.at("Cut_"+objLabel)=="") {
+            if (info.Par.count("Cut_"+objFoundLabel)==0 || info.Par.at("Cut_"+objFoundLabel)=="") {
+              info.Par["Cut_"+objLabel] = "( 20 <= MET )&&( 40 <= Muon_MT )";
             }
             else {
-              info.Par["Cut_"+inputObjLabel] = info.Par.at("Cut_"+inputObjFoundLabel);
+              info.Par["Cut_"+objLabel] = info.Par.at("Cut_"+objFoundLabel);
             }
           }
           // QCD MODEL PARAMETERS
@@ -360,7 +359,7 @@ void setMETModelParameters(GlobalInfo& info)
             // Check Parameters for Constrain Fits
             std::vector<std::string > constrainLabel = { "val" , "sig" };
             for (const auto& con : constrainLabel) {
-              const std::string name = Form("%s%s_%s", con.c_str(), v.c_str(), inputObjLabel.c_str());
+              const std::string name = Form("%s%s_%s", con.c_str(), v.c_str(), objLabel.c_str());
               if (info.Par.count(name) && info.Par.at(name)!="") {
                 std::string content = info.Par.at(name); content = content.substr( content.find("[") );
                 info.Par[Form("%s%s_%s", con.c_str(), v.c_str(), objLabel.c_str())] = Form("%s%s_%s%s", con.c_str(), v.c_str(), objLabel.c_str(), content.c_str());

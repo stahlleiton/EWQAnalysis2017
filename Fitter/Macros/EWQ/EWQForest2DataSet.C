@@ -639,7 +639,8 @@ bool correctMC(RooWorkspaceMap_t& Workspaces, const GlobalInfo& info)
       // Get the sample name
       std::string sample = "LUM_" + ws.first;
       if (myws.data(Form("dPl_%s", sample.c_str()))==NULL) { sample = "RAW_" + ws.first; }
-      std::cout << "[INFO] Applying corrections ( " << (applyTnPCorr ? "TnPCorr " : "") << (applyHFCorr ? ", HFCorr" : "")  << (applyRecoilCorr ? ", RecoilCorr" : "") << " ) to " << sample << std::endl;
+      const std::string corrString = std::string(applyTnPCorr ? " TnPCorr " : "") + std::string(applyHFCorr ? " HFCorr " : "")  + std::string(applyRecoilCorr ? " RecoilCorr " : "");
+      std::cout << "[INFO] Applying corrections ( " << corrString << " ) to " << sample << std::endl;
       // Extract the corrections
       bool makeCorrFile = false; RooWorkspace corrWS;
       if (applyRecoilCorr) { makeCorrFile = (!readCorrectionDS(corrWS, sample, recoilMethod)); }
@@ -651,6 +652,9 @@ bool correctMC(RooWorkspaceMap_t& Workspaces, const GlobalInfo& info)
       if (!applyMCCorrection(myws, corrWS, ("dMi_"+sample), ("mcMi_"+sample), applyTnPCorr, HFCorr.get(), recoilCorr, recoilMethod)) { return false; }
       // Save the corrections
       if (applyRecoilCorr && makeCorrFile) { writeCorrectionDS(myws, sample, recoilMethod); }
+      // Store in the workspace the info regarding the corrections applied
+      TObjString tmp; tmp.SetString(corrString.c_str()); myws.import(*((TObject*)&tmp), "CorrectionApplied");
+      if (applyRecoilCorr) { tmp.SetString(recoilMethod.c_str()); myws.import(*((TObject*)&tmp), "RecoilMethod"); }
     }
   }
   //
@@ -744,7 +748,8 @@ bool createPADataset(RooWorkspaceMap_t& Workspaces, const std::string& sampleTag
   Workspaces.at(sample_PA).import(*dMi_PA);
   if (mcPl_PA!=NULL) { Workspaces.at(sample_PA).import(*mcPl_PA); }
   if (mcMi_PA!=NULL) { Workspaces.at(sample_PA).import(*mcMi_PA); }
-  Workspaces.at(sample_PA).import(*((TObjString*)Workspaces.at(sample_pPb).obj("METType")), "METType");
+  const std::vector< std::string > strLabels = { "METType" , "CorrectionApplied" , "RecoilMethod" };
+  for (const auto& strL : strLabels) { if (Workspaces.at(sample_pPb).obj(strL.c_str())) { Workspaces.at(sample_PA).import(*Workspaces.at(sample_pPb).obj(strL.c_str()), strL.c_str()); } }
   // Import the Luminosity Ratio and xSections (used for systematics)
   if (sample_pPb.find("MC_")!=std::string::npos) {
     std::unique_ptr<TIterator> parIt = std::unique_ptr<TIterator>(Workspaces.at(sample_pPb).allVars().createIterator());
