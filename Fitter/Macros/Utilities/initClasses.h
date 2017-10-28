@@ -327,4 +327,118 @@ RooRealVar getVar(const RooArgSet& set, const std::string varName)
 };
 
 
+void getPoint(const RooHist& rH, const uint& i, double& x, double& y, double& exl, double& exh, double& eyl, double& eyh)
+{
+  //
+  rH.GetPoint(i, x, y);
+  //
+  eyl = rH.GetErrorYlow(i);
+  eyh = rH.GetErrorYhigh(i);
+  //
+  exl = rH.GetErrorXlow(i);
+  exh = rH.GetErrorXhigh(i);
+  if (exl<=0.0 ) { exl = rH.GetErrorX(i); }
+  if (exh<=0.0 ) { exh = rH.GetErrorX(i); }
+  if (exl<=0.0 ) { exl = 0.5*rH.getNominalBinWidth(); }
+  if (exh<=0.0 ) { exh = 0.5*rH.getNominalBinWidth(); }
+};
+
+
+bool rooPlotToTH1(TH1D& hData, TH1D& hFit, const RooPlot& frame, const bool useAverage = true)
+{
+  // Find curve object
+  auto rFit = (RooCurve*) frame.findObject(0, RooCurve::Class());
+  if (!rFit) { std::cout << "[ERROR] The latest RooCurve was not found" << std::endl; return false; }
+  // Find histogram object
+  auto rData = (RooHist*) frame.findObject(0, RooHist::Class());
+  if (!rData) { std::cout << "[ERROR] The latest RooHist was not found" << std::endl; return false; }
+  // Determine range of curve
+  double xstart, xstop, yDummy;
+  rFit->GetPoint(0, xstart, yDummy);
+  rFit->GetPoint((rFit->GetN()-1), xstop, yDummy);
+  // Get Binning
+  std::vector<double> binV;
+  for (int i = 0; i < rData->GetN(); i++) {
+    double x, y; rData->GetPoint(i, x, y);
+    // Only consider bins inside curve range
+    if (x<xstart || x>xstop) continue;
+    const double binW = rData->getNominalBinWidth();
+    binV.push_back(x - (binW*0.5));
+    if (i==(rData->GetN()-1)) { binV.push_back(x + (binW*0.5)); }
+  }
+  const uint nBin = (binV.size()-1);
+  Double_t bin[nBin+1];
+  for (uint i = 0; i < binV.size(); i++) { bin[i] = binV[i]; }
+  //
+  hData.Reset(); hData = TH1D(Form("hData_%s", rData->GetName()), rData->GetTitle(), nBin, bin); hData.Sumw2();
+  hFit.Reset();  hFit  = TH1D(Form("hFit_%s" , rFit->GetName()) , rFit->GetTitle() , nBin, bin); hFit.Sumw2();
+  // Set Histogram entries
+  for (uint i = 0; i < nBin; i++) {
+    double x, dataVal, exl, exh, eyl, eyh;
+    getPoint(*rData, i, x, dataVal, exl, exh, eyl, eyh);
+    double fitVal = 0.0;
+    if (useAverage) { fitVal = rFit->average(x-exl, x+exh); }
+    else            { fitVal = rFit->interpolate(x);        }
+    hData.SetBinContent((i+1), dataVal);
+    hData.SetBinError((i+1), std::sqrt((eyl*eyl + eyh*eyh)/2.0));
+    hFit.SetBinContent((i+1), fitVal);
+    hFit.SetBinError((i+1), std::sqrt(fitVal));
+  }
+  return true;
+};
+
+
+bool makePullHist(RooHist& pHist, const RooPlot& frame, const std::string histname, const std::string curvename, const bool useAverage)
+{
+  // Find curve object
+  auto rFit = (RooCurve*) frame.findObject(((curvename=="") ? 0 : curvename.c_str()), RooCurve::Class());
+  if (!rFit) { std::cout << "[ERROR] makePullHist(" << curvename << ") cannot find curve" << std::endl; return false; }
+  // Find histogram object
+  auto rData = (RooHist*) frame.findObject(((histname=="") ? 0 : histname.c_str()), RooHist::Class());
+  if (!rData) { std::cout << "[ERROR] makePullHist(" << histname  << ") cannot find histogram" << std::endl; return false; }
+  // Determine range of curve
+  double xstart, xstop, yDummy;
+  rFit->GetPoint(0, xstart, yDummy);
+  rFit->GetPoint((rFit->GetN()-1), xstop, yDummy);
+  // Add histograms, calculate Poisson confidence interval on sum value
+  for (int i = 0; i < rData->GetN(); i++) {
+    // Get Data Value and Error
+    double x, dataVal, exl, exh, eyl, eyh;
+    getPoint(*rData, i, x, dataVal, exl, exh, eyl, eyh);
+    // Only calculate pull for bins inside curve range
+    if (x<xstart || x>xstop) continue ;
+    // Get Fit Value
+    double fitVal = 0.0;
+    if (useAverage) { fitVal = rFit->average(x-exl, x+exh); }
+    else            { fitVal = rFit->interpolate(x);        }
+    // Compute the Residual
+    double y = (dataVal - fitVal);
+    // Get the Norm factor
+    const double norm = ( (y>0) ? eyl : eyh );
+    // Set Values
+    if (norm>0.0) {
+      y   /= norm;
+      eyl /= norm;
+      eyh /= norm;
+      pHist.addBinWithXYError(x, y, exl, exh, eyl, eyh);
+    }
+    else {
+      pHist.addBinWithXYError(x, 0, exl, exh, 0, 0);
+    }
+  }
+  return true;
+};
+
+
+bool isAtLimit(const RooRealVar& var)
+{
+  if (
+      ( (std::abs(var.getValV() - var.getMin())/var.getError()) <= 3.0 ) ||
+      ( (std::abs(var.getValV() - var.getMax())/var.getError()) <= 3.0 )
+      )
+    { return true; }
+  return false;
+};
+
+
 #endif // #ifndef initClasses_h

@@ -72,8 +72,8 @@ const std::vector< std::string > cutSelection = {
 };
 std::map< std::string, std::tuple< std::string > > yAxis;
 const double isoPoint = 0.03;
-const std::string useBin_  = "Inclusive"; // Can also  be Inclusive
-const std::string fitType_ = "Fixed";     // Can also  be Constrained
+const std::string useBin_  = "Inclusive"; // Can also  be Inclusive , Mean , Eta (Nothing)
+const std::string fitType_ = "Fixed";     // Can also  be Constrain or Fixed
 std::string MODELNAME_ = "";
 
 void makeQCDTemplate(
@@ -86,6 +86,8 @@ void makeQCDTemplate(
   if (workDirName.find("QCDTemplate")==std::string::npos) { std::cout << "[ERROR] Invalid input workdirname " << workDirName << std::endl; return; }
   const std::string CWD = getcwd(NULL, 0);
   std::string preCWD = CWD; preCWD.erase(preCWD.find_last_of("/"), 100);
+  //
+  if (fitType_!="Constrain" && fitType_!="Fixed") { std::cout << "[ERROR] Fit type is wrong. WTF is wrong with you." << std::endl; return; }
   //
   const std::vector< std::string > col = { "pPb" , "Pbp" , "PA" };
   for (const auto& c : col) {
@@ -232,8 +234,10 @@ bool getBinPars(const RooWorkspace& myws, RooRealVarMap_t& binPars)
   const std::string dsName = "d" + charge + "_" + DSTAG;
   if (myws.data(dsName.c_str())) {
     for (auto& par : binPars) {
-      par.second.setVal(myws.data(dsName.c_str())->meanVar(*myws.var(par.first.c_str()))->getVal());
-      par.second.setError(myws.data(dsName.c_str())->rmsVar(*myws.var(par.first.c_str()))->getVal());
+      auto meanVar = std::unique_ptr<RooRealVar>(myws.data(dsName.c_str())->meanVar(*myws.var(par.first.c_str())));
+      auto rmsVar  = std::unique_ptr<RooRealVar>(myws.data(dsName.c_str())->rmsVar (*myws.var(par.first.c_str())));
+      par.second.setVal(meanVar->getVal());
+      par.second.setError(rmsVar->getVal());
     }
   }
   else { std::cout << "[ERROR] " << dsName << " was not found!" << std::endl; return false; }
@@ -819,7 +823,7 @@ bool createInputFiles(const std::string& dirPath , const FitMap_t& iniFitMap, co
         }
       }
       else if ((useBin_=="Mean") && lbl.second.count(std::make_tuple(std::make_pair(etaMeanMin,etaMeanMin+0.06), std::make_pair(ptMin, ptMax)))>0) {
-        for (const auto& var : lbl.second.at(std::make_tuple(std::make_pair(etaMin,etaMin+0.06), std::make_pair(ptMin, ptMax)))) {
+        for (const auto& var : lbl.second.at(std::make_tuple(std::make_pair(etaMeanMin,etaMeanMin+0.06), std::make_pair(ptMin, ptMax)))) {
           const double val = var.second->GetParameter(0);
           const double err = var.second->GetParError(0);
           header = Form("%s_QCDToMu%s_%s", var.first.c_str(), chg.c_str(), col.c_str());
@@ -838,10 +842,11 @@ bool createInputFiles(const std::string& dirPath , const FitMap_t& iniFitMap, co
       }      
     }
   }
+  const std::string dirPathFile = dirPath+"/" + (fitType_ + "_" + useBin_)+"/";
   // Print the new input files
-  makeDir(dirPath);
+  makeDir(dirPathFile);
   for (const auto& name : inputFile) {
-    ofstream fout( dirPath + name.first );
+    ofstream fout( dirPathFile + name.first );
     // Print all except inclusive bins
     for (const auto& row : name.second) {
       if (std::abs(std::get<0>(row.first).first-std::get<0>(row.first).second)<2.4 || std::abs(std::get<0>(row.first).second)==99.) {

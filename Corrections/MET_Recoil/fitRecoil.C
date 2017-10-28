@@ -9,6 +9,8 @@
 #if !defined(__CINT__) || defined(__MAKECINT__)
 #include "../../Utilities/HiMuonTree.h"
 #include "../../Utilities/HiMETTree.h"
+#include "../../Utilities/EVENTUTILS.h"
+#include "../../Fitter/Macros/Utilities/initClasses.h"
 #include "../../Utilities/CMS/tdrstyle.C"
 #include "../../Utilities/CMS/CMS_lumi.C"
 #include <iostream>                   // standard I/O
@@ -44,22 +46,20 @@
 
 
 // print the chi2 result
-void printChi2(const RooWorkspace& myws, TPad* Pad, RooPlot* frame, 
-               std::string varLabel, const RooDataSet& dataset, std::string pdfLabel);
-
+bool printChi2(TPad& pad, const RooWorkspace& ws, const RooPlot& frame, const string& varLabel, const RooDataSet& dataset, const string& pdfLabel);
 
 // Axis and Text Utility functions
-void updateYAxisRange ( RooPlot* frame, const RooWorkspace& myws, std::string varLabel, 
+void updateYAxisRange ( RooPlot& frame, const RooWorkspace& myws, std::string varLabel, 
                         const RooDataSet& dataset, const bool& logScale );
-void updateYAxisRange ( TGraphErrors* graph );
+void updateYAxisRange ( std::unique_ptr<TGraphErrors>& graph );
 
 std::string formatText(const std::string& text);
 
 
 // generate web page
 void makeHTML(const std::string outDir,
-              const std::map< std::string , TGraphErrors* >& u1Graph,
-              const std::map< std::string , TGraphErrors* >& u2Graph,
+              const std::map< std::string , std::unique_ptr<TGraphErrors> >& u1Graph,
+              const std::map< std::string , std::unique_ptr<TGraphErrors> >& u2Graph,
               const std::string uparName, const std::string uprpName, const uint nbins);
 
 
@@ -67,14 +67,14 @@ void makeHTML(const std::string outDir,
 // perform fit of recoil component
 bool performFit(
                 RooWorkspace& ws,
-                const vector< TH1D* >& hv,
+                const std::vector< std::unique_ptr<TH1D> >& hv,
                 const std::vector< double >& ptBins,
                 const std::string uName,
                 const uint model,
                 const std::string dsName,
                 const std::string col,
                 const bool isData,
-                TCanvas* c,
+                TCanvas& c,
                 std::map< std::string , std::vector< std::vector< double > > >& varArr,
                 const std::string outputDir
                 );
@@ -86,10 +86,13 @@ void fitRecoil(
                const bool isData = false,
                const std::vector< std::string > metType = { "PF_RAW" , "PF_Type1" , "PF_NoHF_RAW" , "PF_NoHF_Type1" },
                const std::vector< std::string > COLL    = { "PA" , "Pbp" , "pPb" },
-               const std::string uparName   = "u1",
-               const std::string uprpName   = "u2"
+               const bool remakeDS = false
                )
 {
+  //
+  const std::string uparName   = "u1";
+  const std::string uprpName   = "u2";
+  //
   // Change the working directory
   const std::string CWD = getcwd(NULL, 0);
   const std::string mainDir = Form("%s/FitRecoil/", CWD.c_str());
@@ -111,15 +114,15 @@ void fitRecoil(
   uint pfu1model = -1; // u1 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian)
   uint pfu2model = -1; // u2 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian)
   if (isData) {
-    fileName.push_back("root://xrootd.unl.edu//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20170717.root");
+    fileName.push_back("/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20171003.root");
     dsLabel = "DATA";
     pfu1model = 1;
     pfu2model = 1;
   }
   else {
-    fileName.push_back("root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official/HiEWQForest_Embedded_Official_DYToMuMu_pPb_8160GeV_20170717.root");
-    fileName.push_back("root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official/HiEWQForest_Embedded_Official_DYToMuMu_Pbp_8160GeV_20170717.root");
-    dsLabel = "MC_DYToMuMu_PYQUEN";
+    fileName.push_back("/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official/POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_pPb_8160GeV_20171003.root");
+    fileName.push_back("/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official/POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_Pbp_8160GeV_20171003.root");
+    dsLabel = "MC_DYToMuMu_POWHEG";
     pfu1model = 2;
     pfu2model = 2;
   }
@@ -134,160 +137,247 @@ void fitRecoil(
   const Double_t PT_CUT    = 15.;
   const Double_t ETA_CUT   = 2.4;
 
+  // Define Trigger Event Selection
+  const int triggerIndex = PA::HLT_PAL3Mu12;
+
   //--------------------------------------------------------------------------------------------------------------
   // Main analysis code 
   //==============================================================================================================  
 
   // Initialize the histograms
-  std::map< std::string , std::map< std::string , std::vector< TH1D* > > > hPFu1v , hPFu2v;
-  for (const auto& met : metType) {
-    for (const auto& col : COLL) {
-      for(uint ibin = 0; ibin < nbins; ibin++) {
-        // For u1
-        hPFu1v[met][col].push_back(new TH1D(Form("hPFu1_%s_%s_%i", met.c_str(), col.c_str(), ibin), "", 150, -150-ptBins[ibin], 150-ptBins[ibin]));
-        hPFu1v.at(met).at(col).at(ibin)->Sumw2();
-        // For u2
-        hPFu2v[met][col].push_back(new TH1D(Form("hPFu2_%s_%s_%i", met.c_str(), col.c_str(), ibin), "", 150, -150, 150));
-        hPFu2v.at(met).at(col).at(ibin)->Sumw2();
-      }
-    }
-  }
-
+  std::map< std::string , std::map< std::string , std::vector< std::unique_ptr<TH1D> > > > hPFu1v , hPFu2v;
+  for (const auto& met : metType) { for (const auto& col : COLL) { hPFu1v[met][col].resize(nbins); hPFu2v[met][col].resize(nbins); } }
+  //
   // Initialize the RooDataSets
-  RooDataSet* ds = NULL;
   std::map< std::string , std::map< std::string , RooWorkspace > > myws_u1 , myws_u2;
-  for (const auto& met : metType) {
-    for (const auto& col : COLL) {
-      RooRealVar ptVar = RooRealVar("pt", "pt", -1000., 1000., "GeV/c");
-      RooRealVar u1Var  = RooRealVar(uparName.c_str(), uparName.c_str(), -1000., 1000., "GeV/c");
-      ds = new RooDataSet(Form("dPF%s_%s", uparName.c_str(), dsLabel.c_str()), "", RooArgSet(u1Var, ptVar));
-      myws_u1[met][col].import(*ds);
-      delete ds;
-      RooRealVar u2Var  = RooRealVar(uprpName.c_str(), uprpName.c_str(), -1000., 1000., "GeV/c");
-      ds = new RooDataSet(Form("dPF%s_%s", uprpName.c_str(), dsLabel.c_str()), "", RooArgSet(u2Var, ptVar));
-      myws_u2[met][col].import(*ds);
-      delete ds;
+  //
+  // Check if DataSet have already been made
+  //
+  bool makeDS = false;
+  //
+  if (remakeDS==false) {
+    // Check the directory
+    const std::string dsDir = Form("%s/DataSet/", CWD.c_str());
+    const std::string inputDSDir = dsDir + dsLabel +"/";
+    if (existDir(inputDSDir)) {
+      // Open the input file
+      for (const auto& met : metType) {
+        for (const auto& col : COLL) {
+          const std::string inDSname = (inputDSDir + Form("DATASET_%s_%s.root", met.c_str(), col.c_str()));
+          if (existFile(inDSname)) {
+            bool prodNotFound = false;
+            std::cout << "[INFO] Extracting DataSets from " << inDSname << endl;
+            auto inDSfile = std::unique_ptr<TFile>(new TFile(inDSname.c_str(), "READ"));
+            if (inDSfile!=NULL && inDSfile->IsOpen() && !inDSfile->IsZombie()) {
+              if (inDSfile->Get("workspace_u1")) { myws_u1[met][col].import(*((RooWorkspace*)inDSfile->Get("workspace_u1"))->data(Form("dPF%s_%s", uparName.c_str(), dsLabel.c_str()))); } else { prodNotFound = true; }
+              if (inDSfile->Get("workspace_u2")) { myws_u2[met][col].import(*((RooWorkspace*)inDSfile->Get("workspace_u2"))->data(Form("dPF%s_%s", uprpName.c_str(), dsLabel.c_str()))); } else { prodNotFound = true; }
+              for (uint ibin = 0; ibin < nbins; ibin++) {
+                if (inDSfile->Get(Form("hPFu1_%i", ibin))) {
+                  hPFu1v.at(met).at(col).at(ibin) = std::unique_ptr<TH1D>((TH1D*)inDSfile->Get(Form("hPFu1_%i", ibin))); hPFu1v.at(met).at(col).at(ibin)->SetDirectory(0);
+                } else { prodNotFound = true; }
+                if (inDSfile->Get(Form("hPFu2_%i", ibin))) {
+                  hPFu2v.at(met).at(col).at(ibin).reset((TH1D*)inDSfile->Get(Form("hPFu2_%i", ibin))); hPFu2v.at(met).at(col).at(ibin)->SetDirectory(0);
+                } else { prodNotFound = true; }
+              }
+            }
+            else { std::cout << "[INFO] Input DataSet file " << inDSname << " fail to open, will make the datasets" << std::endl; makeDS = true; }
+            if (prodNotFound) { std::cout << "[WARNING] Input DataSet file is corrupt, will remake it!" << std::endl; makeDS = true; }
+            if (inDSfile!=NULL) { inDSfile->Close(); }
+          }
+          else { std::cout << "[INFO] Input DataSet file " << inDSname << " was not found, will make the datasets" << std::endl; makeDS = true; }
+          if (makeDS) break;
+        }
+        if (makeDS) break;
+      }
     }
+    else { std::cout << "[INFO] Input DataSet Directory " << inputDSDir << " was not found, will make the datasets" << std::endl; makeDS = true; }
   }
-  
-  // Proceed to loop over each input file
-  for(const auto& file : fileName) {
-    std::cout << "Processing " << file << endl;
-
-    std::unique_ptr<HiMuonTree> muonTree = std::unique_ptr<HiMuonTree>(new HiMuonTree());
-    if (!muonTree->GetTree(file)) return;
-    Long64_t nentries = muonTree->GetEntries();
-
-    std::unique_ptr<HiMETTree> metTree = std::unique_ptr<HiMETTree>(new HiMETTree());
-    if (!metTree->GetTree(file, "metAna")) return;
-    if (metTree->GetEntries() != nentries) { std::cout << "[ERROR] Inconsistent number of entries!" << std::endl; return; }
-
-    std::unique_ptr<HiMETTree> metNoHFTree = std::unique_ptr<HiMETTree>(new HiMETTree());
-    if (!metNoHFTree->GetTree(file, "metAnaNoHF")) return;
-    if (metNoHFTree->GetEntries() != nentries) { std::cout << "[ERROR] Inconsistent number of entries!" << std::endl; return; }
-  
+  //
+  // Make the datasets
+  //
+  if (makeDS) {
     //
-    // Loop over events
-    //
-    for (Long64_t jentry=0; jentry<nentries; jentry++) {
-      if (muonTree->GetEntry(jentry)<0) break;
-      if (metTree->GetEntry(jentry)<0) break;
-      if (metNoHFTree->GetEntry(jentry)<0) break;
-      if (jentry%1000000==0) std::cout << jentry << "/" << nentries << std::endl;
-      if (metTree->Event_Run() != muonTree->Event_Run()) { std::cout << "[ERROR] Inconsistent Run number between MET and MUON!" << std::endl; return; }
-      if (metTree->Event_Number() != muonTree->Event_Number()) { std::cout << "[ERROR] Inconsistent Event number between MET and MUON!" << std::endl; return; }
-      if (metNoHFTree->Event_Run() != muonTree->Event_Run()) { std::cout << "[ERROR] Inconsistent Run number between MET NoHF and MUON!" << std::endl; return; }
-      if (metNoHFTree->Event_Number() != muonTree->Event_Number()) { std::cout << "[ERROR] Inconsistent Event number between MET NoHF and MUON!" << std::endl; return; }
-
-      // Apply Event Filters
-      if (metTree->Flag_collisionEventSelectionPA()==false) continue; // PA Event Selection
-
-      std::string evtCol = "";
-      if (isData) {
-        if (muonTree->Event_Run() >= 285410 && muonTree->Event_Run() <= 285951) evtCol = "Pbp"; // for Pbp
-        if (muonTree->Event_Run() >= 285952 && muonTree->Event_Run() <= 286504) evtCol = "pPb"; // for pPb
-      }
-      else {
-        if (file.find("Pbp")!=std::string::npos)  evtCol = "Pbp"; // for Pbp
-        if (file.find("pPb")!=std::string::npos)  evtCol = "pPb"; // for pPb
-      }
-      if (evtCol == "") { std::cout << "[ERROR] Could not determine the collision system in the sample" << std::endl; return; }
-
-      //
-      // Fix the muon PF - GEN matching
-      std::vector<char> PF_Muon_Gen_Idx , Gen_Muon_PF_Idx;
-      if (!isData) { muonTree->GetUniquePFGenMuonMatching(PF_Muon_Gen_Idx, Gen_Muon_PF_Idx, muonTree->PF_Muon_Gen_Idx()); }
-      //
-
-      for (uint idimu = 0; idimu < muonTree->PF_DiMuon_Mom().size(); idimu++) {
-        // Do some simple selection on the events being used
-        const ushort idx1  = muonTree->PF_DiMuon_Muon1_Idx()[idimu];
-        const ushort idx2  = muonTree->PF_DiMuon_Muon2_Idx()[idimu];
-        const ushort idx1R = muonTree->PF_Muon_Reco_Idx()[idx1];
-        const ushort idx2R = muonTree->PF_Muon_Reco_Idx()[idx2];
-        // Check the content of the MC          
-        if (!isData && (PF_Muon_Gen_Idx[idx1] == -1)) continue; // Only consider Muons Matched to GEN in MC
-        if (!isData && (PF_Muon_Gen_Idx[idx2] == -1)) continue; // Only consider Muons Matched to GEN in MC
-        if (!isData) { // Check that the mother is a Z boson in MC and both share the same
-          const auto mom_1 = muonTree->MuonMother(PF_Muon_Gen_Idx[idx1]);
-          const auto mom_2 = muonTree->MuonMother(PF_Muon_Gen_Idx[idx2]);
-          if ( (mom_1.pdg != 23) || (mom_2.pdg != 23) || (mom_1.idx != mom_2.idx) ) continue;
-        }
-        // Get the momentum of each muon
-        TLorentzVector lep1 = muonTree->PF_Muon_Mom()[idx1];
-        TLorentzVector lep2 = muonTree->PF_Muon_Mom()[idx2];
-        // Single Muon Quality & Isolation Cut
-        if ( (muonTree->PF_Muon_IsoPFR03NoPUCorr()[idx1] >= 0.15) || (muonTree->PF_Muon_IsoPFR03NoPUCorr()[idx2] >= 0.15) ) continue; // Require the 2 muons to be isolated
-        if ( (muonTree->Reco_Muon_isTight()[idx1R] == false) || (muonTree->Reco_Muon_isTight()[idx2R] == false) ) continue;           // Require the 2 muons to be tight muons
-        // Double Muon Charge Cut
-        if(muonTree->PF_DiMuon_Charge()[idimu] != 0) continue; // Require opposite sign
-
-        // Kinematic Cuts
-        //
-        // Get the momentum of the dimuon
-        TLorentzVector dilep = lep1 + lep2;
-        if(dilep.M() < MASS_LOW || dilep.M() > MASS_HIGH) continue; // Require to be within the Z mass window
-        if(lep1.Pt()        < PT_CUT  || lep2.Pt()        < PT_CUT)  continue;
-        if(fabs(lep1.Eta()) > ETA_CUT || fabs(lep2.Eta()) > ETA_CUT) continue;
-        // Find the pt bin index
-        int ipt = -1;
+    for (const auto& met : metType) {
+      for (const auto& col : COLL) {
         for(uint ibin = 0; ibin < nbins; ibin++) {
-          if(dilep.Pt() > ptBins[ibin] && dilep.Pt() <= ptBins[ibin+1]) ipt = ibin;
+          // For u1
+          hPFu1v.at(met).at(col).at(ibin).reset(new TH1D(Form("hPFu1_%s_%s_%i", met.c_str(), col.c_str(), ibin), "", 200, -200-ptBins[ibin], 200-ptBins[ibin]));
+          hPFu1v.at(met).at(col).at(ibin)->Sumw2();
+          // For u2
+          hPFu2v.at(met).at(col).at(ibin).reset(new TH1D(Form("hPFu2_%s_%s_%i", met.c_str(), col.c_str(), ibin), "", 200, -200, 200));
+          hPFu2v.at(met).at(col).at(ibin)->Sumw2();
         }
-        if(ipt<0) continue;
+      }
+    }
+    //
+    for (const auto& met : metType) {
+      for (const auto& col : COLL) {
         //
-        // Loop over met type
-        for (const auto& met : metType) {
-          TVector2 dilep2D = TVector2(); dilep2D.SetMagPhi(dilep.Pt(),dilep.Phi());
-          TVector2 met2D;
-          if (met=="PF_RAW"       ) met2D = metTree->PF_MET_NoShift_Mom();
-          if (met=="PF_Type1"     ) met2D = metTree->Type1_MET_NoShift_Mom();
-          if (met=="PF_NoHF_RAW"  ) met2D = metNoHFTree->PF_MET_NoShift_Mom();
-          if (met=="PF_NoHF_Type1") met2D = metNoHFTree->Type1_MET_NoShift_Mom();
-          TVector2 U = -1.*(dilep2D + met2D);
-          // u1 : Parallel Component
-          double  u1 = ( U * dilep2D ) / dilep2D.Mod();
-          // u2 : Perpendicular Componente
-          double  u2 = ( ( U.Px() * dilep2D.Py() ) - ( U.Py() * dilep2D.Px() ) ) / dilep2D.Mod();
-          for (const auto& col : COLL) {
-            if (col==evtCol || col=="PA") {
-              // Fill the histograms with the recoil (u1 or u2) in each pT bin
-              hPFu1v.at(met).at(col).at(ipt)->Fill(u1);
-              hPFu2v.at(met).at(col).at(ipt)->Fill(u2);
-              // Fill the RooWorkspaces with the recoil
-              myws_u1.at(met).at(col).var("pt")->setVal(dilep.Pt());
-              myws_u2.at(met).at(col).var("pt")->setVal(dilep.Pt());
-              myws_u1.at(met).at(col).var(uparName.c_str())->setVal(u1);
-              myws_u2.at(met).at(col).var(uprpName.c_str())->setVal(u2);
-              ((RooDataSet*)myws_u1.at(met).at(col).data(Form("dPF%s_%s", uparName.c_str(), dsLabel.c_str())))->add(RooArgSet(*myws_u1.at(met).at(col).var("pt"), *myws_u1.at(met).at(col).var(uparName.c_str())));
-              ((RooDataSet*)myws_u2.at(met).at(col).data(Form("dPF%s_%s", uprpName.c_str(), dsLabel.c_str())))->add(RooArgSet(*myws_u2.at(met).at(col).var("pt"), *myws_u2.at(met).at(col).var(uprpName.c_str())));
+        RooRealVar ptVar = RooRealVar("pt", "pt", -1000., 1000., "GeV/c");
+        RooRealVar u1Var = RooRealVar(uparName.c_str(), uparName.c_str(), -1000., 1000., "GeV/c");
+        auto ds = std::unique_ptr<RooDataSet>(new RooDataSet(Form("dPF%s_%s", uparName.c_str(), dsLabel.c_str()), "", RooArgSet(u1Var, ptVar)));
+        myws_u1[met][col].import(*ds);
+        //
+        RooRealVar u2Var  = RooRealVar(uprpName.c_str(), uprpName.c_str(), -1000., 1000., "GeV/c");
+        ds.reset(new RooDataSet(Form("dPF%s_%s", uprpName.c_str(), dsLabel.c_str()), "", RooArgSet(u2Var, ptVar)));
+        myws_u2[met][col].import(*ds);
+      }
+    }
+    //
+    // Proceed to loop over each input file
+    for(const auto& file : fileName) {
+      std::cout << "[INFO] Processing " << file << endl;
+      //
+      std::unique_ptr<HiMuonTree> muonTree = std::unique_ptr<HiMuonTree>(new HiMuonTree());
+      if (!muonTree->GetTree(file)) return;
+      Long64_t nentries = muonTree->GetEntries();
+      //
+      std::unique_ptr<HiMETTree> metTree = std::unique_ptr<HiMETTree>(new HiMETTree());
+      if (!metTree->GetTree(file, "metAna")) return;
+      if (metTree->GetEntries() != nentries) { std::cout << "[ERROR] Inconsistent number of entries!" << std::endl; return; }
+      //
+      std::unique_ptr<HiMETTree> metNoHFTree = std::unique_ptr<HiMETTree>(new HiMETTree());
+      if (!metNoHFTree->GetTree(file, "metAnaNoHF")) return;
+      if (metNoHFTree->GetEntries() != nentries) { std::cout << "[ERROR] Inconsistent number of entries!" << std::endl; return; }  
+      //
+      // Loop over events
+      //
+      for (Long64_t jentry=0; jentry<nentries; jentry++) {
+        //
+        // Get the entry in the trees
+        if (   muonTree->GetEntry(jentry)<0) { std::cout << "[ERROR] Muon Tree invalid entry!"     << std::endl; return; }
+        if (    metTree->GetEntry(jentry)<0) { std::cout << "[ERROR] MET Tree invalid entry!"      << std::endl; return; }
+        if (metNoHFTree->GetEntry(jentry)<0) { std::cout << "[ERROR] MET NoHF Tree invalid entry!" << std::endl; return; }
+        // 
+        // Check that the different tree agrees well
+        if (muonTree->Event_Run()!=metTree->Event_Run()          ) { std::cout << "[ERROR] MET Run does not agree!"        << std::endl; return; }
+        if (muonTree->Event_Number()!=metTree->Event_Number()    ) { std::cout << "[ERROR] MET Event does not agree!"      << std::endl; return; }
+        if (muonTree->Event_Run()!=metNoHFTree->Event_Run()      ) { std::cout << "[ERROR] MET NoHF Run does not agree!"   << std::endl; return; }
+        if (muonTree->Event_Number()!=metNoHFTree->Event_Number()) { std::cout << "[ERROR] MET NoHF Event does not agree!" << std::endl; return; }
+        //
+        loadBar(jentry, nentries);
+        //
+        // Determine the collision system of the sample
+        std::string evtCol = "";
+        if (isData) {
+          if (muonTree->Event_Run() >= 285410 && muonTree->Event_Run() <= 285951) evtCol = "Pbp"; // for Pbp
+          if (muonTree->Event_Run() >= 285952 && muonTree->Event_Run() <= 286504) evtCol = "pPb"; // for pPb
+        }
+        else {
+          if (file.find("_Pbp_")!=std::string::npos) evtCol = "Pbp"; // for Pbp
+          if (file.find("_pPb_")!=std::string::npos) evtCol = "pPb"; // for pPb
+        }
+        if (evtCol=="") { std::cout << "[ERROR] Could not determine the collision system in the sample" << std::endl; return; }
+        //
+        // Event Based Information
+        //
+        // Apply Event Filters
+        if (PA::passEventFilter(metTree)==false) continue; // PA Event Selection
+        //
+        // Check Trigger Fired
+        if (muonTree->Event_Trig_Fired()[triggerIndex]==false) continue; // Trigger Event Fired      
+        //
+        // Loop over dimuons
+        //
+        for (uint idimu = 0; idimu < muonTree->PF_DiMuon_Mom().size(); idimu++) {
+          // Do some simple selection on the events being used
+          const ushort iPFMu1 = muonTree->PF_DiMuon_Muon1_Idx()[idimu];
+          const ushort iPFMu2 = muonTree->PF_DiMuon_Muon2_Idx()[idimu];
+          //
+          // Only consider Muons Matched to GEN in MC
+          if (!isData && muonTree->PF_Muon_Gen_Idx()[iPFMu1]<0) continue;
+          if (!isData && muonTree->PF_Muon_Gen_Idx()[iPFMu2]<0) continue;
+          if (!isData) { // Check that the mother is a Z boson in MC and both share the same
+            const auto mom_1 = muonTree->MuonMother(muonTree->PF_Muon_Gen_Idx()[iPFMu1]);
+            const auto mom_2 = muonTree->MuonMother(muonTree->PF_Muon_Gen_Idx()[iPFMu2]);
+            if ( (mom_1.pdg != 23) || (mom_2.pdg != 23) || (mom_1.idx != mom_2.idx) ) continue;
+          }
+          // Consider muons passing Tight ID and isolation
+          if (PA::isTightIsolatedMuon(iPFMu1 , muonTree)==false) continue;
+          if (PA::isTightIsolatedMuon(iPFMu2 , muonTree)==false) continue;
+          // Double Muon Charge Cut
+          if(muonTree->PF_DiMuon_Charge()[idimu] != 0) continue; // Require opposite sign
+          //
+          // Get the momentum of each muon
+          const TLorentzVector lep1 = muonTree->PF_Muon_Mom()[iPFMu1];
+          const TLorentzVector lep2 = muonTree->PF_Muon_Mom()[iPFMu2];
+          //
+          // Kinematic Cuts
+          //
+          // Get the momentum of the dimuon
+          const TLorentzVector dilep = lep1 + lep2;
+          if(dilep.M() < MASS_LOW || dilep.M() > MASS_HIGH) continue; // Require to be within the Z mass window
+          if(lep1.Pt()        < PT_CUT  || lep2.Pt()        < PT_CUT)  continue;
+          if(fabs(lep1.Eta()) > ETA_CUT || fabs(lep2.Eta()) > ETA_CUT) continue;
+          //
+          TVector2 dilep2D = TVector2(); dilep2D.SetMagPhi(dilep.Pt(),dilep.Phi()); // pT vector of dimuon
+          //
+          // Find the pt bin index
+          int ipt = -1;
+          for(uint ibin = 0; ibin < nbins; ibin++) {
+            if(dilep.Pt() > ptBins[ibin] && dilep.Pt() <= ptBins[ibin+1]) ipt = ibin;
+          }
+          if(ipt<0) continue;
+          //
+          // Loop over met type
+          //
+          for (const auto& met : metType) {
+            //
+            // Extract the MET
+            TVector2 met2D;
+            if (met=="PF_RAW"       ) met2D = metTree->PF_MET_NoShift_Mom();
+            if (met=="PF_Type1"     ) met2D = metTree->Type1_MET_NoShift_Mom();
+            if (met=="PF_NoHF_RAW"  ) met2D = metNoHFTree->PF_MET_NoShift_Mom();
+            if (met=="PF_NoHF_Type1") met2D = metNoHFTree->Type1_MET_NoShift_Mom();
+            //
+            // Compute Recoil
+            TVector2 U = -1.*(dilep2D + met2D); // Recoil Vector
+            // u1 : Recoil Component Parallel to the Dimuon pT Vector
+            double  u1 = ( U * dilep2D ) / dilep2D.Mod();
+            // u2 : Recoil Component Perpendicular to the Dimuon pT Vector
+            double  u2 = ( ( U.Px() * dilep2D.Py() ) - ( U.Py() * dilep2D.Px() ) ) / dilep2D.Mod();
+            //
+            for (const auto& col : COLL) {
+              if (col==evtCol || col=="PA") {
+                // Fill the histograms with the recoil (u1 or u2) in each pT bin
+                hPFu1v.at(met).at(col).at(ipt)->Fill(u1);
+                hPFu2v.at(met).at(col).at(ipt)->Fill(u2);
+                // Fill the RooWorkspaces with the recoil
+                myws_u1.at(met).at(col).var("pt")->setVal(dilep.Pt());
+                myws_u2.at(met).at(col).var("pt")->setVal(dilep.Pt());
+                myws_u1.at(met).at(col).var(uparName.c_str())->setVal(u1);
+                myws_u2.at(met).at(col).var(uprpName.c_str())->setVal(u2);
+                ((RooDataSet*)myws_u1.at(met).at(col).data(Form("dPF%s_%s", uparName.c_str(), dsLabel.c_str())))->add(RooArgSet(*myws_u1.at(met).at(col).var("pt"), *myws_u1.at(met).at(col).var(uparName.c_str())));
+                ((RooDataSet*)myws_u2.at(met).at(col).data(Form("dPF%s_%s", uprpName.c_str(), dsLabel.c_str())))->add(RooArgSet(*myws_u2.at(met).at(col).var("pt"), *myws_u2.at(met).at(col).var(uprpName.c_str())));
+              }
             }
           }
         }
       }
     }
+    // Save the workspaces
+    for (const auto& met : metType) {
+      for (const auto& col : COLL) {
+        // Create output directory
+        const std::string dsDir = Form("%s/DataSet/", CWD.c_str());
+        const std::string outputDir = dsDir + dsLabel +"/";
+        if (!existDir(outputDir)) { makeDir(outputDir); }
+        // Create output file
+        const std::string outfname = (outputDir + Form("DATASET_%s_%s.root", met.c_str(), col.c_str()));
+        auto outfile = std::unique_ptr<TFile>(new TFile(outfname.c_str(), "RECREATE"));
+        if (outfile!=NULL && outfile->IsOpen() && !outfile->IsZombie()) {
+          myws_u1.at(met).at(col).Write("workspace_u1");
+          myws_u2.at(met).at(col).Write("workspace_u2");
+          for (uint ibin = 0; ibin < nbins; ibin++) {
+            if (hPFu1v.at(met).at(col).at(ibin)) { hPFu1v.at(met).at(col).at(ibin)->Write(Form("hPFu1_%i", ibin)); }
+            if (hPFu2v.at(met).at(col).at(ibin)) { hPFu2v.at(met).at(col).at(ibin)->Write(Form("hPFu2_%i", ibin)); }
+          }
+        }
+        if (outfile!=NULL) { outfile->Close(); }
+      }
+    }
   }
-  
+
   // Define the x axis point values
   Double_t xval[nbins], xerr[nbins];
   for(uint ibin = 0; ibin < nbins; ibin++) {
@@ -301,14 +391,14 @@ void fitRecoil(
  
   // Initialize Canvas
   setTDRStyle();
-  TCanvas *c = new TCanvas("c", "c", 800, 800);
+  auto c = std::unique_ptr<TCanvas>(new TCanvas("c", "c", 800, 800));
 
   for (const auto& met : metType) {
     for (const auto& col : COLL) {
       std::cout << "[INFO] Working with MET " << met << " and coll: " << col  << std::endl;
       // Create output directories
       const std::string outputDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col +"/";
-      gSystem->mkdir(TString(outputDir), true);
+      if (!existDir(outputDir)) { makeDir(outputDir); }
       // Do fits on u1
       std::cout << "[INFO] Proceed to perform the fit for u1" << std::endl;
       performFit(
@@ -320,7 +410,7 @@ void fitRecoil(
                  Form("dPF%s_%s", uparName.c_str(), dsLabel.c_str()),
                  col,
                  isData,
-                 c,
+                 *c,
                  u1VarArr[met][col],
                  outputDir
                  );
@@ -335,7 +425,7 @@ void fitRecoil(
                  Form("dPF%s_%s", uprpName.c_str(), dsLabel.c_str()),
                  col,
                  isData,
-                 c,
+                 *c,
                  u2VarArr[met][col],
                  outputDir
                  );
@@ -352,19 +442,25 @@ void fitRecoil(
       const std::string outputDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col +"/" + "Fits/";
       gSystem->mkdir(TString(outputDir + uparName + "/" + "png/"), true);
       gSystem->mkdir(TString(outputDir + uparName + "/" + "pdf/"), true);
+      gSystem->mkdir(TString(outputDir + uparName + "/" + "root/"), true);
       gSystem->mkdir(TString(outputDir + uprpName + "/" + "png/"), true);
       gSystem->mkdir(TString(outputDir + uprpName + "/" + "pdf/"), true);
+      gSystem->mkdir(TString(outputDir + uprpName + "/" + "root/"), true);
       // Define output graphs
-      std::map< std::string , TGraphErrors* > u1Graph;
-      std::map< std::string , TGraphErrors* > u2Graph;
+      std::map< std::string , std::unique_ptr<TGraphErrors> > u1Graph;
+      std::map< std::string , std::unique_ptr<TGraphErrors> > u2Graph;
       double yval[nbins]; double yerr[nbins];
       // Plotting u1 vs. dilepton pT
       for (const auto& var : u1VarArr.at(met).at(col)) {
-        for (uint ibin = 0; ibin < nbins; ibin++) { yval[ibin] = var.second[ibin][0]; }
-        for (uint ibin = 0; ibin < nbins; ibin++) { yerr[ibin] = var.second[ibin][1]; }
-        for (uint ibin = 0; ibin < nbins; ibin++) { xval[ibin] = var.second[ibin][2]; }
-        for (uint ibin = 0; ibin < nbins; ibin++) { xerr[ibin] = var.second[ibin][3]; }
-        u1Graph[var.first] = new TGraphErrors(nbins, xval, yval, xerr, yerr);
+        for (uint ibin = 0; ibin < nbins; ibin++) {
+          if (var.second[ibin][1]>0) {
+            yval[ibin] = var.second[ibin][0];
+            yerr[ibin] = var.second[ibin][1];
+            xval[ibin] = var.second[ibin][2];
+            xerr[ibin] = var.second[ibin][3];
+          }
+        }
+        u1Graph[var.first] = std::unique_ptr<TGraphErrors>(new TGraphErrors(nbins, xval, yval, xerr, yerr));
         u1Graph[var.first]->SetName(Form("grPF%s%s", uparName.c_str(), var.first.c_str()));
         u1Graph[var.first]->SetTitle("");
         u1Graph[var.first]->SetMarkerColor(kBlack);
@@ -386,18 +482,23 @@ void fitRecoil(
         c->SetLogx(0); c->Update();
         int lumiId = 0;
         if (col=="pPb") { lumiId = 109; } else if (col=="Pbp") { lumiId = 110; } else if (col=="PA") { lumiId = 111; }
-        CMS_lumi(c, lumiId, 33, "");
-        c->SaveAs( (outputDir + uparName + "/" + "png/" + Form("pf%s%s.png", uparName.c_str(), var.first.c_str())).c_str() );
-        c->SaveAs( (outputDir + uparName + "/" + "pdf/" + Form("pf%s%s.pdf", uparName.c_str(), var.first.c_str())).c_str() );
+        CMS_lumi(c.get(), lumiId, 33, "");
+        c->SaveAs( (outputDir + uparName + "/" + "png/"  + Form("pf%s%s.png" , uparName.c_str(), var.first.c_str())).c_str() );
+        c->SaveAs( (outputDir + uparName + "/" + "pdf/"  + Form("pf%s%s.pdf" , uparName.c_str(), var.first.c_str())).c_str() );
+        c->SaveAs( (outputDir + uparName + "/" + "root/" + Form("pf%s%s.root", uparName.c_str(), var.first.c_str())).c_str() );
         c->Clear();
       }
       // Plotting u2 vs. dilepton pT
       for (const auto& var : u2VarArr.at(met).at(col)) {
-        for (uint ibin = 0; ibin < nbins; ibin++) { yval[ibin] = var.second[ibin][0]; }
-        for (uint ibin = 0; ibin < nbins; ibin++) { yerr[ibin] = var.second[ibin][1]; }
-        for (uint ibin = 0; ibin < nbins; ibin++) { xval[ibin] = var.second[ibin][2]; }
-        for (uint ibin = 0; ibin < nbins; ibin++) { xerr[ibin] = var.second[ibin][3]; }
-        u2Graph[var.first] = new TGraphErrors(nbins, xval, yval, xerr, yerr);
+        for (uint ibin = 0; ibin < nbins; ibin++) {
+          if (var.second[ibin][1]>0) {
+            yval[ibin] = var.second[ibin][0];
+            yerr[ibin] = var.second[ibin][1];
+            xval[ibin] = var.second[ibin][2];
+            xerr[ibin] = var.second[ibin][3];
+          }
+        }
+        u2Graph[var.first] = std::unique_ptr<TGraphErrors>(new TGraphErrors(nbins, xval, yval, xerr, yerr));
         u2Graph[var.first]->SetName(Form("grPF%s%s", uprpName.c_str(), var.first.c_str()));
         u2Graph[var.first]->SetTitle("");
         u2Graph[var.first]->Draw();
@@ -422,9 +523,10 @@ void fitRecoil(
         }
         int lumiId = 0;
         if (col=="pPb") { lumiId = 109; } else if (col=="Pbp") { lumiId = 110; } else if (col=="PA") { lumiId = 111; }
-        CMS_lumi(c, lumiId, 33, "");
-        c->SaveAs( (outputDir + uprpName + "/" + "png/" + Form("pf%s%s.png", uprpName.c_str(), var.first.c_str())).c_str() );
-        c->SaveAs( (outputDir + uprpName + "/" + "pdf/" + Form("pf%s%s.pdf", uprpName.c_str(), var.first.c_str())).c_str() );
+        CMS_lumi(c.get(), lumiId, 33, "");
+        c->SaveAs( (outputDir + uprpName + "/" + "png/"  + Form("pf%s%s.png" , uprpName.c_str(), var.first.c_str())).c_str() );
+        c->SaveAs( (outputDir + uprpName + "/" + "pdf/"  + Form("pf%s%s.pdf" , uprpName.c_str(), var.first.c_str())).c_str() );
+        c->SaveAs( (outputDir + uprpName + "/" + "root/" + Form("pf%s%s.root", uprpName.c_str(), var.first.c_str())).c_str() );
         c->Clear();
       }
       // clean up
@@ -434,11 +536,10 @@ void fitRecoil(
       //==============================================================================================================
 
       const std::string outfname = (outputDir + Form("plots_RecoilPDF_%s_%s.root", met.c_str(), col.c_str()));
-      TFile *outfile = new TFile(outfname.c_str(), "RECREATE");
+      auto outfile = std::unique_ptr<TFile>(new TFile(outfname.c_str(), "RECREATE"));
       for (const auto& graph : u1Graph) { if (graph.second) graph.second->Write(); }
       for (const auto& graph : u2Graph) { if (graph.second) graph.second->Write(); }
       outfile->Close();
-      delete outfile;
 
       const std::string htmlDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col;
       makeHTML(htmlDir, u1Graph, u2Graph, uparName, uprpName, nbins);
@@ -448,7 +549,7 @@ void fitRecoil(
   }
 
   // clean up 
-  c->Close(); delete c;
+  c->Close();
 }
   
 //=== FUNCTION DEFINITIONS ======================================================================================
@@ -456,14 +557,14 @@ void fitRecoil(
 //--------------------------------------------------------------------------------------------------
 bool performFit(
                 RooWorkspace& ws,
-                const vector< TH1D* >& hv,
+                const vector< std::unique_ptr<TH1D> >& hv,
                 const std::vector< double >& ptBins,
                 const std::string uName,
                 const uint model,
                 const std::string dsName,
                 const std::string col,
                 const bool isData,
-                TCanvas* c,
+                TCanvas& c,
                 std::map< std::string , std::vector< std::vector< double > > >& varArr,
                 const std::string outputDir
                 ) 
@@ -486,6 +587,7 @@ bool performFit(
   // Set up fit parameters
   //
   std::cout << "[INFO] Creating the models and parameters for the fit" << std::endl;
+  //
   // Width Value
   if (model>=1) { ws.factory( Form("sigma1[%.6f, %.6f, %.6f]" , hv[0]->GetRMS(), 0.5*(hv[0]->GetRMS()), 2.0*(hv[0]->GetRMS())) ); }
   if (model>=2) {
@@ -496,6 +598,7 @@ bool performFit(
     ws.factory( Form("rsigma3[%.6f, %.6f, %.6f]" , 2.0, 0.95, 3.0) );
     ws.factory( "RooFormulaVar::sigma3( '@0*@1' , {sigma2, rsigma3})" );
   }
+  //
   // Mean Value
   if (model>=1) { ws.factory( Form("mean1[%.6f, %.6f, %.6f]" , hv[0]->GetMean(), hv[0]->GetXaxis()->GetXmin(), hv[0]->GetXaxis()->GetXmax()) ); }
   if (model>=2) {
@@ -508,27 +611,34 @@ bool performFit(
     ws.var("dmean3")->setConstant(true);
     ws.factory( "RooFormulaVar::mean3( '@0 + @1*@2' , {mean2, sigma2, dmean3})" );
   }
+  //
   // Fractions
   if (model>=2) { ws.factory( Form("frac[%.6f, %.6f, %.6f]" , 0.90, 0.0, 1.0) ); }
   if (model>=3) { ws.factory( Form("frac2[%.6f, %.6f, %.6f]", 0.90, 0.0, 1.0) ); }
+  //
   // Signal Model Functions
   ws.factory( Form("nsig[%.6f, %.6f, %.6f]" , hv[0]->Integral(), 0., 2.0*(hv[0]->Integral())) );
   if (model>=1) { ws.factory( Form("Gaussian::gauss1(%s, mean1, sigma1)", uName.c_str()) ); }
   if (model>=2) { ws.factory( Form("Gaussian::gauss2(%s, mean2, sigma2)", uName.c_str()) ); }
   if (model>=3) { ws.factory( Form("Gaussian::gauss3(%s, mean3, sigma3)", uName.c_str()) ); }
+  //
   // Signal Model using recursive sum
   if (model==1) { ws.factory( "SUM::sig( gauss1 )" ); }
   if (model==2) { ws.factory( "RSUM::sig( frac*gauss1 , gauss2 )" ); }
   if (model==3) { ws.factory( "RSUM::sig( frac*gauss1 , frac2*gauss2 , gauss3 )" ); }
+  //
   // Define formula for overall mean (mean)
   if (model==2) { ws.factory( "RooFormulaVar::mean(   '((@0)*@1 + (1.0-@0)*@2)' , {frac , mean1, mean2 } )" ); }
   if (model==3) { ws.factory( "RooFormulaVar::mean23( '((@0)*@1 + (1.0-@0)*@2)' , {frac2, mean2, mean3 } )" ); }
   if (model==3) { ws.factory( "RooFormulaVar::mean(   '((@0)*@1 + (1.0-@0)*@2)' , {frac , mean1, mean23} )" ); }
+  //
   // Define formula for overall width (sigma)
+  //
   //    Average sigma
   if (model==2) { ws.factory( "RooFormulaVar::sigma(   '((@0)*@1 + (1.0-@0)*@2)' , {frac , sigma1, sigma2 } )" ); }
   if (model==3) { ws.factory( "RooFormulaVar::sigma23( '((@0)*@1 + (1.0-@0)*@2)' , {frac2, sigma2, sigma3 } )" ); }
   if (model==3) { ws.factory( "RooFormulaVar::sigma(   '((@0)*@1 + (1.0-@0)*@2)' , {frac , sigma1, sigma23} )" ); }
+  //
   //    Approximate sigma
   if (model>=2) { ws.factory( "RooFormulaVar::varR1( '@0*@0 + @1*@1 - @2*@2' , {sigma1, mean1, mean} )" ); }
   if (model>=2) { ws.factory( "RooFormulaVar::varR2( '@0*@0 + @1*@1 - @2*@2' , {sigma2, mean2, mean} )" ); }
@@ -536,18 +646,22 @@ bool performFit(
   if (model>=3) { ws.factory( "RooFormulaVar::varR23( '( (@0)*@1 + (1.0-@0)*@2 )' , {frac2, varR2, varR3} )" ); }
   if (model==2) { ws.factory( "RooFormulaVar::sigmaG( 'TMath::Sqrt( (@0)*@1 + (1.0-@0)*@2 )' , {frac, varR1, varR2} )" ); }
   if (model==3) { ws.factory( "RooFormulaVar::sigmaG( 'TMath::Sqrt( (@0)*@1 + (1.0-@0)*@2 )' , {frac, varR1, varR23} )" ); }
+  //
   // Construct Fit Model
   RooAddPdf  modelpdf("model", "model", RooArgList(*ws.pdf("sig")), RooArgList(*ws.var("nsig")));
   ws.import(modelpdf);
+  //
   // Initialize the output var arrays
   varArr.clear();
-  RooArgSet listVar = ws.allVars(); TIterator* parIt = listVar.createIterator();
+  RooArgSet listVar = ws.allVars();
+  auto parIt = std::unique_ptr<TIterator>(listVar.createIterator());
   for (RooRealVar* it = (RooRealVar*)parIt->Next(); it!=NULL; it = (RooRealVar*)parIt->Next() ) {
     if (it->isConstant()) continue;
     std::string name = it->GetName(); if (name==uName || name=="pt" || name=="nsig" || name=="chi2" || name=="ndof") continue;
     for (uint ibin = 0; ibin < (ptBins.size()-1); ibin++) { varArr[name].push_back( { 0.0 , -1.0 , 0.0 , -1.0 } ); }
   }
-  RooArgSet listFunc = ws.allFunctions(); TIterator* parFunIt = listFunc.createIterator();
+  RooArgSet listFunc = ws.allFunctions();
+  auto parFunIt = std::unique_ptr<TIterator>(listFunc.createIterator());
   for (RooRealVar* it = (RooRealVar*)parFunIt->Next(); it!=NULL; it = (RooRealVar*)parFunIt->Next() ) {
     if (std::string(it->GetName()).find("recursive")!=std::string::npos) continue;
     if (std::string(it->GetName()).find("mean")==std::string::npos && std::string(it->GetName()).find("sigma")==std::string::npos) continue;
@@ -563,7 +677,7 @@ bool performFit(
     //
     string strCut = Form("(%.8f < pt && pt <= %.8f)", ptBins[ibin], ptBins[ibin+1]);
     cout << "[INFO] Using local RooDataSet with cuts: " << strCut << endl;
-    RooDataSet* dataset = ((RooDataSet*)ws.data(dsName.c_str())->reduce(strCut.c_str()));
+    std::unique_ptr<RooDataSet> dataset = std::unique_ptr<RooDataSet>(((RooDataSet*)ws.data(dsName.c_str())->reduce(strCut.c_str())));
     if (dataset->sumEntries()==0){ std::cout << "[ERROR] No events passed the cuts!" << endl; return false; }
     //
     // Define the fit range
@@ -578,10 +692,12 @@ bool performFit(
     ws.var("mean1")->setVal( hv[ibin]->GetMean() );
     ws.var("mean1")->setMin( hv[ibin]->GetXaxis()->GetXmin() );
     ws.var("mean1")->setMax( hv[ibin]->GetXaxis()->GetXmax() );
+    //
     // Width Value
     //ws.var("sigma1")->setVal( hv[ibin]->GetRMS() );
     ws.var("sigma1")->setMin( 0.5*(hv[ibin]->GetRMS()) );
     ws.var("sigma1")->setMax( 2.0*(hv[ibin]->GetRMS()) );
+    //
     // Yield Value
     ws.var("nsig")->setVal( hv[ibin]->Integral() );
     ws.var("nsig")->setMax( 2.0*(hv[ibin]->Integral()) );
@@ -594,19 +710,21 @@ bool performFit(
     //
     // Perform fit
     //
-    RooFitResult* fitResult = ws.pdf("model")->fitTo(*dataset, RooFit::Extended(kTRUE), RooFit::Range("FitWindow"), RooFit::NumCPU(32), RooFit::Save(), RooFit::PrintLevel(-1));
-    if (!fitResult || fitResult->status()!=0) { std::cout << "[ERROR] Fit failed for pt bin : " << ibin << std::endl; return false; }
+    auto fitResult = std::unique_ptr<RooFitResult>(ws.pdf("model")->fitTo(*dataset, RooFit::Extended(kTRUE), RooFit::Range("FitWindow"), RooFit::NumCPU(32), RooFit::Save(), RooFit::PrintLevel(-1)));
+    if (!fitResult || fitResult->status()!=0) { std::cout << "[ERROR] Fit failed for pt bin : " << ibin << std::endl; }
+    if (!fitResult) { std::cout << "[ERROR] Fit results empty!" << std::endl; return false; }
     fitResult->Print("v");
     //
     // Store the fit results
     //
     const double xVal = dataset->mean(*ws.var("pt"));
-    const double xErr = dataset->rmsVar(*ws.var("pt"))->getValV();
+    auto  rmsVar = std::unique_ptr<RooRealVar>(dataset->rmsVar(*ws.var("pt")));
+    const double xErr = rmsVar->getValV();
     //
     std::map< std::string , bool > isAtLimit;
     std::cout << "[INFO] Extracting all variables from the workspace" << std::endl;
     RooArgSet listVar = ws.allVars(); // Needed to avoid segmentation fault
-    TIterator* parIt = listVar.createIterator();
+    auto parIt = std::unique_ptr<TIterator>(listVar.createIterator());
     for (RooRealVar* it = (RooRealVar*)parIt->Next(); it!=NULL; it = (RooRealVar*)parIt->Next() ) {
       if (it->isConstant()) continue;
       std::string name = it->GetName(); if (name==uName || name=="pt" || name=="nsig" || name=="chi2" || name=="ndof") continue;
@@ -621,7 +739,7 @@ bool performFit(
     }
     std::cout << "[INFO] Extracting all functions from the workspace" << std::endl;
     RooArgSet listFunc = ws.allFunctions(); // Needed to avoid segmentation fault
-    TIterator* parFunIt = listFunc.createIterator();
+    auto parFunIt = std::unique_ptr<TIterator>(listFunc.createIterator());
     for (RooRealVar* it = (RooRealVar*)parFunIt->Next(); it!=NULL; it = (RooRealVar*)parFunIt->Next() ) {
       if (std::string(it->GetName()).find("recursive")!=std::string::npos) continue;
       if (std::string(it->GetName()).find("mean")==std::string::npos && std::string(it->GetName()).find("sigma")==std::string::npos) continue;
@@ -633,21 +751,24 @@ bool performFit(
     // Plot the fit results
     //
     std::cout << "[INFO] Plotting the fit results" << std::endl;
-    RooPlot *frame = ws.var(uName.c_str())->frame(RooFit::Bins(hv[ibin]->GetNbinsX()));
-    dataset->plotOn(frame, RooFit::MarkerStyle(kFullCircle), RooFit::MarkerSize(0.8), RooFit::DrawOption("ZP"));
-    if(model>=2) ws.pdf("model")->plotOn(frame, RooFit::Normalization(dataset->sumEntries(), RooAbsReal::NumEvent), RooFit::Range("FitWindow"), RooFit::NormRange("FitWindow"), 
+    auto frame = std::unique_ptr<RooPlot>(ws.var(uName.c_str())->frame(RooFit::Bins(hv[ibin]->GetNbinsX())));
+    dataset->plotOn(frame.get(), RooFit::MarkerStyle(kFullCircle), RooFit::MarkerSize(0.8), RooFit::DrawOption("ZP"));
+    if(model>=2) ws.pdf("model")->plotOn(frame.get(), RooFit::Normalization(dataset->sumEntries(), RooAbsReal::NumEvent), RooFit::Range("FitWindow"), RooFit::NormRange("FitWindow"), 
                                          RooFit::Components("gauss1"), RooFit::LineStyle(kDashed), RooFit::LineColor(kRed));
-    if(model>=2) ws.pdf("model")->plotOn(frame, RooFit::Normalization(dataset->sumEntries(), RooAbsReal::NumEvent), RooFit::Range("FitWindow"), RooFit::NormRange("FitWindow"),
+    if(model>=2) ws.pdf("model")->plotOn(frame.get(), RooFit::Normalization(dataset->sumEntries(), RooAbsReal::NumEvent), RooFit::Range("FitWindow"), RooFit::NormRange("FitWindow"),
                                          RooFit::Components("gauss2"), RooFit::LineStyle(kDashed), RooFit::LineColor(kCyan+2));
-    if(model>=3) ws.pdf("model")->plotOn(frame, RooFit::Normalization(dataset->sumEntries(), RooAbsReal::NumEvent), RooFit::Range("FitWindow"), RooFit::NormRange("FitWindow"),
+    if(model>=3) ws.pdf("model")->plotOn(frame.get(), RooFit::Normalization(dataset->sumEntries(), RooAbsReal::NumEvent), RooFit::Range("FitWindow"), RooFit::NormRange("FitWindow"),
                                          RooFit::Components("gauss3"), RooFit::LineStyle(kDashed), RooFit::LineColor(kGreen+2));
-    ws.pdf("model")->plotOn(frame, RooFit::Normalization(dataset->sumEntries(), RooAbsReal::NumEvent), RooFit::Range("FitWindow"), RooFit::NormRange("FitWindow"), RooFit::LineColor(kBlue));
+    ws.pdf("model")->plotOn(frame.get(), RooFit::Normalization(dataset->sumEntries(), RooAbsReal::NumEvent), RooFit::Range("FitWindow"), RooFit::NormRange("FitWindow"), RooFit::LineColor(kBlue));
+    //
     // Extract the goodness of fit using Chi2
-    RooPlot* frameTMP = (RooPlot*)frame->Clone("TMP");
-    RooHist *hpull = frameTMP->pullHist(0, 0, true);
-    hpull->SetName("hpull");
-    RooPlot* frame2 = ws.var(uName.c_str())->frame(RooFit::Title("Pull Distribution"), RooFit::Bins(hv[ibin]->GetNbinsX()));
-    frame2->addPlotable(hpull, "PX");
+    auto frameTMP = std::unique_ptr<RooPlot>((RooPlot*)frame->Clone("TMP"));
+    RooHist* hPull = new RooHist(2.0); // !!!DONT USE UNIQUE POINTER!!!!, 2 represents the binWidth
+    if (!makePullHist(*hPull, *frameTMP, "", "", true)) { return false; }
+    hPull->SetName("hPull");
+    auto frame2 = std::unique_ptr<RooPlot>(ws.var(uName.c_str())->frame(RooFit::Title("Pull Distribution"), RooFit::Bins(hv[ibin]->GetNbinsX())));
+    frame2->addPlotable(hPull, "EP");
+    //
     // Create the text labels
     std::cout << "[INFO] Creating the text labels for the plots" << std::endl;
     std::string pname = "";
@@ -660,10 +781,10 @@ bool performFit(
       varText[var.first] = Form("%s = %.2f #pm %.2f" , formatText(var.first).c_str(), var.second[ibin][0] , var.second[ibin][1]);
       if (isAtLimit[var.first]) { varText.at(var.first) += " (!)"; }
     }
-    TPaveText *tb;
-    if (model==1) { tb = new TPaveText(0.17,0.65,0.45,0.85,"NDC"); }
-    if (model==2) { tb = new TPaveText(0.17,0.50,0.45,0.85,"NDC"); }
-    if (model==3) { tb = new TPaveText(0.17,0.35,0.45,0.85,"NDC"); }
+    std::unique_ptr<TPaveText> tb;
+    if (model==1) { tb = std::unique_ptr<TPaveText>(new TPaveText(0.17,0.65,0.45,0.85,"NDC")); }
+    if (model==2) { tb = std::unique_ptr<TPaveText>(new TPaveText(0.17,0.50,0.45,0.85,"NDC")); }
+    if (model==3) { tb = std::unique_ptr<TPaveText>(new TPaveText(0.17,0.35,0.45,0.85,"NDC")); }
     tb->SetTextColor(kBlack);
     tb->SetFillStyle(0);
     tb->SetBorderSize(0);
@@ -706,23 +827,26 @@ bool performFit(
     frame2->GetXaxis()->SetTitle(xlabel.c_str());
     frame2->GetYaxis()->SetRangeUser(-7.0, 7.0);
     // Define the plotting pads
-    TPad    *pad1  = new TPad("pad1", "", 0, 0.23, 1, 1);
-    TPad    *pad2  = new TPad("pad2", "", 0, 0, 1, 0.228);
-    TLine   *pline = new TLine(ws.var(uName.c_str())->getMin(), 0.0,  ws.var(uName.c_str())->getMax(), 0.0);
+    TPad *pad1  = new TPad("pad1", "", 0, 0.23, 1, 1);  // Unique Pointer does produce Segmentation Fault, so don't use it
+    TPad *pad2  = new TPad("pad2", "", 0, 0, 1, 0.228); // Unique Pointer does produce Segmentation Fault, so don't use it
+    auto  pline = std::unique_ptr<TLine>(new TLine(ws.var(uName.c_str())->getMin(), 0.0,  ws.var(uName.c_str())->getMax(), 0.0));
     // Format the pads
-    c->cd();
+    c.cd();
     pad2->SetTopMargin(0.02);
     pad2->SetBottomMargin(0.4);
     pad2->SetFillStyle(4000); 
     pad2->SetFrameFillStyle(4000);
     pad1->SetBottomMargin(0.015);
-    // Draw the frams
+    //
+    // Draw the frames
     std::cout << "[INFO] Drawing the frames" << std::endl;
+    //
     // Main Frame
     pad1->Draw();
     pad1->cd(); 
     frame->Draw();
     tb->Draw("same");
+    //
     // Apply CMS style to pad
     std::cout << "[INFO] Setting the CMS style on the plot" << std::endl;
     int lumiId = 0;
@@ -730,39 +854,40 @@ bool performFit(
     CMS_lumi(pad1, lumiId, 33, "");
     gStyle->SetTitleFontSize(0.05);
     pad1->Update();
+    //
     // Pull Frame
-    c->cd();
+    c.cd();
     pad2->Draw();
     pad2->cd();
     frame2->Draw();
-    printChi2(ws, pad2, frameTMP, uName, *dataset, "model");
+    //
+    if(!printChi2(*pad2, ws, *frameTMP, uName, *dataset, "model")) { return false; };
     pline->Draw("same");
     pad2->Update();
+    //
     // Save the pads
     //
     std::cout << "[INFO] Saving the plots with linear scale" << std::endl;
-    updateYAxisRange(frame, ws, uName, *dataset, false);
+    updateYAxisRange(*frame, ws, uName, *dataset, false);
     pad1->SetLogy(false);
     pad1->SetLogx(false);
     pad1->Update();
     pname = Form("pf%sfit_%i", uName.c_str(), ibin);
-    c->SaveAs((outDir + "png/" + pname + ".png").c_str());
-    c->SaveAs((outDir + "pdf/" + pname + ".pdf").c_str());
+    c.SaveAs((outDir + "png/" + pname + ".png").c_str());
+    c.SaveAs((outDir + "pdf/" + pname + ".pdf").c_str());
     //
     std::cout << "[INFO] Saving the plots with logarithmic scale" << std::endl;
-    updateYAxisRange(frame, ws, uName, *dataset, true);
+    updateYAxisRange(*frame, ws, uName, *dataset, true);
     pad1->SetLogy(true);
     pad1->SetLogx(false);
     pad1->Update();
-    c->Update();
+    c.Update();
     pname = Form("pf%sfitlog_%i", uName.c_str(), ibin);
-    c->SaveAs((outDir + "png/" + pname + ".png").c_str());
-    c->SaveAs((outDir + "pdf/" + pname + ".pdf").c_str());
+    c.SaveAs((outDir + "png/" + pname + ".png").c_str());
+    c.SaveAs((outDir + "pdf/" + pname + ".pdf").c_str());
     //
     std::cout << "[INFO] All done with this plot" << std::endl;
-    c->Clear();
-    if (tb)    delete tb;
-    if (pline) delete pline;
+    c.Clear();
   }
   // Clean up
   // return
@@ -773,11 +898,11 @@ bool performFit(
 //--------------------------------------------------------------------------------------------------
 void makeHTML(
               const std::string outDir,
-              const std::map< std::string , TGraphErrors* >& u1Graph,
-              const std::map< std::string , TGraphErrors* >& u2Graph,
+              const std::map< std::string , std::unique_ptr<TGraphErrors> >& u1Graph,
+              const std::map< std::string , std::unique_ptr<TGraphErrors> >& u2Graph,
               const std::string uparName   = "u1",
               const std::string uprpName   = "u2",
-              const uint nbins = 150
+              const uint nbins = 10
               )
 {
 
@@ -953,33 +1078,42 @@ void makeHTML(
 };
 
 
-void printChi2(const RooWorkspace& myws, TPad* Pad, RooPlot* frame, std::string varLabel, const RooDataSet& dataset, std::string pdfLabel)
+bool printChi2(TPad& pad, const RooWorkspace& ws, const RooPlot& frame, const string& varLabel, const RooDataSet& dataset, const string& pdfLabel)
 {
-  double chi2=0; unsigned int ndof=0;
-  Pad->cd();
-  TLatex *t = new TLatex(); t->SetNDC(); t->SetTextSize(0.12); 
-  unsigned int nFitPar = myws.pdf(pdfLabel.c_str())->getParameters(dataset)->selectByAttrib("Constant",kFALSE)->getSize();
-  TH1* hdatact = dataset.createHistogram("hdatact", *myws.var(varLabel.c_str()), RooFit::Binning(frame->GetNbinsX(),frame->GetXaxis()->GetXmin(),frame->GetXaxis()->GetXmax()));
-  RooHist *hpull = frame->pullHist(0,0, true);
-  double* ypulls = hpull->GetY();
-  unsigned int nFullBins = 0;
-  for (int i = 0; i < frame->GetNbinsX(); i++) {
-    if (hdatact->GetBinContent(i+1) > 0.0) {
+  //
+  if (ws.pdf(pdfLabel.c_str())==NULL) { std::cout << "[ERROR] PDF "     << pdfLabel  << " was not found!" << std::endl; return false; }
+  //
+  pad.cd();
+  //
+  TH1D hData, hFit;
+  if(!rooPlotToTH1(hData, hFit, frame)) { return false; }
+  //
+  auto parList = std::unique_ptr<RooArgSet>(ws.pdf(pdfLabel.c_str())->getParameters(dataset));
+  uint nFitPar = parList->selectByAttrib("Constant", kFALSE)->getSize();
+  RooHist hPull(hData.GetBinWidth(1));
+  if (!makePullHist(hPull, frame, "", "", true)) { return false; }
+  double* ypulls = hPull.GetY();
+  uint nFullBins = 0; double chi2=0;
+  for (int i = 0; i < hData.GetNbinsX(); i++) {
+    if ( (hData.GetBinError(i+1) != 0.0) && (hData.GetBinContent(i+1) != 0.0) ) {
       chi2 += ypulls[i]*ypulls[i];
       nFullBins++;
     }
   }
-  ndof = nFullBins - nFitPar;
-  t->DrawLatex(0.7, 0.85, Form("#chi^{2}/ndof = %.0f / %d ", chi2, ndof));
-  delete hdatact; 
-  delete hpull;
+  const int ndof = (nFullBins - nFitPar);
+  std::cout << "[INFO] Using Standard method gives Chi2/NDoF " << chi2 << " / " << ndof << std::endl;
+  //
+  TLatex t = TLatex(); t.SetNDC(); t.SetTextSize(0.12);
+  t.DrawLatex(0.70, 0.85, Form("#chi^{2}/ndof = %.0f / %d ", chi2, ndof));
+  //
+  return true;
 };
 
 
-void updateYAxisRange(RooPlot* frame, const RooWorkspace& myws, std::string varLabel, const RooDataSet& dataset, const bool& logScale)
+void updateYAxisRange(RooPlot& frame, const RooWorkspace& myws, std::string varLabel, const RooDataSet& dataset, const bool& logScale)
 {
 // Find maximum and minimum points of Plot to rescale Y axis
-  TH1* h = dataset.createHistogram("hist", *myws.var(varLabel.c_str()), RooFit::Binning(frame->GetNbinsX(),frame->GetXaxis()->GetXmin(),frame->GetXaxis()->GetXmax()));
+  auto h = std::unique_ptr<TH1>(dataset.createHistogram("hist", *myws.var(varLabel.c_str()), RooFit::Binning(frame.GetNbinsX(),frame.GetXaxis()->GetXmin(),frame.GetXaxis()->GetXmax())));
   Double_t yMax = h->GetBinContent(h->GetMaximumBin());
   Double_t yMin = 1e99; for (int i=1; i<=h->GetNbinsX(); i++) if (h->GetBinContent(i)>0) yMin = min(yMin, h->GetBinContent(i));
   yMax = yMax + sqrt(yMax);
@@ -992,15 +1126,15 @@ void updateYAxisRange(RooPlot* frame, const RooWorkspace& myws, std::string varL
     yUp = yMax*100.;
   }
   else {
-    yDown = floor((fMax*yMin - fMin*yMax)/(fMax - fMin));
-    yUp   = ceil(yDown + (yMax-yMin)/(fMax-fMin));
+    yDown = std::floor((fMax*yMin - fMin*yMax)/(fMax - fMin));
+    yUp   = std::ceil(yDown + (yMax-yMin)/(fMax-fMin));
   }
   // Update the y range
-  frame->GetYaxis()->SetRangeUser(yDown, yUp);
-  delete h;
+  frame.GetYaxis()->SetRangeUser(yDown, yUp);
 };
 
-void updateYAxisRange(TGraphErrors* graph)
+
+void updateYAxisRange(std::unique_ptr<TGraphErrors>& graph)
 {
   if (graph==NULL) return;
   // Find the max and min of graph

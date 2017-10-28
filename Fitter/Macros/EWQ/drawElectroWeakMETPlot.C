@@ -8,7 +8,6 @@ void       printElectroWeakMETParameters ( TPad& pad , const RooWorkspace& ws , 
 void       printElectroWeakBinning       ( TPad& pad , const RooWorkspace& ws , const std::string& dsName , const std::vector< std::string >& text , const uint& drawMode );
 void       printElectroWeakLegend        ( TPad& pad , TLegend& leg , const RooPlot& frame , const StrMapMap_t& legInfo );
 void       setRange                      ( RooPlot& frame , const RooWorkspace& ws , const std::string& varName , const std::string& dsName , const bool& setLogScale );
-bool       makePullHist                  ( RooHist& pHist , const RooPlot& frame , const std::string histname , const std::string curvename , const bool useAverage );
 bool       getVar                        ( std::vector<RooRealVar>& varVec, const RooWorkspace& ws, const std::string& name, const std::string& pdfName );
 void       parseVarName                  ( const std::string& name, std::string& label );
 bool       printChi2                     ( TPad& pad , RooWorkspace& ws , const RooPlot& frame , const string& varLabel , const string& dataLabel , const string& pdfLabel );
@@ -309,8 +308,11 @@ void printElectroWeakMETParameters(TPad& pad, const RooWorkspace& ws, const std:
     if(s.find("N_")!=std::string::npos) continue;
     parseVarName(it->GetName(), label); if (label=="") continue;
     // Print the parameter's results
-    if (s.find("Sigma2")!=std::string::npos) { t.DrawLatex(xPos, yPos-dy, Form("%s = %.3f#pm%.3f", label.c_str(), it->getValV()*1000., it->getError()*1000.)); dy+=dYPos; }
-    else { t.DrawLatex(xPos, yPos-dy, Form("%s = %.3f#pm%.3f", label.c_str(), it->getValV(), it->getError())); dy+=dYPos; }
+    std::string txtLbl;
+    if (s.find("Sigma2")!=std::string::npos) { txtLbl = Form("%s = %.3f#pm%.3f", label.c_str(), it->getValV()*1000., it->getError()*1000.); }
+    else { txtLbl = Form("%s = %.3f#pm%.3f", label.c_str(), it->getValV(), it->getError()); }
+    if (isAtLimit(*it)) { txtLbl += " (!)"; }
+    t.DrawLatex(xPos, yPos-dy, txtLbl.c_str()); dy+=dYPos;
   }
   pad.Update();
   return;
@@ -324,7 +326,7 @@ void printElectroWeakBinning(TPad& pad, const RooWorkspace& ws, const std::strin
   TLatex t = TLatex(); t.SetNDC(); t.SetTextSize(0.025);
   if (drawMode>0) { dy *= (1./0.8); dYPos *= (1./0.8); t.SetTextSize(0.023*(1./0.8)); }
   t.DrawLatex(xPos, yPos-dy, Form("%s", text[0].c_str())); dy+=dYPos;
-  std::unique_ptr<TIterator> parIt = std::unique_ptr<TIterator>(((RooDataSet*)ws.data(dsName.c_str()))->get()->createIterator());
+  auto parIt = std::unique_ptr<TIterator>(((RooDataSet*)ws.data(dsName.c_str()))->get()->createIterator());
   for (RooRealVar* it = (RooRealVar*)parIt->Next(); it!=NULL; it = (RooRealVar*)parIt->Next() ) {
     if (std::string(it->GetName())=="MET" || std::string(it->GetName())=="Muon_Pt") continue;
     const std::string varName = it->GetName();
@@ -376,7 +378,7 @@ void printElectroWeakLegend(TPad& pad, TLegend& leg, const RooPlot& frame, const
 void setRange(RooPlot& frame, const RooWorkspace& ws, const std::string& varName, const std::string& dsName, const bool& setLogScale)
 {
   // Find maximum and minimum points of Plot to rescale Y axis
-  std::unique_ptr<TH1> h = std::unique_ptr<TH1>(ws.data(dsName.c_str())->createHistogram("hist", *ws.var(varName.c_str()), RooFit::Binning(frame.GetNbinsX(), frame.GetXaxis()->GetXmin(), frame.GetXaxis()->GetXmax())));
+  auto h = std::unique_ptr<TH1>(ws.data(dsName.c_str())->createHistogram("hist", *ws.var(varName.c_str()), RooFit::Binning(frame.GetNbinsX(), frame.GetXaxis()->GetXmin(), frame.GetXaxis()->GetXmax())));
   Double_t YMax = h->GetBinContent(h->GetMaximumBin());
   Double_t YMin = 1e99;
   for (int i=1; i<=h->GetNbinsX(); i++) if (h->GetBinContent(i)>0) YMin = min(YMin, h->GetBinContent(i));
@@ -393,108 +395,6 @@ void setRange(RooPlot& frame, const RooWorkspace& ws, const std::string& varName
   }
   frame.GetYaxis()->SetRangeUser(Ydown,Yup);
   return;
-};
-
-
-void getPoint(const RooHist& rH, const uint& i, double& x, double& y, double& exl, double& exh, double& eyl, double& eyh)
-{
-    rH.GetPoint(i, x, y);
-    eyl = rH.GetErrorYlow(i);
-    eyh = rH.GetErrorYhigh(i);
-    if (eyl<=0.0 ) { eyl = rH.GetErrorY(i); }
-    if (eyh<=0.0 ) { eyh = rH.GetErrorY(i); }
-    exl = rH.GetErrorXlow(i);
-    exh = rH.GetErrorXhigh(i);
-    if (exl<=0.0 ) { exl = rH.GetErrorX(i); }
-    if (exh<=0.0 ) { exh = rH.GetErrorX(i); }
-    if (exl<=0.0 ) { exl = 0.5*rH.getNominalBinWidth(); }
-    if (exh<=0.0 ) { exh = 0.5*rH.getNominalBinWidth(); }
-};
-
-
-bool makePullHist(RooHist& pHist, const RooPlot& frame, const std::string histname, const std::string curvename, const bool useAverage)
-{
-  // Find curve object
-  auto rFit = (RooCurve*) frame.findObject(((curvename=="") ? 0 : curvename.c_str()), RooCurve::Class());
-  if (!rFit) { std::cout << "[ERROR] makePullHist(" << curvename << ") cannot find curve" << std::endl; return false; }
-  // Find histogram object
-  auto rData = (RooHist*) frame.findObject(((histname=="") ? 0 : histname.c_str()), RooHist::Class());
-  if (!rData) { std::cout << "[ERROR] makePullHist(" << histname  << ") cannot find histogram" << std::endl; return false; }
-  // Determine range of curve
-  double xstart, xstop, yDummy;
-  rFit->GetPoint(0, xstart, yDummy);
-  rFit->GetPoint((rFit->GetN()-1), xstop, yDummy);
-  // Add histograms, calculate Poisson confidence interval on sum value
-  for (int i = 0; i < rData->GetN(); i++) {
-    // Get Data Value and Error
-    double x, dataVal, exl, exh, eyl, eyh;
-    getPoint(*rData, i, x, dataVal, exl, exh, eyl, eyh);
-    // Only calculate pull for bins inside curve range
-    if (x<xstart || x>xstop) continue ;
-    // Get Fit Value
-    double fitVal = 0.0;
-    if (useAverage) { fitVal = rFit->average(x-exl, x+exh); }
-    else            { fitVal = rFit->interpolate(x);        }
-    // Compute the Residual
-    double y = (dataVal - fitVal);
-    // Get the Norm factor
-    const double norm = ( (y>0) ? eyl : eyh );
-    // Set Values
-    if (norm>0.0) {
-      y   /= norm;
-      eyl /= norm;
-      eyh /= norm;
-      pHist.addBinWithXYError(x, y, exl, exh, eyl, eyh);
-    }
-    else {
-      pHist.addBinWithXYError(x, 0, exl, exh, 0, 0);
-    }
-  }
-  return true;
-};
-
-
-bool rooPlotToTH1(TH1D& hData, TH1D& hFit, const RooPlot& frame, const bool useAverage = true)
-{
-  // Find curve object
-  auto rFit = (RooCurve*) frame.findObject(0, RooCurve::Class());
-  if (!rFit) { std::cout << "[ERROR] The latest RooCurve was not found" << std::endl; return false; }
-  // Find histogram object
-  auto rData = (RooHist*) frame.findObject(0, RooHist::Class());
-  if (!rData) { std::cout << "[ERROR] The latest RooHist was not found" << std::endl; return false; }
-  // Determine range of curve
-  double xstart, xstop, yDummy;
-  rFit->GetPoint(0, xstart, yDummy);
-  rFit->GetPoint((rFit->GetN()-1), xstop, yDummy);
-  // Get Binning
-  std::vector<double> binV;
-  for (int i = 0; i < rData->GetN(); i++) {
-    double x, y; rData->GetPoint(i, x, y);
-    // Only consider bins inside curve range
-    if (x<xstart || x>xstop) continue;
-    const double binW = rData->getNominalBinWidth();
-    binV.push_back(x - (binW*0.5));
-    if (i==(rData->GetN()-1)) { binV.push_back(x + (binW*0.5)); }
-  }
-  const uint nBin = (binV.size()-1);
-  Double_t bin[nBin+1];
-  for (uint i = 0; i < binV.size(); i++) { bin[i] = binV[i]; }
-  //
-  hData.Reset(); hData = TH1D(Form("hData_%s", rData->GetName()), rData->GetTitle(), nBin, bin); hData.Sumw2();
-  hFit.Reset();  hFit  = TH1D(Form("hFit_%s" , rFit->GetName()) , rFit->GetTitle() , nBin, bin); hFit.Sumw2();
-  // Set Histogram entries
-  for (uint i = 0; i < nBin; i++) {
-    double x, dataVal, exl, exh, eyl, eyh;
-    getPoint(*rData, i, x, dataVal, exl, exh, eyl, eyh);
-    double fitVal = 0.0;
-    if (useAverage) { fitVal = rFit->average(x-exl, x+exh); }
-    else            { fitVal = rFit->interpolate(x);        }
-    hData.SetBinContent((i+1), dataVal);
-    hData.SetBinError((i+1), std::max(eyl, eyh));
-    hFit.SetBinContent((i+1), fitVal);
-    hFit.SetBinError((i+1), std::sqrt(fitVal));
-  }
-  return true;
 };
 
 

@@ -42,9 +42,9 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
   StringVector OutputFileNames;
   const std::string  chaDir = "Muon";
   const std::string  metTAG = "MET" + info.Par.at("VarType") + "_";
-  StringVector OutputFileDir   = FileInfo.at("OutputFileDir");
-  StringVector InputFileNames  = FileInfo.at("InputFileNames");
-  StringVector DSNames         = FileInfo.at("DSNames");
+  const StringVector OutputFileDir  = FileInfo.at("OutputFileDir");
+  const StringVector InputFileNames = FileInfo.at("InputFileNames");
+  const StringVector DSNames        = FileInfo.at("DSNames");
   const bool isData = (DSNames[0].find("DATA")!=std::string::npos);
   const bool isMC   = (DSNames[0].find("MC")!=std::string::npos);
   const bool useNoHFMET = (metTAG.find("NoHF")!=std::string::npos);
@@ -54,8 +54,8 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
     OutputFileNames.push_back(o);
   }
   // Extract Input Information
-  std::string  TYPE = info.Par.at("Analysis");
-  int triggerIndex  = info.Int.at("triggerIndex");
+  const std::string  TYPE = info.Par.at("Analysis");
+  const int triggerIndex  = info.Int.at("triggerIndex");
   // Create RooDataSets
   std::vector< std::unique_ptr<RooDataSet> > dataPl, dataMi, mcPl, mcMi;
   bool createDS = info.Flag.at("updateDS");

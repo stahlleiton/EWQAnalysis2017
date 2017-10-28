@@ -174,6 +174,7 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
               myws.import(*fitResult, Form("fitResult_%s", pdfName.c_str()));
             }
             else { std::cout << "[ERROR] Fit Result returned by the PDF is NULL!" << std::endl; return false; }
+            if (fitResult->status()!=0) { std::cout << "[ERROR] Fit failed with status " << int(fitResult->status()) << " !" << std::endl; return false; }
           }
           else if ( myws.obj(("CutAndCount_"+label).c_str()) ) {
             // cut and count

@@ -102,9 +102,14 @@ void fitter(
   userInput.Par["extDSDir_MC"]        = "";
   if (Analysis.find("Nu")!=std::string::npos) {
     userInput.Var["MET"]["type"]        = varType;
-    userInput.Var["MET"]["binWidth"]    = 2.0;
+    if      (workDirName=="NominalCM_BinWidth3") { userInput.Var["MET"]["binWidth"] = 3.0; }
+    else if (workDirName=="NominalCM_BinWidth1") { userInput.Var["MET"]["binWidth"] = 1.0; }
+    else { userInput.Var["MET"]["binWidth"] = 2.0; }
     userInput.Par["extFitDir_MET"]      = "";
-    if (workDirName.find("QCDTemplate")!=std::string::npos) { userInput.Par["extInitFileDir_MET_QCD"] = ""; }
+    if (workDirName.find("QCDTemplate")!=std::string::npos ||
+        workDirName.find("SystematicCM_QCD")!=std::string::npos ||
+        workDirName.find("METMax")!=std::string::npos
+        ) { userInput.Par["extInitFileDir_MET_QCD"] = ""; }
     else if (workDirName.find("CM")!=std::string::npos    ) { userInput.Par["extInitFileDir_MET_QCD"] = Form("%s/Input/NominalCM/", CWD.c_str()); }
     else                                                    { userInput.Par["extInitFileDir_MET_QCD"] = Form("%s/Input/Nominal/", CWD.c_str());   }
     userInput.Par["extInitFileDir_MET_W"  ] = "";
