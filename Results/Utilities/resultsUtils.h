@@ -40,6 +40,7 @@ typedef std::map< std::string , TGraphAsymmErrors > GraphMap;
 typedef std::map< std::string , GraphMap          > GraphMapMap;
 typedef std::map< std::string , GraphMapMap       > GraphTriMap;
 typedef std::map< std::string , GraphTriMap       > GraphQuadMap;
+typedef std::map< std::string , GraphQuadMap      > GraphPentaMap;
 typedef std::map< anabin<0>   , double            > BinMap;
 typedef std::map< std::string , BinMap            > BinMapMap;
 typedef std::map< std::string , BinMapMap         > BinTriMap;
@@ -50,6 +51,9 @@ typedef std::map< std::string , DoubleMap         > DoubleMapMap;
 typedef std::map< std::string , DoubleMapMap      > DoubleTriMap;
 typedef std::map< anabin<0>   , DoubleTriMap      > DoubleBinTriMap;
 typedef std::map< std::string , DoubleBinTriMap   > VarBinMap;
+typedef std::vector< BinPentaMap                  > BinPentaMapVec;
+typedef std::map< std::string , BinPentaMapVec    > BinSextaMap;
+
 
 // Tree Info Structure (wrapper to carry information around)
 typedef struct TreeInfo {
@@ -145,7 +149,7 @@ bool fileList(std::vector< std::string >& fileNames, const std::string& dirPath)
     struct dirent *epdf;
     while ((epdf = readdir(dpdf))){
       if (strcmp(epdf->d_name,".")!=0 && strcmp(epdf->d_name,"..")!=0 ) {
-        std::cout << "[INFO] Adding file: " << epdf->d_name << std::endl;
+        //std::cout << "[INFO] Adding file: " << epdf->d_name << std::endl;
         fileNames.push_back(epdf->d_name);
       }
     }
@@ -185,6 +189,9 @@ void iniResultsTreeInfo( TreeInfo& info , const std::string& thePoiNames )
       info.Var["POI_"+p][t] = -99.0;
     }
   }
+  //
+  // Define the names of the remaining variables
+  info.Var["Luminosity"]["Val"] = -1.0;
   //
   // Initialize the model name containers
   const std::vector< std::string > objType = { "W" , "WToTau" , "DY" , "TTbar" , "QCD" };
@@ -296,6 +303,14 @@ void iniAcceptanceAndEfficiency( BinPentaMap& eff , const VarBinMap& inputVar )
   }
 };
 
+  
+double sumErrors( const double& ErrorA , const double& ErrorB )
+{
+  const double errorA2 = std::pow( ErrorA , 2.0 );
+  const double errorB2 = std::pow( ErrorB , 2.0 );
+  return ( std::sqrt( errorA2 + errorB2 ) );
+};
+
 
 void getEffContent( double& val , double& err_High , double& err_Low , const TEfficiency& eff , const double& binVal )
 {
@@ -303,8 +318,8 @@ void getEffContent( double& val , double& err_High , double& err_Low , const TEf
   if (hist==NULL) { return; }
   const int iBin = hist->GetXaxis()->FindBin(binVal);
   val      = eff.GetEfficiency(iBin);
-  err_High = std::sqrt( std::pow( err_High , 2.0 ) + std::pow( eff.GetEfficiencyErrorUp(iBin)  , 2.0 ) );
-  err_Low  = std::sqrt( std::pow( err_Low  , 2.0 ) + std::pow( eff.GetEfficiencyErrorLow(iBin) , 2.0 ) );
+  err_High = sumErrors( err_High , eff.GetEfficiencyErrorUp(iBin)  );
+  err_Low  = sumErrors( err_Low  , eff.GetEfficiencyErrorLow(iBin) );
 };
 
 
@@ -315,16 +330,8 @@ void getUncContent( double& err_High , double& err_Low , const TVector& unc , co
   const int idx = ( hist->GetXaxis()->FindBin(binVal) - 1 ); // index is bin number - 1
   const double unc_High = unc[idx];
   const double unc_Low  = unc[idx];
-  err_High = std::sqrt( std::pow( err_High , 2.0 ) + std::pow( unc_High , 2.0 ) );
-  err_Low  = std::sqrt( std::pow( err_Low  , 2.0 ) + std::pow( unc_Low  , 2.0 ) );
-};
-
-  
-double sumErrors( const double& ErrorA , const double& ErrorB )
-{
-  const double errorA2 = std::pow( ErrorA , 2.0 );
-  const double errorB2 = std::pow( ErrorB , 2.0 );
-  return ( std::sqrt( errorA2 + errorB2 ) );
+  err_High = sumErrors( err_High , unc_High );
+  err_Low  = sumErrors( err_Low  , unc_Low  );
 };
 
 
@@ -613,10 +620,7 @@ bool computeCrossSection( BinPentaMap& var , const VarBinMap& inputVar )
       const auto& iVar_Pl = b.second.at("Pl").at("N_WToMu");
       const auto& iVar_Mi = b.second.at("Mi").at("N_WToMu");
       //
-      double Luminosity = -1.0;
-      if (c.first=="PA" ) { Luminosity = ( PA::LUMI::Data_pPb + PA::LUMI::Data_Pbp ); }
-      if (c.first=="pPb") { Luminosity = PA::LUMI::Data_pPb; }
-      if (c.first=="Pbp") { Luminosity = PA::LUMI::Data_Pbp; }
+      const double Luminosity = b.second.at("Pl").at("Luminosity").at("Val");
       std::map< std::string , double > Err_Luminosity;
       Err_Luminosity["Err_Syst_High"] = 0.0; // Not assigned
       Err_Luminosity["Err_Syst_Low" ] = 0.0; // Not assigned
@@ -649,80 +653,228 @@ std::string formatResultVarName(const std::string varName, const bool useEtaCM)
 };
 
 
-void iniResultsGraph(GraphQuadMap& graphMap, const BinPentaMap& var)
+bool iniResultsGraph(GraphPentaMap& graphMap, const BinSextaMap& var)
 {
   //
   std::cout << "[INFO] Initializing the output graphs" << std::endl;
-  const std::vector< std::string > graphType = { "Err_Tot" , "Err_Stat" , "Err_Syst" };
   //
   // Initialize the graphs
-  for (const auto& c : var) {
+  //
+  if (var.count("Nominal")==0 || var.at("Nominal").size()==0) { std::cout << "[ERROR] Nominal results were not found" << std::endl; return false; }
+  const std::vector< std::string > nomGraphType = { "Err_Tot" , "Err_Stat" , "Err_Syst" };
+  //
+  for (const auto& c : var.at("Nominal")[0]) {
     for (const auto& ch : c.second) {
       for (const auto& v : ch.second) {
+        if (v.second.count("Val")==0) { std::cout << "[ERROR] Value is missing for " << v.first << std::endl; return false; }
         const unsigned int nBins = v.second.at("Val").size();
-        for (const auto& t : graphType) {
-          auto& graph = graphMap[c.first][ch.first][v.first][t];
-          graph.Set(nBins);
-          //
-          // Set Graph Name
-          const std::string name = Form("gr_WToMu%s_%s_%s_%s", ch.first.c_str(), c.first.c_str(), v.first.c_str(), t.c_str());
-          graph.SetName(name.c_str());
+        for (const auto& lbl : var) {
+          if (lbl.first!="Nominal" && lbl.second.size()==0) { std::cout << "[ERROR] Systematic " << lbl.first << " is empty" << std::endl; return false; }
+          const uint nGraph = ( (lbl.first=="Nominal") ? nomGraphType.size() : (lbl.second.size()+1) );
+          for (uint i = 0; i < nGraph; i++) {
+            const std::string graphLbl = ( (lbl.first=="Nominal") ? nomGraphType[i] : ( (i<(nGraph-1)) ? Form("Variation_%d", i) : "Total" ) );
+            auto& graph = graphMap[c.first][ch.first][v.first][lbl.first][graphLbl];
+            graph.Set(nBins);
+            // Set Graph Name
+            const std::string name = Form("gr_WToMu%s_%s_%s_%s_%s", ch.first.c_str(), c.first.c_str(), v.first.c_str(), lbl.first.c_str(), graphLbl.c_str());
+            graph.SetName(name.c_str());
+          }
         }
       }
     }
   }
+  // Return
+  return true;
 };
 
 
-bool fillResultsGraph(GraphQuadMap& graphMap, const BinPentaMap& var)
+bool fillResultsGraph(GraphPentaMap& graphMap, const BinSextaMap& var)
 {
   //
   std::cout << "[INFO] Filling the output graphs" << std::endl;
   const std::vector< std::string > graphType = { "Err_Tot" , "Err_Stat" , "Err_Syst" };
   //
-  for (const auto& c : var) {
+  // Fill the graphs
+  //
+  if (var.count("Nominal")==0 || var.at("Nominal").size()==0) { std::cout << "[ERROR] Nominal results were not found" << std::endl; return false; }
+  const std::vector< std::string > nomGraphType = { "Err_Tot" , "Err_Stat" , "Err_Syst" };
+  //
+  for (const auto& c : var.at("Nominal")[0]) {
     for (const auto& ch : c.second) {
       for (const auto& v : ch.second) {
         if (v.second.count("Val")==0) { std::cout << "[ERROR] Value is missing for " << v.first << std::endl; return false; }
         if ( (v.second.count("Err_Stat_High")==0) || (v.second.count("Err_Stat_Low")==0) ) { std::cout << "[ERROR] Statisticial errors are missing for " << v.first << std::endl; return false; }
         if ( (v.second.count("Err_Syst_High")==0) || (v.second.count("Err_Syst_Low")==0) ) { std::cout << "[ERROR] Systematic errors are missing for "   << v.first << std::endl; return false; }
-        for (const auto& t : graphType) {
-          // Get the graph
-          auto& graph = graphMap.at(c.first).at(ch.first).at(v.first).at(t);
-          //
-          // Determine index of bins
-          std::map< anabin<0> , unsigned int > binIdx;
-          unsigned int iBin = 0; for (const auto& b : v.second.at("Val")) { binIdx[b.first] = iBin; iBin++; }
-          //
-          for (const auto& b : v.second.at("Val")) {
+        //
+        // Determine index of bins
+        auto& binMap = v.second.at("Val");
+        std::map< anabin<0> , unsigned int > binIdx;
+        unsigned int iBin = 0; for (const auto& b : binMap) { binIdx[b.first] = iBin; iBin++; }
+        //
+            //
+        if (graphMap.count(c.first)==0 || graphMap.at(c.first).count(ch.first)==0 || graphMap.at(c.first).at(ch.first).count(v.first)==0) {
+          std::cout << "[ERROR] Graph containir was not properly initialized" << std::endl; return false;
+        }
+        auto& graphMapMap = graphMap.at(c.first).at(ch.first).at(v.first);
+        //
+        // Compute systematic graphs
+        for (auto& lbl : graphMapMap) {
+          if (lbl.first=="Nominal") continue;
+          uint iGr = 0;
+          for (auto& gr : lbl.second) {
+            if (gr.first=="Total") continue;
+            //
+            // Get the graph
+            const std::string t = gr.first;
+            auto& graph = gr.second;
+            //
+            // Compute the systematic variation graphs
+            //
+            if (var.count(lbl.first)==0) { std::cout << "[ERROR] Systematic result for " << lbl.first << " is missing" << std::endl; return false; }
+            if (var.at(lbl.first).size()<(lbl.second.size()-1)) { std::cout << "[ERROR] Systematic result " << lbl.first << " is missing variations " << std::endl; return false; }
+            if (var.at(lbl.first)[iGr].count(c.first)==0) { std::cout << "[ERROR] Systematic result " << lbl.first << " is missing " << c.first << std::endl; return false; }
+            if (var.at(lbl.first)[iGr].at(c.first).count(ch.first)==0) { std::cout << "[ERROR] Systematic result " << lbl.first << " is missing " << ch.first << std::endl; return false; }
+            if (var.at(lbl.first)[iGr].at(c.first).at(ch.first).count(v.first)==0) { std::cout << "[ERROR] Systematic result " << lbl.first << " is missing " << v.first << std::endl; return false; }
+            if (var.at(lbl.first)[iGr].at(c.first).at(ch.first).at(v.first).count("Val")==0) { std::cout << "[ERROR] Systematic result " << lbl.first << " is missing the value" << std::endl; return false; }
+            //
+            auto& valBin = var.at(lbl.first)[iGr].at(c.first).at(ch.first).at(v.first).at("Val");
+            //
+            for (const auto& b : binMap) {
+              //
+              if (valBin.count(b.first)==0) {
+                std::cout << "[ERROR] Systematic result " << lbl.first << " is missing bin [" << b.first.etabin().low() << " , " << b.first.etabin().high() << "]" << std::endl; return false;
+              }
+              //
+              // Extract the parameters needed for each axis
+              //
+              // X Value
+              const double X = ( (b.first.etabin().high() + b.first.etabin().low()) / 2.0 ); // Mean value of eta bin
+              // X Error
+              const double Err_X = ( (b.first.etabin().high() - b.first.etabin().low()) / 2.0 ); // Width of eta bin
+              const double Err_X_High = Err_X;
+              const double Err_X_Low  = Err_X;
+              // Y Value
+              const double Y = valBin.at(b.first);
+              // Y Error
+              const double Err_Y_High = 0.0;
+              const double Err_Y_Low  = 0.0;
+              //
+              // Fill the systematic variation graphs
+              //
+              const unsigned int iBin = binIdx.at(b.first);
+              graph.SetPoint(iBin, X, Y);
+              graph.SetPointError(iBin, Err_X_Low, Err_X_High, Err_Y_Low, Err_Y_High);
+            }
+            iGr++;
+          }
+          if (lbl.second.count("Total")>0) {
+            //
+            // Compute the systematic total graph
+            //
+            auto& graph  = lbl.second.at("Total");
+            auto& graph0 = lbl.second.at("Variation_0");
+            const int nVariation = (lbl.second.size()-1);
+            //
+            for (const auto& b : binMap) {
+              const unsigned int iBin = binIdx.at(b.first);
+              // X value
+              double X , dummy; graph0.GetPoint(iBin, X, dummy);
+              // X Error
+              const double Err_X_High = graph0.GetErrorXhigh(iBin)*0.8;
+              const double Err_X_Low  = graph0.GetErrorXlow (iBin)*0.8;
+              // Y value
+              const double Nom_Y = v.second.at("Val").at(b.first);
+              // Y Error
+              double Err_Y = 0.0;
+              if (nVariation > 2) {
+                double sum = 0.0;
+                for (const auto& iGr : lbl.second) {
+                  if (iGr.first!="Total") {
+                    double Sys_Y; iGr.second.GetPoint(iBin, dummy, Sys_Y);
+                    const double diff = std::abs( Sys_Y - Nom_Y );
+                    sum += ( diff * diff );
+                  }
+                }
+                Err_Y = std::sqrt( sum / nVariation );
+              }
+              else if (nVariation == 2) {
+                double Sys_Y_0; lbl.second.at("Variation_0").GetPoint(iBin, dummy, Sys_Y_0);
+                double Sys_Y_1; lbl.second.at("Variation_1").GetPoint(iBin, dummy, Sys_Y_1);
+                Err_Y = std::max( std::abs(Sys_Y_0 - Nom_Y) , std::abs(Sys_Y_1 - Nom_Y) );
+              }
+              else if (nVariation == 1) {
+                double Sys_Y; lbl.second.at("Variation_0").GetPoint(iBin, dummy, Sys_Y);
+                Err_Y = std::abs(Sys_Y - Nom_Y);
+              }
+              const double Err_Y_High = Err_Y;
+              const double Err_Y_Low  = Err_Y;
+              //
+              // Fill the systematic total graph
+              //
+              graph.SetPoint(iBin, X, Nom_Y);
+              graph.SetPointError(iBin, Err_X_Low, Err_X_High, Err_Y_Low, Err_Y_High);
+            }
+          }
+        }
+        //
+        // Compute nominal graph
+        for (auto& gr : graphMapMap.at("Nominal")) {
+          auto& graph = gr.second;
+          for (const auto& b : binMap) {
+            const unsigned int iBin = binIdx.at(b.first);
             //
             // Extract the parameters needed for each axis
             //
             // X Value
             const double X = ( (b.first.etabin().high() + b.first.etabin().low()) / 2.0 ); // Mean value of eta bin
             // X Error
-            const double Err_X      = ( (b.first.etabin().high() - b.first.etabin().low()) / 2.0 ); // Width of eta bin
+            const double Err_X = ( (b.first.etabin().high() - b.first.etabin().low()) / 2.0 ); // Width of eta bin
             double Err_X_High = Err_X;
             double Err_X_Low  = Err_X;
-            if (t=="Err_Stat") { Err_X_High *= 0.4; Err_X_Low *= 0.4; }
-            if (t=="Err_Syst") { Err_X_High *= 0.6; Err_X_Low *= 0.6; }
+            if (gr.first=="Err_Syst") { Err_X_High *= 0.4; Err_X_Low *= 0.4; }
+            if (gr.first=="Err_Stat") { Err_X_High *= 0.6; Err_X_Low *= 0.6; }
+
             // Y Value
             const double Y = v.second.at("Val").at(b.first);
+            //
+            // Compute total systematic error
+            double Err_Y_Syst_High = 0.0;
+            double Err_Y_Syst_Low  = 0.0;
+            for (auto& lbl : graphMapMap) {
+              if (lbl.first=="Nominal") {
+                Err_Y_Syst_High += std::pow( v.second.at("Err_Syst_High").at(b.first) , 2.0 );
+                Err_Y_Syst_Low  += std::pow( v.second.at("Err_Syst_Low" ).at(b.first) , 2.0 );
+              }
+              else if (lbl.first!="Luminosity"){
+                Err_Y_Syst_High += std::pow( lbl.second.at("Total").GetErrorYhigh(iBin) , 2.0 );
+                Err_Y_Syst_Low  += std::pow( lbl.second.at("Total").GetErrorYlow(iBin)  , 2.0 );
+              }
+            }
+            Err_Y_Syst_High = std::sqrt( Err_Y_Syst_High );
+            Err_Y_Syst_Low  = std::sqrt( Err_Y_Syst_Low  );
+            //
+            // Compute total statistic error
+            const double Err_Y_Stat_High = v.second.at("Err_Stat_High").at(b.first);
+            const double Err_Y_Stat_Low  = v.second.at("Err_Stat_Low" ).at(b.first);
+            //
             // Y Error
-            double Err_Y_High = -1.0;
-            double Err_Y_Low  = -1.0;
-            if (t=="Err_Tot") {
-              Err_Y_High = std::sqrt( std::pow( v.second.at("Err_Stat_High").at(b.first) , 2.0 ) + std::pow( v.second.at("Err_Syst_High").at(b.first) , 2.0 ) );
-              Err_Y_Low  = std::sqrt( std::pow( v.second.at("Err_Stat_Low" ).at(b.first) , 2.0 ) + std::pow( v.second.at("Err_Syst_Low" ).at(b.first) , 2.0 ) );
+            double Err_Y_High = 0.0;
+            double Err_Y_Low  = 0.0;
+            if (gr.first=="Err_Tot") {
+              Err_Y_High = sumErrors( Err_Y_Stat_High , Err_Y_Syst_High );
+              Err_Y_Low  = sumErrors( Err_Y_Stat_Low  , Err_Y_Syst_Low  );
             }
-            else {
-              Err_Y_High = v.second.at(Form("%s_High", t.c_str())).at(b.first);
-              Err_Y_Low  = v.second.at(Form("%s_Low" , t.c_str())).at(b.first);
+            if (gr.first=="Err_Stat") {
+              Err_Y_High = Err_Y_Stat_High;
+              Err_Y_Low  = Err_Y_Stat_Low;
+            }
+            if (gr.first=="Err_Syst") {
+              Err_Y_High = Err_Y_Syst_High;
+              Err_Y_Low  = Err_Y_Syst_Low;
             }
             //
-            // Fill the graphs
+            // Fill the nominal graph
             //
-            const unsigned int iBin = binIdx.at(b.first);
             graph.SetPoint(iBin, X, Y);
             graph.SetPointError(iBin, Err_X_Low, Err_X_High, Err_Y_Low, Err_Y_High);
           }
@@ -730,7 +882,7 @@ bool fillResultsGraph(GraphQuadMap& graphMap, const BinPentaMap& var)
       }
     }
   }
-  //
+  // Return
   return true;
 };
 
@@ -791,7 +943,7 @@ void formatResultsGraph(TGraphAsymmErrors& graph, const std::string& col, const 
 };
 
 
-void drawGraph( GraphQuadMap& graphMap , const std::string& outDir , const bool useEtaCM = true , const std::string accType = "MC" , const std::string effType = "TnP" )
+void drawGraph( GraphPentaMap& graphMap , const std::string& outDir , const bool useEtaCM = true , const std::string accType = "MC" , const std::string effType = "TnP" )
 {
   //
   // Set Style
@@ -803,11 +955,139 @@ void drawGraph( GraphQuadMap& graphMap , const std::string& outDir , const bool 
   for (auto& c : graphMap) {
     for (auto& ch : c.second) {
       for (auto& v : ch.second) {
+        for (auto& lbl : v.second) {
+          //
+          const std::string col  = c.first;
+          const std::string chg  = ( (ch.first!="") ? ch.first : "Inc" );
+          const std::string var  = v.first;
+          const std::string type = lbl.first;
+          auto& graph = lbl.second;
+          //
+          // Create Canvas
+          TCanvas c("c", "c", 1000, 1000); c.cd();
+          //
+          // Create the Text Info
+          TLatex tex; tex.SetNDC(); tex.SetTextSize(0.035); float dy = 0;
+          std::vector< std::string > textToPrint;
+          std::string sampleLabel = "W #rightarrow #mu + #nu_{#mu}";
+          if (chg == "Pl") { sampleLabel = "W^{+} #rightarrow #mu^{+} + #nu_{#mu}"; }
+          if (chg == "Mi") { sampleLabel = "W^{-} #rightarrow #mu^{-} + #nu_{#mu}"; }
+          textToPrint.push_back(sampleLabel);
+          if (accType=="") { textToPrint.push_back("p^{#mu}_{T} > 25 GeV/c"); }
+          //
+          // Declare the graph vector (for drawing with markers)
+          std::vector< TGraphAsymmErrors > grVec;
+          // Initialize the Legend
+          double legOff = 0.0; if (accType=="") { legOff = 0.05; }
+          TLegend leg(0.2, (0.71 - legOff), 0.4, (0.84 - legOff));
+          // Initialize the graph x range variables
+          double xMin , xMax;
+          // Draw graph
+          if ( type=="Nominal" )  {
+            // Format the graphs
+            const bool incAcc = (accType!="");
+            for (auto& gr : graph) { formatResultsGraph(gr.second, col, var, chg, useEtaCM, incAcc); }
+            graph.at("Err_Tot").SetMarkerColor(kBlack);
+            graph.at("Err_Syst").SetFillColor(kOrange);
+            graph.at("Err_Stat").SetFillColor(kGreen+3);
+            // Create Legend
+            formatLegendEntry(*leg.AddEntry(&graph.at("Err_Tot" ), "Data", "pe"));
+            formatLegendEntry(*leg.AddEntry(&graph.at("Err_Stat"), "Statistical Uncertainty", "f"));
+            formatLegendEntry(*leg.AddEntry(&graph.at("Err_Syst"), "Systematic Uncertainty", "f"));
+            // Draw the graphs
+            graph.at("Err_Tot").Draw("ap");
+            graph.at("Err_Stat").Draw("same2");
+            graph.at("Err_Syst").Draw("same2");
+            graph.at("Err_Tot").Draw("samep");
+            //
+            xMin = graph.at("Err_Tot").GetXaxis()->GetXmin(); xMax = graph.at("Err_Tot").GetXaxis()->GetXmax();
+          }
+          else {
+            // Format the graphs
+            const bool incAcc = (accType!="");
+            for (auto& gr : graph) { formatResultsGraph(gr.second, col, var, chg, useEtaCM, incAcc); }
+            graph.at("Total").SetMarkerColor(kAzure+10);
+            graph.at("Total").SetFillColor(kRed);
+            for (auto& gr : graph) { if (gr.first!="Total") { gr.second.SetMarkerColor(kBlack);  gr.second.SetMarkerSize(0.0); gr.second.SetLineColor(kBlack); } }
+            // Create Legend
+            formatLegendEntry(*leg.AddEntry(&graph.at("Total"), "Nominal Result", "pe"));
+            formatLegendEntry(*leg.AddEntry(&graph.at("Total"), Form("%s Uncertainty", type.c_str()), "f"));
+            formatLegendEntry(*leg.AddEntry(&graph.at("Variation_0"), Form("%s Variation", type.c_str()), "l"));
+            // Draw the Graph
+            graph.at("Total").Draw("ap");
+            for (auto& gr : graph) { if (gr.first!="Total") { gr.second.Draw("samep"); } }
+            graph.at("Total").Draw("same2");
+            graph.at("Total").Draw("samep");
+            //
+            xMin = graph.at("Total").GetXaxis()->GetXmin(); xMax = graph.at("Total").GetXaxis()->GetXmax();
+          }
+          // Draw the Line
+          TLine line_FB(xMin, 1.0, xMax, 1.0); line_FB.SetLineStyle(2);
+          if (var=="ForwardBackward_Ratio") { line_FB.Draw("same"); }
+          TLine line_CA(xMin, 0.0, xMax, 0.0); line_CA.SetLineStyle(2);
+          if (var=="Charge_Asymmetry") { line_CA.Draw("same"); }
+          // Draw the Legend
+          leg.Draw("same");
+          // Update
+          c.Modified(); c.Update();
+          // Draw the text
+          for (const auto& s: textToPrint) { tex.DrawLatex(0.22, 0.86-dy, s.c_str()); dy+=0.045; }
+          // Update
+          c.Modified(); c.Update(); // Pure paranoia
+          //
+          // set the CMS style
+          int option = 117;
+          if (col.find("pPb")!=std::string::npos) option = 115;
+          if (col.find("Pbp")!=std::string::npos) option = 116;
+          CMS_lumi(&c, option, 33, "");
+          // Update
+          c.Modified(); c.Update(); // Pure paranoia
+          //
+          std::string label = "";
+          if (accType==""   && effType==""   ) { label = "RAW";          }
+          if (accType=="MC" && effType==""   ) { label = "AccMC";        }
+          if (accType==""   && effType=="MC" ) { label = "EffMC";        }
+          if (accType=="MC" && effType=="MC" ) { label = "AccMC_EffMC";  }
+          if (accType==""   && effType=="TnP") { label = "EffTnP";       }
+          if (accType=="MC" && effType=="TnP") { label = "AccMC_EffTnP"; }
+          //
+          // Create Output Directory
+          const std::string plotDir = outDir+"/" + col+"/" + label+"/" + var;
+          makeDir(plotDir + "/png/");
+          makeDir(plotDir + "/pdf/");
+          makeDir(plotDir + "/root/");
+          //
+          // Save Canvas
+          const std::string name = Form("gr_WToMu%s_%s_%s_%s_%s", chg.c_str(), col.c_str(), var.c_str(), label.c_str(), type.c_str());
+          c.SaveAs(( plotDir + "/png/"  + name + ".png"  ).c_str());
+          c.SaveAs(( plotDir + "/pdf/"  + name + ".pdf"  ).c_str());
+          c.SaveAs(( plotDir + "/root/" + name + ".root" ).c_str());
+          //
+          // Clean up memory
+          c.Clear(); c.Close();
+        }
+      }
+    }
+  }
+};
+
+
+void drawCombineSystematicGraph( const GraphPentaMap& graphMap , const std::string& outDir , const bool useEtaCM = true , const std::string accType = "MC" , const std::string effType = "TnP" )
+{
+  //
+  // Set Style
+  setStyle();
+  //
+  std::cout << "[INFO] Drawing the combine systematic graphs" << std::endl;
+  //
+  // Draw all graphs
+  for (auto& c : graphMap) {
+    for (auto& ch : c.second) {
+      for (auto& v : ch.second) {
         //
         const std::string col = c.first;
         const std::string chg = ( (ch.first!="") ? ch.first : "Inc" );
         const std::string var = v.first;
-        auto& graph = v.second;
         //
         // Create Canvas
         TCanvas c("c", "c", 1000, 1000); c.cd();
@@ -821,32 +1101,66 @@ void drawGraph( GraphQuadMap& graphMap , const std::string& outDir , const bool 
         textToPrint.push_back(sampleLabel);
         if (accType=="") { textToPrint.push_back("p^{#mu}_{T} > 25 GeV/c"); }
         //
-        // Create Legend
+        // Declare the graph map (for drawing with markers)
+        std::map< std::string , TGraphAsymmErrors > grMap;
+        // Initialize the Legend
         double legOff = 0.0; if (accType=="") { legOff = 0.05; }
-        TLegend leg(0.2, (0.71 - legOff), 0.4, (0.84 - legOff));
-        formatLegendEntry(*leg.AddEntry(&graph.at("Err_Tot") , "Data", "pe"));
-        formatLegendEntry(*leg.AddEntry(&graph.at("Err_Stat"), "Statistical Uncertainty", "f"));
-        formatLegendEntry(*leg.AddEntry(&graph.at("Err_Syst"), "Systematic Uncertainty", "f"));
+        TLegend leg(0.2, (0.61 - legOff), 0.4, (0.84 - legOff));
+        double xMin = 0.0 , xMax = 0.0;
         //
-        // Format the graphs
-        const bool incAcc = (accType!="");
-        for (auto& gr : graph) { formatResultsGraph(gr.second, col, var, chg, useEtaCM, incAcc); }
-        graph.at("Err_Tot").SetMarkerColor(kBlack);
-        graph.at("Err_Stat").SetFillColor(kOrange);
-        graph.at("Err_Syst").SetFillColor(kGreen+3);
+        for (const auto& lbl : v.second) {
+          if (lbl.first=="Nominal") continue;
+          const std::string type = lbl.first;
+          auto& graph = lbl.second;
+          grMap[lbl.first] = graph.at("Total");
+        }
+        grMap["Systematic"] = v.second.at("Nominal").at("Err_Syst");
+        grMap["Statistic" ] = v.second.at("Nominal").at("Err_Stat");
         //
-        // Draw the graphs
-        graph.at("Err_Tot").Draw("ap");
-        graph.at("Err_Syst").Draw("same2");
-        graph.at("Err_Stat").Draw("same2");
-        graph.at("Err_Tot").Draw("samep");
-        // Draw the Line
-        double etaMin = graph.at("Err_Tot").GetXaxis()->GetXmin();
-        double etaMax = graph.at("Err_Tot").GetXaxis()->GetXmax();
-        TLine line_FB(etaMin, 1.0, etaMax, 1.0); line_FB.SetLineStyle(2);
-        if (var=="ForwardBackward_Ratio") { line_FB.Draw("same"); }
-        TLine line_CA(etaMin, 0.0, etaMax, 0.0); line_CA.SetLineStyle(2);
-        if (var=="Charge_Asymmetry") { line_CA.Draw("same"); }
+        for (auto& lbl : grMap) {
+          for (int j = 0; j < grMap.at(lbl.first).GetN(); j++) {
+            double X , Y; grMap.at(lbl.first).GetPoint(j, X, Y); Y = std::abs(Y);
+            grMap.at(lbl.first).SetPoint(j, X, 0);
+            //
+            double Err_Y_Low  = grMap.at(lbl.first).GetErrorYlow(j);
+            double Err_Y_High = grMap.at(lbl.first).GetErrorYhigh(j);
+            if (var=="Cross_Section") { Err_Y_Low /= std::abs(Y); Err_Y_High /= std::abs(Y); }
+            //
+            grMap.at(lbl.first).SetPointError(j, 
+                                              grMap.at(lbl.first).GetErrorXlow(j), grMap.at(lbl.first).GetErrorXhigh(j), 
+                                              Err_Y_Low, Err_Y_High
+                                              );
+          }
+          xMin = grMap.at(lbl.first).GetXaxis()->GetXmin(); xMax = grMap.at(lbl.first).GetXaxis()->GetXmax();
+        }
+        //
+        // Draw the graphs in the same canvas
+        bool firstPlot = true; uint iCnt = 1;
+        for (auto& gr : grMap) {
+          const auto& grLbl = gr.first;
+          auto& graph = gr.second;
+          // Format the graphs
+          const bool incAcc = (accType!="");
+          formatResultsGraph(graph, col, var, chg, useEtaCM, incAcc);
+          graph.SetMarkerColor(iCnt);
+          graph.SetMarkerSize(1.0);
+          graph.SetLineColor(iCnt);
+          graph.SetLineWidth(2);
+          graph.SetFillStyle(0);
+          if (var == "Charge_Asymmetry"     ) { graph.GetYaxis()->SetRangeUser(-0.03, 0.10); }
+          if (var == "Cross_Section"        ) { graph.GetYaxis()->SetRangeUser(-0.1,  0.3); }
+          if (var == "ForwardBackward_Ratio") { graph.GetYaxis()->SetRangeUser(-0.05,  0.1); }
+          iCnt++;
+          // Create Legend
+          formatLegendEntry(*leg.AddEntry(&graph, grLbl.c_str(), "p"));
+          //
+          if (firstPlot) { graph.Draw("ap"); firstPlot = false; }
+          graph.Draw("samep"); //2
+        }
+        //
+        TLine line(xMin, 0.0, xMax, 0.0); line.SetLineStyle(2);
+        line.Draw("same");
+        //
         // Draw the Legend
         leg.Draw("same");
         // Update
@@ -864,12 +1178,6 @@ void drawGraph( GraphQuadMap& graphMap , const std::string& outDir , const bool 
         // Update
         c.Modified(); c.Update(); // Pure paranoia
         //
-        // Create Output Directory
-        const std::string plotDir = outDir+"/" + col+"/" + var;
-        makeDir(plotDir + "/png/");
-        makeDir(plotDir + "/pdf/");
-        makeDir(plotDir + "/root/");
-        //
         std::string label = "";
         if (accType==""   && effType==""   ) { label = "RAW";          }
         if (accType=="MC" && effType==""   ) { label = "AccMC";        }
@@ -877,6 +1185,12 @@ void drawGraph( GraphQuadMap& graphMap , const std::string& outDir , const bool 
         if (accType=="MC" && effType=="MC" ) { label = "AccMC_EffMC";  }
         if (accType==""   && effType=="TnP") { label = "EffTnP";       }
         if (accType=="MC" && effType=="TnP") { label = "AccMC_EffTnP"; }
+        //
+        // Create Output Directory
+        const std::string plotDir = outDir+"/" + col+"/" + label+"/" + var+"/" + "Systematic";
+        makeDir(plotDir + "/png/");
+        makeDir(plotDir + "/pdf/");
+        makeDir(plotDir + "/root/");
         //
         // Save Canvas
         const std::string name = Form("gr_WToMu%s_%s_%s_%s", chg.c_str(), col.c_str(), var.c_str(), label.c_str());

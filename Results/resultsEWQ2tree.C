@@ -67,7 +67,7 @@ bool resultsEWQ2tree(
   //
   for (const auto& inputFileName : inputFileNames) {
     //
-    std::cout << "Processing file: " << inputFileName << std::endl;
+    //std::cout << "Processing file: " << inputFileName << std::endl;
     //
     // Open input file
     const std::string inputFilePath = Form("%s/%s", inputDirPath.c_str(), inputFileName.c_str());
@@ -167,6 +167,18 @@ bool resultsEWQ2tree(
         if (p.second.count("Err")) { p.second.at("Err") = (poi && fitResult) ? poi->getPropagatedError(*fitResult) : -1.0; }
         if (p.second.count("parIni_Val")) { p.second.at("parIni_Val") = (poi && parIni) ? poi->getVal(*parIni) : -1.0; }
         if (p.second.count("parIni_Err")) { p.second.at("parIni_Err") = -1.0; }
+      }
+    }
+    //
+    // Fill the remaining Variable Information
+    for (auto& v : info.Var) {
+      if ( (v.first.find("VAR_")!=std::string::npos) || (v.first.find("POI_")!=std::string::npos) ) continue;
+      RooRealVar* var_pPb = (RooRealVar*) ws->var((v.first+"_pPb").c_str());
+      RooRealVar* var_Pbp = (RooRealVar*) ws->var((v.first+"_Pbp").c_str());
+      if (v.second.count("Val")) {
+        if (COL=="pPb") { v.second.at("Val") = var_pPb ? var_pPb->getVal() : -1.0; }
+        if (COL=="Pbp") { v.second.at("Val") = var_Pbp ? var_Pbp->getVal() : -1.0; }
+        if (COL=="PA" ) { v.second.at("Val") = (var_pPb && var_Pbp) ? (var_pPb->getVal() + var_Pbp->getVal()) : -1.0; }
       }
     }
     //
