@@ -19,7 +19,7 @@
 #include <TTree.h>                    // class to access ntuples
 #include <TF1.h>                      // 1D function
 #include <TFitResult.h>               // class to handle fit results
-#include <TGraphErrors.h>             // graph class
+#include <TGraphAsymmErrors.h>        // graph class
 #include <TLorentzVector.h>           // 4-vector class
 #include <TH1D.h>                     // plots
 #include <TH2D.h>                     // plots
@@ -51,15 +51,15 @@ bool printChi2(TPad& pad, const RooWorkspace& ws, const RooPlot& frame, const st
 // Axis and Text Utility functions
 void updateYAxisRange ( RooPlot& frame, const RooWorkspace& myws, std::string varLabel, 
                         const RooDataSet& dataset, const bool& logScale );
-void updateYAxisRange ( std::unique_ptr<TGraphErrors>& graph );
+void updateYAxisRange ( std::unique_ptr<TGraphAsymmErrors>& graph );
 
 std::string formatText(const std::string& text);
 
 
 // generate web page
 void makeHTML(const std::string outDir,
-              const std::map< std::string , std::unique_ptr<TGraphErrors> >& u1Graph,
-              const std::map< std::string , std::unique_ptr<TGraphErrors> >& u2Graph,
+              const std::map< std::string , std::unique_ptr<TGraphAsymmErrors> >& u1Graph,
+              const std::map< std::string , std::unique_ptr<TGraphAsymmErrors> >& u2Graph,
               const std::string uparName, const std::string uprpName, const uint nbins);
 
 
@@ -377,13 +377,6 @@ void fitRecoil(
       }
     }
   }
-
-  // Define the x axis point values
-  Double_t xval[nbins], xerr[nbins];
-  for(uint ibin = 0; ibin < nbins; ibin++) {
-    xval[ibin] = 0.5*(ptBins[ibin+1]+ptBins[ibin]);
-    xerr[ibin] = 0.5*(ptBins[ibin+1]-ptBins[ibin]);
-  }
   
   // ------- Arrays and graphs to store fit results -----------
   std::map< std::string , std::map< std::string , std::map< std::string , std::vector< std::vector< double > > > > > u1VarArr;
@@ -447,27 +440,36 @@ void fitRecoil(
       gSystem->mkdir(TString(outputDir + uprpName + "/" + "pdf/"), true);
       gSystem->mkdir(TString(outputDir + uprpName + "/" + "root/"), true);
       // Define output graphs
-      std::map< std::string , std::unique_ptr<TGraphErrors> > u1Graph;
-      std::map< std::string , std::unique_ptr<TGraphErrors> > u2Graph;
-      double yval[nbins]; double yerr[nbins];
+      std::map< std::string , std::unique_ptr<TGraphAsymmErrors> > u1Graph;
+      std::map< std::string , std::unique_ptr<TGraphAsymmErrors> > u2Graph;
       // Plotting u1 vs. dilepton pT
       for (const auto& var : u1VarArr.at(met).at(col)) {
+        //
+        std::vector<double> xval , xeLo , xeHi , yval , yeLo , yeHi;
         for (uint ibin = 0; ibin < nbins; ibin++) {
-          if (var.second[ibin][1]>0) {
-            yval[ibin] = var.second[ibin][0];
-            yerr[ibin] = var.second[ibin][1];
-            xval[ibin] = var.second[ibin][2];
-            xerr[ibin] = var.second[ibin][3];
+          if ( (var.second[ibin][1]>0) || (var.second[ibin][2]>0) ) {
+            yval.push_back(var.second[ibin][0]);
+            yeLo.push_back(var.second[ibin][1]);
+            yeHi.push_back(var.second[ibin][2]);
+            xval.push_back(var.second[ibin][3]);
+            xeLo.push_back(var.second[ibin][4]);
+            xeHi.push_back(var.second[ibin][5]);
           }
         }
-        u1Graph[var.first] = std::unique_ptr<TGraphErrors>(new TGraphErrors(nbins, xval, yval, xerr, yerr));
+        //
+        u1Graph[var.first] = std::unique_ptr<TGraphAsymmErrors>(new TGraphAsymmErrors(yval.size(), &xval[0], &yval[0], &xeLo[0], &xeHi[0], &yeLo[0], &yeHi[0]));
         u1Graph[var.first]->SetName(Form("grPF%s%s", uparName.c_str(), var.first.c_str()));
         u1Graph[var.first]->SetTitle("");
         u1Graph[var.first]->SetMarkerColor(kBlack);
         u1Graph[var.first]->SetMarkerStyle(kOpenCircle);
         u1Graph[var.first]->Draw();
         u1Graph[var.first]->GetXaxis()->SetTitle("p_{T}(ll) [GeV/c]");
-        u1Graph[var.first]->GetYaxis()->SetTitle(Form("%s(u_{1}) [GeV/c]", formatText(var.first).c_str()));
+        std::string varLbl;
+        if ( (var.first.find("rsigma")!=std::string::npos) || (var.first.find("dmean")!=std::string::npos) || (var.first.find("frac")!=std::string::npos) ) {
+          varLbl = Form("%s(u_{1})", formatText(var.first).c_str());
+        }
+        else { varLbl = Form("%s(u_{1}) [GeV/c]", formatText(var.first).c_str()); }
+        u1Graph[var.first]->GetYaxis()->SetTitle(varLbl.c_str());
         u1Graph[var.first]->GetXaxis()->SetTitleSize(0.045);
         u1Graph[var.first]->GetXaxis()->SetLabelSize(0.040);
         u1Graph[var.first]->GetXaxis()->SetTitleFont(42);
@@ -490,22 +492,32 @@ void fitRecoil(
       }
       // Plotting u2 vs. dilepton pT
       for (const auto& var : u2VarArr.at(met).at(col)) {
+        //
+        std::vector<double> xval , xeLo , xeHi , yval , yeLo , yeHi;
         for (uint ibin = 0; ibin < nbins; ibin++) {
-          if (var.second[ibin][1]>0) {
-            yval[ibin] = var.second[ibin][0];
-            yerr[ibin] = var.second[ibin][1];
-            xval[ibin] = var.second[ibin][2];
-            xerr[ibin] = var.second[ibin][3];
+          if ( (var.second[ibin][1]>0) || (var.second[ibin][2]>0) ) {
+            yval.push_back(var.second[ibin][0]);
+            yeLo.push_back(var.second[ibin][1]);
+            yeHi.push_back(var.second[ibin][2]);
+            xval.push_back(var.second[ibin][3]);
+            xeLo.push_back(var.second[ibin][4]);
+            xeHi.push_back(var.second[ibin][5]);
           }
         }
-        u2Graph[var.first] = std::unique_ptr<TGraphErrors>(new TGraphErrors(nbins, xval, yval, xerr, yerr));
+        //
+        u2Graph[var.first] = std::unique_ptr<TGraphAsymmErrors>(new TGraphAsymmErrors(yval.size(), &xval[0], &yval[0], &xeLo[0], &xeHi[0], &yeLo[0], &yeHi[0]));
         u2Graph[var.first]->SetName(Form("grPF%s%s", uprpName.c_str(), var.first.c_str()));
         u2Graph[var.first]->SetTitle("");
         u2Graph[var.first]->Draw();
         u2Graph[var.first]->SetMarkerColor(kBlack);
         u2Graph[var.first]->SetMarkerStyle(kOpenCircle);
         u2Graph[var.first]->GetXaxis()->SetTitle("p_{T}(ll) [GeV/c]");
-        u2Graph[var.first]->GetYaxis()->SetTitle(Form("%s(u_{2}) [GeV/c]", formatText(var.first).c_str()));
+        std::string varLbl;
+        if ( (var.first.find("rsigma")!=std::string::npos) || (var.first.find("dmean")!=std::string::npos) || (var.first.find("frac")!=std::string::npos) ) {
+          varLbl = Form("%s(u_{2})", formatText(var.first).c_str());
+        }
+        else { varLbl = Form("%s(u_{2}) [GeV/c]", formatText(var.first).c_str()); }
+        u2Graph[var.first]->GetYaxis()->SetTitle(varLbl.c_str());
         u2Graph[var.first]->GetXaxis()->SetTitleSize(0.045);
         u2Graph[var.first]->GetXaxis()->SetLabelSize(0.040);
         u2Graph[var.first]->GetXaxis()->SetTitleFont(42);
@@ -591,7 +603,7 @@ bool performFit(
   // Width Value
   if (model>=1) { ws.factory( Form("sigma1[%.6f, %.6f, %.6f]" , hv[0]->GetRMS(), 0.5*(hv[0]->GetRMS()), 2.0*(hv[0]->GetRMS())) ); }
   if (model>=2) {
-    ws.factory( Form("rsigma2[%.6f, %.6f, %.6f]" , 2.0, 0.95, 3.0) );
+    ws.factory( Form("rsigma2[%.6f, %.6f, %.6f]" , 2.0, 0.15, 3.0) );
     ws.factory( "RooFormulaVar::sigma2( '@0*@1' , {sigma1, rsigma2})" );
   }
   if (model>=3) {
@@ -602,7 +614,7 @@ bool performFit(
   // Mean Value
   if (model>=1) { ws.factory( Form("mean1[%.6f, %.6f, %.6f]" , hv[0]->GetMean(), hv[0]->GetXaxis()->GetXmin(), hv[0]->GetXaxis()->GetXmax()) ); }
   if (model>=2) {
-    ws.factory( Form("dmean2[%.6f, %.6f, %.6f]", 0.0, -2.0, 2.0) );
+    ws.factory( Form("dmean2[%.6f, %.6f, %.6f]", 0.0, -3.0, 3.0) );
     if (isData || uName=="u2") ws.var("dmean2")->setConstant(true);
     ws.factory( "RooFormulaVar::mean2( '@0 + @1*@2' , {mean1, sigma1, dmean2})" );
   }
@@ -688,29 +700,42 @@ bool performFit(
     //
     // Update fit parameters
     //
+    // Check if we can use the previous result
+    bool usePrevResult = false;
+    if ( ibin>0 && (varArr.count("mean1")>0) && (varArr.at("mean1").size()>(ibin-1)) ) { usePrevResult = true; }
+    //
     // Mean Value
     ws.var("mean1")->setVal( hv[ibin]->GetMean() );
     ws.var("mean1")->setMin( hv[ibin]->GetXaxis()->GetXmin() );
     ws.var("mean1")->setMax( hv[ibin]->GetXaxis()->GetXmax() );
     //
     // Width Value
+    if (usePrevResult) { ws.var("sigma1")->setVal( varArr.at("sigma1")[ibin-1][0] ); }
     //ws.var("sigma1")->setVal( hv[ibin]->GetRMS() );
-    ws.var("sigma1")->setMin( 0.5*(hv[ibin]->GetRMS()) );
-    ws.var("sigma1")->setMax( 2.0*(hv[ibin]->GetRMS()) );
+    ws.var("sigma1")->setMin( 0.3*(hv[ibin]->GetRMS()) );
+    ws.var("sigma1")->setMax( 3.0*(hv[ibin]->GetRMS()) );
     //
     // Yield Value
     ws.var("nsig")->setVal( hv[ibin]->Integral() );
     ws.var("nsig")->setMax( 2.0*(hv[ibin]->Integral()) );
-    if (ws.var("dmean2") ) { ws.var("dmean2")->setVal(0.0);  }
-    if (ws.var("dmean3") ) { ws.var("dmean3")->setVal(0.0);  }
-    //if (ws.var("rsigma2")) { ws.var("rsigma2")->setVal(2.0); }
-    //if (ws.var("rsigma3")) { ws.var("rsigma3")->setVal(2.0); }
-    if (ws.var("frac")   ) { ws.var("frac")->setVal(0.9);    }
-    if (ws.var("frac2")  ) { ws.var("frac2")->setVal(0.9);   }
+    if (usePrevResult) {
+      if (ws.var("dmean2") && varArr.count("dmean2")>0) { ws.var("dmean2")->setVal( -varArr.at("dmean2")[ibin-1][0] ); }
+      if (ws.var("frac"  ) && varArr.count("frac"  )>0) { ws.var("frac"  )->setVal(  varArr.at("frac"  )[ibin-1][0] ); }
+      if (ws.var("rsigma2")) { ws.var("rsigma2")->setVal( varArr.at("rsigma2")[ibin-1][0] ); }
+      if (ws.var("rsigma3")) { ws.var("rsigma3")->setVal( varArr.at("rsigma3")[ibin-1][0] ); }
+    }
+    else {
+      if (ws.var("dmean2")) { ws.var("dmean2")->setVal(0.0); }
+      if (ws.var("dmean3")) { ws.var("dmean3")->setVal(0.0); }
+      //if (ws.var("rsigma2")) { ws.var("rsigma2")->setVal(2.0); }
+      //if (ws.var("rsigma3")) { ws.var("rsigma3")->setVal(2.0); }
+      if (ws.var("frac")   ) { ws.var("frac")->setVal(0.9);  }
+      if (ws.var("frac2")  ) { ws.var("frac2")->setVal(0.9); }
+    }
     //
     // Perform fit
     //
-    auto fitResult = std::unique_ptr<RooFitResult>(ws.pdf("model")->fitTo(*dataset, RooFit::Extended(kTRUE), RooFit::Range("FitWindow"), RooFit::NumCPU(32), RooFit::Save(), RooFit::PrintLevel(-1)));
+    auto fitResult = std::unique_ptr<RooFitResult>(ws.pdf("model")->fitTo(*dataset, RooFit::Extended(kTRUE), RooFit::Range("FitWindow"), RooFit::Minos(kTRUE), RooFit::NumCPU(32), RooFit::Save(), RooFit::PrintLevel(-1)));
     if (!fitResult || fitResult->status()!=0) { std::cout << "[ERROR] Fit failed for pt bin : " << ibin << std::endl; }
     if (!fitResult) { std::cout << "[ERROR] Fit results empty!" << std::endl; return false; }
     fitResult->Print("v");
@@ -719,7 +744,8 @@ bool performFit(
     //
     const double xVal = dataset->mean(*ws.var("pt"));
     auto  rmsVar = std::unique_ptr<RooRealVar>(dataset->rmsVar(*ws.var("pt")));
-    const double xErr = rmsVar->getValV();
+    const double xErrLo = rmsVar->getVal();
+    const double xErrHi = xErrLo;
     //
     std::map< std::string , bool > isAtLimit;
     std::cout << "[INFO] Extracting all variables from the workspace" << std::endl;
@@ -728,14 +754,11 @@ bool performFit(
     for (RooRealVar* it = (RooRealVar*)parIt->Next(); it!=NULL; it = (RooRealVar*)parIt->Next() ) {
       if (it->isConstant()) continue;
       std::string name = it->GetName(); if (name==uName || name=="pt" || name=="nsig" || name=="chi2" || name=="ndof") continue;
-      if (
-          ( (std::abs(ws.var(name.c_str())->getValV() - ws.var(name.c_str())->getMin())/ws.var(name.c_str())->getError()) <= 3.0 ) ||
-          ( (std::abs(ws.var(name.c_str())->getValV() - ws.var(name.c_str())->getMax())/ws.var(name.c_str())->getError()) <= 3.0 )
-          )
-        { isAtLimit[name] = true;  }
-      double yVal = ws.var(name.c_str())->getValV(); if (name.find("mean")!=std::string::npos) { yVal *= -1.0; }
-      const double yErr = ws.var(name.c_str())->getError();
-      varArr[name][ibin] = { yVal , yErr , xVal , xErr };
+      isAtLimit[name] = isParAtLimit(*ws.var(name.c_str()));
+      double yVal = ws.var(name.c_str())->getVal(); if (name.find("mean")!=std::string::npos) { yVal *= -1.0; }
+      const double yErrLo = getErrorLo(*ws.var(name.c_str()));
+      const double yErrHi = getErrorHi(*ws.var(name.c_str()));
+      varArr[name][ibin] = { yVal , yErrLo , yErrHi , xVal , xErrLo , xErrHi };
     }
     std::cout << "[INFO] Extracting all functions from the workspace" << std::endl;
     RooArgSet listFunc = ws.allFunctions(); // Needed to avoid segmentation fault
@@ -743,9 +766,10 @@ bool performFit(
     for (RooRealVar* it = (RooRealVar*)parFunIt->Next(); it!=NULL; it = (RooRealVar*)parFunIt->Next() ) {
       if (std::string(it->GetName()).find("recursive")!=std::string::npos) continue;
       if (std::string(it->GetName()).find("mean")==std::string::npos && std::string(it->GetName()).find("sigma")==std::string::npos) continue;
-      double yVal = ws.function(it->GetName())->getValV(); if (std::string(it->GetName()).find("mean")!=std::string::npos) { yVal *= -1.0; }
-      const double yErr = ws.function(it->GetName())->getPropagatedError(*fitResult);
-      varArr[it->GetName()][ibin] = { yVal , yErr , xVal , xErr };
+      double yVal = ws.function(it->GetName())->getVal(); if (std::string(it->GetName()).find("mean")!=std::string::npos) { yVal *= -1.0; }
+      const double yErrLo = ws.function(it->GetName())->getPropagatedError(*fitResult);
+      const double yErrHi = yErrLo;
+      varArr[it->GetName()][ibin] = { yVal , yErrLo , yErrHi , xVal , xErrLo , xErrHi };
     }
     //
     // Plot the fit results
@@ -753,6 +777,8 @@ bool performFit(
     std::cout << "[INFO] Plotting the fit results" << std::endl;
     auto frame = std::unique_ptr<RooPlot>(ws.var(uName.c_str())->frame(RooFit::Bins(hv[ibin]->GetNbinsX())));
     dataset->plotOn(frame.get(), RooFit::MarkerStyle(kFullCircle), RooFit::MarkerSize(0.8), RooFit::DrawOption("ZP"));
+    //ws.pdf("model")->plotOn(frame.get(), RooFit::VisualizeError(*fitResult, 1, 0), RooFit::FillStyle(3225), RooFit::LineColor(kOrange), RooFit::FillColor(kOrange),
+    //                        RooFit::Normalization(dataset->sumEntries(), RooAbsReal::NumEvent), RooFit::Range("FitWindow"), RooFit::NormRange("FitWindow"));
     if(model>=2) ws.pdf("model")->plotOn(frame.get(), RooFit::Normalization(dataset->sumEntries(), RooAbsReal::NumEvent), RooFit::Range("FitWindow"), RooFit::NormRange("FitWindow"), 
                                          RooFit::Components("gauss1"), RooFit::LineStyle(kDashed), RooFit::LineColor(kRed));
     if(model>=2) ws.pdf("model")->plotOn(frame.get(), RooFit::Normalization(dataset->sumEntries(), RooAbsReal::NumEvent), RooFit::Range("FitWindow"), RooFit::NormRange("FitWindow"),
@@ -775,10 +801,15 @@ bool performFit(
     const std::string xlabel   = Form("PF %c_{%c} [GeV]", uName[0], uName[1]);
     const std::string ylabel   = Form("Events / %.1f GeV/c", hv[ibin]->GetBinWidth(1));
     const std::string binlabel = Form("%.0f < p_{T} < %.0f", ptBins[ibin], ptBins[ibin+1]);
-    const std::string nsigtext = Form("N_{evts} = %.0f #pm %.0f", ws.var("nsig")->getValV(), ws.var("nsig")->getError());
+    const std::string nsigtext = Form("N_{evts} = %.0f #pm %.0f", ws.var("nsig")->getVal(), ws.var("nsig")->getError());
     std::map< std::string , std::string > varText;
     for (const auto& var : varArr) {
-      varText[var.first] = Form("%s = %.2f #pm %.2f" , formatText(var.first).c_str(), var.second[ibin][0] , var.second[ibin][1]);
+      if (isEqual(var.second[ibin][1], var.second[ibin][2], 2)) {
+        varText[var.first] = Form("%s = %.2f #pm %.2f" , formatText(var.first).c_str(), var.second[ibin][0] , var.second[ibin][1]);
+      }
+      else {
+        varText[var.first] = Form("%s = %.2f + %.2f - %.2f" , formatText(var.first).c_str(), var.second[ibin][0] , var.second[ibin][2] , var.second[ibin][1]);
+      }
       if (isAtLimit[var.first]) { varText.at(var.first) += " (!)"; }
     }
     std::unique_ptr<TPaveText> tb;
@@ -898,8 +929,8 @@ bool performFit(
 //--------------------------------------------------------------------------------------------------
 void makeHTML(
               const std::string outDir,
-              const std::map< std::string , std::unique_ptr<TGraphErrors> >& u1Graph,
-              const std::map< std::string , std::unique_ptr<TGraphErrors> >& u2Graph,
+              const std::map< std::string , std::unique_ptr<TGraphAsymmErrors> >& u1Graph,
+              const std::map< std::string , std::unique_ptr<TGraphAsymmErrors> >& u2Graph,
               const std::string uparName   = "u1",
               const std::string uprpName   = "u2",
               const uint nbins = 10
@@ -1134,7 +1165,7 @@ void updateYAxisRange(RooPlot& frame, const RooWorkspace& myws, std::string varL
 };
 
 
-void updateYAxisRange(std::unique_ptr<TGraphErrors>& graph)
+void updateYAxisRange(std::unique_ptr<TGraphAsymmErrors>& graph)
 {
   if (graph==NULL) return;
   // Find the max and min of graph

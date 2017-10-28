@@ -16,13 +16,15 @@
 #include <TSystem.h>
 #include <TFile.h>                    // file handle class
 #include <TF1.h>                      // 1D function
+#include <TH1.h>                      // 1D function
 #include <TFitResult.h>               // class to handle fit results
-#include <TGraphErrors.h>             // graph class
+#include <TGraphAsymmErrors.h>        // graph class
 #include <TCanvas.h>                  // canvas
 #include <TAxis.h>
 #include <TPaveText.h>
 #include <TKey.h>
 #include <TClass.h>
+#include <TVirtualFitter.h>
 // C++ Headers
 #include <iostream>                   // standard I/O
 #include <fstream>                    // standard I/O
@@ -33,15 +35,15 @@
 //=== FUNCTION DECLARATIONS ======================================================================================
 
 // Axis and Text Utility functions
-void updateYAxisRange ( TGraphErrors* graph );
+void updateYAxisRange ( std::unique_ptr<TGraphAsymmErrors>& graph );
 
 std::string formatText(const std::string& text);
 
 
 // generate web page
 void makeHTML(const std::string outDir,
-              const std::map< std::string , TGraphErrors* >& u1Graph,
-              const std::map< std::string , TGraphErrors* >& u2Graph,
+              const std::map< std::string , std::unique_ptr<TGraphAsymmErrors> >& u1Graph,
+              const std::map< std::string , std::unique_ptr<TGraphAsymmErrors> >& u2Graph,
               const std::string uparName, const std::string uprpName);
 
 inline bool fileExist (const std::string& name);
@@ -49,10 +51,10 @@ inline bool fileExist (const std::string& name);
 //--------------------------------------------------------------------------------------------------
 // perform fit of recoil component
 bool performFit(
-                std::map< std::string , TF1* >& uFit,
+                std::map< std::string , std::unique_ptr<TF1> >& uFit,
                 std::map< std::string , TFitResultPtr >& uFitRes,
-                TCanvas* c,
-                const std::map< std::string , TGraphErrors* >& uGraph,
+                TCanvas& c,
+                std::map< std::string , std::unique_ptr<TGraphAsymmErrors> >& uGraph,
                 const std::map< std::string , FcnInfo >& uFcn,
                 const std::string uName,
                 const std::string met,
@@ -66,11 +68,13 @@ bool performFit(
 void getRecoilPDF(
                   const bool isData = false,
                   const std::vector< std::string > metType = { "PF_RAW" , "PF_Type1" , "PF_NoHF_RAW" , "PF_NoHF_Type1" },
-                  const std::vector< std::string > COLL    = { "PA" , "Pbp" , "pPb" },
-                  const std::string uparName   = "u1",
-                  const std::string uprpName   = "u2"
+                  const std::vector< std::string > COLL    = { "PA" , "Pbp" , "pPb" }
                   )
 {
+  //
+  const std::string uparName = "u1";
+  const std::string uprpName = "u2";
+  //
   // Change the working directory
   const std::string CWD = getcwd(NULL, 0);
   const std::string mainDir = Form("%s/FitRecoil/", CWD.c_str());
@@ -79,11 +83,11 @@ void getRecoilPDF(
 
   std::string dsLabel;
   if (isData) { dsLabel = "DATA"; }
-  else { dsLabel = "MC_DYToMuMu_PYQUEN"; }
+  else { dsLabel = "MC_DYToMuMu_POWHEG"; }
 
   // Initialize Canvas
   setTDRStyle();
-  TCanvas *c = new TCanvas("c", "c", 800, 800);
+  auto c = std::unique_ptr<TCanvas>(new TCanvas("c", "c", 800, 800));
 
   // Step 1: Find all the input root files (Recoil Fit Graphs)
   for (const auto& met : metType) {
@@ -97,40 +101,40 @@ void getRecoilPDF(
       const std::string fileName  = "plots_RecoilPDF_" + met + "_" + col + ".root";
       //
       // Open the input file
-      TFile* file = TFile::Open((inputDir + fileName).c_str(), "READ");
+      auto file = std::unique_ptr<TFile>(TFile::Open((inputDir + fileName).c_str(), "READ"));
       std::cout << "[INFO] Reading file: " << (inputDir + fileName) << std::endl;
       if (!file) { std::cout << "[ERROR] Input file " << (inputDir + fileName) << " was not found!" << std::endl; return; }
       //
-      std::map< std::string , TGraphErrors* > u1Graph;
-      std::map< std::string , TGraphErrors* > u2Graph;
+      std::map< std::string , std::unique_ptr<TGraphAsymmErrors> > u1Graph;
+      std::map< std::string , std::unique_ptr<TGraphAsymmErrors> > u2Graph;
       //
       // Loop over all TGraphs inside the file
       TIter next(file->GetListOfKeys());
       for (TKey* key = (TKey*)next(); key!=NULL; key = (TKey*)next() ) {
         TClass *cl = gROOT->GetClass(key->GetClassName());
-        if (!cl->InheritsFrom("TGraphErrors")) continue;
-        TGraphErrors *gr = (TGraphErrors*)key->ReadObj();
+        if (!cl->InheritsFrom("TGraphAsymmErrors")) continue;
+        TGraphAsymmErrors *gr = (TGraphAsymmErrors*)key->ReadObj();
         std::string name = gr->GetName();
         std::cout << "[INFO] Importing Graph: " << name << std::endl;
-        if (name.find("PFu1")!=std::string::npos) { u1Graph[name.substr(name.find("u1")+2)] = gr; }
-        if (name.find("PFu2")!=std::string::npos) { u2Graph[name.substr(name.find("u2")+2)] = gr; }
+        if (name.find("PFu1")!=std::string::npos) { u1Graph[name.substr(name.find("u1")+2)].reset(gr); }
+        if (name.find("PFu2")!=std::string::npos) { u2Graph[name.substr(name.find("u2")+2)].reset(gr); }
       }
       //
       // Fit the Recoil graphs
       //
       // For u1 component
-      std::map< std::string , TF1* > u1Fit;
+      std::map< std::string , std::unique_ptr<TF1> > u1Fit;
       std::map< std::string , TFitResultPtr > u1FitRes;
-      if (!( performFit(u1Fit, u1FitRes, c, u1Graph, u1FcnInfo.at(dsLabel).at(met).at("PA"), uparName, met, col, outputDir) )) { return; }
+      if (!( performFit(u1Fit, u1FitRes, *c, u1Graph, u1FcnInfo.at(dsLabel).at(met).at("PA"), uparName, met, col, outputDir) )) { return; }
       // For u2 component
-      std::map< std::string , TF1* > u2Fit;
+      std::map< std::string , std::unique_ptr<TF1> > u2Fit;
       std::map< std::string , TFitResultPtr > u2FitRes;
-      if (!( performFit(u2Fit, u2FitRes, c, u2Graph, u2FcnInfo.at(dsLabel).at(met).at("PA"), uprpName, met, col, outputDir) )) { return; }
+      if (!( performFit(u2Fit, u2FitRes, *c, u2Graph, u2FcnInfo.at(dsLabel).at(met).at("PA"), uprpName, met, col, outputDir) )) { return; }
       //
       // Save the fit results
       //
       const std::string outfname = (outputDir + Form("fits_RecoilPDF_%s_%s.root", met.c_str(), col.c_str()));
-      TFile *outfile = new TFile(outfname.c_str(), "RECREATE");
+      auto outfile = std::unique_ptr<TFile>(new TFile(outfname.c_str(), "RECREATE"));
       for (const auto& graph  : u1Graph ) { if (graph.second ) graph.second->Write();  }
       for (const auto& graph  : u2Graph ) { if (graph.second ) graph.second->Write();  }
       for (const auto& fit    : u1Fit   ) { if (fit.second   ) fit.second->Write();    }
@@ -138,19 +142,15 @@ void getRecoilPDF(
       for (const auto& fitres : u1FitRes) { if (fitres.second) fitres.second->Write(); }
       for (const auto& fitres : u2FitRes) { if (fitres.second) fitres.second->Write(); }
       outfile->Close();
-      delete outfile;
       // Make Website with plots
       const std::string htmlDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col;
       makeHTML(htmlDir, u1Graph, u2Graph, uparName, uprpName);
       cout << "  <> Output saved in " << outputDir << endl;
       // Clean up
-      for(auto& fit : u1Fit) { delete fit.second; }
-      for(auto& fit : u2Fit) { delete fit.second; }
-      file->Close(); delete file;
-      break;
+      file->Close();
     }
   }
-  c->Close(); delete c;
+  c->Close();
   return;
 }
   
@@ -158,10 +158,10 @@ void getRecoilPDF(
 
 //--------------------------------------------------------------------------------------------------
 bool performFit(
-                std::map< std::string , TF1* >& uFit,
+                std::map< std::string , std::unique_ptr<TF1> >& uFit,
                 std::map< std::string , TFitResultPtr >& uFitRes,
-                TCanvas* c,
-                const std::map< std::string , TGraphErrors* >& uGraph,
+                TCanvas& c,
+                std::map< std::string , std::unique_ptr<TGraphAsymmErrors> >& uGraph,
                 const std::map< std::string , FcnInfo >& uFcn,
                 const std::string uName,
                 const std::string met,
@@ -178,6 +178,9 @@ bool performFit(
   //
   // Proceed to fit the recoil components
   //
+  // For Error Band
+  std::map< std::string , std::unique_ptr<TH1D> > uConfInt;
+  //
   for (auto& graph : uGraph) {
     std::string varName = "";
     if (uFcn.count(graph.first)>0) { varName = graph.first; }
@@ -189,46 +192,54 @@ bool performFit(
     if (graph.first.find("dmean")!=std::string::npos || graph.first.find("rsigma")!=std::string::npos || graph.first.find("frac")!=std::string::npos) continue;
     if (uFcn.count(varName)==0) { std::cout << "[ERROR] Recoil parameter: " << graph.first << " was not found!" << std::endl; return false; }
     FcnInfo fcn = uFcn.at(varName);
-    uFit[graph.first] = new TF1(Form("fcnPF%s%s", uName.c_str(), graph.first.c_str()), fcn.exp.c_str(), 0.0, 300.);
+    uFit[graph.first] = std::unique_ptr<TF1>(new TF1(Form("fcnPF%s%s", uName.c_str(), graph.first.c_str()), fcn.exp.c_str(), 0.0, 300.));
     if (uFit[graph.first]->GetNpar()!=int(fcn.par.size())) { std::cout << "[ERROR] Number of input parameters used for fitting: " << varName << " is inconsistent!" << std::endl; return false; }
     for (uint i=0; i<fcn.par.size(); i++) { uFit.at(graph.first)->SetParameter(i, fcn.par[i]); }
     for (uint i=0; i<fcn.par.size(); i++) { uFit.at(graph.first)->SetParName(i, FcnParName.at(fcn.exp)[i].c_str()); }
     for (uint i=0; i<fcn.min.size(); i++) { uFit.at(graph.first)->SetParLimits(i, fcn.min[i], fcn.max[i]); }
     uFitRes[graph.first] = graph.second->Fit(uFit.at(graph.first)->GetName(), "QMRN0SE");
     uFitRes.at(graph.first)->SetName(Form("fitresPF%s%s", uName.c_str(), graph.first.c_str()));
+    /*Create a histogram to hold the confidence intervals*/
+    uConfInt[graph.first].reset(new TH1D(Form("confintPF%s%s", uName.c_str(), graph.first.c_str()), "", graph.second->GetN(), graph.second->GetXaxis()->GetXmin(), graph.second->GetXaxis()->GetXmax()));
+    (TVirtualFitter::GetFitter())->GetConfidenceIntervals(uConfInt.at(graph.first).get());
   }
   //
   // Compute the pull distribution
   //
-  std::map< std::string , TGraphErrors* > pull;
+  std::map< std::string , std::unique_ptr<TGraphAsymmErrors> > pull;
   for (auto& fit : uFit) {
-    pull[fit.first] = (TGraphErrors*)uGraph.at(fit.first)->Clone();
+    pull[fit.first].reset((TGraphAsymmErrors*)uGraph.at(fit.first)->Clone());
     pull.at(fit.first)->SetName(Form("pullPF%s%s", uName.c_str(), fit.first.c_str()));
     for (int i = 0; i < uGraph.at(fit.first)->GetN(); i++) {
       double xVal, yVal;
       uGraph.at(fit.first)->GetPoint(i, xVal, yVal);
-      double xErr = uGraph.at(fit.first)->GetErrorX(i);
-      double yErr = uGraph.at(fit.first)->GetErrorY(i);
-      double pull_xVal = xVal;
-      double pull_xErr = xErr;
-      double yFitVal = fit.second->Eval(xVal);
-      double pull_yVal = ( (yErr!=0.) ? ( (yFitVal - yVal) / yErr ) : 0.0 );
-      double pull_yErr = 1.0;
+      const double xErrLo = uGraph.at(fit.first)->GetErrorXlow(i);
+      const double xErrHi = uGraph.at(fit.first)->GetErrorXhigh(i);
+      const double yErrLo = uGraph.at(fit.first)->GetErrorYlow(i);
+      const double yErrHi = uGraph.at(fit.first)->GetErrorYhigh(i);
+      const double pull_xVal = xVal;
+      const double pull_xErrLo = xErrLo;
+      const double pull_xErrHi = xErrHi;
+      const double yFitVal = fit.second->Eval(xVal);
+      const double norm = ( (yVal>0) ? yErrLo : yErrHi );
+      const double pull_yVal   = ( (norm>0.) ? ( (yVal - yFitVal) / norm ) : 0.0 );
+      const double pull_yErrLo = ( (norm>0.) ? ( yErrLo / norm ) : 0.0 );
+      const double pull_yErrHi = ( (norm>0.) ? ( yErrHi / norm ) : 0.0 );
       pull.at(fit.first)->SetPoint(i, pull_xVal, pull_yVal);
-      pull.at(fit.first)->SetPointError(i, pull_xErr, pull_yErr);
+      pull.at(fit.first)->SetPointError(i, pull_xErrLo, pull_xErrHi, pull_yErrLo, pull_yErrHi);
     }
   }
   //
   // Plot the fit results
   //
-  for (const auto& graph : uGraph) {
+  for (auto& graph : uGraph) {
     if (uFit.count(graph.first)==0) continue;
     // Create the text labels
     std::cout << "[INFO] Creating the text labels for the plots" << std::endl;
     const std::string xlabel = Form("p_{T}(ll) [GeV/c]");
     const std::string ylabel   = Form("%s(%s) [GeV/c]", formatText(graph.first).c_str(), formatText(uName).c_str());
     std::vector< std::string > parText;
-    TF1* fit = uFit.at(graph.first);
+    auto& fit = uFit.at(graph.first);
     for (int i = 0; i < fit->GetNpar(); i++) {
       double value = fit->GetParameter(i);
       double error = fit->GetParError(i);
@@ -237,7 +248,7 @@ bool performFit(
       double min, max; fit->GetParLimits(i, min, max);
       if ( ( (std::abs(value - min)/error) < 3.0 ) || ( (std::abs(value - max)/error) < 3.0 ) ) { parText[i] += " (!)"; }
     }
-    TPaveText *tb = new TPaveText(0.17, (0.88-0.04*(4+parText.size())), 0.45, 0.88, "NDC");
+    auto tb = std::unique_ptr<TPaveText>(new TPaveText(0.17, (0.88-0.04*(4+parText.size())), 0.45, 0.88, "NDC"));
     tb->SetTextColor(kBlack);
     tb->SetFillStyle(0);
     tb->SetBorderSize(0);
@@ -280,17 +291,21 @@ bool performFit(
     pull.at(graph.first)->GetYaxis()->SetLabelSize(0.1);
     pull.at(graph.first)->GetYaxis()->SetTitle("Pull");
     pull.at(graph.first)->GetYaxis()->SetRangeUser(-7.0, 7.0);
+    // Confidence Interval
+    uConfInt.at(graph.first)->SetStats(kFALSE);
+    uConfInt.at(graph.first)->SetFillColor(kYellow);
+    uConfInt.at(graph.first)->SetFillStyle(3225);
     //  Fit Function
     uFit.at(graph.first)->SetLineColor(kRed);
     uFit.at(graph.first)->SetLineWidth(2);
     uFit.at(graph.first)->SetLineStyle(1);
     // Define the plotting pads
-    TPad    *pad1  = new TPad("pad1", "", 0, 0.23, 1, 1);
-    TPad    *pad2  = new TPad("pad2", "", 0, 0, 1, 0.228);
-    TLine   *pline = new TLine(0.0, 0.0,  200.0, 0.0);
+    TPad *pad1  = new TPad("pad1", "", 0, 0.23, 1, 1);
+    TPad *pad2  = new TPad("pad2", "", 0, 0, 1, 0.228);
+    auto  pline = std::unique_ptr<TLine>(new TLine(0.0, 0.0,  200.0, 0.0));
     pline->SetLineColor(kBlue); pline->SetLineWidth(3); pline->SetLineStyle(2);
     // Format the pads
-    c->cd();
+    c.cd();
     pad2->SetTopMargin(0.02);
     pad2->SetBottomMargin(0.4);
     pad2->SetFillStyle(4000); 
@@ -302,8 +317,10 @@ bool performFit(
     pad1->Draw();
     pad1->cd();
     graph.second->Draw("AP");
+    uConfInt.at(graph.first)->Draw("e3 same");
     uFit.at(graph.first)->Draw("same");
     tb->Draw("same");
+    graph.second->Draw("P same");
     // Apply CMS style to pad
     std::cout << "[INFO] Setting the CMS style on the plot" << std::endl;
     int lumiId = 0;
@@ -314,24 +331,20 @@ bool performFit(
     pad1->SetLogx(false);
     pad1->Update();
     // Pull Frame
-    c->cd();
+    c.cd();
     pad2->Draw();
     pad2->cd();
     pull[graph.first]->Draw("AP");
     pline->Draw("same");
-    TLatex *t = new TLatex(); t->SetNDC(); t->SetTextSize(0.12); 
+    auto t = std::unique_ptr<TLatex>(new TLatex()); t->SetNDC(); t->SetTextSize(0.12);
     t->DrawLatex(0.7, 0.85, Form("#chi^{2}/ndof = %.0f / %d ", uFit.at(graph.first)->GetChisquare(), uFit.at(graph.first)->GetNDF()));
     pad2->Update();
     // Save the pads
     //
-    c->SaveAs( (outDir + "png/" + Form("fitPF%s%s.png", uName.c_str(), graph.first.c_str())).c_str() );
-    c->SaveAs( (outDir + "pdf/" + Form("fitPF%s%s.pdf", uName.c_str(), graph.first.c_str())).c_str() );
-    c->Clear();
-    if (tb)    delete tb;
-    if (pline) delete pline;
+    c.SaveAs( (outDir + "png/" + Form("fitPF%s%s.png", uName.c_str(), graph.first.c_str())).c_str() );
+    c.SaveAs( (outDir + "pdf/" + Form("fitPF%s%s.pdf", uName.c_str(), graph.first.c_str())).c_str() );
+    c.Clear();
   }
-  // Clean up
-  for(auto& p : pull) { if (p.second) { delete p.second; } }
   // Return
   return true;
 }
@@ -340,8 +353,8 @@ bool performFit(
 //--------------------------------------------------------------------------------------------------
 void makeHTML(
               const std::string outDir,
-              const std::map< std::string , TGraphErrors* >& u1Graph,
-              const std::map< std::string , TGraphErrors* >& u2Graph,
+              const std::map< std::string , std::unique_ptr<TGraphAsymmErrors> >& u1Graph,
+              const std::map< std::string , std::unique_ptr<TGraphAsymmErrors> >& u2Graph,
               const std::string uparName   = "u1",
               const std::string uprpName   = "u2"
               )
@@ -417,7 +430,7 @@ void makeHTML(
 };
 
 
-void updateYAxisRange(TGraphErrors* graph)
+void updateYAxisRange(std::unique_ptr<TGraphAsymmErrors>& graph)
 {
   if (graph==NULL) return;
   // Find the max and min of graph

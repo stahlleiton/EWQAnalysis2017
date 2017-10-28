@@ -311,7 +311,7 @@ void printElectroWeakMETParameters(TPad& pad, const RooWorkspace& ws, const std:
     std::string txtLbl;
     if (s.find("Sigma2")!=std::string::npos) { txtLbl = Form("%s = %.3f#pm%.3f", label.c_str(), it->getValV()*1000., it->getError()*1000.); }
     else { txtLbl = Form("%s = %.3f#pm%.3f", label.c_str(), it->getValV(), it->getError()); }
-    if (isAtLimit(*it)) { txtLbl += " (!)"; }
+    if (isParAtLimit(*it)) { txtLbl += " (!)"; }
     t.DrawLatex(xPos, yPos-dy, txtLbl.c_str()); dy+=dYPos;
   }
   pad.Update();

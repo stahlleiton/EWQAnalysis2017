@@ -430,11 +430,25 @@ bool makePullHist(RooHist& pHist, const RooPlot& frame, const std::string histna
 };
 
 
-bool isAtLimit(const RooRealVar& var)
+double getErrorHi(const RooRealVar& var)
+{
+  if (var.getErrorLo()==0.0 && var.getErrorHi()==0.0) { return var.getError(); }
+  return std::abs(var.getErrorHi());
+};
+
+
+double getErrorLo(const RooRealVar& var)
+{
+  if (var.getErrorLo()==0.0 && var.getErrorHi()==0.0) { return var.getError(); }
+  return std::abs(var.getErrorLo());
+};  
+
+
+bool isParAtLimit(const RooRealVar& var)
 {
   if (
-      ( (std::abs(var.getValV() - var.getMin())/var.getError()) <= 3.0 ) ||
-      ( (std::abs(var.getValV() - var.getMax())/var.getError()) <= 3.0 )
+      ( (std::abs(var.getValV() - var.getMin())/getErrorLo(var)) <= 3.0 ) ||
+      ( (std::abs(var.getValV() - var.getMax())/getErrorHi(var)) <= 3.0 )
       )
     { return true; }
   return false;

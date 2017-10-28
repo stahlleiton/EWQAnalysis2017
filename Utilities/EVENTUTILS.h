@@ -55,6 +55,14 @@ void roundValue( double& value , const uint& nDecimals )
   value = tmp;
 };
 
+bool isEqual( const double inVal1 , const double inVal2 , const uint nDecimals )
+{
+  double val1 = inVal1; roundValue(val1, nDecimals);
+  double val2 = inVal2; roundValue(val2, nDecimals);
+  if (val1==val2) return true;
+  return false;  
+};
+
 auto TIME_START_ = std::chrono::high_resolution_clock::now();
 auto TIME_END_ = TIME_START_;
 int  TIME_DIF_ = 0;
