@@ -770,7 +770,7 @@ bool performFit(
     // Perform fit
     //
     auto fitResult = std::unique_ptr<RooFitResult>(ws.pdf("model")->fitTo(*dataset, RooFit::Extended(kTRUE), RooFit::Range("FitWindow"), RooFit::SumW2Error(dataset->isWeighted()), 
-                                                                          RooFit::Minos(kTRUE), RooFit::NumCPU(32), RooFit::Save(), RooFit::PrintLevel(-1)));
+                                                                          RooFit::Minos(!dataset->isWeighted()), RooFit::NumCPU(32), RooFit::Save(), RooFit::PrintLevel(-1)));
     if (!fitResult || fitResult->status()!=0) { std::cout << "[ERROR] Fit failed for pt bin : " << ibin << std::endl; }
     if (!fitResult) { std::cout << "[ERROR] Fit results empty!" << std::endl; return false; }
     fitResult->Print("v");
