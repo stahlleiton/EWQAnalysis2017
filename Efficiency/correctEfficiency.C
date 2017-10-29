@@ -114,7 +114,7 @@ const std::map< std::string , std::vector< std::pair< std::string , double > > >
 std::map< std::string , std::vector< std::string > > sampleType_;
 
 
-void correctEfficiency(const std::string workDirName = "NominalCM", const bool applyHFCorr = false)
+void correctEfficiency(const std::string workDirName = "NominalCM", const bool applyHFCorr = true)
 {
   //
   // Initialize the Kinematic Bin info
