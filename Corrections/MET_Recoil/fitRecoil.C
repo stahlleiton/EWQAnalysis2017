@@ -9,7 +9,9 @@
 #if !defined(__CINT__) || defined(__MAKECINT__)
 #include "../../Utilities/HiMuonTree.h"
 #include "../../Utilities/HiMETTree.h"
+#include "../../Utilities/HiEvtTree.h"
 #include "../../Utilities/EVENTUTILS.h"
+#include "../../Utilities/HFweight.h"
 #include "../../Fitter/Macros/Utilities/initClasses.h"
 #include "../../Utilities/CMS/tdrstyle.C"
 #include "../../Utilities/CMS/CMS_lumi.C"
@@ -86,6 +88,7 @@ void fitRecoil(
                const bool isData = false,
                const std::vector< std::string > metType = { "PF_RAW" , "PF_Type1" , "PF_NoHF_RAW" , "PF_NoHF_Type1" },
                const std::vector< std::string > COLL    = { "PA" , "Pbp" , "pPb" },
+               const bool applyHFCorr = true, // Only used for MC, in data it is ignored
                const bool remakeDS = false
                )
 {
@@ -213,16 +216,28 @@ void fitRecoil(
     for (const auto& met : metType) {
       for (const auto& col : COLL) {
         //
-        RooRealVar ptVar = RooRealVar("pt", "pt", -1000., 1000., "GeV/c");
-        RooRealVar u1Var = RooRealVar(uparName.c_str(), uparName.c_str(), -1000., 1000., "GeV/c");
-        auto ds = std::unique_ptr<RooDataSet>(new RooDataSet(Form("dPF%s_%s", uparName.c_str(), dsLabel.c_str()), "", RooArgSet(u1Var, ptVar)));
+        RooRealVar ptVar  = RooRealVar("pt", "pt", -1000., 1000., "GeV/c");
+        RooRealVar weight = RooRealVar("weight", "weight", -1.0, 1000000000.0, "");
+        RooRealVar u1Var  = RooRealVar(uparName.c_str(), uparName.c_str(), -1000., 1000., "GeV/c");
+        std::unique_ptr<RooDataSet> ds;
+        if (!isData && applyHFCorr) {
+          ds.reset(new RooDataSet(Form("dPF%s_%s", uparName.c_str(), dsLabel.c_str()), "", RooArgSet(u1Var, ptVar, weight), RooFit::WeightVar(weight)));
+        }
+        else { ds.reset(new RooDataSet(Form("dPF%s_%s", uparName.c_str(), dsLabel.c_str()), "", RooArgSet(u1Var, ptVar))); }
         myws_u1[met][col].import(*ds);
         //
         RooRealVar u2Var  = RooRealVar(uprpName.c_str(), uprpName.c_str(), -1000., 1000., "GeV/c");
-        ds.reset(new RooDataSet(Form("dPF%s_%s", uprpName.c_str(), dsLabel.c_str()), "", RooArgSet(u2Var, ptVar)));
+        if (!isData && applyHFCorr) {
+          ds.reset(new RooDataSet(Form("dPF%s_%s", uprpName.c_str(), dsLabel.c_str()), "", RooArgSet(u2Var, ptVar, weight), RooFit::WeightVar(weight)));
+        }
+        else { ds.reset(new RooDataSet(Form("dPF%s_%s", uprpName.c_str(), dsLabel.c_str()), "", RooArgSet(u2Var, ptVar))); }
         myws_u2[met][col].import(*ds);
       }
     }
+    //
+    // Define the HF Weight
+    std::unique_ptr<HFweight> HFCorr;
+    if (!isData && applyHFCorr) { HFCorr = std::unique_ptr<HFweight>(new HFweight("/afs/cern.ch/work/e/echapon/public/DY_pA_2016/HFweight.root")); }
     //
     // Proceed to loop over each input file
     for(const auto& file : fileName) {
@@ -232,13 +247,17 @@ void fitRecoil(
       if (!muonTree->GetTree(file)) return;
       Long64_t nentries = muonTree->GetEntries();
       //
+      std::unique_ptr<HiEvtTree> evtTree = std::unique_ptr<HiEvtTree>(new HiEvtTree());
+      if (!evtTree->GetTree(file)) return;
+      if (evtTree->GetEntries() != nentries) { std::cout << "[ERROR] Inconsistent number of entries!" << std::endl; return; }
+      //
       std::unique_ptr<HiMETTree> metTree = std::unique_ptr<HiMETTree>(new HiMETTree());
       if (!metTree->GetTree(file, "metAna")) return;
       if (metTree->GetEntries() != nentries) { std::cout << "[ERROR] Inconsistent number of entries!" << std::endl; return; }
       //
       std::unique_ptr<HiMETTree> metNoHFTree = std::unique_ptr<HiMETTree>(new HiMETTree());
       if (!metNoHFTree->GetTree(file, "metAnaNoHF")) return;
-      if (metNoHFTree->GetEntries() != nentries) { std::cout << "[ERROR] Inconsistent number of entries!" << std::endl; return; }  
+      if (metNoHFTree->GetEntries() != nentries) { std::cout << "[ERROR] Inconsistent number of entries!" << std::endl; return; }
       //
       // Loop over events
       //
@@ -246,6 +265,7 @@ void fitRecoil(
         //
         // Get the entry in the trees
         if (   muonTree->GetEntry(jentry)<0) { std::cout << "[ERROR] Muon Tree invalid entry!"     << std::endl; return; }
+        if (    evtTree->GetEntry(jentry)<0) { std::cout << "[ERROR] Event Tree invalid entry!"    << std::endl; return; }
         if (    metTree->GetEntry(jentry)<0) { std::cout << "[ERROR] MET Tree invalid entry!"      << std::endl; return; }
         if (metNoHFTree->GetEntry(jentry)<0) { std::cout << "[ERROR] MET NoHF Tree invalid entry!" << std::endl; return; }
         // 
@@ -254,6 +274,8 @@ void fitRecoil(
         if (muonTree->Event_Number()!=metTree->Event_Number()    ) { std::cout << "[ERROR] MET Event does not agree!"      << std::endl; return; }
         if (muonTree->Event_Run()!=metNoHFTree->Event_Run()      ) { std::cout << "[ERROR] MET NoHF Run does not agree!"   << std::endl; return; }
         if (muonTree->Event_Number()!=metNoHFTree->Event_Number()) { std::cout << "[ERROR] MET NoHF Event does not agree!" << std::endl; return; }
+        if (muonTree->Event_Run()!=evtTree->run()                ) { std::cout << "[ERROR] HiEVT Run does not agree!"      << std::endl; return; }
+        if (muonTree->Event_Number()!=evtTree->evt()             ) { std::cout << "[ERROR] HiEVT Event does not agree!"    << std::endl; return; }
         //
         loadBar(jentry, nentries);
         //
@@ -275,7 +297,11 @@ void fitRecoil(
         if (PA::passEventFilter(metTree)==false) continue; // PA Event Selection
         //
         // Check Trigger Fired
-        if (muonTree->Event_Trig_Fired()[triggerIndex]==false) continue; // Trigger Event Fired      
+        if (muonTree->Event_Trig_Fired()[triggerIndex]==false) continue; // Trigger Event Fired
+        //
+        // Get the HF Weight
+        double weightEvt = 1.0;
+        if (!isData && applyHFCorr && (HFCorr!=NULL)) { weightEvt = HFCorr->weight(evtTree->hiHF(), HFweight::HFside::both, false); }
         //
         // Loop over dimuons
         //
@@ -340,15 +366,22 @@ void fitRecoil(
             for (const auto& col : COLL) {
               if (col==evtCol || col=="PA") {
                 // Fill the histograms with the recoil (u1 or u2) in each pT bin
-                hPFu1v.at(met).at(col).at(ipt)->Fill(u1);
-                hPFu2v.at(met).at(col).at(ipt)->Fill(u2);
+                hPFu1v.at(met).at(col).at(ipt)->Fill(u1, weightEvt);
+                hPFu2v.at(met).at(col).at(ipt)->Fill(u2, weightEvt);
                 // Fill the RooWorkspaces with the recoil
                 myws_u1.at(met).at(col).var("pt")->setVal(dilep.Pt());
                 myws_u2.at(met).at(col).var("pt")->setVal(dilep.Pt());
                 myws_u1.at(met).at(col).var(uparName.c_str())->setVal(u1);
                 myws_u2.at(met).at(col).var(uprpName.c_str())->setVal(u2);
-                ((RooDataSet*)myws_u1.at(met).at(col).data(Form("dPF%s_%s", uparName.c_str(), dsLabel.c_str())))->add(RooArgSet(*myws_u1.at(met).at(col).var("pt"), *myws_u1.at(met).at(col).var(uparName.c_str())));
-                ((RooDataSet*)myws_u2.at(met).at(col).data(Form("dPF%s_%s", uprpName.c_str(), dsLabel.c_str())))->add(RooArgSet(*myws_u2.at(met).at(col).var("pt"), *myws_u2.at(met).at(col).var(uprpName.c_str())));
+                //
+                const auto& u1Set = RooArgSet(*myws_u1.at(met).at(col).var("pt"), *myws_u1.at(met).at(col).var(uparName.c_str()));
+                const auto& u2Set = RooArgSet(*myws_u2.at(met).at(col).var("pt"), *myws_u2.at(met).at(col).var(uprpName.c_str()));
+                //
+                RooDataSet* u1DS = ((RooDataSet*)myws_u1.at(met).at(col).data(Form("dPF%s_%s", uparName.c_str(), dsLabel.c_str())));
+                RooDataSet* u2DS = ((RooDataSet*)myws_u2.at(met).at(col).data(Form("dPF%s_%s", uprpName.c_str(), dsLabel.c_str())));
+                //
+                u1DS->addFast(u1Set, weightEvt);
+                u2DS->addFast(u2Set, weightEvt);
               }
             }
           }
