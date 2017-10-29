@@ -369,16 +369,17 @@ void fitRecoil(
                 hPFu1v.at(met).at(col).at(ipt)->Fill(u1, weightEvt);
                 hPFu2v.at(met).at(col).at(ipt)->Fill(u2, weightEvt);
                 // Fill the RooWorkspaces with the recoil
-                myws_u1.at(met).at(col).var("pt")->setVal(dilep.Pt());
-                myws_u2.at(met).at(col).var("pt")->setVal(dilep.Pt());
-                myws_u1.at(met).at(col).var(uparName.c_str())->setVal(u1);
-                myws_u2.at(met).at(col).var(uprpName.c_str())->setVal(u2);
-                //
-                const auto& u1Set = RooArgSet(*myws_u1.at(met).at(col).var("pt"), *myws_u1.at(met).at(col).var(uparName.c_str()));
-                const auto& u2Set = RooArgSet(*myws_u2.at(met).at(col).var("pt"), *myws_u2.at(met).at(col).var(uprpName.c_str()));
                 //
                 RooDataSet* u1DS = ((RooDataSet*)myws_u1.at(met).at(col).data(Form("dPF%s_%s", uparName.c_str(), dsLabel.c_str())));
                 RooDataSet* u2DS = ((RooDataSet*)myws_u2.at(met).at(col).data(Form("dPF%s_%s", uprpName.c_str(), dsLabel.c_str())));
+                //
+                const auto& u1Set = *u1DS->get();
+                const auto& u2Set = *u2DS->get();
+                //
+                ((RooRealVar*)u1Set.find("pt"))->setVal(dilep.Pt());
+                ((RooRealVar*)u2Set.find("pt"))->setVal(dilep.Pt());
+                ((RooRealVar*)u1Set.find(uparName.c_str()))->setVal(u1);
+                ((RooRealVar*)u2Set.find(uprpName.c_str()))->setVal(u2);
                 //
                 u1DS->addFast(u1Set, weightEvt);
                 u2DS->addFast(u2Set, weightEvt);
@@ -768,7 +769,8 @@ bool performFit(
     //
     // Perform fit
     //
-    auto fitResult = std::unique_ptr<RooFitResult>(ws.pdf("model")->fitTo(*dataset, RooFit::Extended(kTRUE), RooFit::Range("FitWindow"), RooFit::Minos(kTRUE), RooFit::NumCPU(32), RooFit::Save(), RooFit::PrintLevel(-1)));
+    auto fitResult = std::unique_ptr<RooFitResult>(ws.pdf("model")->fitTo(*dataset, RooFit::Extended(kTRUE), RooFit::Range("FitWindow"), RooFit::SumW2Error(dataset->isWeighted()), 
+                                                                          RooFit::Minos(kTRUE), RooFit::NumCPU(32), RooFit::Save(), RooFit::PrintLevel(-1)));
     if (!fitResult || fitResult->status()!=0) { std::cout << "[ERROR] Fit failed for pt bin : " << ibin << std::endl; }
     if (!fitResult) { std::cout << "[ERROR] Fit results empty!" << std::endl; return false; }
     fitResult->Print("v");
