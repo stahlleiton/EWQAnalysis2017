@@ -18,16 +18,17 @@
 // C++ Headers
 #include <iostream>                   // standard I/O
 #include <fstream>                    // standard I/O
-#include <ctime>                      // time
 
 #endif
 
 
 //-----------------------------------------------------------------------------------------------------------------------------------------
-RecoilCorrector::RecoilCorrector()
+RecoilCorrector::RecoilCorrector(const int seed)
 {
   // Initialize all local parameters
   this->clear();
+  // Initialize the random generator
+  this->fRandom_.reset(new TRandom3(seed));
 };
 
 
@@ -52,9 +53,9 @@ bool RecoilCorrector::isValid()
 
 //-----------------------------------------------------------------------------------------------------------------------------------------
 bool RecoilCorrector::setInputFiles(
-                                    const std::string METType,
-                                    const std::string mcFileName,
-                                    const std::string dataFileName
+                                    const std::string& METType,
+                                    const std::string& mcFileName,
+                                    const std::string& dataFileName
                                     )
 {
   //
@@ -80,8 +81,6 @@ void RecoilCorrector::setInitialSetup(
   //
   // Setup all initial settings
   //
-  // Initialize the random generator
-  this->fRandom_ = new TRandom3(time(NULL));
   // Initialize all other variables
   this->useOneGaussian_MC_   = useOneGaussian_MC;
   this->useOneGaussian_DATA_ = useOneGaussian_DATA;
@@ -103,20 +102,18 @@ void RecoilCorrector::clear()
   this->corrMean_            = true;
   this->METType_             = "";
   //
-  for (auto& ell : this->u1Fits_MC_  ) { for (auto& el : ell.second ) { if (el.second) { el.second->Delete(); } } } this->u1Fits_MC_.clear();
-  for (auto& ell : this->u2Fits_MC_  ) { for (auto& el : ell.second ) { if (el.second) { el.second->Delete(); } } } this->u2Fits_MC_.clear();
-  for (auto& ell : this->u1Fits_DATA_) { for (auto& el : ell.second ) { if (el.second) { el.second->Delete(); } } } this->u1Fits_DATA_.clear();
-  for (auto& ell : this->u2Fits_DATA_) { for (auto& el : ell.second ) { if (el.second) { el.second->Delete(); } } } this->u2Fits_DATA_.clear();
-  //
-  if (this->fRandom_) { this->fRandom_->Delete(); }
+  this->u1Fits_MC_.clear();
+  this->u2Fits_MC_.clear();
+  this->u1Fits_DATA_.clear();
+  this->u2Fits_DATA_.clear();
 };
 
 
 //-----------------------------------------------------------------------------------------------------------------------------------------
 bool RecoilCorrector::getRecoilFits(
-                                    const std::string fileName,
-                                    std::map< std::string , TF1* >& u1Fit,
-                                    std::map< std::string , TF1* >& u2Fit
+                                    const std::string& fileName,
+                                    std::map< std::string , std::unique_ptr<TF1> >& u1Fit,
+                                    std::map< std::string , std::unique_ptr<TF1> >& u2Fit
                                    )
 {
   // Initialize output variables
@@ -125,8 +122,8 @@ bool RecoilCorrector::getRecoilFits(
   // Open the input file
   //
   std::cout << "[INFO] Reading file: " << fileName << std::endl;
-  TFile *file = TFile::Open(fileName.c_str(), "READ");
-  if (!file) { std::cout << "[ERROR] Failed to open file: " << fileName << std::endl; return false; }
+  auto file = std::unique_ptr<TFile>(TFile::Open(fileName.c_str(), "READ"));
+  if (!file || file->IsZombie()) { std::cout << "[ERROR] Failed to open file: " << fileName << std::endl; return false; }
   //
   // Loop over all TF1 objects inside the file
   //
@@ -137,13 +134,13 @@ bool RecoilCorrector::getRecoilFits(
     TF1 *f = (TF1*)key->ReadObj();
     std::string name = f->GetName();
     std::cout << "[INFO] Importing TF1: " << name << std::endl;
-    if ( (name.find("PFu1")!=std::string::npos) ) { u1Fit[name.substr(name.find("u1")+2)] = f; }
-    if ( (name.find("PFu2")!=std::string::npos) ) { u2Fit[name.substr(name.find("u2")+2)] = f; }
+    if ( (name.find("PFu1")!=std::string::npos) ) { u1Fit[name.substr(name.find("u1")+2)].reset(f); }
+    if ( (name.find("PFu2")!=std::string::npos) ) { u2Fit[name.substr(name.find("u2")+2)].reset(f); }
   }
   //
   // Clean up the memory
   //
-  if (file) { file->Delete("*;*"); file->Close("R"); delete file; }
+  file->Close("R");
   //
   // Return back
   //
@@ -155,7 +152,7 @@ bool RecoilCorrector::getRecoilFits(
 void RecoilCorrector::evalRecoilFits(
                                      std::map< std::string , double >& uPar,
                                      const double& pT,
-                                     const std::map< std::string , TF1* >& uFit,
+                                     const std::map< std::string , std::unique_ptr<TF1> >& uFit,
                                      const bool corrMean
                                      )
 {
@@ -235,8 +232,8 @@ int RecoilCorrector::findModel( const std::map< std::string , double >& uPar )
 //-----------------------------------------------------------------------------------------------------------------------------------------
 TF1* RecoilCorrector::getFunctionCDF(
                                      const std::map< std::string , double >& uPar,
-                                     const bool useOneGaussian,
-                                     const double CDF
+                                     const double& CDF,
+                                     const bool useOneGaussian
                                      )
 {
   // Initialize output variables
@@ -284,7 +281,7 @@ bool RecoilCorrector::getPtFromTree(
                                     TVector2& boson_pT,
                                     const uint& muonIdx,
                                     const std::unique_ptr<HiMuonTree>& muonTree,
-                                    const std::string sample
+                                    const std::string& sample
                                     )
 {
   //
@@ -482,14 +479,10 @@ bool RecoilCorrector::computeRecoilCDF(
   //
   // Evaluate the model
   //
-  TF1* fcnCDF = getFunctionCDF(uPar, useOneGaussian);
+  auto fcnCDF = std::unique_ptr<TF1>(getFunctionCDF(uPar, useOneGaussian));
   if (fcnCDF==NULL) { return false; }
   CDF = fcnCDF->Eval(uVal);
   if ( (CDF < 0.0) || (CDF > 1.0) ) { std::cout << "[ERROR] Computed CDF (" << CDF << ") is out of range!" << std::endl; return false; }
-  //
-  // Clean up the memory
-  //
-  if (fcnCDF) { fcnCDF->Delete(); }
   //
   // Return back
   //
@@ -524,7 +517,7 @@ bool RecoilCorrector::computeRecoilInvCDF(
   }
   if (!useOneGaussian && model>1) {
     // Build CDF function
-    TF1* fcnCDF = getFunctionCDF(uPar, useOneGaussian, CDF);
+    auto fcnCDF = std::unique_ptr<TF1>(getFunctionCDF(uPar, useOneGaussian, CDF));
     if (fcnCDF==NULL) { return false; }
     // Initiliaze the RootFinder
     ROOT::Math::RootFinder rf(ROOT::Math::RootFinder::kGSL_STEFFENSON);
@@ -538,8 +531,6 @@ bool RecoilCorrector::computeRecoilInvCDF(
     // Check result
     double uVal = rf.Root();
     if (uVal <= -1000. || uVal >= 1000.) { std::cout << "[ERROR] The inverse CDF for model " << model << " was not found!" << std::endl; return false; }
-    // Clean up the memory
-    if (fcnCDF) { fcnCDF->Delete(); }    
   }
   //
   // Return back
@@ -637,7 +628,7 @@ bool RecoilCorrector::correctMCRecoil(
                                       const double& uVal_RAW,
                                       const std::map< std::string , double >& uPar_MC,
                                       const std::map< std::string , double >& uPar_DATA,
-                                      const std::string method,
+                                      const std::string& method,
                                       const bool useOneGaussian_MC,
                                       const bool useOneGaussian_DATA
                                       )
@@ -665,9 +656,9 @@ bool RecoilCorrector::correctMCRecoil(
                                       double& uVal_CORR,
                                       const double& uVal_RAW,
                                       const double& pT,
-                                      const std::map< std::string , TF1* >& uFit_MC,
-                                      const std::map< std::string , TF1* >& uFit_DATA,
-                                      const std::string method,
+                                      const std::map< std::string , std::unique_ptr<TF1> >& uFit_MC,
+                                      const std::map< std::string , std::unique_ptr<TF1> >& uFit_DATA,
+                                      const std::string& method,
                                       const bool useOneGaussian_MC,
                                       const bool useOneGaussian_DATA,
                                       const bool corrMean
@@ -701,7 +692,7 @@ bool RecoilCorrector::correctMCRecoil(
 bool RecoilCorrector::correctMET(
                                  TVector2& MET_CORR,
                                  const TVector2& MET_RAW,
-                                 const std::string method
+                                 const std::string& method
                                  )
 {
   //

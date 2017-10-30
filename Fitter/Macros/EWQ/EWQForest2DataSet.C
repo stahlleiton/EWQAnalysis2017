@@ -618,7 +618,7 @@ bool correctMC(RooWorkspaceMap_t& Workspaces, const GlobalInfo& info)
   if (applyHFCorr) { HFCorr = std::unique_ptr<HFweight>(new HFweight("/afs/cern.ch/work/e/echapon/public/DY_pA_2016/HFweight.root")); }
   //
   // Define the MET Recoil Corrector
-  RecoilCorrector recoilCorr = RecoilCorrector();
+  RecoilCorrector recoilCorr;
   std::string recoilMethod;
   if (applyRecoilCorr) {
     recoilMethod = info.Par.at("RecoilCorrMethod");
@@ -626,7 +626,7 @@ bool correctMC(RooWorkspaceMap_t& Workspaces, const GlobalInfo& info)
     std::string recoilPath = ""; if (info.Par.count("RecoilPath")>0) { recoilPath = info.Par.at("RecoilPath"); }
     if (recoilPath!="") { recoilPath += "/"; }
     std::string preCWD = getcwd(NULL, 0); preCWD.erase(preCWD.find_last_of("/"), 100);
-    const std::string recoilDir     = Form("%s/Corrections/MET_Recoil/FitRecoil/%s", preCWD.c_str(), recoilPath.c_str());
+    const std::string recoilDir     = Form("%s/Corrections/MET_Recoil/FitRecoil_v1/%s", preCWD.c_str(), recoilPath.c_str());
     const std::string fileName_MC   = Form("%sMC_DYToMuMu_PYQUEN/MET_%s/PA/Results/fits_RecoilPDF_%s_PA.root", recoilDir.c_str(), met.c_str(), met.c_str());
     const std::string fileName_DATA = Form("%sDATA/MET_%s/PA/Results/fits_RecoilPDF_%s_PA.root", recoilDir.c_str(), met.c_str(), met.c_str());
     if (!recoilCorr.setInputFiles(met, fileName_MC, fileName_DATA)) { return false; }
