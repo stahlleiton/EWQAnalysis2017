@@ -197,6 +197,7 @@ bool performFit(
     for (uint i=0; i<fcn.par.size(); i++) { uFit.at(graph.first)->SetParameter(i, fcn.par[i]); }
     for (uint i=0; i<fcn.par.size(); i++) { uFit.at(graph.first)->SetParName(i, FcnParName.at(fcn.exp)[i].c_str()); }
     for (uint i=0; i<fcn.min.size(); i++) { uFit.at(graph.first)->SetParLimits(i, fcn.min[i], fcn.max[i]); }
+    graph.second->Fit(uFit.at(graph.first)->GetName(), "QMRN0W");
     uFitRes[graph.first] = graph.second->Fit(uFit.at(graph.first)->GetName(), "QMRN0SE");
     uFitRes.at(graph.first)->SetName(Form("fitresPF%s%s", uName.c_str(), graph.first.c_str()));
     /*Create a histogram to hold the confidence intervals*/
@@ -324,7 +325,9 @@ bool performFit(
     // Apply CMS style to pad
     std::cout << "[INFO] Setting the CMS style on the plot" << std::endl;
     int lumiId = 0;
-    if (col=="pPb") { lumiId = 109; } else if (col=="Pbp") { lumiId = 110; } else if (col=="PA") { lumiId = 111; }
+    const bool isData = (outputDir.find("DATA")!=std::string::npos);
+    if (isData ) { if (col=="pPb") { lumiId = 109; } else if (col=="Pbp") { lumiId = 110; } else if (col=="PA") { lumiId = 111; } }
+    if (!isData) { if (col=="pPb") { lumiId = 112; } else if (col=="Pbp") { lumiId = 113; } else if (col=="PA") { lumiId = 114; } }
     CMS_lumi(pad1, lumiId, 33, "");
     gStyle->SetTitleFontSize(0.05);
     pad1->SetLogy(false);

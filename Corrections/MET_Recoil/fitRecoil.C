@@ -517,7 +517,8 @@ void fitRecoil(
         u1Graph[var.first]->Draw();
         c->SetLogx(0); c->Update();
         int lumiId = 0;
-        if (col=="pPb") { lumiId = 109; } else if (col=="Pbp") { lumiId = 110; } else if (col=="PA") { lumiId = 111; }
+        if (isData ) { if (col=="pPb") { lumiId = 109; } else if (col=="Pbp") { lumiId = 110; } else if (col=="PA") { lumiId = 111; } }
+        if (!isData) { if (col=="pPb") { lumiId = 112; } else if (col=="Pbp") { lumiId = 113; } else if (col=="PA") { lumiId = 114; } }
         CMS_lumi(c.get(), lumiId, 33, "");
         c->SaveAs( (outputDir + uparName + "/" + "png/"  + Form("pf%s%s.png" , uparName.c_str(), var.first.c_str())).c_str() );
         c->SaveAs( (outputDir + uparName + "/" + "pdf/"  + Form("pf%s%s.pdf" , uparName.c_str(), var.first.c_str())).c_str() );
@@ -568,7 +569,8 @@ void fitRecoil(
           u2Graph[var.first]->GetYaxis()->SetRangeUser(-5.0, 5.0);
         }
         int lumiId = 0;
-        if (col=="pPb") { lumiId = 109; } else if (col=="Pbp") { lumiId = 110; } else if (col=="PA") { lumiId = 111; }
+        if (isData ) { if (col=="pPb") { lumiId = 109; } else if (col=="Pbp") { lumiId = 110; } else if (col=="PA") { lumiId = 111; } }
+        if (!isData) { if (col=="pPb") { lumiId = 112; } else if (col=="Pbp") { lumiId = 113; } else if (col=="PA") { lumiId = 114; } }
         CMS_lumi(c.get(), lumiId, 33, "");
         c->SaveAs( (outputDir + uprpName + "/" + "png/"  + Form("pf%s%s.png" , uprpName.c_str(), var.first.c_str())).c_str() );
         c->SaveAs( (outputDir + uprpName + "/" + "pdf/"  + Form("pf%s%s.pdf" , uprpName.c_str(), var.first.c_str())).c_str() );
@@ -637,7 +639,7 @@ bool performFit(
   // Width Value
   if (model>=1) { ws.factory( Form("sigma1[%.6f, %.6f, %.6f]" , hv[0]->GetRMS(), 0.5*(hv[0]->GetRMS()), 2.0*(hv[0]->GetRMS())) ); }
   if (model>=2) {
-    ws.factory( Form("rsigma2[%.6f, %.6f, %.6f]" , 2.0, 0.15, 3.0) );
+    ws.factory( Form("rsigma2[%.6f, %.6f, %.6f]" , 2.0, 0.10, 3.0) );
     ws.factory( "RooFormulaVar::sigma2( '@0*@1' , {sigma1, rsigma2})" );
   }
   if (model>=3) {
@@ -648,7 +650,7 @@ bool performFit(
   // Mean Value
   if (model>=1) { ws.factory( Form("mean1[%.6f, %.6f, %.6f]" , hv[0]->GetMean(), hv[0]->GetXaxis()->GetXmin(), hv[0]->GetXaxis()->GetXmax()) ); }
   if (model>=2) {
-    ws.factory( Form("dmean2[%.6f, %.6f, %.6f]", 0.0, -3.0, 3.0) );
+    ws.factory( Form("dmean2[%.6f, %.6f, %.6f]", 0.0, -4.0, 4.0) );
     if (isData || uName=="u2") ws.var("dmean2")->setConstant(true);
     ws.factory( "RooFormulaVar::mean2( '@0 + @1*@2' , {mean1, sigma1, dmean2})" );
   }
@@ -916,7 +918,8 @@ bool performFit(
     // Apply CMS style to pad
     std::cout << "[INFO] Setting the CMS style on the plot" << std::endl;
     int lumiId = 0;
-    if (col=="pPb") { lumiId = 109; } else if (col=="Pbp") { lumiId = 110; } else if (col=="PA") { lumiId = 111; }
+    if (isData ) { if (col=="pPb") { lumiId = 109; } else if (col=="Pbp") { lumiId = 110; } else if (col=="PA") { lumiId = 111; } }
+    if (!isData) { if (col=="pPb") { lumiId = 112; } else if (col=="Pbp") { lumiId = 113; } else if (col=="PA") { lumiId = 114; } }
     CMS_lumi(pad1, lumiId, 33, "");
     gStyle->SetTitleFontSize(0.05);
     pad1->Update();
