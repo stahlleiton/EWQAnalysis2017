@@ -166,7 +166,7 @@ void fitRecoil(
       // Open the input file
       for (const auto& met : metType) {
         for (const auto& col : COLL) {
-          const std::string inDSname = (inputDSDir + Form("DATASET_%s_%s.root", met.c_str(), col.c_str()));
+          const std::string inDSname = (inputDSDir + Form("DATASET_%s_%s%s.root", met.c_str(), col.c_str(),(!isData && applyHFCorr)?"_HFCorr":""));
           if (existFile(inDSname)) {
             bool prodNotFound = false;
             std::cout << "[INFO] Extracting DataSets from " << inDSname << endl;
@@ -397,7 +397,7 @@ void fitRecoil(
         const std::string outputDir = dsDir + dsLabel +"/";
         if (!existDir(outputDir)) { makeDir(outputDir); }
         // Create output file
-        const std::string outfname = (outputDir + Form("DATASET_%s_%s.root", met.c_str(), col.c_str()));
+        const std::string outfname = (outputDir + Form("DATASET_%s_%s%s.root", met.c_str(), col.c_str(),(!isData && applyHFCorr)?"_HFCorr":""));
         auto outfile = std::unique_ptr<TFile>(new TFile(outfname.c_str(), "RECREATE"));
         if (outfile!=NULL && outfile->IsOpen() && !outfile->IsZombie()) {
           myws_u1.at(met).at(col).Write("workspace_u1");
@@ -411,7 +411,7 @@ void fitRecoil(
       }
     }
   }
-  
+ 
   // ------- Arrays and graphs to store fit results -----------
   std::map< std::string , std::map< std::string , std::map< std::string , std::vector< std::vector< double > > > > > u1VarArr;
   std::map< std::string , std::map< std::string , std::map< std::string , std::vector< std::vector< double > > > > > u2VarArr;
@@ -424,7 +424,7 @@ void fitRecoil(
     for (const auto& col : COLL) {
       std::cout << "[INFO] Working with MET " << met << " and coll: " << col  << std::endl;
       // Create output directories
-      const std::string outputDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col +"/";
+      const std::string outputDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col +"/" + (!isData?(applyHFCorr?"HFCorr/":"noHFCorr/"):"");
       if (!existDir(outputDir)) { makeDir(outputDir); }
       // Do fits on u1
       std::cout << "[INFO] Proceed to perform the fit for u1" << std::endl;
@@ -466,7 +466,7 @@ void fitRecoil(
   for (const auto& met : metType) {
     for (const auto& col : COLL) {
       // Create output directories
-      const std::string outputDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col +"/" + "Fits/";
+      const std::string outputDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col +"/" + (!isData?(applyHFCorr?"HFCorr/":"noHFCorr/"):"")+ "Fits/";
       gSystem->mkdir(TString(outputDir + uparName + "/" + "png/"), true);
       gSystem->mkdir(TString(outputDir + uparName + "/" + "pdf/"), true);
       gSystem->mkdir(TString(outputDir + uparName + "/" + "root/"), true);
