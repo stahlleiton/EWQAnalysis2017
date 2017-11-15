@@ -67,6 +67,8 @@ bool performFit(
 
 void getRecoilPDF(
                   const bool isData = false,
+                  const bool applyHFCorr = true, // Only used for MC, in data it is ignored
+                  uint pfumodel = 2, // u1 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian)
                   const std::vector< std::string > metType = { "PF_RAW" , "PF_Type1" , "PF_NoHF_RAW" , "PF_NoHF_Type1" },
                   const std::vector< std::string > COLL    = { "PA" , "Pbp" , "pPb" }
                   )
@@ -74,6 +76,16 @@ void getRecoilPDF(
   //
   const std::string uparName = "u1";
   const std::string uprpName = "u2";
+  //
+  std::string pfu12model = "singleGauss"; // Same model for u1 and u2 is used as set in fitRecoil.C
+  if (pfumodel>3 || pfumodel<1){
+    std::cout << "[ERROR] The supported models are: 1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian" << std::endl;
+    return;
+  }
+  if (pfumodel>1){
+    if (pfumodel>2) pfu12model = "tripleGauss";
+    else pfu12model = "doubleGauss";
+  }
   //
   // Change the working directory
   const std::string CWD = getcwd(NULL, 0);
@@ -95,8 +107,8 @@ void getRecoilPDF(
       std::cout << "[INFO] Working with MET " << met << " and coll: " << col  << std::endl;
       //
       // Define directories and file names
-      const std::string inputDir  = mainDir + dsLabel + "/" + ("MET_"+met) + "/" + col + "/Fits/";
-      const std::string outputDir = mainDir + dsLabel + "/" + ("MET_"+met) + "/" + col + "/Results/";
+      const std::string inputDir  = mainDir + dsLabel + "/" + ("MET_"+met) + "/" + col + "/" + (isData?"":(applyHFCorr?"HFCorr/":"noHFCorr/")) + pfu12model.c_str() + "/Fits/";
+      const std::string outputDir = mainDir + dsLabel + "/" + ("MET_"+met) + "/" + col + "/" + (isData?"":(applyHFCorr?"HFCorr/":"noHFCorr/")) + pfu12model.c_str() + "/Results/";
       gSystem->mkdir(outputDir.c_str(), true);
       const std::string fileName  = "plots_RecoilPDF_" + met + "_" + col + ".root";
       //
@@ -143,7 +155,7 @@ void getRecoilPDF(
       for (const auto& fitres : u2FitRes) { if (fitres.second) fitres.second->Write(); }
       outfile->Close();
       // Make Website with plots
-      const std::string htmlDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col;
+      const std::string htmlDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col + "/" + (isData?"":(applyHFCorr?"HFCorr/":"noHFCorr/")) + pfu12model.c_str();
       makeHTML(htmlDir, u1Graph, u2Graph, uparName, uprpName);
       cout << "  <> Output saved in " << outputDir << endl;
       // Clean up
