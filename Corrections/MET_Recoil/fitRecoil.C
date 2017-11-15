@@ -88,7 +88,7 @@ void fitRecoil(
                const bool isData = false,
                const std::vector< std::string > metType = { "PF_RAW" , "PF_Type1" , "PF_NoHF_RAW" , "PF_NoHF_Type1" },
                const std::vector< std::string > COLL    = { "PA" , "Pbp" , "pPb" },
-               const bool applyHFCorr = true, // Only used for MC, in data it is ignored
+               const bool applyHFCorr = false, // Only used for MC, in data it is ignored
                const bool remakeDS = false
                )
 {
@@ -120,14 +120,16 @@ void fitRecoil(
     fileName.push_back("/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20171003.root");
     dsLabel = "DATA";
     pfu1model = 1;
-    pfu2model = 1;
+    //pfu2model = 1;
+    pfu2model = pfu1model;
   }
   else {
     fileName.push_back("/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official/POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_pPb_8160GeV_20171003.root");
     fileName.push_back("/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official/POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_Pbp_8160GeV_20171003.root");
     dsLabel = "MC_DYToMuMu_POWHEG";
     pfu1model = 2;
-    pfu2model = 2;
+    //pfu2model = 2;
+    pfu2model = pfu1model;
   }
  
   // Define Boson pT Binning
@@ -424,7 +426,7 @@ void fitRecoil(
     for (const auto& col : COLL) {
       std::cout << "[INFO] Working with MET " << met << " and coll: " << col  << std::endl;
       // Create output directories
-      const std::string outputDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col +"/" + (!isData?(applyHFCorr?"HFCorr/":"noHFCorr/"):"");
+      const std::string outputDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col +"/" + (!isData?(applyHFCorr?"HFCorr/":"noHFCorr/"):"") + (pfu1model==1?"singleGauss/":(pfu1model==2?"doubleGauss/":"tripleGauss/"));
       if (!existDir(outputDir)) { makeDir(outputDir); }
       // Do fits on u1
       std::cout << "[INFO] Proceed to perform the fit for u1" << std::endl;
@@ -466,7 +468,7 @@ void fitRecoil(
   for (const auto& met : metType) {
     for (const auto& col : COLL) {
       // Create output directories
-      const std::string outputDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col +"/" + (!isData?(applyHFCorr?"HFCorr/":"noHFCorr/"):"")+ "Fits/";
+      const std::string outputDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col +"/" + (!isData?(applyHFCorr?"HFCorr/":"noHFCorr/"):"")+ (pfu1model==1?"singleGauss/":(pfu1model==2?"doubleGauss/":"tripleGauss/")) +"Fits/";
       gSystem->mkdir(TString(outputDir + uparName + "/" + "png/"), true);
       gSystem->mkdir(TString(outputDir + uparName + "/" + "pdf/"), true);
       gSystem->mkdir(TString(outputDir + uparName + "/" + "root/"), true);
@@ -589,7 +591,7 @@ void fitRecoil(
       for (const auto& graph : u2Graph) { if (graph.second) graph.second->Write(); }
       outfile->Close();
 
-      const std::string htmlDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col;
+      const std::string htmlDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col + "/" + (!isData?(applyHFCorr?"HFCorr/":"noHFCorr/"):"") + (pfu1model==1?"singleGauss":(pfu1model==2?"doubleGauss":"tripleGauss"));
       makeHTML(htmlDir, u1Graph, u2Graph, uparName, uprpName, nbins);
   
       cout << "  <> Output saved in " << outputDir << endl;
