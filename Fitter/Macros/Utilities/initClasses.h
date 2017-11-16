@@ -441,7 +441,7 @@ double getErrorLo(const RooRealVar& var)
 {
   if (var.getErrorLo()==0.0 && var.getErrorHi()==0.0) { return var.getError(); }
   return std::abs(var.getErrorLo());
-};  
+};
 
 
 bool isParAtLimit(const RooRealVar& var)

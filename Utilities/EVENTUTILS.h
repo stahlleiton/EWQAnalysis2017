@@ -313,7 +313,7 @@ namespace PA {
         ( (sample.find("MC_Z")     !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 23, 1).pdg==23) ) || // Z -> Muon + Muon
         ( (sample.find("MC_W")     !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 24, 1).pdg==24) ) || // W -> Muon + Neutrino
         ( (sample.find("MC_WToTau")!=std::string::npos) && (muonTree->findMuonMother(iGenMu, 24, 2).pdg==24) ) || // W -> Tau -> Muon + Neutrinos
-        ( (sample.find("MC_QCD")   !=std::string::npos) ) // QCD -> Muon
+        ( (sample.find("MC_QCD")   !=std::string::npos) && (muonTree->MuonMother(iGenMu).pdg!=13) ) // QCD -> Muon (at least has one mother)
         ) {
       return true;
     }
