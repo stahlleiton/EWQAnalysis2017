@@ -430,6 +430,45 @@ bool makePullHist(RooHist& pHist, const RooPlot& frame, const std::string histna
 };
 
 
+bool makeRatioHist(RooHist& rHist, const RooPlot& frame, const std::string histname, const std::string curvename, const bool useAverage)
+{
+  // Find curve object
+  auto rFit = (RooCurve*) frame.findObject(((curvename=="") ? 0 : curvename.c_str()), RooCurve::Class());
+  if (!rFit) { std::cout << "[ERROR] makePullHist(" << curvename << ") cannot find curve" << std::endl; return false; }
+  // Find histogram object
+  auto rData = (RooHist*) frame.findObject(((histname=="") ? 0 : histname.c_str()), RooHist::Class());
+  if (!rData) { std::cout << "[ERROR] makePullHist(" << histname  << ") cannot find histogram" << std::endl; return false; }
+  // Determine range of curve
+  double xstart, xstop, yDummy;
+  rFit->GetPoint(0, xstart, yDummy);
+  rFit->GetPoint((rFit->GetN()-1), xstop, yDummy);
+  // Add histograms, calculate Poisson confidence interval on sum value
+  for (int i = 0; i < rData->GetN(); i++) {
+    // Get Data Value and Error
+    double x, dataVal, exl, exh, eyl, eyh;
+    getPoint(*rData, i, x, dataVal, exl, exh, eyl, eyh);
+    // Only calculate pull for bins inside curve range
+    if (x<xstart || x>xstop) continue ;
+    // Get Fit Value
+    double fitVal = 0.0;
+    if (useAverage) { fitVal = rFit->average(x-exl, x+exh); }
+    else            { fitVal = rFit->interpolate(x);        }
+    // Set Values
+    if (fitVal>0.0) {
+      const double y = (dataVal / fitVal);
+      y   /= norm;
+      eyl /= fitVal;
+      eyh /= fitVal;
+      rHist.addBinWithXYError(x, y, exl, exh, eyl, eyh);
+    }
+    else {
+      rHist.addBinWithXYError(x, 0, exl, exh, 0, 0);
+    }
+  }
+  return true;
+};
+
+
 double getErrorHi(const RooRealVar& var)
 {
   if (var.getErrorLo()==0.0 && var.getErrorHi()==0.0) { return var.getError(); }

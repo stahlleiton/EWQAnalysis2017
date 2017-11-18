@@ -42,6 +42,7 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   const bool isMC = (DSTAG.find("MC")!=std::string::npos);
   const bool isWeighted = ws.data(dsName.c_str())->isWeighted();
   int drawMode = 0;
+  bool drawPull = false;  // false : Draw DATA/FIT , true : Draw the Pull
   //
   // Format Object name
   std::string process = "";
@@ -79,11 +80,11 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
                                       RooFit::LineColor(kBlack), RooFit::LineStyle(1), RooFit::Precision(1e-4)
                                       );
       legInfo["PDF"][Form("plot_%s", pdfName.c_str())] = "Total Fit";
-      frame["PULL"] = std::unique_ptr<RooPlot>((RooPlot*)frame.at("MAIN")->emptyClone("PULL"));
+      frame["EXTRA"] = std::unique_ptr<RooPlot>((RooPlot*)frame.at("MAIN")->emptyClone("EXTRA"));
       RooHist* hPull = new RooHist(2.0); // !!!DONT USE UNIQUE POINTER!!!!, 2 represents the binWidth of MET
-      if (!makePullHist(*hPull, *frame.at("MAIN").get(), "", "", true)) { return false; }
+      if (!makePullHist (*hPull, *frame.at("MAIN").get(), "", "", true)) { return false; }; drawPull = true;
       hPull->SetName("hPull");
-      frame.at("PULL")->addPlotable(hPull, "EP");
+      frame.at("EXTRA")->addPlotable(hPull, "EP");
       drawMode = 1;
     }
     else {
@@ -121,11 +122,12 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
                                       RooFit::LineColor(kBlack), RooFit::LineStyle(1), RooFit::Precision(1e-4)
                                       );
       //
-      frame["PULL"] = std::unique_ptr<RooPlot>((RooPlot*)frame.at("MAIN")->emptyClone("PULL"));
-      RooHist* hPull = new RooHist(2.0); // !!!DONT USE UNIQUE POINTER!!!!, 2 represents the binWidth of MET
-      if (!makePullHist(*hPull, *frame.at("MAIN"), "", "", true)) { return false; }
-      hPull->SetName("hPull");
-      frame.at("PULL")->addPlotable(hPull, "EP");
+      frame["EXTRA"] = std::unique_ptr<RooPlot>((RooPlot*)frame.at("MAIN")->emptyClone("EXTRA"));
+      RooHist* hExtra = new RooHist(2.0); // !!!DONT USE UNIQUE POINTER!!!!, 2 represents the binWidth of MET
+      if (drawPull) { if (!makePullHist (*hExtra, *frame.at("MAIN"), "", "", true)) { return false; } }
+      else          { if (!makeRatioHist(*hExtra, *frame.at("MAIN"), "", "", true)) { return false; } }
+      hExtra->SetName("hExtra");
+      frame.at("EXTRA")->addPlotable(hExtra, "EP");
       drawMode = 1;
     }
   }
@@ -166,34 +168,37 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   }
   if (drawMode==1) {
     // Pull Frame
-    frame.at("PULL")->SetTitle("");
-    frame.at("PULL")->GetYaxis()->CenterTitle(kTRUE);
-    frame.at("PULL")->GetYaxis()->SetTitleOffset(0.4);
-    frame.at("PULL")->GetYaxis()->SetTitleSize(0.15);
-    frame.at("PULL")->GetYaxis()->SetLabelSize(0.10);
-    frame.at("PULL")->GetYaxis()->SetNdivisions(206);
-    frame.at("PULL")->GetYaxis()->SetTitle("Pull");
-    frame.at("PULL")->GetXaxis()->SetTitleOffset(1);
-    frame.at("PULL")->GetXaxis()->SetTitleSize(0.15);
-    frame.at("PULL")->GetXaxis()->SetLabelSize(0.15);
-    frame.at("PULL")->GetXaxis()->SetTitle("|#slash{E}_{T}| (GeV/c)");
-    frame.at("PULL")->GetYaxis()->SetRangeUser(-6.0, 6.0);
-    pad["PULL"] = new TPad( Form("padPULL_Tot%s", tag.c_str()), "", 0, 0, 1, 0.20 );
-    pad.at("PULL")->SetFixedAspectRatio(kTRUE);
-    pad.at("PULL")->SetTopMargin(0.02);
-    pad.at("PULL")->SetBottomMargin(0.4);
-    pad.at("PULL")->SetFillStyle(4000);
-    pad.at("PULL")->SetFrameFillStyle(4000);
-    pad.at("PULL")->SetGridx(kTRUE);
-    pad.at("PULL")->SetGridy(kTRUE);
+    frame.at("EXTRA")->SetTitle("");
+    frame.at("EXTRA")->GetYaxis()->CenterTitle(kTRUE);
+    frame.at("EXTRA")->GetYaxis()->SetTitleOffset(0.4);
+    frame.at("EXTRA")->GetYaxis()->SetTitleSize(0.15);
+    frame.at("EXTRA")->GetYaxis()->SetLabelSize(0.10);
+    frame.at("EXTRA")->GetYaxis()->SetNdivisions(206);
+    if (drawPull) { frame.at("EXTRA")->GetYaxis()->SetTitle("Pull"); }
+    else          { frame.at("EXTRA")->GetYaxis()->SetTitle("#frac{DATA}{MC}"); }
+    frame.at("EXTRA")->GetXaxis()->SetTitleOffset(1);
+    frame.at("EXTRA")->GetXaxis()->SetTitleSize(0.15);
+    frame.at("EXTRA")->GetXaxis()->SetLabelSize(0.15);
+    frame.at("EXTRA")->GetXaxis()->SetTitle("|#slash{E}_{T}| (GeV/c)");
+    if (drawPull) { frame.at("EXTRA")->GetYaxis()->SetRangeUser(-6.0, 6.0); }
+    else          { frame.at("EXTRA")->GetYaxis()->SetRangeUser(+0.0, 2.0); }
+    pad["EXTRA"] = new TPad( Form("padEXTRA_Tot%s", tag.c_str()), "", 0, 0, 1, 0.20 );
+    pad.at("EXTRA")->SetFixedAspectRatio(kTRUE);
+    pad.at("EXTRA")->SetTopMargin(0.02);
+    pad.at("EXTRA")->SetBottomMargin(0.4);
+    pad.at("EXTRA")->SetFillStyle(4000);
+    pad.at("EXTRA")->SetFrameFillStyle(4000);
+    pad.at("EXTRA")->SetGridx(kTRUE);
+    pad.at("EXTRA")->SetGridy(kTRUE);
     // Draw the Pull
-    pad.at("PULL")->Draw();
-    pad.at("PULL")->cd();
-    frame.at("PULL")->Draw();
-    printChi2(*pad.at("PULL"), ws, *frame.at("MAIN"), "MET", dsName, pdfName);
-    pLine = std::unique_ptr<TLine>(new TLine(frame.at("PULL")->GetXaxis()->GetXmin(), 0.0, frame.at("PULL")->GetXaxis()->GetXmax(), 0.0));
+    pad.at("EXTRA")->Draw();
+    pad.at("EXTRA")->cd();
+    frame.at("EXTRA")->Draw();
+    printChi2(*pad.at("EXTRA"), ws, *frame.at("MAIN"), "MET", dsName, pdfName);
+    if (drawPull) { pLine = std::unique_ptr<TLine>(new TLine(frame.at("EXTRA")->GetXaxis()->GetXmin(), 0.0, frame.at("EXTRA")->GetXaxis()->GetXmax(), 0.0)); }
+    else          { pLine = std::unique_ptr<TLine>(new TLine(frame.at("EXTRA")->GetXaxis()->GetXmin(), 1.0, frame.at("EXTRA")->GetXaxis()->GetXmax(), 1.0)); }
     pLine->Draw("same");
-    pad.at("PULL")->Update();
+    pad.at("EXTRA")->Update();
   }
   //
   setRange(*frame.at("MAIN"), ws, "MET", dsName, setLogScale);
@@ -332,6 +337,7 @@ void printElectroWeakBinning(TPad& pad, const RooWorkspace& ws, const std::strin
     const std::string varName = it->GetName();
     double defaultMin = 0.0 , defaultMax = 100000.0;
     if (varName=="Muon_Eta") { defaultMin = -2.5; defaultMax = 2.5; }
+    if (varName=="Muon_Iso") { defaultMin = -1.0; }
     if (ws.var(varName.c_str())) {
       double minVal = ws.var(varName.c_str())->getMin();
       double maxVal = ws.var(varName.c_str())->getMax();
