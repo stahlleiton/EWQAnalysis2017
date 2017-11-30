@@ -337,7 +337,7 @@ void printElectroWeakBinning(TPad& pad, const RooWorkspace& ws, const std::strin
     const std::string varName = it->GetName();
     double defaultMin = 0.0 , defaultMax = 100000.0;
     if (varName=="Muon_Eta") { defaultMin = -2.5; defaultMax = 2.5; }
-    if (varName=="Muon_Iso") { defaultMin = -1.0; }
+    if (varName=="Muon_Iso") { defaultMin = -0.000001; }
     if (ws.var(varName.c_str())) {
       double minVal = ws.var(varName.c_str())->getMin();
       double maxVal = ws.var(varName.c_str())->getMax();

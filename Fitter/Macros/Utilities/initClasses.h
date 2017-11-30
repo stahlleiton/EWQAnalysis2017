@@ -456,7 +456,6 @@ bool makeRatioHist(RooHist& rHist, const RooPlot& frame, const std::string histn
     // Set Values
     if (fitVal>0.0) {
       const double y = (dataVal / fitVal);
-      y   /= norm;
       eyl /= fitVal;
       eyh /= fitVal;
       rHist.addBinWithXYError(x, y, exl, exh, eyl, eyh);

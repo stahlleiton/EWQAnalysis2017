@@ -122,7 +122,7 @@ double tnp_weight_iso_ppb(double pt, double eta, int idx) {
    double x = pt;
 
    if (idx == -10) {
-      if (fabs(eta)<0.9) {
+      if (fabs(eta)<1.2) {
          // 0 < |eta| < 1.2
          if (pt<15) return 0.994131;
          else if (pt<25) return 0.960778;

@@ -48,16 +48,17 @@ using VarMap_t     =  std::map< std::string , std::map< std::string , std::map< 
 using BinMap_t     =  std::map< std::string , std::vector< double > >;
 using BinMapMap_t  =  std::map< std::string , BinMap_t >;
 using FileInfo_t   =  std::vector< std::pair< std::string , double > >;
+using CorrMap_t    =  std::map< std::string , uint >;
 
 
 // ------------------ FUNCTION -------------------------------
-TnPVec_t getMCWeights        ( const std::unique_ptr<HiEvtTree>& evtTree );
+TnPVec_t getMCWeights        ( const std::unique_ptr<HiEvtTree>& evtTree , const CorrMap_t& corrType );
 bool     getMCUncertainties  ( Unc1DVec_t& unc , const EffVec_t& eff );
 bool     getMCUncertainties  ( Unc1DMap_t& unc , const EffMap_t& eff );
-TnPVec_t getTnPScaleFactors  ( const double& pt, const double& eta );
+TnPVec_t getTnPScaleFactors  ( const double& pt, const double& eta , const CorrMap_t& corrType );
 bool     getTnPUncertainties ( Unc1DVec_t& unc , const EffVec_t& eff );
 bool     getTnPUncertainties ( Unc1DMap_t& unc , const EffMap_t& eff );
-void     initEff1D           ( TH1DMap_t& h , const BinMapMap_t& binMap );
+void     initEff1D           ( TH1DMap_t& h , const BinMapMap_t& binMap , const CorrMap_t& corrType );
 bool     fillEff1D           ( TH1DVec_t& h , const bool& pass , const double& xVar , const TnPVec_t& sfTnP , const TnPVec_t& wMC , const double& evtWeight );
 bool     fillEff1D           ( TH1DMap_t& h , const bool& pass , const std::string& type , const VarMap_t& var , const TnPVec_t& sfTnP , const TnPVec_t& wMC , const double& evtWeight , const BinMapMap_t& MU_BIN );
 bool     loadEff1D           ( EffMap_t& eff, const TH1DMap_t& h );
@@ -84,7 +85,7 @@ const std::vector< std::string > CHG_  = { "Plus" , "Minus" };
 const std::vector< std::string > effType = {"Total", "Acceptance"};
 //
 // Correction Categories
-std::map< std::string , uint > corrType = {
+const CorrMap_t corrType_ = {
   { "NoCorr"           , 1   },
   { "TnP_Nominal"      , 1   },
   { "TnP_Stat_MuID"    , 100 },
@@ -94,14 +95,18 @@ std::map< std::string , uint > corrType = {
   { "TnP_Syst_Trig"    , 2   },
   { "TnP_Syst_Iso"     , 2   },
   { "TnP_Syst_BinMuID" , 1   },
-  { "TnP_Syst_BinIso"  , 1   },
+  { "TnP_Syst_BinIso"  , 1   }
+  /*,
   { "MC_Syst_SCALE"    , 8   },
   { "MC_Syst_CT14"     , 58  },
   { "MC_Syst_NNLO"     , 1   },
   { "MC_Syst_CT10"     , 1   },
   { "MC_Syst_MMHT"     , 1   },
   { "MC_Syst_EPPS16"   , 40  }
+  */
 };
+std::vector< double > absEtaTnP_ = { 0.0 , 1.2 , 2.1 , 2.4 };
+std::vector< double > etaTnP_    = { -2.4 , -2.1 , -1.6 , -1.2 , -0.9 , -0.6 , -0.3 , 0.0 , 0.3 , 0.6 , 0.9 , 1.2 , 1.6 , 2.1 , 2.4 };
 //
 // Input Files for analysis
 const std::string path_MC = "root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official";
@@ -127,10 +132,10 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const bool a
   }
   else if ( (workDirName == "NominalCM") || (workDirName == "CutAndCountCM") ) {
     const BinMap_t  TMP_pPb = {
-      { "EtaCM" , { -2.86 , -2.60 , -2.40 , -2.20 , -2.00 , -1.80 , -1.60 , -1.40 , -1.20 , -1.00 , -0.80 , -0.60 , -0.40 , -0.20 , 0.00 , 0.20 , 0.40 , 0.60 , 0.80 , 1.00 , 1.20 , 1.40 , 1.60 , 1.80, 1.93 } }
+      { "EtaCM" , { -2.86 , -2.60 , -2.40 , -2.20 , -1.93 , -1.80 , -1.60 , -1.40 , -1.20 , -1.00 , -0.80 , -0.60 , -0.40 , -0.20 , 0.00 , 0.20 , 0.40 , 0.60 , 0.80 , 1.00 , 1.20 , 1.40 , 1.60 , 1.80, 1.93 } }
     };
     const BinMap_t  TMP_Pbp = {
-      { "EtaCM" , { -1.93 , -1.80 , -1.60 , -1.40 , -1.20 , -1.00 , -0.80 , -0.60 , -0.40 , -0.20 , 0.00 , 0.20 , 0.40 , 0.60 , 0.80 , 1.00 , 1.20 , 1.40 , 1.60 , 1.80 , 2.00 , 2.20 , 2.40 , 2.60 , 2.86 } }
+      { "EtaCM" , { -1.93 , -1.80 , -1.60 , -1.40 , -1.20 , -1.00 , -0.80 , -0.60 , -0.40 , -0.20 , 0.00 , 0.20 , 0.40 , 0.60 , 0.80 , 1.00 , 1.20 , 1.40 , 1.60 , 1.80 , 1.93 , 2.20 , 2.40 , 2.60 , 2.86 } }
     };
     for (const auto& v : TMP_pPb) { MU_BIN["PA"][v.first] = v.second; MU_BIN["pPb"][v.first] = v.second; }
     for (const auto& v : TMP_Pbp) { MU_BIN["Pbp"][v.first] = v.second; }
@@ -152,7 +157,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const bool a
   //
   // Change the working directory
   const std::string CWD = getcwd(NULL, 0);
-  const std::string mainDir = Form("%s/TnPEfficiency/", CWD.c_str());
+  const std::string mainDir = Form("%s/Output/", CWD.c_str());
   gSystem->mkdir(mainDir.c_str(), kTRUE);
   gSystem->ChangeDirectory(mainDir.c_str());
   //
@@ -165,7 +170,29 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const bool a
   // ------------------------------------------------------------------------------------------------------------------------
   //
   // Initialize the Correction Type Map
+  CorrMap_t corrType;
+  //
+  corrType["NoCorr"] = 1;
   if (applyHFCorr) { corrType["HFCorr"] = 1; }
+  //
+  for (uint iEta = 1; iEta < absEtaTnP_.size(); iEta++) {
+    const std::string etaLbl = Form("%.0f_%.0f", absEtaTnP_[iEta-1]*10., absEtaTnP_[iEta]*10.);
+    corrType[Form("TnP_Stat_MuID_%s"    , etaLbl.c_str())] = corrType_.at("TnP_Stat_MuID");
+    corrType[Form("TnP_Stat_Iso_%s"     , etaLbl.c_str())] = corrType_.at("TnP_Stat_Iso");
+    corrType[Form("TnP_Syst_MuID_%s"    , etaLbl.c_str())] = corrType_.at("TnP_Syst_MuID");
+    corrType[Form("TnP_Syst_Iso_%s"     , etaLbl.c_str())] = corrType_.at("TnP_Syst_Iso");
+    corrType[Form("TnP_Syst_BinMuID_%s" , etaLbl.c_str())] = corrType_.at("TnP_Syst_BinMuID");
+    corrType[Form("TnP_Syst_BinIso_%s"  , etaLbl.c_str())] = corrType_.at("TnP_Syst_BinIso");
+  }
+  //
+  for (uint iEta = 1; iEta < etaTnP_.size(); iEta++) {
+    const std::string etaLbl = Form("%.0f_%.0f", etaTnP_[iEta-1]*10., etaTnP_[iEta]*10.);
+    corrType[Form("TnP_Stat_Trig_%s" , etaLbl.c_str())] = corrType_.at("TnP_Stat_Trig");
+    corrType[Form("TnP_Syst_Trig_%s" , etaLbl.c_str())] = corrType_.at("TnP_Syst_Trig");
+  }
+  //
+  bool doMCWeight = false;
+  for (const auto& cor : corrType_) { if (cor.first.find("MC_")!=std::string::npos) { corrType[cor.first] = corrType.at(cor.first); doMCWeight = true; } }
   //
   // Initialize the HF corrections
   std::unique_ptr<HFweight> corrHF;
@@ -177,7 +204,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const bool a
   TH1DMap_t h1D;   // Stores the total and passing histograms separately
   //
   // Initialize the efficiencies
-  initEff1D(h1D , MU_BIN);
+  initEff1D(h1D , MU_BIN, corrType);
   //
   // ------------------------------------------------------------------------------------------------------------------------
   //
@@ -257,7 +284,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const bool a
       double evtWeight = 1.0;
       //
       // Get the MC PDF Weights
-      const TnPVec_t wMC = getMCWeights(evtTree.at(sample));
+      TnPVec_t wMC; if (doMCWeight) { wMC = getMCWeights(evtTree.at(sample), corrType); }
       //
       // Check Event Conditions
       //
@@ -315,7 +342,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const bool a
             const double mu_PF_Pt  = muonTree.at(sample)->PF_Muon_Mom()[iPFMu].Pt();
             const double mu_PF_Eta = muonTree.at(sample)->PF_Muon_Mom()[iPFMu].Eta();
             // Determine the Tag-And-Probe scale factos
-            sfTnP = getTnPScaleFactors(mu_PF_Pt,  mu_PF_Eta);
+            sfTnP = getTnPScaleFactors(mu_PF_Pt,  mu_PF_Eta, corrType);
             //
             const short iRecoMu = muonTree.at(sample)->PF_Muon_Reco_Idx()[iPFMu];
             if (iRecoMu < 0) { std::cout << "[ERROR] Reco idx is negative" << std::endl; return; }
@@ -376,7 +403,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const bool a
   // Calculate Uncertainties
   if (!getTnPUncertainties(unc1D, eff1D)) { return; };
   //
-  if ( !getMCUncertainties(unc1D, eff1D)) { return; };
+  if (doMCWeight) { if ( !getMCUncertainties(unc1D, eff1D)) { return; }; }
   //
   // ------------------------------------------------------------------------------------------------------------------------
   //
@@ -390,7 +417,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const bool a
 };
 
 
-TnPVec_t getMCWeights(const std::unique_ptr<HiEvtTree>& evtTree)
+TnPVec_t getMCWeights(const std::unique_ptr<HiEvtTree>& evtTree, const CorrMap_t& corrType)
 {
   TnPVec_t wMC;
   for (const auto& cor : corrType) {
@@ -419,7 +446,7 @@ TnPVec_t getMCWeights(const std::unique_ptr<HiEvtTree>& evtTree)
 };
 
 
-TnPVec_t getTnPScaleFactors(const double& pt, const double& eta)
+TnPVec_t getTnPScaleFactors(const double& pt, const double& eta, const CorrMap_t& corrType)
 {
   TnPVec_t sfTnP;
   for (const auto& cor : corrType) {
@@ -439,6 +466,26 @@ TnPVec_t getTnPScaleFactors(const double& pt, const double& eta)
       if (cor.first=="TnP_Syst_Iso"     ) { sf_Iso  = tnp_weight_iso_ppb ( pt , eta , -i  ); }
       if (cor.first=="TnP_Syst_BinMuID" ) { sf_MuID = tnp_weight_muid_ppb( pt , eta , -10 ); }
       if (cor.first=="TnP_Syst_BinIso"  ) { sf_Iso  = tnp_weight_iso_ppb ( pt , eta , -10 ); }
+      //
+      for (uint iEta = 1; iEta < absEtaTnP_.size(); iEta++) {
+        if (std::abs(eta) >= absEtaTnP_[iEta-1] && std::abs(eta) < absEtaTnP_[iEta]) {
+          const std::string etaLbl = Form("%.0f_%.0f", absEtaTnP_[iEta-1]*10., absEtaTnP_[iEta]*10.);
+          if (cor.first==Form("TnP_Stat_MuID_%s"     , etaLbl.c_str())) { sf_MuID = tnp_weight_muid_ppb( pt , eta ,  i  ); }
+          if (cor.first==Form("TnP_Stat_Iso_%s"      , etaLbl.c_str())) { sf_Iso  = tnp_weight_iso_ppb ( pt , eta ,  i  ); }
+          if (cor.first==Form("TnP_Syst_MuID_%s"     , etaLbl.c_str())) { sf_MuID = tnp_weight_muid_ppb( pt , eta , -i  ); }
+          if (cor.first==Form("TnP_Syst_Iso_%s"      , etaLbl.c_str())) { sf_Iso  = tnp_weight_iso_ppb ( pt , eta , -i  ); }
+          if (cor.first==Form("TnP_Syst_BinMuID_%s"  , etaLbl.c_str())) { sf_MuID = tnp_weight_muid_ppb( pt , eta , -10 ); }
+          if (cor.first==Form("TnP_Syst_BinMuIso_%s" , etaLbl.c_str())) { sf_Iso  = tnp_weight_iso_ppb ( pt , eta , -10 ); }
+        }
+      }
+      //
+      for (uint iEta = 1; iEta < etaTnP_.size(); iEta++) {
+        if (eta >= etaTnP_[iEta-1] && eta < etaTnP_[iEta]) {
+          const std::string etaLbl = Form("%.0f_%.0f", etaTnP_[iEta-1]*10., etaTnP_[iEta]*10.);
+          if (cor.first==Form("TnP_Stat_Trig_%s" , etaLbl.c_str())) { sf_Trig = tnp_weight_trg_ppb( eta ,  i  ); }
+          if (cor.first==Form("TnP_Syst_Trig_%s" , etaLbl.c_str())) { sf_Trig = tnp_weight_trg_ppb( eta , -i  ); }
+        }
+      }
       //
       if ( (cor.first=="NoCorr") ||  (cor.first=="HFCorr") ) { sf_TnP = 1.0; }
       else { sf_TnP = ( sf_MuID * sf_Trig * sf_Iso ); }
@@ -600,7 +647,7 @@ bool getTnPUncertainties(Unc1DMap_t& unc, const EffMap_t& eff)
 };
 
 
-void initEff1D(TH1DMap_t& h, const BinMapMap_t& binMap)
+void initEff1D(TH1DMap_t& h, const BinMapMap_t& binMap, const CorrMap_t& corrType)
 {
   for (const auto& col : COLL_) {
     for (const auto& bins : binMap.at(col)) {

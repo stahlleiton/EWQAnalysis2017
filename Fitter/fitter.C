@@ -468,7 +468,7 @@ bool setParameters(const StringMap_t& row, GlobalInfo& info, GlobalInfo& userInf
     info.Var["Muon_Pt"]["Max"]    = 100000.0;
     info.Var["Muon_Eta"]["Min"]   = -2.5;
     info.Var["Muon_Eta"]["Max"]   = 2.5;
-    info.Var["Muon_Iso"]["Min"]   = -1.0;
+    info.Var["Muon_Iso"]["Min"]   = -0.000001;
     info.Var["Muon_Iso"]["Max"]   = 100000.0;
     info.Var["Muon_MT"]["Min"]    = 0.0;
     info.Var["Muon_MT"]["Max"]    = 100000.0;
