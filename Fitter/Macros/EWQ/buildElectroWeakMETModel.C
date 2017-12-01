@@ -344,9 +344,9 @@ void setMETModelParameters(GlobalInfo& info)
           for (const auto v : varNames) {
             if (info.Par.count(v+"_"+objLabel)==0 || info.Par.at(v+"_"+objLabel)=="") {
               if (info.Par.count(v+"_"+objFoundLabel)==0 || info.Par.at(v+"_"+objFoundLabel)=="") {
-                if (v=="Beta"   ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),  -3.280 ,  -20.000,   -0.001); }
-                if (v=="Alpha"  ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   5.940,     0.001,   40.000); }
-                if (v=="x0"     ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   2.390,   -10.000,   40.000); }
+                if (v=="Beta"   ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),  -3.280 ,  -20.000,    0.000); }
+                if (v=="Alpha"  ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   5.940,   -40.000,   40.000); }
+                if (v=="x0"     ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   2.390,     0.000,   40.000); }
                 if (v=="Sigma0" ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),  10.000,  -100.000,  100.000); }
                 if (v=="Sigma1" ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   6.000,   -50.000,   50.000); }
                 if (v=="Sigma2" ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   0.000,    -5.000,    5.000); }

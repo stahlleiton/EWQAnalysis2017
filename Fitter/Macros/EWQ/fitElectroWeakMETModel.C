@@ -160,12 +160,12 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
             std::unique_ptr<RooFitResult> fitResult;
             if (pdfConstrains!=NULL && pdfConstrains->getSize()>0) {
               std::cout << "[INFO] Fitting with constrain PDFs" << std::endl;
-              auto tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsName.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), 
+              auto tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsName.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Minos(!isWeighted),
                                                           RooFit::Range("METWindow"), RooFit::ExternalConstraints(*pdfConstrains), RooFit::NumCPU(numCores), RooFit::Save());
               fitResult = std::unique_ptr<RooFitResult>(tmp);
             }
             else {
-              auto tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsName.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Minos(false), 
+              auto tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsName.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted),
                                                            RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
               fitResult = std::unique_ptr<RooFitResult>(tmp);
             }
@@ -188,8 +188,7 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
           else {
             std::cout << "[ERROR] The PDF " << pdfName << " was not found!" << std::endl; return false;
           }
-          int nBins = min(int( round((info.Var.at("MET").at("Max") - info.Var.at("MET").at("Min"))/info.Var.at("MET").at("binWidth")) ), 1000);
-          if (!drawElectroWeakMETPlot(myws, ("PLOT_"+fileName), outDir, nBins, info.Flag.at("setLogScale"))) { return false; }
+          if (!drawElectroWeakMETPlot(myws, ("PLOT_"+fileName), outDir, myws.var("MET")->getBins(), info.Flag.at("setLogScale"))) { return false; }
           myws.saveSnapshot("fittedParameters",myws.allVars(),kTRUE);
           // Save the results
           saveWorkSpace(myws, Form("%sresult/", outDir.c_str()), Form("%s.root", ("FIT_"+fileName).c_str()));
@@ -392,6 +391,8 @@ void setMETGlobalParameterRange(RooWorkspace& myws, GlobalInfo& info)
 {
   myws.var("MET")->setRange("METWindow", info.Var.at("MET").at("Min"), info.Var.at("MET").at("Max"));
   info.Par["METRange_Cut"] = Form("(MET>%g && MET<%g)", info.Var.at("MET").at("Min"), info.Var.at("MET").at("Max"));
+  const int nBins = min(int( round((info.Var.at("MET").at("Max") - info.Var.at("MET").at("Min"))/info.Var.at("MET").at("binWidth")) ), 1000);
+  myws.var("MET")->setBins(nBins);
   return;
 };
 

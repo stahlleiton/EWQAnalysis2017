@@ -494,7 +494,7 @@ bool applyMCCorrection(RooWorkspace& ws, const RooWorkspace& corrWS, const std::
   RooDataSet* corrMCDS = NULL; if ( corrWS.data(mcCorrDSName.c_str()) ) { corrMCDS = (RooDataSet*)corrWS.data(mcCorrDSName.c_str()); }
   if ( (corrDS==NULL && corrMCDS!=NULL) || (corrDS!=NULL && corrMCDS==NULL) ) { std::cout << "[ERROR] One of the correction datasets is missing" << std::endl; return false; }
   if (corrDS!=NULL && corrMCDS!=NULL && corrDS->numEntries()!=corrMCDS->numEntries()) { std::cout << "[ERROR] Correction datasets have different number of entries" << std::endl; return false; }
-  if (corrDS!=NULL && corrDS->numEntries()!=dDS->numEntries()) { std::cout << "[ERROR] Wrong number of entries corrDS (" << corrDS->numEntries() << ") and dDS (" << dDS->numEntries() << ")" << std::endl; return false; }
+  if (corrDS!=NULL && corrDS->numEntries()!=dDS->numEntries()) { std::cout << "[ERROR] Wrong number of entries corrDS (" << corrDS->numEntries() << ") and dDS (" << dDS->numEntries() << ")" << std::endl; return true; }
   // Apply the Lumi re-weighting to positive muon dataset
   int mcID = -99;
   for (int i = 0; i < dDS->numEntries(); i++) {
@@ -618,7 +618,7 @@ bool correctMC(RooWorkspaceMap_t& Workspaces, const GlobalInfo& info)
   if (applyHFCorr) { HFCorr = std::unique_ptr<HFweight>(new HFweight("/afs/cern.ch/work/e/echapon/public/DY_pA_2016/HFweight.root")); }
   //
   // Define the MET Recoil Corrector
-  RecoilCorrector recoilCorr;
+  RecoilCorrector recoilCorr(1);
   std::string recoilMethod;
   if (applyRecoilCorr) {
     recoilMethod = info.Par.at("RecoilCorrMethod");
