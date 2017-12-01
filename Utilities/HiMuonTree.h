@@ -576,7 +576,7 @@ Bool_t HiMuonTree::GetTree(const std::vector< std::string >& inFileName, const s
   std::vector< std::string > fileName = inFileName;
   for (auto& f : fileName) { if (f.find("/store/")!=std::string::npos && f.find("root://")==std::string::npos) { f = "root://cms-xrd-global.cern.ch/" + f.substr(f.find("/store/")); } }
   // Open the input files
-  std::cout << fileName[0].c_str() << std::endl;
+  std::cout << "[INFO] Opening file: " << fileName[0].c_str() << std::endl;
   TFile *f = TFile::Open(fileName[0].c_str());
   if (!f || !f->IsOpen()) return false;
   // Extract the input TChains

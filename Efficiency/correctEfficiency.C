@@ -20,7 +20,7 @@
 #include "TLegend.h"
 #include "TLegendEntry.h"
 #include "TPaletteAxis.h"
-#include "TVector.h"
+#include "TVectorD.h"
 #include "TMath.h"
 // c++ headers
 #include <dirent.h>
@@ -38,7 +38,7 @@
 
 // ------------------ TYPE -------------------------------
 using TnPVec_t     =  std::map< std::string , std::vector< double > >;
-using Unc1DVec_t   =  std::map< std::string , TVector >;
+using Unc1DVec_t   =  std::map< std::string , TVectorD >;
 using Unc1DMap_t   =  std::map< std::string , std::map< std::string , std::map< std::string , std::map< std::string , std::map< std::string , Unc1DVec_t > > > > >;
 using TH1DVec_t    =  std::map< std::string , std::vector< std::tuple< TH1D , TH1D , double > > >;
 using TH1DMap_t    =  std::map< std::string , std::map< std::string , std::map< std::string , std::map< std::string , std::map< std::string , TH1DVec_t > > > > >;
@@ -106,10 +106,10 @@ std::map< std::string , uint > corrType = {
 // Input Files for analysis
 const std::string path_MC = "root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official";
 const std::map< std::string , std::vector< std::pair< std::string , double > > > inputFileMap_ = {
-  {"MC_WToMuNu_Plus_pPb"      , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Plus_pPb_8160GeV_20170813.root")  , POWHEG::XSec.at("WToMuNu_Plus").at("pPb")  } } },
-  {"MC_WToMuNu_Minus_pPb"     , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_pPb_8160GeV_20170813.root") , POWHEG::XSec.at("WToMuNu_Minus").at("pPb") } } },
-  {"MC_WToMuNu_Plus_Pbp"      , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Plus_Pbp_8160GeV_20170813.root")  , POWHEG::XSec.at("WToMuNu_Plus").at("Pbp")  } } },
-  {"MC_WToMuNu_Minus_Pbp"     , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_Pbp_8160GeV_20170813.root") , POWHEG::XSec.at("WToMuNu_Minus").at("Pbp") } } }
+  {"MC_WToMuNu_Plus_pPb"      , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Plus_pPb_8160GeV_20171003.root")  , POWHEG::XSec.at("WToMuNu_Plus").at("pPb")  } } },
+  {"MC_WToMuNu_Minus_pPb"     , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_pPb_8160GeV_20171003.root") , POWHEG::XSec.at("WToMuNu_Minus").at("pPb") } } },
+  {"MC_WToMuNu_Plus_Pbp"      , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Plus_Pbp_8160GeV_20171003.root")  , POWHEG::XSec.at("WToMuNu_Plus").at("Pbp")  } } },
+  {"MC_WToMuNu_Minus_Pbp"     , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_Pbp_8160GeV_20171003.root") , POWHEG::XSec.at("WToMuNu_Minus").at("Pbp") } } }
 };
 std::map< std::string , std::vector< std::string > > sampleType_;
 
@@ -190,7 +190,6 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const bool a
     const std::string sample = inputFile.first;
     std::vector< std::string >  fileInfo;
     for (const auto& f : inputFile.second) { fileInfo.push_back(f.first); }
-    for (const auto& f : fileInfo) { std::cout << "[INFO] Loading File: " << f << std::endl; }
     //
     muonTree[sample] = std::unique_ptr<HiMuonTree>(new HiMuonTree());
     if (!muonTree.at(sample)->GetTree(fileInfo)) return;
@@ -568,7 +567,7 @@ bool getTnPUncertainties(Unc1DVec_t& unc, const EffVec_t& eff)
       }
     }
     uncVal += ( 0.0034 * 0.0034 ); // Impact of PileUp and Event Activity on Isolation
-    uncVal += ( 0.006  * 0.006  ); // STA Efficiency mismodelling
+    uncVal += ( 0.0060 * 0.0060 ); // STA Efficiency mismodelling
     unc.at("TnP_Syst")[iBin] = std::sqrt( uncVal );
   }
   // Compute total TnP uncertainty
@@ -833,7 +832,7 @@ void writeEff(TFile& file, const EffMap_t& eff, const Unc1DMap_t& unc, const std
               TDirectory* typeDir = colDir->GetDirectory(t.first.c_str());
               if (typeDir==NULL) { typeDir = colDir->mkdir(t.first.c_str()); }
               typeDir->cd();
-              const std::map<std::string , TVector>& u = unc.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first);
+              const std::map<std::string , TVectorD>& u = unc.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first);
               const std::string name = "unc1D_" + v.first +"_"+ s.first +"_"+ c.first +"_"+ ch.first +"_"+ t.first +"_";
               for (auto& co : t.second) {
                 TDirectory* corDir = typeDir->GetDirectory(co.first.c_str());
