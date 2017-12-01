@@ -173,6 +173,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const bool a
   CorrMap_t corrType;
   //
   corrType["NoCorr"] = 1;
+  corrType["TnP_Nominal"] = 1;  
   if (applyHFCorr) { corrType["HFCorr"] = 1; }
   //
   for (uint iEta = 1; iEta < absEtaTnP_.size(); iEta++) {
@@ -599,7 +600,7 @@ bool getTnPUncertainties(Unc1DVec_t& unc, const EffVec_t& eff)
     double uncVal = 0.0;
     for (const auto& co : eff) {
       if (co.first.find("TnP_Stat")!=std::string::npos) {
-        uncVal += ( unc.at(co.first)[iBin] * unc.at(co.first)[iBin] );
+        uncVal += std::pow( unc.at(co.first)[iBin] , 2.0 );
       }
     }
     unc.at("TnP_Stat")[iBin] = std::sqrt( uncVal );
@@ -610,19 +611,19 @@ bool getTnPUncertainties(Unc1DVec_t& unc, const EffVec_t& eff)
     double uncVal = 0.0;
     for (const auto& co : eff) {
       if (co.first.find("TnP_Syst")!=std::string::npos) {
-        uncVal += ( unc.at(co.first)[iBin] * unc.at(co.first)[iBin] );
+        uncVal += std::pow( unc.at(co.first)[iBin] , 2.0 );
       }
     }
-    uncVal += ( 0.0034 * 0.0034 ); // Impact of PileUp and Event Activity on Isolation
-    uncVal += ( 0.0060 * 0.0060 ); // STA Efficiency mismodelling
+    uncVal += std::pow( ( 0.0034 * nom.GetEfficiency(iBin+1) ) , 2.0 ); // Impact of PileUp and Event Activity on Isolation
+    uncVal += std::pow( ( 0.0060 * nom.GetEfficiency(iBin+1) ) , 2.0 ); // STA Efficiency mismodelling
     unc.at("TnP_Syst")[iBin] = std::sqrt( uncVal );
   }
   // Compute total TnP uncertainty
   unc["TnP_Tot"].ResizeTo(nBin);
   for (uint iBin = 0; iBin < nBin; iBin++) {
     double uncVal = 0.0;
-    uncVal += (unc.at("TnP_Syst")[iBin] * unc.at("TnP_Syst")[iBin]);
-    uncVal += (unc.at("TnP_Stat")[iBin] * unc.at("TnP_Stat")[iBin]);
+    uncVal += std::pow( unc.at("TnP_Syst")[iBin] , 2.0 );
+    uncVal += std::pow( unc.at("TnP_Stat")[iBin] , 2.0 );
     unc.at("TnP_Tot")[iBin] = std::sqrt( uncVal );
   }
   //

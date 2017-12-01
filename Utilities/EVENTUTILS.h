@@ -177,6 +177,12 @@ namespace PYTHIA {
   std::map< std::string , std::map< std::string , double > > XSec = {  
     { "QCDToMu"  , { { "pPb" , (28919.33 * 0.78998) }  , { "Pbp" , 28927.43 * 0.81767 } } } // pPb: 3.67970e+05 * 3.77844e-4 * 208. 48.68  Pbp: 3.67966e+05 * 3.77954e-4 * 208.
   };
+};  
+//
+namespace EXTERN {
+  std::map< std::string , std::map< std::string , double > > XSec = {
+    { "TTall"              , { { "pPb" , 45.00   }  , { "Pbp" , 45.00   } } } // CMS Measurement: https://arxiv.org/pdf/1709.07411.pdf
+  };
 };
 //
 // MC Tags
@@ -210,7 +216,10 @@ namespace PA {
       POWHEG_WToTauNu_Minus_pPb    =  35,
       POWHEG_WToTauNu_Minus_Pbp    = -35,
       POWHEG_TTall_pPb             =  36,
-      POWHEG_TTall_Pbp             = -36
+      POWHEG_TTall_Pbp             = -36,
+      // For External
+      EXTERN_TTall_pPb             =  46,
+      EXTERN_TTall_Pbp             = -46
       };
   //
   const std::map< std::string , int > MCTypeDictionary = {
@@ -241,7 +250,10 @@ namespace PA {
     { "POWHEG_WToTauNu_Minus_pPb"    , int(MCType::POWHEG_WToTauNu_Minus_pPb)},
     { "POWHEG_WToTauNu_Minus_Pbp"    , int(MCType::POWHEG_WToTauNu_Minus_Pbp)},
     { "POWHEG_TTall_pPb"             , int(MCType::POWHEG_TTall_pPb)},
-    { "POWHEG_TTall_Pbp"             , int(MCType::POWHEG_TTall_Pbp)}
+    { "POWHEG_TTall_Pbp"             , int(MCType::POWHEG_TTall_Pbp)},
+    // For External
+    { "EXTERN_TTall_pPb"             , int(MCType::EXTERN_TTall_pPb)},
+    { "EXTERN_TTall_Pbp"             , int(MCType::EXTERN_TTall_Pbp)}
   };
   //
   std::string getMCTypeName(const int& MCTypeID)
@@ -272,8 +284,18 @@ namespace PA {
       if (PYTHIA::XSec.at(NAMETAG).count(COLTAG) == 0) { std::cout << "[ERROR] PYTHIA Cross-section was not found for process: " << (NAMETAG+"_"+COLTAG) << std::endl; return false; }
       xSection = PYTHIA::XSec.at(NAMETAG).at(COLTAG);
     }
+    else if (GENTAG == "PYQUEN") {
+      if (PYQUEN::XSec.count(NAMETAG) == 0) { std::cout << "[ERROR] PYQUEN Cross-section was not found for process: " << NAMETAG << std::endl; return false; }
+      if (PYQUEN::XSec.at(NAMETAG).count(COLTAG) == 0) { std::cout << "[ERROR] PYQUEN Cross-section was not found for process: " << (NAMETAG+"_"+COLTAG) << std::endl; return false; }
+      xSection = PYQUEN::XSec.at(NAMETAG).at(COLTAG);
+    }
+    else if (GENTAG == "EXTERN") {
+      if (EXTERN::XSec.count(NAMETAG) == 0) { std::cout << "[ERROR] External Cross-section was not found for process: " << NAMETAG << std::endl; return false; }
+      if (EXTERN::XSec.at(NAMETAG).count(COLTAG) == 0) { std::cout << "[ERROR] External Cross-section was not found for process: " << (NAMETAG+"_"+COLTAG) << std::endl; return false; }
+      xSection = EXTERN::XSec.at(NAMETAG).at(COLTAG);
+    }
     else {
-      std::cout << "[ERROR] Cross-section for enerator " << GENTAG << " has not been defined!" << std::endl; return false;
+      std::cout << "[ERROR] Cross-section for generator " << GENTAG << " has not been defined!" << std::endl; return false;
     }
     return true;
   };
@@ -424,6 +446,28 @@ namespace PA {
     }
     //
     return true; // Drell-Yan veto succeeded
+  };
+  //
+  bool hasZBoson(const std::unique_ptr<HiMuonTree>& muonTree)
+  {
+    for (ushort iPFMu1 = 0; iPFMu1 < muonTree->PF_Muon_Mom().size(); iPFMu1++) {
+      for (ushort iPFMu2 = 0; iPFMu2 < muonTree->PF_Muon_Mom().size(); iPFMu2++) {
+        if (
+            ( isTightIsolatedMuon(iPFMu1 , muonTree)          ) && // Consider muons passing Tight ID and isolation
+            ( isTightIsolatedMuon(iPFMu2 , muonTree)          ) && // Consider muons passing Tight ID and isolation
+            ( muonTree->PF_Muon_Mom()[iPFMu1].Pt() > 15.0     ) && // Consider Muons with pT > 15 GeV
+            ( muonTree->PF_Muon_Mom()[iPFMu2].Pt() > 15.0     ) && // Consider Muons with pT > 15 GeV
+            ( muonTree->PF_Muon_Charge()[iPFMu1] != muonTree->PF_Muon_Charge()[iPFMu2] ) // Consider opposite-sign muons
+            ) {
+          TLorentzVector diMuP4 = muonTree->PF_Muon_Mom()[iPFMu1] + muonTree->PF_Muon_Mom()[iPFMu2];
+          if (diMuP4.M() > 80. && diMuP4.M() < 100.) {
+            return true; // Found possible Z Boson Candidate
+          }
+        }
+      }
+    }
+    //
+    return false; // No Z Boson Candidate was found
   };
 };
 
