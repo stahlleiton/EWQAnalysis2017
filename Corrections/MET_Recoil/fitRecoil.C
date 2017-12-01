@@ -86,15 +86,21 @@ bool performFit(
 
 void fitRecoil(
                const bool isData = false,
-               const std::vector< std::string > metType = { "PF_RAW" , "PF_Type1" , "PF_NoHF_RAW" , "PF_NoHF_Type1" },
-               const std::vector< std::string > COLL    = { "PA" , "Pbp" , "pPb" },
+               uint pfumodel = 2, // u1/2 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian)
                const bool applyHFCorr = false, // Only used for MC, in data it is ignored
+               const std::vector< std::string > metType = { "PF_RAW" , "PF_Type1" , "PF_NoHF_RAW", "PF_NoHF_Type1" },
+               const std::vector< std::string > COLL    = { "PA" , "Pbp" , "pPb" },
                const bool remakeDS = false
                )
 {
   //
   const std::string uparName   = "u1";
   const std::string uprpName   = "u2";
+  //
+  if (pfumodel>3 || pfumodel<1){
+    std::cout << "[ERROR] The supported models are: 1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian" << std::endl;
+    return;
+  }
   //
   // Change the working directory
   const std::string CWD = getcwd(NULL, 0);
@@ -114,26 +120,24 @@ void fitRecoil(
   
   std::vector< std::string > fileName;
   std::string dsLabel;
-  uint pfu1model = -1; // u1 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian)
-  uint pfu2model = -1; // u2 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian)
+  uint pfu1model = pfumodel; // u1 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian)
+  uint pfu2model = pfumodel; // u2 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian)
   if (isData) {
     fileName.push_back("/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20171003.root");
     dsLabel = "DATA";
-    pfu1model = 1;
+//    pfu1model = 1;
     //pfu2model = 1;
-    pfu2model = pfu1model;
   }
   else {
     fileName.push_back("/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official/POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_pPb_8160GeV_20171003.root");
     fileName.push_back("/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official/POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_Pbp_8160GeV_20171003.root");
     dsLabel = "MC_DYToMuMu_POWHEG";
-    pfu1model = 2;
+//    pfu1model = 2;
     //pfu2model = 2;
-    pfu2model = pfu1model;
   }
  
   // Define Boson pT Binning
-  const std::vector< double > ptBins = { 0., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12., 13., 14., 15., 16., 17., 19., 21., 23., 25., 27., 30., 35., 40., 45., 50, 60., 70., 90., 130., 200. };
+  const std::vector< double > ptBins = { 0., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12., 13., 14., 15., 16., 17., 19., 21., 23., 25., 27., 30., 35., 40., 45., 50, 60., 70., 90., 140.};//, 200. };
   const uint nbins = (ptBins.size()-1);
 
   // Define the Boson Kinematic Cuts
@@ -499,7 +503,7 @@ void fitRecoil(
         u1Graph[var.first]->SetMarkerColor(kBlack);
         u1Graph[var.first]->SetMarkerStyle(kOpenCircle);
         u1Graph[var.first]->Draw();
-        u1Graph[var.first]->GetXaxis()->SetTitle("p_{T}(ll) [GeV/c]");
+        u1Graph[var.first]->GetXaxis()->SetTitle("q_{T}(ll) [GeV/c]");
         std::string varLbl;
         if ( (var.first.find("rsigma")!=std::string::npos) || (var.first.find("dmean")!=std::string::npos) || (var.first.find("frac")!=std::string::npos) ) {
           varLbl = Form("%s(u_{1})", formatText(var.first).c_str());
@@ -548,7 +552,7 @@ void fitRecoil(
         u2Graph[var.first]->Draw();
         u2Graph[var.first]->SetMarkerColor(kBlack);
         u2Graph[var.first]->SetMarkerStyle(kOpenCircle);
-        u2Graph[var.first]->GetXaxis()->SetTitle("p_{T}(ll) [GeV/c]");
+        u2Graph[var.first]->GetXaxis()->SetTitle("q_{T}(ll) [GeV/c]");
         std::string varLbl;
         if ( (var.first.find("rsigma")!=std::string::npos) || (var.first.find("dmean")!=std::string::npos) || (var.first.find("frac")!=std::string::npos) ) {
           varLbl = Form("%s(u_{2})", formatText(var.first).c_str());
@@ -639,20 +643,20 @@ bool performFit(
   std::cout << "[INFO] Creating the models and parameters for the fit" << std::endl;
   //
   // Width Value
-  if (model>=1) { ws.factory( Form("sigma1[%.6f, %.6f, %.6f]" , hv[0]->GetRMS(), 0.5*(hv[0]->GetRMS()), 2.0*(hv[0]->GetRMS())) ); }
+  if (model>=1) { ws.factory( Form("sigma1[%.6f, %.6f, %.6f]" , hv[0]->GetRMS(), 0.001*(hv[0]->GetRMS()), 1000.0*(hv[0]->GetRMS())) ); }
   if (model>=2) {
-    ws.factory( Form("rsigma2[%.6f, %.6f, %.6f]" , 2.0, 0.10, 3.0) );
+    ws.factory( Form("rsigma2[%.6f, %.6f, %.6f]" , isData?2.0:0.55, isData?0.1:-0.5, isData?5.0:1.0) );
     ws.factory( "RooFormulaVar::sigma2( '@0*@1' , {sigma1, rsigma2})" );
   }
   if (model>=3) {
-    ws.factory( Form("rsigma3[%.6f, %.6f, %.6f]" , 2.0, 0.95, 3.0) );
+    ws.factory( Form("rsigma3[%.6f, %.6f, %.6f]" , 2.0, 0.1, 5.0) );
     ws.factory( "RooFormulaVar::sigma3( '@0*@1' , {sigma2, rsigma3})" );
   }
   //
   // Mean Value
   if (model>=1) { ws.factory( Form("mean1[%.6f, %.6f, %.6f]" , hv[0]->GetMean(), hv[0]->GetXaxis()->GetXmin(), hv[0]->GetXaxis()->GetXmax()) ); }
   if (model>=2) {
-    ws.factory( Form("dmean2[%.6f, %.6f, %.6f]", 0.0, -4.0, 4.0) );
+    ws.factory( Form("dmean2[%.6f, %.6f, %.6f]", 0.0, -6.0, 6.0) );
     if (isData || uName=="u2") ws.var("dmean2")->setConstant(true);
     ws.factory( "RooFormulaVar::mean2( '@0 + @1*@2' , {mean1, sigma1, dmean2})" );
   }
@@ -663,8 +667,8 @@ bool performFit(
   }
   //
   // Fractions
-  if (model>=2) { ws.factory( Form("frac[%.6f, %.6f, %.6f]" , 0.90, 0.0, 1.0) ); }
-  if (model>=3) { ws.factory( Form("frac2[%.6f, %.6f, %.6f]", 0.90, 0.0, 1.0) ); }
+  if (model>=2) { ws.factory( Form("frac[%.6f, %.6f, %.6f]" , isData?0.70:0.45, 0.0, 1.0) ); ws.var("frac")->setConstant(true); }
+  if (model>=3) { ws.factory( Form("frac2[%.6f, %.6f, %.6f]", 0.70, 0.0, 1.0) ); ws.var("frac2")->setConstant(true);}
   //
   // Signal Model Functions
   ws.factory( Form("nsig[%.6f, %.6f, %.6f]" , hv[0]->Integral(), 0., 2.0*(hv[0]->Integral())) );
@@ -750,30 +754,26 @@ bool performFit(
     // Width Value
     if (usePrevResult) { ws.var("sigma1")->setVal( varArr.at("sigma1")[ibin-1][0] ); }
     //ws.var("sigma1")->setVal( hv[ibin]->GetRMS() );
-    ws.var("sigma1")->setMin( 0.3*(hv[ibin]->GetRMS()) );
-    ws.var("sigma1")->setMax( 3.0*(hv[ibin]->GetRMS()) );
+    ws.var("sigma1")->setMin(0.1*(hv[ibin]->GetRMS()) );
+    ws.var("sigma1")->setMax(10.0*(hv[ibin]->GetRMS()) );
     //
     // Yield Value
     ws.var("nsig")->setVal( hv[ibin]->Integral() );
     ws.var("nsig")->setMax( 2.0*(hv[ibin]->Integral()) );
     if (usePrevResult) {
       if (ws.var("dmean2") && varArr.count("dmean2")>0) { ws.var("dmean2")->setVal( -varArr.at("dmean2")[ibin-1][0] ); }
-      if (ws.var("frac"  ) && varArr.count("frac"  )>0) { ws.var("frac"  )->setVal(  varArr.at("frac"  )[ibin-1][0] ); }
-      if (ws.var("rsigma2")) { ws.var("rsigma2")->setVal( varArr.at("rsigma2")[ibin-1][0] ); }
-      if (ws.var("rsigma3")) { ws.var("rsigma3")->setVal( varArr.at("rsigma3")[ibin-1][0] ); }
     }
     else {
       if (ws.var("dmean2")) { ws.var("dmean2")->setVal(0.0); }
       if (ws.var("dmean3")) { ws.var("dmean3")->setVal(0.0); }
-      //if (ws.var("rsigma2")) { ws.var("rsigma2")->setVal(2.0); }
-      //if (ws.var("rsigma3")) { ws.var("rsigma3")->setVal(2.0); }
-      if (ws.var("frac")   ) { ws.var("frac")->setVal(0.9);  }
-      if (ws.var("frac2")  ) { ws.var("frac2")->setVal(0.9); }
     }
+    if (ws.var("rsigma2")) { ws.var("rsigma2")->setVal(isData?2.0:0.60); }
+    if (ws.var("rsigma3")) { ws.var("rsigma3")->setVal(2.0); }
+    if (!isData && uName=="u1" && ( ptBins[ibin]>89.9)) {ws.var("frac")->setVal(0.70); }
     //
     // Perform fit
     //
-    auto fitResult = std::unique_ptr<RooFitResult>(ws.pdf("model")->fitTo(*dataset, RooFit::Extended(kTRUE), RooFit::Range("FitWindow"), RooFit::SumW2Error(dataset->isWeighted()), 
+    auto fitResult = std::unique_ptr<RooFitResult>(ws.pdf("model")->fitTo(*dataset, RooFit::Extended(kTRUE), RooFit::Range("FitWindow"),
                                                                           RooFit::Minos(!dataset->isWeighted()), RooFit::NumCPU(32), RooFit::Save(), RooFit::PrintLevel(-1)));
     if (!fitResult || fitResult->status()!=0) { std::cout << "[ERROR] Fit failed for pt bin : " << ibin << std::endl; }
     if (!fitResult) { std::cout << "[ERROR] Fit results empty!" << std::endl; return false; }
@@ -839,7 +839,7 @@ bool performFit(
     std::string pname = "";
     const std::string xlabel   = Form("PF %c_{%c} [GeV]", uName[0], uName[1]);
     const std::string ylabel   = Form("Events / %.1f GeV/c", hv[ibin]->GetBinWidth(1));
-    const std::string binlabel = Form("%.0f < p_{T} < %.0f", ptBins[ibin], ptBins[ibin+1]);
+    const std::string binlabel = Form("%.0f < q_{T} < %.0f", ptBins[ibin], ptBins[ibin+1]);
     const std::string nsigtext = Form("N_{evts} = %.0f #pm %.0f", ws.var("nsig")->getVal(), ws.var("nsig")->getError());
     std::map< std::string , std::string > varText;
     for (const auto& var : varArr) {

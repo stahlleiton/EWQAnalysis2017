@@ -67,10 +67,10 @@ bool performFit(
 
 void getRecoilPDF(
                   const bool isData = false,
-                  const bool applyHFCorr = true, // Only used for MC, in data it is ignored
                   uint pfumodel = 2, // u1 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian)
-                  const std::vector< std::string > metType = { "PF_RAW" , "PF_Type1" , "PF_NoHF_RAW" , "PF_NoHF_Type1" },
-                  const std::vector< std::string > COLL    = { "PA" , "Pbp" , "pPb" }
+                  const bool applyHFCorr = true, // Only used for MC, in data it is ignored
+                  const std::vector< std::string > metType = { "PF_RAW" /*, "PF_Type1" , "PF_NoHF_RAW" , "PF_NoHF_Type1" */},
+                  const std::vector< std::string > COLL    = { "PA" /*, "Pbp" , "pPb" */}
                   )
 {
   //
