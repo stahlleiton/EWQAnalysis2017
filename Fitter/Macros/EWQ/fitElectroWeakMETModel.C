@@ -8,7 +8,7 @@
 
 void   setMETGlobalParameterRange ( RooWorkspace& myws , GlobalInfo& info );
 void   setEWQCutParameters  ( GlobalInfo& info );
-bool   setEWQModel          ( StrMapMap_t& model, GlobalInfo&  info );
+bool   setEWQModel          ( StringDiMap_t& model, GlobalInfo&  info );
 int    importDataset        ( RooWorkspace& myws  , const std::map<string, RooWorkspace>& inputWS , const GlobalInfo& info);
 void   setMETFileName       ( string& fileName, string& outputDir, const string& DSTAG, const string& plotLabel, const GlobalInfo& info );
 
@@ -50,7 +50,7 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
   setEWQCutParameters(info);
 
   // Set models based on input files
-  StrMapMap_t model;
+  StringDiMap_t model;
   if (!setEWQModel(model, info)) { return false; }
   
   // Import the all the datasets needed for the fit
@@ -243,7 +243,7 @@ void setEWQCutParameters(GlobalInfo& info)
 };
 
 
-bool setEWQModel(StrMapMap_t& model, GlobalInfo&  info)
+bool setEWQModel(StringDiMap_t& model, GlobalInfo&  info)
 {
   std::string cha = info.Par.at("channel");
   for (const auto& col : info.StrV.at("fitSystem")) {

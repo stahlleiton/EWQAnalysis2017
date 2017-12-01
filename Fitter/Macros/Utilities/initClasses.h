@@ -53,10 +53,12 @@ typedef std::map< std::string , StringVectorMap_t               > StringVectorDi
 typedef std::map< std::string , StringVectorDiMap_t             > StringVectorTriMap_t;
 typedef std::map< std::string , std::map< std::string , double >> DoubleMapMap_t;
 typedef std::map< std::string , std::string                     > StringMap_t;
+typedef std::vector<            StringMap_t                     > StringMapVector_t;
+typedef std::map< std::string , StringMap_t                     > StringDiMap_t;
+typedef std::vector<            StringDiMap_t                   > StringDiMapVector_t;
 typedef std::map< std::string , int                             > IntMap_t;
 typedef std::map< std::string , IntMap_t                        > IntMapMap_t;
 typedef std::map< std::string , bool                            > BoolMap_t;
-typedef std::map< std::string , StringMap_t                     > StrMapMap_t;
 typedef std::map< std::string , std::map< std::string , std::map< std::string , int > > > ModelMap;
 typedef std::map< std::string , std::map< std::string , std::vector< int > > >  IntVecMapMap_t;
 

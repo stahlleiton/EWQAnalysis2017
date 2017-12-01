@@ -6,10 +6,10 @@
 void setMETModelParameters ( GlobalInfo& info );
 TH1* rebinhist             ( const TH1& hist, double xmin, double xmax );
 bool histToPdf             ( RooWorkspace& ws, const string& pdfName, const string& dsName, const std::string& var, const std::vector< double >& range );
-bool addMETModel           ( RooWorkspace& ws, const std::string& decay, const StrMapMap_t& models,  const GlobalInfo& info );
+bool addMETModel           ( RooWorkspace& ws, const std::string& decay, const StringDiMap_t& models,  const GlobalInfo& info );
 
 
-bool buildElectroWeakMETModel(RooWorkspace& ws, const StrMapMap_t& models, GlobalInfo&  info)
+bool buildElectroWeakMETModel(RooWorkspace& ws, const StringDiMap_t& models, GlobalInfo&  info)
 {
  // Initialize all the MET Model parameters needed for fitting
   setMETModelParameters(info);
@@ -22,7 +22,7 @@ bool buildElectroWeakMETModel(RooWorkspace& ws, const StrMapMap_t& models, Globa
   return true;
 };
 
-bool addMETModel(RooWorkspace& ws, const std::string& decay, const StrMapMap_t& models,  const GlobalInfo& info)
+bool addMETModel(RooWorkspace& ws, const std::string& decay, const StringDiMap_t& models,  const GlobalInfo& info)
 {
   std::string cha = info.Par.at("channel");
   for (const auto& col : info.StrV.at("fitSystem")) {

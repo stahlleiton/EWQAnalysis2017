@@ -46,7 +46,6 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
   const StringVector DSNames        = FileInfo.at("DSNames");
   const bool isData = (DSNames[0].find("DATA")!=std::string::npos);
   const bool isMC   = (DSNames[0].find("MC")!=std::string::npos);
-  const bool useNoHFMET = (metTAG.find("NoHF")!=std::string::npos);
   for (auto& tag : DSNames) { 
     std::string o = (OutputFileDir[0] + chaDir + "/") + "DATASET_" + metTAG + tag + ".root"; 
     if (gSystem->AccessPathName(o.c_str())) { makeDir(OutputFileDir[1] + chaDir + "/"); o = (OutputFileDir[1] + chaDir + "/") + "DATASET_" + metTAG + tag + ".root"; }
@@ -56,7 +55,7 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
   const std::string  TYPE = info.Par.at("Analysis");
   const int triggerIndex  = info.Int.at("triggerIndex");
   // Create RooDataSets
-  std::vector< std::unique_ptr<RooDataSet> > dataPl, dataMi, mcPl, mcMi;
+  std::vector< std::unique_ptr<RooDataSet> > dataPl, dataMi, mcPl, mcMi, metPl, metMi;
   bool createDS = info.Flag.at("updateDS");
   // Check if RooDataSets exist and are not corrupt
   for (uint i=0; i<OutputFileNames.size(); i++) {
@@ -68,6 +67,8 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
       dataMi.push_back( std::unique_ptr<RooDataSet>((RooDataSet*)DBFile->Get(Form("dMi_RAW_%s", DSNames[i].c_str()))) );
       if (isMC) { mcPl.push_back( std::unique_ptr<RooDataSet>((RooDataSet*)DBFile->Get(Form("mcPl_RAW_%s", DSNames[i].c_str()))) ); }
       if (isMC) { mcMi.push_back( std::unique_ptr<RooDataSet>((RooDataSet*)DBFile->Get(Form("mcMi_RAW_%s", DSNames[i].c_str()))) ); }
+      metPl.push_back( std::unique_ptr<RooDataSet>((RooDataSet*)DBFile->Get(Form("metPl_RAW_%s", DSNames[i].c_str()))) );
+      metMi.push_back( std::unique_ptr<RooDataSet>((RooDataSet*)DBFile->Get(Form("metMi_RAW_%s", DSNames[i].c_str()))) );
       if (checkEWQDS(dataPl[i].get(), DSNames[i], TYPE)==false) { createDS = true; }
       if (checkEWQDS(dataMi[i].get(), DSNames[i], TYPE)==false) { createDS = true; }
       DBFile->Close();
@@ -81,12 +82,14 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
     if (!muonTree->GetTree(InputFileNames)) return false;
     Long64_t nentries = muonTree->GetEntries();
     std::unique_ptr<HiMETTree> metTree = std::unique_ptr<HiMETTree>(new HiMETTree());
-    if (useNoHFMET) { if (!metTree->GetTree(InputFileNames, "metAnaNoHF")) return false; }
-    else { if (!metTree->GetTree(InputFileNames, "metAna")) return false; }
-    if (metTree->GetEntries() != nentries) { std::cout << "[ERROR] Inconsistent number of entries!" << std::endl; return false; }
+    if (!metTree->GetTree(InputFileNames, "metAna")) return false;
+    if (metTree->GetEntries() != nentries) { std::cout << "[ERROR] Inconsistent number of entries in metAna!" << std::endl; return false; }
+    std::unique_ptr<HiMETTree> metNoHFTree = std::unique_ptr<HiMETTree>(new HiMETTree());
+    if (!metNoHFTree->GetTree(InputFileNames, "metAnaNoHF")) return false;
+    if (metNoHFTree->GetEntries() != nentries) { std::cout << "[ERROR] Inconsistent number of entries in metNoHFAna!" << std::endl; return false; }
     std::unique_ptr<HiEvtTree> evtTree = std::unique_ptr<HiEvtTree>(new HiEvtTree());
     if (!evtTree->GetTree(InputFileNames)) return false;
-    if (evtTree->GetEntries() != nentries) { std::cout << "[ERROR] Inconsistent number of entries!" << std::endl; return false; }
+    if (evtTree->GetEntries() != nentries) { std::cout << "[ERROR] Inconsistent number of entries in evtTree!" << std::endl; return false; }
     ///// MC Generator Information
     RooRealVar mcNGen   = RooRealVar ( "NGen"      , "Number of Generated Events" ,   -1.0 ,   1000000000.0 , ""      );
     RooRealVar mcType   = RooRealVar ( "MC_Type"   , "MC Type Number"             , -100.0 ,          100.0 , ""      );
@@ -97,8 +100,22 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
     RooRealVar metPhi   = RooRealVar ( "MET_Phi"   , "#slash{E}_{T} #phi"         ,   -9.0 ,            9.0 , ""      );
     RooRealVar muPhi    = RooRealVar ( "Muon_Phi"  , "#mu #phi"                   ,   -9.0 ,            9.0 , ""      );
     RooRealVar hiHF     = RooRealVar ( "hiHF"      , "Total E_{HF}"               ,   -1.0 ,       100000.0 , "GeV/c" );
+    //
     RooArgSet  mcCols = RooArgSet(mcNGen, mcType, bosonPt, bosonPhi, refPt, refPhi);
     mcCols.add(metPhi); mcCols.add(muPhi); mcCols.add(hiHF);
+    ///// MET Information
+    RooRealVar metMag_RAW       = RooRealVar ( "MET_Mag_PF_RAW"        , "|#slash{E}_{T}|"     ,   -1.0 , 100000.0 , "GeV/c" );
+    RooRealVar metPhi_RAW       = RooRealVar ( "MET_Phi_PF_RAW"        , "#slash{E}_{T} #phi"  ,   -9.0 ,      9.0 , ""      );
+    RooRealVar metMag_TYPE1     = RooRealVar ( "MET_Mag_PF_Type1"      , "|#slash{E}_{T}|"     ,   -1.0 , 100000.0 , "GeV/c" );
+    RooRealVar metPhi_TYPE1     = RooRealVar ( "MET_Phi_PF_Type1"      , "#slash{E}_{T} #phi"  ,   -9.0 ,      9.0 , ""      );
+    RooRealVar metMag_NoHFRAW   = RooRealVar ( "MET_Mag_PF_NoHF_RAW"   , "|#slash{E}_{T}|"     ,   -1.0 , 100000.0 , "GeV/c" );
+    RooRealVar metPhi_NoHFRAW   = RooRealVar ( "MET_Phi_PF_NoHF_RAW"   , "#slash{E}_{T} #phi"  ,   -9.0 ,      9.0 , ""      );
+    RooRealVar metMag_NoHFTYPE1 = RooRealVar ( "MET_Mag_PF_NoHF_Type1" , "|#slash{E}_{T}|"     ,   -1.0 , 100000.0 , "GeV/c" );
+    RooRealVar metPhi_NoHFTYPE1 = RooRealVar ( "MET_Phi_PF_NoHF_Type1" , "#slash{E}_{T} #phi"  ,   -9.0 ,      9.0 , ""      );
+    //
+    RooArgSet  metCols = RooArgSet(metMag_RAW, metPhi_RAW, metMag_TYPE1, metPhi_TYPE1);
+    metCols.add(metMag_NoHFRAW);   metCols.add(metPhi_NoHFRAW);
+    metCols.add(metMag_NoHFTYPE1); metCols.add(metPhi_NoHFTYPE1);
     ///// RooDataSet Variables
     RooRealVar   met    = RooRealVar ( "MET"        , "|#slash{E}_{T}|"   ,  -1.0 , 100000.0 ,  "GeV/c"     );
     RooRealVar   muPt   = RooRealVar ( "Muon_Pt"    , "#mu p_{T}"         ,  -1.0 , 100000.0 ,  "GeV/c"     );
@@ -111,13 +128,15 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
     RooArgSet cols = RooArgSet(met, muPt, muEta, muIso, muMT, cent);
     cols.add(type);
     ///// Initiliaze RooDataSets
-    dataPl.clear(); dataMi.clear(); mcPl.clear(); mcMi.clear();
+    dataPl.clear(); dataMi.clear(); mcPl.clear(); mcMi.clear(); metPl.clear(); metMi.clear();
     for (uint i=0; i<DSNames.size(); i++) {
       std::cout << "[INFO] Creating " << "RooDataSet for " << DSNames[i] << std::endl;
       dataPl.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("dPl_RAW_%s", DSNames[i].c_str()), "dPl", cols)) );
       dataMi.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("dMi_RAW_%s", DSNames[i].c_str()), "dMi", cols)) );
       if (isMC) { mcPl.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("mcPl_RAW_%s", DSNames[i].c_str()), "mcPl", mcCols )) ); }
       if (isMC) { mcMi.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("mcMi_RAW_%s", DSNames[i].c_str()), "mcMi", mcCols )) ); }
+      metPl.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("metPl_RAW_%s", DSNames[i].c_str()), "metPl", metCols)) );
+      metMi.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("metMi_RAW_%s", DSNames[i].c_str()), "metMi", metCols)) );
     }
     ///// Iterate over the Input Forest
     int treeIdx = -1;
@@ -128,6 +147,7 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
       if (muonTree->GetEntry(jentry)<0) { std::cout << "[ERROR] Muon Tree invalid entry!"  << std::endl; return false; }
       if (metTree ->GetEntry(jentry)<0) { std::cout << "[ERROR] MET Tree invalid entry!"   << std::endl; return false; }
       if (evtTree ->GetEntry(jentry)<0) { std::cout << "[ERROR] Event Tree invalid entry!" << std::endl; return false; }
+      if (metNoHFTree->GetEntry(jentry)<0) { std::cout << "[ERROR] MET NoHF Tree invalid entry!" << std::endl; return false; }
       // 
       // Check that the different tree agrees well
       if (muonTree->Event_Run()!=metTree->Event_Run()       ) { std::cout << "[ERROR] MET Run does not agree!"     << std::endl; return false; }
@@ -171,10 +191,10 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
       //
       // Determine the MET
       TVector2 MET = TVector2();
-      if      (info.Par.at("VarType") == "PF_RAW"       ) { MET = metTree->PF_MET_NoShift_Mom();    }
-      else if (info.Par.at("VarType") == "PF_Type1"     ) { MET = metTree->Type1_MET_NoShift_Mom(); }
-      else if (info.Par.at("VarType") == "PF_NoHF_RAW"  ) { MET = metTree->PF_MET_NoShift_Mom();    }
-      else if (info.Par.at("VarType") == "PF_NoHF_Type1") { MET = metTree->Type1_MET_NoShift_Mom(); }
+      if      (info.Par.at("VarType") == "PF_RAW"       ) { MET = metTree->PF_MET_NoShift_Mom();        }
+      else if (info.Par.at("VarType") == "PF_Type1"     ) { MET = metTree->Type1_MET_NoShift_Mom();     }
+      else if (info.Par.at("VarType") == "PF_NoHF_RAW"  ) { MET = metNoHFTree->PF_MET_NoShift_Mom();    }
+      else if (info.Par.at("VarType") == "PF_NoHF_Type1") { MET = metNoHFTree->Type1_MET_NoShift_Mom(); }
       else { std::cout << "[ERROR] MET Type " << info.Par.at("VarType") << " is not valid!" << std::endl; return false; }
       //
       // Muon Based Information
@@ -227,6 +247,16 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
       cent.setVal   ( 0.0        );
       type.setLabel ( eventType.c_str() );
       //
+      //// Set the MET information
+      metMag_RAW.setVal       ( metTree->PF_MET_NoShift_Mom().Mod()        );
+      metPhi_RAW.setVal       ( metTree->PF_MET_NoShift_Mom().Phi()        );
+      metMag_TYPE1.setVal     ( metTree->Type1_MET_NoShift_Mom().Mod()     );
+      metPhi_TYPE1.setVal     ( metTree->Type1_MET_NoShift_Mom().Phi()     );
+      metMag_NoHFRAW.setVal   ( metNoHFTree->PF_MET_NoShift_Mom().Mod()    );
+      metPhi_NoHFRAW.setVal   ( metNoHFTree->PF_MET_NoShift_Mom().Phi()    );
+      metMag_NoHFTYPE1.setVal ( metNoHFTree->Type1_MET_NoShift_Mom().Mod() );
+      metPhi_NoHFTYPE1.setVal ( metNoHFTree->Type1_MET_NoShift_Mom().Phi() );
+      //
       // Get the Information needed for the Recoil Corrections
       if (isMC) {
         TVector2 ref_Pt , boson_Pt;
@@ -247,6 +277,8 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
           if (leadMuChg < 0) { dataMi[i]->addFast(cols); }
           if (isMC && (leadMuChg > 0)) { mcPl[i]->addFast(mcCols); }
           if (isMC && (leadMuChg < 0)) { mcMi[i]->addFast(mcCols); }
+          if (leadMuChg > 0) { metPl[i]->addFast(metCols); }
+          if (leadMuChg < 0) { metMi[i]->addFast(metCols); }
         }
       }
     }
@@ -258,6 +290,8 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
       dataMi[i]->Write(Form("dMi_RAW_%s", DSNames[i].c_str()));
       if (isMC) { mcPl[i]->Write(Form("mcPl_RAW_%s", DSNames[i].c_str())); }
       if (isMC) { mcMi[i]->Write(Form("mcMi_RAW_%s", DSNames[i].c_str())); }
+      metPl[i]->Write(Form("metPl_RAW_%s", DSNames[i].c_str()));
+      metMi[i]->Write(Form("metMi_RAW_%s", DSNames[i].c_str()));
       DBFile->Write(); DBFile->Close();
     }
   }
@@ -273,9 +307,11 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
       if(mcPl[i] && mcPl[i]->numEntries()>0) Workspaces[DSNames[i]].import(*mcPl[i]);
       if(mcMi[i] && mcMi[i]->numEntries()>0) Workspaces[DSNames[i]].import(*mcMi[i]);
     }
+    if (metPl[i]) Workspaces[DSNames[i]].import(*metPl[i]);
+    if (metMi[i]) Workspaces[DSNames[i]].import(*metMi[i]);
     TObjString tmp; tmp.SetString(info.Par.at("VarType").c_str()); Workspaces[DSNames[i]].import(*((TObject*)&tmp), "METType");
   }
-  dataPl.clear(); dataMi.clear(); mcPl.clear(); mcMi.clear();
+  dataPl.clear(); dataMi.clear(); mcPl.clear(); mcMi.clear(); metPl.clear(); metMi.clear();
   return true;
 };
 
@@ -422,6 +458,9 @@ bool readCorrectionDS(RooWorkspace& corrWS, const std::string sampleTag, const s
       if ( (ws.data(("mcPl_COR_"+sample).c_str()) && ws.data(("mcMi_COR_"+sample).c_str())) && (ws.data(("dPl_COR_"+sample).c_str()) && ws.data(("dMi_COR_"+sample).c_str())) ) {
         corrWS.import(*ws.data(("mcPl_COR_"+sample).c_str()));  corrWS.import(*ws.data(("mcMi_COR_"+sample).c_str()));
         corrWS.import(*ws.data(("dPl_COR_"+sample).c_str()));   corrWS.import(*ws.data(("dMi_COR_"+sample).c_str()));
+        if (ws.data(("metPl_COR_"+sample).c_str()) && ws.data(("metMi_COR_"+sample).c_str())) {
+          corrWS.import(*ws.data(("metPl_COR_"+sample).c_str()));  corrWS.import(*ws.data(("metMi_COR_"+sample).c_str()));
+        }
         done = true;
       }
       else { std::cout << "[WARNING] Some correction datasets are missing, ignoring file " << corrFilePath << std::endl; }
@@ -447,6 +486,9 @@ void writeCorrectionDS(const RooWorkspace& ws, const std::string sampleTag, cons
     RooWorkspace corrWS;
     corrWS.import(*ws.data(("mcPl_COR_"+sample).c_str()));  corrWS.import(*ws.data(("mcMi_COR_"+sample).c_str()));
     corrWS.import(*ws.data(("dPl_COR_"+sample).c_str()));   corrWS.import(*ws.data(("dMi_COR_"+sample).c_str()));
+    if (ws.data(("metPl_COR_"+sample).c_str()) && ws.data(("metMi_COR_"+sample).c_str())) {
+      corrWS.import(*ws.data(("metPl_COR_"+sample).c_str()));  corrWS.import(*ws.data(("metMi_COR_"+sample).c_str()));
+    }
     TFile corrFile(corrFilePath.c_str(), "RECREATE"); if (!corrFile.IsZombie() && corrFile.IsOpen()) { corrFile.cd(); corrWS.Write("workspace"); corrFile.Write(); }; corrFile.Close();
   }
   //
@@ -667,7 +709,6 @@ bool invertEtaAndFill(RooDataSet& dsPA, const RooDataSet& dsPbp)
   for(int i = 0; i < dsPbp.numEntries(); i++){
     auto set = dsPbp.get(i);
     auto eta = (RooRealVar*)set->find("Muon_Eta");
-    auto pt  = (RooRealVar*)set->find("Muon_Pt");
     if (eta==NULL) { std::cout << "[ERROR] RooRealVar Muon_Eta was not found!" << std::endl; return false; }
     // Invert the pseudo-rapidity
     eta->setVal(-1.0*eta->getVal());
@@ -703,15 +744,19 @@ bool createPADataset(RooWorkspaceMap_t& Workspaces, const std::string& sampleTag
   if (dPl_pPb==NULL) { std::cout << "[ERROR] RooDataSet " << ("dPl_"+dsSample_pPb) << " does not exist!" << std::endl; return false; }
   auto dMi_pPb = (RooDataSet*)Workspaces.at(sample_pPb).data(("dMi_"+dsSample_pPb).c_str());
   if (dMi_pPb==NULL) { std::cout << "[ERROR] RooDataSet " << ("dMi_"+dsSample_pPb) << " does not exist!" << std::endl; return false; }
-  auto mcPl_pPb = (RooDataSet*)Workspaces.at(sample_pPb).data(("mcPl_"+dsSample_pPb).c_str());
-  auto mcMi_pPb = (RooDataSet*)Workspaces.at(sample_pPb).data(("mcMi_"+dsSample_pPb).c_str());
+  auto  mcPl_pPb = (RooDataSet*)Workspaces.at(sample_pPb).data(("mcPl_"+dsSample_pPb).c_str());
+  auto  mcMi_pPb = (RooDataSet*)Workspaces.at(sample_pPb).data(("mcMi_"+dsSample_pPb).c_str());
+  auto metPl_pPb = (RooDataSet*)Workspaces.at(sample_pPb).data(("metPl_"+dsSample_pPb).c_str());
+  auto metMi_pPb = (RooDataSet*)Workspaces.at(sample_pPb).data(("metMi_"+dsSample_pPb).c_str());
   //
   auto dPl_Pbp = (RooDataSet*)Workspaces.at(sample_Pbp).data(("dPl_"+dsSample_Pbp).c_str());
   if (dPl_Pbp==NULL) { std::cout << "[ERROR] RooDataSet " << ("dPl_"+dsSample_Pbp) << " does not exist!" << std::endl; return false; }
   auto dMi_Pbp = (RooDataSet*)Workspaces.at(sample_Pbp).data(("dMi_"+dsSample_Pbp).c_str());
   if (dMi_Pbp==NULL) { std::cout << "[ERROR] RooDataSet " << ("dMi_"+dsSample_Pbp) << " does not exist!" << std::endl; return false; }
-  auto mcPl_Pbp = (RooDataSet*)Workspaces.at(sample_Pbp).data(("mcPl_"+dsSample_Pbp).c_str());
-  auto mcMi_Pbp = (RooDataSet*)Workspaces.at(sample_Pbp).data(("mcMi_"+dsSample_Pbp).c_str());
+  auto  mcPl_Pbp = (RooDataSet*)Workspaces.at(sample_Pbp).data(("mcPl_"+dsSample_Pbp).c_str());
+  auto  mcMi_Pbp = (RooDataSet*)Workspaces.at(sample_Pbp).data(("mcMi_"+dsSample_Pbp).c_str());
+  auto metPl_Pbp = (RooDataSet*)Workspaces.at(sample_Pbp).data(("metPl_"+dsSample_Pbp).c_str());
+  auto metMi_Pbp = (RooDataSet*)Workspaces.at(sample_Pbp).data(("metMi_"+dsSample_Pbp).c_str());
   //
   std::cout << "[INFO] Creating combined PA RooDataSet for " << dsSampleTag << std::endl;
   //
@@ -721,14 +766,18 @@ bool createPADataset(RooWorkspaceMap_t& Workspaces, const std::string& sampleTag
   auto dMi_PA = std::unique_ptr<RooDataSet>((RooDataSet*)dMi_pPb->Clone(("dMi_"+dsSample_PA).c_str()));
   if (dMi_PA==NULL || dMi_PA->sumEntries()==0) { std::cout << "[ERROR] RooDataSet " << ("dMi_"+dsSample_PA) << " was not created!" << std::endl; return false; }
   //
-  std::unique_ptr<RooDataSet> mcPl_PA = NULL; if (mcPl_pPb!=NULL) { mcPl_PA = std::unique_ptr<RooDataSet>((RooDataSet*)mcPl_pPb->Clone(("mcPl_"+dsSample_PA).c_str())); }
-  std::unique_ptr<RooDataSet> mcMi_PA = NULL; if (mcMi_pPb!=NULL) { mcMi_PA = std::unique_ptr<RooDataSet>((RooDataSet*)mcPl_pPb->Clone(("mcMi_"+dsSample_PA).c_str())); }
+  std::unique_ptr<RooDataSet>  mcPl_PA = NULL; if ( mcPl_pPb!=NULL) {  mcPl_PA = std::unique_ptr<RooDataSet>((RooDataSet*) mcPl_pPb->Clone(( "mcPl_"+dsSample_PA).c_str())); }
+  std::unique_ptr<RooDataSet>  mcMi_PA = NULL; if ( mcMi_pPb!=NULL) {  mcMi_PA = std::unique_ptr<RooDataSet>((RooDataSet*) mcPl_pPb->Clone(( "mcMi_"+dsSample_PA).c_str())); }
+  std::unique_ptr<RooDataSet> metPl_PA = NULL; if (metPl_pPb!=NULL) { metPl_PA = std::unique_ptr<RooDataSet>((RooDataSet*)metPl_pPb->Clone(("metPl_"+dsSample_PA).c_str())); }
+  std::unique_ptr<RooDataSet> metMi_PA = NULL; if (metMi_pPb!=NULL) { metMi_PA = std::unique_ptr<RooDataSet>((RooDataSet*)metPl_pPb->Clone(("metMi_"+dsSample_PA).c_str())); }
   //
   // Invert the eta of Pbp dataset and fill the PA dataset
   if (!invertEtaAndFill(*dPl_PA, *dPl_Pbp)) { return false; }
   if (!invertEtaAndFill(*dMi_PA, *dMi_Pbp)) { return false; }
-  if (mcPl_Pbp!=NULL && mcPl_PA!=NULL) { mcPl_PA->append(*mcPl_Pbp); }
-  if (mcMi_Pbp!=NULL && mcMi_PA!=NULL) { mcMi_PA->append(*mcMi_Pbp); }
+  if ( mcPl_Pbp!=NULL &&  mcPl_PA!=NULL) {  mcPl_PA->append( *mcPl_Pbp); }
+  if ( mcMi_Pbp!=NULL &&  mcMi_PA!=NULL) {  mcMi_PA->append( *mcMi_Pbp); }
+  if (metPl_Pbp!=NULL && metPl_PA!=NULL) { metPl_PA->append(*metPl_Pbp); }
+  if (metMi_Pbp!=NULL && metMi_PA!=NULL) { metMi_PA->append(*metMi_Pbp); }
   //
   // Check the consistency of the combined dataset
   if (dPl_PA->numEntries()!=(dPl_pPb->numEntries()+dPl_Pbp->numEntries())) { std::cout << "[ERROR] Number of entries for the combined Pl " << dsSampleTag << " dataset is inconsistent!" << std::endl; return false; }
@@ -745,8 +794,10 @@ bool createPADataset(RooWorkspaceMap_t& Workspaces, const std::string& sampleTag
   // Import the new PA dataset
   Workspaces[sample_PA].import(*dPl_PA);
   Workspaces.at(sample_PA).import(*dMi_PA);
-  if (mcPl_PA!=NULL) { Workspaces.at(sample_PA).import(*mcPl_PA); }
-  if (mcMi_PA!=NULL) { Workspaces.at(sample_PA).import(*mcMi_PA); }
+  if ( mcPl_PA!=NULL) { Workspaces.at(sample_PA).import( *mcPl_PA); }
+  if ( mcMi_PA!=NULL) { Workspaces.at(sample_PA).import( *mcMi_PA); }
+  if (metPl_PA!=NULL) { Workspaces.at(sample_PA).import(*metPl_PA); }
+  if (metMi_PA!=NULL) { Workspaces.at(sample_PA).import(*metMi_PA); }
   const std::vector< std::string > strLabels = { "METType" , "CorrectionApplied" , "RecoilMethod" };
   for (const auto& strL : strLabels) { if (Workspaces.at(sample_pPb).obj(strL.c_str())) { Workspaces.at(sample_PA).import(*Workspaces.at(sample_pPb).obj(strL.c_str()), strL.c_str()); } }
   // Import the Luminosity Ratio and xSections (used for systematics)

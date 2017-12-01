@@ -6,7 +6,7 @@
 
 void       printElectroWeakMETParameters ( TPad& pad , const RooWorkspace& ws , const std::string& pdfName , const uint& drawMode );
 void       printElectroWeakBinning       ( TPad& pad , const RooWorkspace& ws , const std::string& dsName , const std::vector< std::string >& text , const uint& drawMode );
-void       printElectroWeakLegend        ( TPad& pad , TLegend& leg , const RooPlot& frame , const StrMapMap_t& legInfo );
+void       printElectroWeakLegend        ( TPad& pad , TLegend& leg , const RooPlot& frame , const StringDiMap_t& legInfo );
 void       setRange                      ( RooPlot& frame , const RooWorkspace& ws , const std::string& varName , const std::string& dsName , const bool& setLogScale );
 bool       getVar                        ( std::vector<RooRealVar>& varVec, const RooWorkspace& ws, const std::string& name, const std::string& pdfName );
 void       parseVarName                  ( const std::string& name, std::string& label );
@@ -54,7 +54,7 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   if (cha=="ToMu") { process += Form("#rightarrow#mu^{%c}+x", chgL); }
   process = Form("#font[62]{#scale[1.1]{%s}}", process.c_str());
   //
-  StrMapMap_t legInfo;
+  StringDiMap_t legInfo;
   //
   std::map< std::string , std::unique_ptr<RooPlot> > frame;
   std::map< std::string , TPad* > pad; // Unique Pointer does produce Segmentation Fault, so don't use it
@@ -366,7 +366,7 @@ void printElectroWeakBinning(TPad& pad, const RooWorkspace& ws, const std::strin
 };
 
 
-void printElectroWeakLegend(TPad& pad, TLegend& leg, const RooPlot& frame, const StrMapMap_t& legInfo)
+void printElectroWeakLegend(TPad& pad, TLegend& leg, const RooPlot& frame, const StringDiMap_t& legInfo)
 {
   pad.cd();
   std::map< std::string , std::string > drawOption = { { "DATA" , "pe" } , { "PDF" , "l" } , { "TEMP" , "fl" } };
@@ -435,9 +435,10 @@ bool printChi2(TPad& pad, RooWorkspace& ws, const RooPlot& frame, const string& 
   //
   TLatex t = TLatex(); t.SetNDC(); t.SetTextSize(0.12);
   t.DrawLatex(0.76, 0.85, Form("#chi^{2}/ndof = %.0f / %d ", chi2, ndof));
-  RooRealVar chi2Var((string("chi2_")+varLabel).c_str(),(string("chi2_")+varLabel).c_str(),chi2);
-  RooRealVar ndofVar((string("ndof_")+varLabel).c_str(),(string("ndof_")+varLabel).c_str(),ndof);
-  ws.import(chi2Var, kTRUE); ws.import(ndofVar, kTRUE);
+  if (ws.var(Form("chi2_%s", varLabel.c_str()))) { ws.var(Form("chi2_%s", varLabel.c_str()))->setVal(chi2); }
+  else { ws.factory(Form("chi2_%s[%.6f]", varLabel.c_str(), chi2)); }
+  if (ws.var(Form("ndof_%s", varLabel.c_str()))) { ws.var(Form("ndof_%s", varLabel.c_str()))->setVal(ndof); }
+  else { ws.factory(Form("ndof_%s[%d]", varLabel.c_str(), ndof)); }
   return true;
 };
 
