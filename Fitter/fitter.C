@@ -6,11 +6,14 @@ bool checkSettings     ( const GlobalInfo& userInput);
 bool parseFile         ( std::string FileName  , std::vector< StringMap_t >& data );
 bool parseString       ( std::string input     , std::vector< double >& output );
 bool iniWorkEnv        ( StringVectorMap_t& DIR  , const std::string& workDirName );
+void iniFileDir        ( StringMapVector_t& inputFitDirs , const StringDiMapVector_t& inputInitialFilesDirs ,
+                         const StringMap_t& inputFitDir , const StringDiMap_t& inputInitialFilesDir , const StringVectorMap_t& DIR );
 void findSubDir        ( std::vector< std::string >& dirlist, std::string dirname );
 bool readFile          ( std::string FileName  , std::vector< std::vector< std::string > >& content, const int nCol=-1, int nRow=-1 );
 bool getInputFileNames ( const std::string& InputTrees, std::map< std::string, std::vector< std::vector< std::string > > >& InputFileCollection );
 bool setParameters     ( const StringMap_t& row , GlobalInfo& info , GlobalInfo& userInfo );
 bool addParameters     ( std::string InputFile , std::vector< GlobalInfo >& infoVector , GlobalInfo& userInfo );
+bool createDataSets    ( std::map< std::string, RooWorkspace >& Workspace , std::unique_ptr<TObjArray>& aDSTAG , GlobalInfo& userInput , const StringVectorMap_t& DIR );
 
 void fitter(
             const std::string workDirName = "QCDTemplate",// Working directory
@@ -51,8 +54,13 @@ void fitter(
   //
   GlobalInfo userInput;
   //
+  // Set all the Parameters from the input settings
+  //
   userInput.StrV["sample"] = std::vector<std::string>({"Data", "MC"});
   for (uint i=0; i<userInput.StrV.at("sample").size(); i++) { userInput.Flag["fit"+userInput.StrV.at("sample")[i]] = fitData[i]; }
+  userInput.Par["Analysis"] = Analysis;
+  userInput.Int["numCores"] = numCores;
+  userInput.Flag["setLogScale"] = setLogScale;
   //
   if (workDirName.find("QCDTemplateCM")!=std::string::npos) {
     userInput.Flag["applyHFCorr"]     = true;
@@ -96,24 +104,24 @@ void fitter(
   //
   //
   // Store more information for fitting
-  const std::string CWD = getcwd(NULL, 0); 
-  userInput.Par["extTreesFileDir"]    = Form("%s/Input/", CWD.c_str());
-  userInput.Par["extDSDir_DATA"]      = "";
-  userInput.Par["extDSDir_MC"]        = "";
-  if (Analysis.find("Nu")!=std::string::npos) {
-    userInput.Var["MET"]["type"]        = varType;
+  const std::string CWD = getcwd(NULL, 0);
+  userInput.Par["extTreesFileDir"] = Form("%s/Input/", CWD.c_str());
+  userInput.Par["extDSDir_DATA"]   = "";
+  userInput.Par["extDSDir_MC"]     = "";
+  if (userInput.Par.at("Analysis").find("Nu")!=std::string::npos) {
+    userInput.Var["MET"]["type"] = varType;
     if      (workDirName=="NominalCM_BinWidth3") { userInput.Var["MET"]["binWidth"] = 3.0; }
     else if (workDirName=="NominalCM_BinWidth1") { userInput.Var["MET"]["binWidth"] = 1.0; }
     else { userInput.Var["MET"]["binWidth"] = 2.0; }
-    userInput.Par["extFitDir_MET"]      = "";
+    userInput.Par["extFitDir_MET"] = "";
     if (workDirName.find("QCDTemplate")!=std::string::npos ||
         workDirName.find("SystematicCM_QCD")!=std::string::npos ||
         workDirName.find("METMax")!=std::string::npos
         ) { userInput.Par["extInitFileDir_MET_QCD"] = ""; }
     else if (workDirName.find("CM")!=std::string::npos    ) { userInput.Par["extInitFileDir_MET_QCD"] = Form("%s/Input/NominalCM/", CWD.c_str()); }
     else                                                    { userInput.Par["extInitFileDir_MET_QCD"] = Form("%s/Input/Nominal/", CWD.c_str());   }
-    userInput.Par["extInitFileDir_MET_W"  ] = "";
-    userInput.Par["extInitFileDir_MET_DY" ] = "";
+    userInput.Par["extInitFileDir_MET_W" ] = "";
+    userInput.Par["extInitFileDir_MET_DY"] = "";
   }
   // Set all the Boolean Flags from the input settings
   //
@@ -127,13 +135,13 @@ void fitter(
   userInput.Flag["dopPb"] = (userInput.Flag.at("fitpPb") || userInput.Flag.at("fitPA"));
   userInput.Flag["doPbp"] = (userInput.Flag.at("fitPbp") || userInput.Flag.at("fitPA"));
   //
-  if (Analysis.find("Nu")!=std::string::npos) {
+  if (userInput.Par.at("Analysis").find("Nu")!=std::string::npos) {
     userInput.StrV["variable"] = std::vector<std::string>({"MET"});
     userInput.StrV["METType"] = std::vector<std::string>({"PF_RAW","PF_Type1","PF_NoHF_RAW","PF_NoHF_Type1"});
     userInput.Par["METType"] = userInput.StrV.at("METType").at(varType);
   }
   //
-  if (Analysis.find("W")!=std::string::npos) {
+  if (userInput.Par.at("Analysis").find("W")!=std::string::npos) {
     userInput.StrV["charge"] = std::vector<std::string>({"Plus","Minus","ChgInc"});
     userInput.StrV["object"] = std::vector<std::string>({"W", "QCD", "DY"});
     userInput.StrV["template"] = std::vector<std::string>({"W","QCD","DY","WToTau","TTbar"});
@@ -156,20 +164,15 @@ void fitter(
     for (const auto& tmp : userInput.StrV.at("template") ) { userInput.Flag["incMCTemp_"+obj+"_"+tmp] = false; }
   }
   //
-  userInput.Flag["setLogScale"] = setLogScale;
-  //
-  // Set all the Parameters from the input settings
-  userInput.Par["Analysis"] = Analysis;
-  userInput.Par["anaType"] = "", userInput.Par["chgLabel"] = "";
+  userInput.Par["anaType"]  = "";
+  userInput.Par["chgLabel"] = ""; // IS IT USED?
   if (userInput.Par.at("Analysis").find("W")!=std::string::npos) { userInput.Par.at("anaType") = "EWQ"; }
   //
-  userInput.Flag["doMuon"] = (Analysis.find("Mu")!=std::string::npos);
+  userInput.Flag["doMuon"] = (userInput.Par.at("Analysis").find("Mu")!=std::string::npos);
   if (userInput.Flag.at("doMuon")) { userInput.Par["channel"] = "ToMu"; userInput.Par["channelDS"] = "MUON"; }
   //
-  userInput.Flag["doElec"] = (Analysis.find("Ele")!=std::string::npos);
+  userInput.Flag["doElec"] = (userInput.Par.at("Analysis").find("Ele")!=std::string::npos);
   if (userInput.Flag.at("doElec")) { userInput.Par["channel"] = "ToEl"; userInput.Par["channelDS"] = "ELEC"; }
-  //
-  userInput.Int["numCores"] = numCores;
   //
   bool fitTest = (workDirName.find("Test")!=std::string::npos);
   for (const auto& variab : userInput.StrV.at("variable")) { if (userInput.Flag.at("fit"+variab) || fitTest) { userInput.Par["extFitDir_"+variab] = ""; userInput.Par["extInitFileDir_"+variab] = "";} }
@@ -182,40 +185,17 @@ void fitter(
   StringVectorMap_t DIR;
   if(!iniWorkEnv(DIR, workDirName)){ return; }
   /////////////////////
-  std::map< std::string, std::string > inputFitDir;
+  StringMap_t inputFitDir;
   inputFitDir["MET"] = userInput.Par.at("extFitDir_MET");
-  std::map< std::string, std::map< std::string,  std::string > > inputInitialFilesDir;
+  StringDiMap_t inputInitialFilesDir;
   inputInitialFilesDir["MET"]["QCD"] = userInput.Par.at("extInitFileDir_MET_QCD");
   inputInitialFilesDir["MET"]["W"  ] = userInput.Par.at("extInitFileDir_MET_W"  );
   inputInitialFilesDir["MET"]["DY" ] = userInput.Par.at("extInitFileDir_MET_DY" );
+
   // Initiliaze all the input Fit and Initial File Directories
-  std::vector< std::map< std::string, std::string > > inputFitDirs;
-  inputFitDirs.push_back(inputFitDir);
-  for(uint i=1; i<DIR.at("input").size(); i++) {
-    inputFitDirs.push_back(inputFitDir);
-    for (const auto& iter : inputFitDirs[i]) {
-      const std::string key = iter.first;
-      if (inputFitDirs[i][key]!="") {
-        inputFitDirs[i][key] = DIR.at("input")[i];
-        inputFitDirs[i][key].replace(inputFitDirs[i][key].find(DIR.at("input")[0]), DIR.at("input")[0].length(), inputFitDirs[0][key]);
-      }
-    }
-  }
-  std::vector< std::map< std::string, std::map< std::string, std::string > > > inputInitialFilesDirs;
-  inputInitialFilesDirs.push_back(inputInitialFilesDir);
-  for(uint i=1; i<DIR.at("input").size(); i++) {
-    inputInitialFilesDirs.push_back(inputInitialFilesDir);
-    for (const auto& iter : inputInitialFilesDirs[i]) {
-      for (const auto& iter2 : iter.second) {
-        const std::string var  = iter.first;
-        const std::string type = iter2.first;
-        if (inputInitialFilesDirs[i].at(var).at(type)!="") {
-          inputInitialFilesDirs[i].at(var).at(type) = DIR.at("input")[i];
-          inputInitialFilesDirs[i].at(var).at(type).replace(inputInitialFilesDirs[i].at(var).at(type).find(DIR.at("input")[0]), DIR.at("input")[0].length(), inputInitialFilesDirs[0].at(var).at(type));
-        }
-      }
-    }
-  }
+  StringMapVector_t inputFitDirs;
+  StringDiMapVector_t inputInitialFilesDirs;
+  iniFileDir(inputFitDirs, inputInitialFilesDirs, inputFitDir, inputInitialFilesDir, DIR);
 
   // -------------------------------------------------------------------------------
   // STEP 1: LOAD THE INITIAL PARAMETERS
@@ -280,73 +260,9 @@ void fitter(
     Output: Collection of RooDataSets splitted by tag name
   */
 
-  std::string InputTrees = DIR.at("input")[0] + "InputTrees.txt";
-  if (existFile(InputTrees)==false && userInput.Par.at("extTreesFileDir")!="") { InputTrees = userInput.Par.at("extTreesFileDir") + "InputTrees.txt"; }  
-  std::map< std::string, std::vector< std::vector< std::string > > > InputFileCollection;
-  if(!getInputFileNames(InputTrees, InputFileCollection)){ return; }
-
-  std::unique_ptr<TObjArray> aDSTAG = std::unique_ptr<TObjArray>(new TObjArray()); // Array to store the different tags in the list of trees
-  aDSTAG->SetOwner(true);
-  
   std::map< std::string, RooWorkspace > Workspace;
-  for (const auto& FileCollection : InputFileCollection) {
-    // Get the file tag which has the following format: DSTAG_CHAN_COLL , i.e. DATA_MUON_Pbp
-    string FILETAG = FileCollection.first;
-    if (!FILETAG.size()) { std::cout << "[ERROR] FILETAG is empty!" << std::endl; return; }
-    userInput.Par["localDSDir"] = DIR.at("dataset")[0];
-    // Extract the filenames
-    std::string dir = "";
-    if ( (FILETAG.find("MUON")!=std::string::npos) &&  !userInput.Flag.at("doMuon") ) continue; // If we find Muon, check if the user wants Muon channel
-    if ( (FILETAG.find("ELEC")!=std::string::npos) &&  !userInput.Flag.at("doElec") ) continue; // If we find Electron, check if the user wants Electron channel
-    if ( (FILETAG.find("PA")!=std::string::npos)   &&  !userInput.Flag.at("doPA")   ) continue; // If we find PA, check if the user wants to do PA
-    if ( (FILETAG.find("pPb")!=std::string::npos)  &&  !userInput.Flag.at("dopPb")  ) continue; // If we find pPb, check if the user wants pPb
-    if ( (FILETAG.find("Pbp")!=std::string::npos)  &&  !userInput.Flag.at("doPbp")  ) continue; // If we find Pbp, check if the user wants Pbp
-    bool fitDS = false;
-    // If we have data, check if the user wants to fit data
-    if ( (FILETAG.find("DATA")!=std::string::npos) ) {
-      if (userInput.Flag.at("fitData")) {
-        dir = userInput.Par.at("localDSDir");
-        if (userInput.Flag.at("useExtDS") && userInput.Par.at("extDSDir_DATA")!="" && (existDir(userInput.Par.at("extDSDir_DATA"))==true)) { dir = userInput.Par.at("extDSDir_DATA"); }
-        fitDS = true;
-      }
-    }
-    // If we find MC, check if the user wants to fit MC
-    if ( (FILETAG.find("MC")!=std::string::npos) ) {
-      bool keep = false;
-      if (userInput.Flag.at("fitMC")) { for (const auto& obj : userInput.StrV.at("object")) { if ( (FILETAG.find(obj)!=std::string::npos) && userInput.Flag.at("fit"+obj)) { keep = true; fitDS = true; break; } } }
-      for(const auto& s : userInput.StrV.at("object")) {
-        if (userInput.Flag.at("incMCTemp_"+s)) {
-          for (const auto& tmp : userInput.StrV.at("template")) { if ( (userInput.Flag.at("incMCTemp_"+s+"_"+tmp)) && (FILETAG.find(tmp)!=std::string::npos) ) { keep = true; fitDS = false; break; } }
-        }
-      }
-      if (keep) {
-        dir = userInput.Par.at("localDSDir");
-        if (userInput.Flag.at("useExtDS") && userInput.Par.at("extDSDir_MC")!="" && (existDir(userInput.Par.at("extDSDir_MC"))==true)) { dir = userInput.Par.at("extDSDir_MC"); }
-      }
-    }
-    if (dir!="") {
-      StringVectorMap_t FileInfo;
-      FileInfo["InputFileNames"].clear(); FileInfo["TreeTags"].clear(); 
-      for (const auto& row : FileCollection.second) {
-        FileInfo.at("InputFileNames").push_back(row[0]);
-        if (row.size()>1) { FileInfo.at("TreeTags").push_back(row[1]); }
-      }
-      FileInfo["OutputFileDir"].push_back(dir);
-      FileInfo["OutputFileDir"].push_back(DIR.at("dataset")[0]);
-      if (FILETAG.find("PA")==std::string::npos) { FileInfo["DSNames"].push_back(FILETAG); }
-      else {
-        std::string NAMETAG = FILETAG; NAMETAG.erase(NAMETAG.find_last_of("_"), 5);
-        if (userInput.Flag.at("dopPb")) FileInfo["DSNames"].push_back(NAMETAG+"_pPb");
-        if (userInput.Flag.at("doPbp")) FileInfo["DSNames"].push_back(NAMETAG+"_Pbp");
-      }
-      // Produce the output datasets
-      if(!tree2DataSet(Workspace, FileInfo, userInput.Par.at("METType"), userInput.Par.at("Analysis"))){ return; }
-      if (fitDS) { for (const auto& DSTAG : FileInfo.at("DSNames")) { if (!aDSTAG->FindObject(DSTAG.c_str())) aDSTAG->Add(new TObjString(DSTAG.c_str())); } }
-    }
-  }
-  if (Workspace.size()==0) {
-    std::cout << "[ERROR] No tree files were found matching the user's input settings!" << std::endl; return;
-  }
+  std::unique_ptr<TObjArray> aDSTAG;
+  if (!createDataSets(Workspace, aDSTAG, userInput, DIR)) { return; }
 
   // -------------------------------------------------------------------------------
   // STEP 3: APPLY THE CORRECTIONS
@@ -427,6 +343,79 @@ void fitter(
       }
   }
   aDSTAG->Delete();
+};
+
+
+bool createDataSets(std::map< std::string, RooWorkspace >& Workspace, std::unique_ptr<TObjArray>& aDSTAG, GlobalInfo& userInput, const StringVectorMap_t& DIR)
+{
+  //
+  std::string InputTrees = DIR.at("input")[0] + "InputTrees.txt";
+  if (existFile(InputTrees)==false && userInput.Par.at("extTreesFileDir")!="") { InputTrees = userInput.Par.at("extTreesFileDir") + "InputTrees.txt"; }
+  std::map< std::string, std::vector< std::vector< std::string > > > InputFileCollection;
+  if(!getInputFileNames(InputTrees, InputFileCollection)){ return false; }
+
+  aDSTAG.reset(new TObjArray()); // Array to store the different tags in the list of trees
+  aDSTAG->SetOwner(true);
+  for (const auto& FileCollection : InputFileCollection) {
+    // Get the file tag which has the following format: DSTAG_CHAN_COLL , i.e. DATA_MUON_Pbp
+    string FILETAG = FileCollection.first;
+    if (!FILETAG.size()) { std::cout << "[ERROR] FILETAG is empty!" << std::endl; return false; }
+    userInput.Par["localDSDir"] = DIR.at("dataset")[0];
+    // Extract the filenames
+    std::string dir = "";
+    if ( (FILETAG.find("MUON")!=std::string::npos) &&  !userInput.Flag.at("doMuon") ) continue; // If we find Muon, check if the user wants Muon channel
+    if ( (FILETAG.find("ELEC")!=std::string::npos) &&  !userInput.Flag.at("doElec") ) continue; // If we find Electron, check if the user wants Electron channel
+    if ( (FILETAG.find("PA")!=std::string::npos)   &&  !userInput.Flag.at("doPA")   ) continue; // If we find PA, check if the user wants to do PA
+    if ( (FILETAG.find("pPb")!=std::string::npos)  &&  !userInput.Flag.at("dopPb")  ) continue; // If we find pPb, check if the user wants pPb
+    if ( (FILETAG.find("Pbp")!=std::string::npos)  &&  !userInput.Flag.at("doPbp")  ) continue; // If we find Pbp, check if the user wants Pbp
+    bool fitDS = false;
+    // If we have data, check if the user wants to fit data
+    if ( (FILETAG.find("DATA")!=std::string::npos) ) {
+      if (userInput.Flag.at("fitData")) {
+        dir = userInput.Par.at("localDSDir");
+        if (userInput.Flag.at("useExtDS") && userInput.Par.at("extDSDir_DATA")!="" && (existDir(userInput.Par.at("extDSDir_DATA"))==true)) { dir = userInput.Par.at("extDSDir_DATA"); }
+        fitDS = true;
+      }
+    }
+    // If we find MC, check if the user wants to fit MC
+    if ( (FILETAG.find("MC")!=std::string::npos) ) {
+      bool keep = false;
+      if (userInput.Flag.at("fitMC")) { for (const auto& obj : userInput.StrV.at("object")) { if ( (FILETAG.find(obj)!=std::string::npos) && userInput.Flag.at("fit"+obj)) { keep = true; fitDS = true; break; } } }
+      for(const auto& s : userInput.StrV.at("object")) {
+        if (userInput.Flag.at("incMCTemp_"+s)) {
+          for (const auto& tmp : userInput.StrV.at("template")) { if ( (userInput.Flag.at("incMCTemp_"+s+"_"+tmp)) && (FILETAG.find(tmp)!=std::string::npos) ) { keep = true; fitDS = false; break; } }
+        }
+      }
+      if (keep) {
+        dir = userInput.Par.at("localDSDir");
+        if (userInput.Flag.at("useExtDS") && userInput.Par.at("extDSDir_MC")!="" && (existDir(userInput.Par.at("extDSDir_MC"))==true)) { dir = userInput.Par.at("extDSDir_MC"); }
+      }
+    }
+    if (dir!="") {
+      StringVectorMap_t FileInfo;
+      FileInfo["InputFileNames"].clear(); FileInfo["TreeTags"].clear();
+      for (const auto& row : FileCollection.second) {
+        FileInfo.at("InputFileNames").push_back(row[0]);
+        if (row.size()>1) { FileInfo.at("TreeTags").push_back(row[1]); }
+      }
+      FileInfo["OutputFileDir"].push_back(dir);
+      FileInfo["OutputFileDir"].push_back(DIR.at("dataset")[0]);
+      if (FILETAG.find("PA")==std::string::npos) { FileInfo["DSNames"].push_back(FILETAG); }
+      else {
+        std::string NAMETAG = FILETAG; NAMETAG.erase(NAMETAG.find_last_of("_"), 5);
+        if (userInput.Flag.at("dopPb")) FileInfo["DSNames"].push_back(NAMETAG+"_pPb");
+        if (userInput.Flag.at("doPbp")) FileInfo["DSNames"].push_back(NAMETAG+"_Pbp");
+      }
+      // Produce the output datasets
+      if(!tree2DataSet(Workspace, FileInfo, userInput.Par.at("METType"), userInput.Par.at("Analysis"))){ return false; }
+      if (fitDS) { for (const auto& DSTAG : FileInfo.at("DSNames")) { if (!aDSTAG->FindObject(DSTAG.c_str())) aDSTAG->Add(new TObjString(DSTAG.c_str())); } }
+    }
+  }
+  if (Workspace.size()==0) {
+    std::cout << "[ERROR] No tree files were found matching the user's input settings!" << std::endl; return false;
+  }
+  //
+  return true;
 };
 
 
@@ -713,6 +702,36 @@ bool iniWorkEnv(std::map< std::string, std::vector< std::string > >& DIR, const 
   DIR["dataset"].push_back(DIR.at("main")[0] + "/DataSet/");
   makeDir(DIR.at("dataset")[0]);
   return true;
+};
+
+
+void iniFileDir(StringMapVector_t& inputFitDirs, StringDiMapVector_t& inputInitialFilesDirs, const StringMap_t& inputFitDir, const StringDiMap_t& inputInitialFilesDir, const StringVectorMap_t& DIR)
+{
+  inputFitDirs.push_back(inputFitDir);
+  for(uint i=1; i<DIR.at("input").size(); i++) {
+    inputFitDirs.push_back(inputFitDir);
+    for (const auto& iter : inputFitDirs[i]) {
+      const std::string key = iter.first;
+      if (inputFitDirs[i][key]!="") {
+        inputFitDirs[i][key] = DIR.at("input")[i];
+        inputFitDirs[i][key].replace(inputFitDirs[i][key].find(DIR.at("input")[0]), DIR.at("input")[0].length(), inputFitDirs[0][key]);
+      }
+    }
+  }
+  inputInitialFilesDirs.push_back(inputInitialFilesDir);
+  for(uint i=1; i<DIR.at("input").size(); i++) {
+    inputInitialFilesDirs.push_back(inputInitialFilesDir);
+    for (const auto& iter : inputInitialFilesDirs[i]) {
+      for (const auto& iter2 : iter.second) {
+        const std::string var  = iter.first;
+        const std::string type = iter2.first;
+        if (inputInitialFilesDirs[i].at(var).at(type)!="") {
+          inputInitialFilesDirs[i].at(var).at(type) = DIR.at("input")[i];
+          inputInitialFilesDirs[i].at(var).at(type).replace(inputInitialFilesDirs[i].at(var).at(type).find(DIR.at("input")[0]), DIR.at("input")[0].length(), inputInitialFilesDirs[0].at(var).at(type));
+        }
+      }
+    }
+  }
 };
 
 
