@@ -8,7 +8,7 @@
 #include "TDirectory.h"
 #include "TKey.h"
 #include "TEfficiency.h"
-#include "TVector.h"
+#include "TVectorD.h"
 #include "TH1.h"
 #include "TGraphAsymmErrors.h"
 #include "TCanvas.h"
@@ -34,10 +34,12 @@
 
 
 // ------------------ TYPE -------------------------------
-using Unc1DVec_t   =  std::map< std::string , TVector >;
-using Unc1DMap_t   =  std::map< std::string , std::map< std::string , std::map< std::string , std::map< std::string , std::map< std::string , Unc1DVec_t > > > > >;
+using Unc1DVec_t   =  std::map< std::string , TVectorD >;
+using Unc1DMap2_t  =  std::map< std::string , std::map< std::string , std::map< std::string , Unc1DVec_t > > >;
+using Unc1DMap_t   =  std::map< std::string , std::map< std::string , Unc1DMap2_t > >;
 using EffVec_t     =  std::map< std::string , std::vector< TEfficiency > >;
-using EffMap_t     =  std::map< std::string , std::map< std::string , std::map< std::string , std::map< std::string , std::map< std::string , EffVec_t > > > > >;
+using EffMap2_t    =  std::map< std::string , std::map< std::string , std::map< std::string , EffVec_t > > >;
+using EffMap_t     =  std::map< std::string , std::map< std::string , EffMap2_t > >;
 using BinMap_t     =  std::map< std::string , std::vector< double > >;
 using BinMapMap_t  =  std::map< std::string , BinMap_t >;
 using KeyPVec_t    =  std::vector< TKey* >;
@@ -51,11 +53,14 @@ bool         getObjectsFromFile  ( EffMap_t& eff , Unc1DMap_t& unc , const std::
 void         formatEff1D         ( TGraphAsymmErrors& graph , const std::string& col , const std::string& var , const std::string& charge , const std::string& type );
 void         formatEff1D         ( TEfficiency& eff , const std::string& col , const std::string& var , const std::string& charge , const std::string& type );
 void         drawEff1D           ( const std::string& outDir , EffMap_t& effMap , Unc1DMap_t& unc , const bool isCutAndCount = false );
-bool         printTableEff1D     ( const std::string& outDir , const EffMap_t& effMap , const Unc1DMap_t& uncMap , const bool isCutAndCount = false );
-void         makeTable           ( std::ofstream& file , const std::vector< TEfficiency >& eff ,
-                                   const std::vector< TVector >& tnpStat , const std::vector< TVector >& tnpSyst , 
-                                   const std::string& type , const std::vector<std::string>& info ,
-                                   const bool& isAcceptance , const bool isCutAndCount = false );
+void         createEff1DTable    ( std::vector< std::string >& texTable , const std::vector< std::string >& colTyp , const std::vector< std::string >& colCor ,
+                                   const std::vector< std::string >& colTitle1 , const std::vector< std::string >& colChg ,
+                                   const EffMap2_t& effMap , const Unc1DMap2_t& uncMap , const std::string& col );
+void         makeCorrEff1DTable  ( std::ofstream& file    , const EffMap_t& iEffMap  , const Unc1DMap_t& iUncMap , const std::string& col );
+void         makeMCEff1DTable    ( std::ofstream& file    , const EffMap_t& iEffMap  , const Unc1DMap_t& iUncMap , const std::string& col , const bool isHFReweight );
+void         makeTnPUnc1DTable   ( std::ofstream& file    , const EffMap_t& iEffMap  , const Unc1DMap_t& iUncMap , const std::string& col , const std::string& chg );
+bool         printEff1DTables    ( const EffMap_t& effMap , const Unc1DMap_t& uncMap , const std::string& outDir , const bool isHFReweight );
+
 void         formatLegendEntry   ( TLegendEntry& e );
 void         formatDecayLabel    ( std::string& label , const std::string& inLabel, const std::string c="#" );
 void         setStyle            ( );
@@ -69,11 +74,11 @@ const char*  sgn                 ( const double n ) { if (n >= 0.) { return "+";
 const std::vector< std::string > CHG_  = { "Plus" , "Minus" };
 
 
-void printEfficiency(const std::string workDirName = "NominalCM", const bool applyHFCorr = false)
+void printEfficiency(const std::string workDirName = "NominalCM", const bool applyHFCorr = true)
 {
   // Change the working directory
   const std::string CWD = getcwd(NULL, 0);
-  const std::string mainDir = Form("%s/TnPEfficiency/%s/", CWD.c_str(), (workDirName+(applyHFCorr ? "_WithHF" : "")).c_str());
+  const std::string mainDir = Form("%s/Output/%s/", CWD.c_str(), (workDirName+(applyHFCorr ? "_WithHF" : "")).c_str());
   gSystem->mkdir(mainDir.c_str(), kTRUE);
   gSystem->ChangeDirectory(mainDir.c_str());
   //
@@ -87,21 +92,18 @@ void printEfficiency(const std::string workDirName = "NominalCM", const bool app
   //
   // Extract information from the input file
   const std::string inputFileName = "efficiencyTnP.root";
-  std::cout << "1" << std::endl;
   if (!getObjectsFromFile(eff1D, unc1D, inputFileName)) { return; }
-  std::cout << "2" << std::endl;
   //
   // ------------------------------------------------------------------------------------------------------------------------
   //
   // Draw the Efficiencies
   drawEff1D(mainDir, eff1D, unc1D, isCutAndCount);
-  std::cout << "3" << std::endl;
   //
   // ------------------------------------------------------------------------------------------------------------------------
   //
   // Create Tables
-  if (!printTableEff1D(mainDir, eff1D, unc1D, isCutAndCount)) { return; };
-  std::cout << "4" << std::endl;
+  //if (!printTableEff1D(mainDir, eff1D, unc1D, isCutAndCount)) { return; };
+  if (!printEff1DTables(eff1D, unc1D, mainDir, applyHFCorr)) { return; }
   //
 };
 
@@ -168,13 +170,12 @@ bool getObjectsFromFile(EffMap_t& eff, Unc1DMap_t& unc, const std::string& fileP
                       const uint i = ( eff.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).at(co->GetName()).size() - 1);
                       eff.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).at(co->GetName())[i].SetName(key->GetName());
                     }
-                    if (key->ReadObj()->IsA()->InheritsFrom(TVector::Class())) {
-                      unc[v->GetName()][s->GetName()][c->GetName()][ch][t->GetName()][co->GetName()].ResizeTo( ((TVector*)key->ReadObj())->GetNrows() );
-                      unc.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).at(co->GetName()) = *((TVector*)key->ReadObj());
+                    if (key->ReadObj()->IsA()->InheritsFrom(TVectorD::Class())) {
+                      unc[v->GetName()][s->GetName()][c->GetName()][ch][t->GetName()][co->GetName()].ResizeTo( ((TVectorD*)key->ReadObj())->GetNrows() );
+                      unc.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).at(co->GetName()) = *((TVectorD*)key->ReadObj());
                     }
                   }
                 }
-                std::cout << v->GetName() << std::endl;
                 if (eff.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).count("NoCorr")>0) {
                   eff[v->GetName()][s->GetName()][c->GetName()][ch][t->GetName()]["NoCorrOnly"] = eff.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).at("NoCorr");
                   std::string name = eff.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).at("NoCorr")[0].GetName();
@@ -190,7 +191,7 @@ bool getObjectsFromFile(EffMap_t& eff, Unc1DMap_t& unc, const std::string& fileP
               }
               typeDir->cd();
             }
-            if (co->ReadObj()->IsA()->InheritsFrom(TVector::Class())) {
+            if (co->ReadObj()->IsA()->InheritsFrom(TVectorD::Class())) {
               for (auto& ch : CHG_) {
                 if (std::string(co->GetName()).find(ch)!=std::string::npos) {
                   std::string corrName = "";
@@ -199,8 +200,8 @@ bool getObjectsFromFile(EffMap_t& eff, Unc1DMap_t& unc, const std::string& fileP
                   if (std::string(co->GetName()).find("TnP_Tot" )!=std::string::npos) { corrName = "TnP_Tot";  }
                   if (std::string(co->GetName()).find("MC_Syst" )!=std::string::npos) { corrName = "MC_Syst";  }
                   if (corrName!="") {
-                    unc[v->GetName()][s->GetName()][c->GetName()][ch][t->GetName()][corrName].ResizeTo( ((TVector*)co->ReadObj())->GetNrows() );
-                    unc.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).at(corrName) = *((TVector*)co->ReadObj());
+                    unc[v->GetName()][s->GetName()][c->GetName()][ch][t->GetName()][corrName].ResizeTo( ((TVectorD*)co->ReadObj())->GetNrows() );
+                    unc.at(v->GetName()).at(s->GetName()).at(c->GetName()).at(ch).at(t->GetName()).at(corrName) = *((TVectorD*)co->ReadObj());
                   }
                 }
               }
@@ -537,126 +538,14 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
     }
   }
 };
-
-
-void makeTable(std::ofstream& file, const std::vector< TEfficiency >& eff, const std::vector< TVector >& tnpStat, const std::vector< TVector >& tnpSyst,
-               const std::string& type, const std::vector<std::string>& info, const bool& isAcceptance, const bool isCutAndCount)
-{
-  // Initialize the latex table
-  std::vector< std::string > texTable;
-  // 
-  texTable.push_back("\\begin{table}[h!]");
-  texTable.push_back("  \\centering");
-  texTable.push_back("  \\begin{tabular}{*3c}");
-  texTable.push_back("    \\hline");
-  texTable.push_back("    \\multirow{2}{*}{Bin} & \\multicolumn{2}{c}{Efficiency}  \\\\");
-  texTable.push_back("                          & $\\mu^{+}$      &     $\\mu^{-}$ \\\\[1ex]");
-  texTable.push_back("    \\hline\\hline\\\\");
-  //
-  for (int i = 1; i <= eff[0].GetTotalHistogram()->GetNbinsX(); i++) {
-    std::string bin;
-    const double min = eff[0].GetTotalHistogram()->GetXaxis()->GetBinLowEdge(i);
-    const double max = eff[0].GetTotalHistogram()->GetXaxis()->GetBinUpEdge(i);
-    if (info[0]=="Pt"   ) { bin = Form("$%s%.1f < \\pt < %s%.1f$", sgn(min), min, sgn(max) , max);       }
-    if (info[0]=="Eta"  ) { bin = Form("$%s%.1f < \\eta < %s%.1f$", sgn(min), min, sgn(max) , max);      }
-    if (info[0]=="EtaCM") { bin = Form("$%s%.1f < \\eta_{CM} < %s%.1f$", sgn(min), min, sgn(max) , max); }
-    std::string eff_Pl, eff_Mi;
-    if ( (type=="NoCorr") || (type=="HFCorr") ) {
-      eff_Pl = Form("$%.3f^{+%.3f}_{-%.3f}$", eff[0].GetEfficiency(i), eff[0].GetEfficiencyErrorUp(i), eff[0].GetEfficiencyErrorLow(i));
-      eff_Mi = Form("$%.3f^{+%.3f}_{-%.3f}$", eff[1].GetEfficiency(i), eff[1].GetEfficiencyErrorUp(i), eff[1].GetEfficiencyErrorLow(i));
-    }
-    else {
-      eff_Pl = Form("$%.3f^{+%.3f}_{-%.3f}", eff[0].GetEfficiency(i), eff[0].GetEfficiencyErrorUp(i), eff[0].GetEfficiencyErrorLow(i));
-      eff_Pl += Form(" \\pm %.3f\\textrm{ (stat)} \\pm %.3f\\textrm{ (syst)}$", tnpStat[0][i-1], tnpSyst[0][i-1]);
-      eff_Mi = Form("$%.3f^{+%.3f}_{-%.3f}", eff[1].GetEfficiency(i), eff[1].GetEfficiencyErrorUp(i), eff[1].GetEfficiencyErrorLow(i));
-      eff_Mi += Form(" \\pm %.3f\\textrm{ (stat)} \\pm %.3f\\textrm{ (syst)}$", tnpStat[1][i-1], tnpSyst[1][i-1]);
-    }
-    texTable.push_back(("    " + bin + " & " + eff_Pl + " & " + eff_Mi + " \\\\[1ex]").c_str());
-  }
-  //
-  texTable.push_back("    \\hline");
-  texTable.push_back("  \\end{tabular}");
-  std::string decay; formatDecayLabel(decay, info[1], "\\");
-  std::string colInfo = " The \\pPb and \\Pbp MC samples are combined as described in \\sect{sec:CombiningBeamDirection}.";
-  if (info[2]!="PA") { colInfo = ""; }
-  std::string colType = (" "+info[2]);
-  if (info[2]=="PA") { colType = ""; }
-  std::string varInfo = ""; if (info[0]=="Pt") { varInfo = "\\pt"; }; if (info[0]=="Eta") { varInfo = "\\eta"; } if (info[0]=="EtaCM") { varInfo = "\\eta_{CM}"; }
-  std::string mcInfo = ""; if (type=="NoCorr") { mcInfo = "truth efficiency"; }; if (type=="HFCorr") { mcInfo = "truth efficiency after HF reweighting"; } if (type=="TnP_Nominal") { mcInfo = "TnP corrected efficiency"; }
-  std::string tnpInfo = " The labels \"stat\" and \"syst\" represent the TnP statisitical and systematic uncertainties, respectively.";
-  if (type!="TnP_Nominal") { tnpInfo = ""; }
-  if (isAcceptance) { texTable.push_back(Form("  \\label{tab:Acceptance_%s_%s_%s}", info[0].c_str(), info[1].c_str(), info[2].c_str())); }
-  else { texTable.push_back(Form("  \\label{tab:Efficiency_%s_%s_%s_%s}", info[0].c_str(), info[1].c_str(), info[2].c_str(), type.c_str())); }
-  if (isAcceptance) {
-    texTable.push_back(Form("  \\caption{\\PW\\ acceptance as a function of the generated muon $%s$, derived from the $%s$%s \\POWHEG sample separated in negative and positive charged muons.%s Results corresponds to \\eq{eq:WAcceptance}.}", varInfo.c_str(), decay.c_str(), colType.c_str(), colInfo.c_str()));
-  }
-  else {
-    if (isCutAndCount) {
-      texTable.push_back(Form("  \\caption{Muon %s as a function of the generated muon $%s$, derived from the $%s$%s \\POWHEG sample separated in negative and positive charged muons. The tight \\PW selection has been applied for the method CutAndCount.%s%s Generated muons are require to match reconstructed muons passing all analysis cuts. Results corresponds to \\eq{eq:MCTruthEfficiency}.}", mcInfo.c_str(), varInfo.c_str(), decay.c_str(), colType.c_str(), tnpInfo.c_str(), colInfo.c_str()));
-    }
-    else {
-      texTable.push_back(Form("  \\caption{Muon %s as a function of the generated muon $%s$, derived from the $%s$%s \\POWHEG sample separated in negative and positive charged muons.%s%s Generated muons are require to match reconstructed muons passing all analysis cuts. Results corresponds to \\eq{eq:MCTruthEfficiency}.}", mcInfo.c_str(), varInfo.c_str(), decay.c_str(), colType.c_str(), tnpInfo.c_str(), colInfo.c_str()));
-    }
-  }
-  texTable.push_back("\\end{table}");
-  //
-  for (const auto& row : texTable) { file << row << std::endl; }
-  file << endl; file << endl;
-  //
-};
-
-
-bool printTableEff1D(const std::string& outDir, const EffMap_t& effMap, const Unc1DMap_t& uncMap, const bool isCutAndCount)
-{
-  // Draw all graphs
-  for (auto& v : effMap) {
-    for (auto& s : v.second) {
-      for (auto& cl : s.second) {
-        // Create Output Directory
-        const std::string tableDir = outDir + "TablesLATEX/" + v.first+"/" + s.first+"/" + cl.first;
-        makeDir(tableDir);
-        // Create Output Files
-        const std::string fileName_NoCorr = "eff1D_" + v.first +"_"+ s.first +"_"+ cl.first +"_"+ "Total" +"_"+ "NoCorr";
-        std::ofstream file_NoCorr((tableDir + "/" + fileName_NoCorr + ".tex").c_str());
-        if (file_NoCorr.is_open()==false) { std::cout << "[ERROR] File " << fileName_NoCorr << " was not created!" << std::endl; return false; }
-        const std::string fileName_Corr   = "eff1D_" + v.first +"_"+ s.first +"_"+ cl.first +"_"+ "Total" +"_"+ "TnP_Nominal";
-        std::ofstream file_Corr((tableDir + "/" + fileName_Corr + ".tex").c_str());
-        if (file_Corr.is_open()==false) { std::cout << "[ERROR] File " << fileName_Corr << " was not created!" << std::endl; return false; }
-        // Efficiency
-        const TEfficiency& eff_Pl_NoCorr = effMap.at(v.first).at(s.first).at(cl.first).at("Plus").at("Total").at("NoCorr")[0];
-        const TEfficiency& eff_Mi_NoCorr = effMap.at(v.first).at(s.first).at(cl.first).at("Minus").at("Total").at("NoCorr")[0];
-        const TEfficiency& eff_Pl_Corr   = effMap.at(v.first).at(s.first).at(cl.first).at("Plus").at("Total").at("TnP_Nominal")[0];
-        const TEfficiency& eff_Mi_Corr   = effMap.at(v.first).at(s.first).at(cl.first).at("Minus").at("Total").at("TnP_Nominal")[0];
-        // Uncertainty
-        const TVector&     unc_Pl_Stat   = uncMap.at(v.first).at(s.first).at(cl.first).at("Plus").at("Total").at("TnP_Stat");
-        const TVector&     unc_Mi_Stat   = uncMap.at(v.first).at(s.first).at(cl.first).at("Minus").at("Total").at("TnP_Stat");
-        const TVector&     unc_Pl_Syst   = uncMap.at(v.first).at(s.first).at(cl.first).at("Plus").at("Total").at("TnP_Syst");
-        const TVector&     unc_Mi_Syst   = uncMap.at(v.first).at(s.first).at(cl.first).at("Minus").at("Total").at("TnP_Syst");
-        // Make table for uncorrected efficiency
-        makeTable(file_NoCorr, {eff_Pl_NoCorr, eff_Mi_NoCorr}, {}, {}, "NoCorr", {v.first, s.first, cl.first}, false, isCutAndCount);
-        // Make table for corrected efficiency
-        makeTable(file_Corr, {eff_Pl_Corr, eff_Mi_Corr}, {unc_Pl_Stat, unc_Mi_Stat}, {unc_Pl_Syst, unc_Mi_Syst}, "TnP_Nominal", {v.first, s.first, cl.first}, false);
-        // Make table with all the uncertainties splitted
-        //makeTable(file_Corr, uncMap.at(v.first).at(s.first).at(cl.first).at("Plus").at("Total"), "Plus", {v.first, s.first, cl.first});
-        //makeTable(file_Corr, uncMap.at(v.first).at(s.first).at(cl.first).at("Minus").at("Total"), "Minus", {v.first, s.first, cl.first});
-        // Acceptance
-        const TEfficiency& acc_Pl_NoCorr = effMap.at(v.first).at(s.first).at(cl.first).at("Plus").at("Acceptance").at("NoCorr")[0];
-        const TEfficiency& acc_Mi_NoCorr = effMap.at(v.first).at(s.first).at(cl.first).at("Minus").at("Acceptance").at("NoCorr")[0];
-        // Make table for uncorrected efficiency
-        makeTable(file_NoCorr, {acc_Pl_NoCorr, acc_Mi_NoCorr}, {}, {}, "NoCorr", {v.first, s.first, cl.first}, true, isCutAndCount);
-      }
-    }
-  }
-  return true;
-};
  
  
- void setStyle()
- {
-   // Set the CMS style
-   setTDRStyle();
-   gStyle->SetOptStat(0);
-   gStyle->SetOptFit(0);
+void setStyle()
+{
+  // Set the CMS style
+  setTDRStyle();
+  gStyle->SetOptStat(0);
+  gStyle->SetOptFit(0);
   //
 };
 
@@ -702,4 +591,348 @@ KeyPVec_t getK(TList* list)
   KeyPVec_t out;
   while (TKey* key = (TKey*)iter()) { out.push_back(key); }
   return out;
+};
+
+
+void createEff1DTable(std::vector< std::string >& texTable, const std::vector< std::string >& colTyp, const std::vector< std::string >& colCor, const std::vector< std::string >& colTitle1,
+                      const std::vector< std::string >& colChg, const EffMap2_t& effMap, const Unc1DMap2_t& uncMap, const std::string& col)
+{
+  //
+  const uint nCol = colTyp.size();
+  //
+  texTable.push_back("  \\renewcommand{\\arraystretch}{1.5}");
+  texTable.push_back(Form("  \\begin{tabular}{|c|*%dc|}", (nCol-1)));
+  texTable.push_back("    \\hline");
+  std::string tmp;
+  tmp = ("    ");
+  for (uint i = 0; i < nCol; i++) {
+    tmp += colTitle1[i];
+    if (i<(nCol-1)) { tmp += " & "; }
+    else { tmp += "\\\\"; }
+  }
+  texTable.push_back(tmp);
+  texTable.push_back("    \\hline\\hline");
+  //
+  const auto& nomEff = effMap.at(col).at("Plus").at("Total").at("NoCorr")[0];
+  //
+  for (int iBin = 1; iBin <= nomEff.GetTotalHistogram()->GetNbinsX(); iBin++) {
+    tmp = ("    ");
+    for (uint i = 0; i < nCol; i++) {
+      const auto&  typ = colTyp[i];
+      const auto&  cor = colCor[i];
+      const auto&  chg = colChg[i];
+      std::string val;
+      if (cor=="NoCorr" || cor=="HFCorr") {
+        const auto& eff = effMap.at(col).at(chg).at(typ).at(cor)[0];
+        const double errLow = eff.GetEfficiencyErrorLow(iBin);
+        const double errHi  = eff.GetEfficiencyErrorUp(iBin);
+        const double rVal   = eff.GetEfficiency(iBin);
+        if (std::abs(errLow-errHi)<0.00001) { val = Form("$%.3f \\pm %.3f$", rVal, errLow ); }
+        else { val = Form("$%.3f^{+%.3f}_{-%.3f}$", rVal, errHi, errLow ); }
+      }
+      else if (cor=="TnP_Nominal") {
+        const auto& eff = effMap.at(col).at(chg).at(typ).at(cor)[0];
+        const double errLow = eff.GetEfficiencyErrorLow(iBin);
+        const double errHi  = eff.GetEfficiencyErrorUp(iBin);
+        const double rVal   = eff.GetEfficiency(iBin);
+        const auto& tnpStat = uncMap.at(col).at(chg).at(typ).at("TnP_Stat");
+        const auto& tnpSyst = uncMap.at(col).at(chg).at(typ).at("TnP_Syst");
+        const double tnpErr = TMath::Sqrt(TMath::Power(tnpStat[iBin-1], 2.0) + TMath::Power(tnpSyst[iBin-1], 2.0));
+        if (std::abs(errLow-errHi)<0.00001) { val = Form("$%.3f \\pm %.3f", rVal, errLow ); }
+        else { val = Form("$%.3f^{+%.3f}_{-%.3f}", rVal, errHi, errLow ); }
+        val += Form(" \\pm %.3f \\textrm{ (tnp)}$", tnpErr);
+      }
+      else {
+        const double min = nomEff.GetTotalHistogram()->GetXaxis()->GetBinLowEdge(iBin);
+        const double max = nomEff.GetTotalHistogram()->GetXaxis()->GetBinUpEdge(iBin);
+        val = Form("%s%.2f , %s%.2f", sgn(min), min, sgn(max) , max);
+      }
+      tmp += val;
+      if (i<(nCol-1)) { tmp += " & "; } else { tmp += "\\\\"; }
+    }
+    texTable.push_back(tmp);
+    texTable.push_back("    \\hline");
+  }
+  //
+  texTable.push_back("  \\end{tabular}");
+  //
+};
+
+
+void makeCorrEff1DTable(std::ofstream& file, const EffMap_t& iEffMap, const Unc1DMap_t& iUncMap, const std::string& col)
+{
+  //
+  bool useEtaCM = false; if (iEffMap.count("EtaCM")>0) { useEtaCM = true; }
+  std::string varLbl = "EtaCM"; if (!useEtaCM) { varLbl = "Eta"; }
+  if (iEffMap.count(varLbl)==0) { std::cout << "[ERROR] Variable " << varLbl << " was not found" << std::endl; return; }
+  // Draw all graphs
+  const auto& effMap = iEffMap.at(varLbl).at("MC_WToMuNu");
+  const auto& uncMap = iUncMap.at(varLbl).at("MC_WToMuNu");
+  //
+  std::string pTCUT = "$p_{T} > 25$~GeV/c";
+  //
+  // Initialize the latex table
+  std::vector< std::string > texTable;
+  //
+  // Determine number of columns
+  const std::vector< std::string > colChg = { "" , "Minus" , "Plus" };
+  const std::vector< std::string > colCor = { "" , "TnP_Nominal" , "TnP_Nominal" };
+  const std::vector< std::string > colTyp = { "VAR" , "Total" , "Total" };
+  std::vector< std::string >    colTitle1 = { "$\\eta_{LAB}$ Range" , "$\\PW^{-}\\to\\mu^{-}$ Corrected Efficiency" , "$\\PW^{+}\\to\\mu^{+}$ Corrected Efficiency" };
+  if (useEtaCM) { colTitle1[0] = "$\\eta_{CM}$ Range"; }
+  //
+  texTable.push_back("\\begin{table}[h!]");
+  texTable.push_back("  \\centering");
+  //texTable.push_back("  \\resizebox{\\textwidth}{!}{");
+  createEff1DTable(texTable, colTyp, colCor, colTitle1, colChg, effMap, uncMap, col);
+  //texTable.push_back("  }");
+  texTable.push_back(Form("  \\caption{%s}",
+                          Form("Muon corrected efficiency as a function of the generated %s, derived from the $\\PW \\to \\mu+\\nu_{\\mu}$ %s \\POWHEG samples separated in negative and positive charged muons. %sGenerated muons are require to match reconstructed muons passing all analysis cuts. The muon efficiency has been corrected by applying the Tag and Probe scale factors event by event. The label \"tnp\" represent the TnP total uncertainty.",
+                               (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
+                               col.c_str(),
+                               ( (col=="PA") ? "The \\pPb and \\Pbp MC samples are combined as described in \\sect{sec:CombiningBeamDirection}. " : "")
+                               )
+                          )
+                     );
+  texTable.push_back(Form("  \\label{tab:corrEfficiency_WToMu_%s}", col.c_str()));
+  texTable.push_back("\\end{table}");
+  //
+  for (const auto& row : texTable) { file << row << std::endl; }
+  file << std::endl; file << std::endl;
+  //
+};
+
+
+void makeMCEff1DTable(std::ofstream& file, const EffMap_t& iEffMap, const Unc1DMap_t& iUncMap, const std::string& col, const bool isHFReweight)
+{
+  //
+  bool useEtaCM = false; if (iEffMap.count("EtaCM")>0) { useEtaCM = true; }
+  std::string varLbl = "EtaCM"; if (!useEtaCM) { varLbl = "Eta"; }
+  if (iEffMap.count(varLbl)==0) { std::cout << "[ERROR] Variable " << varLbl << " was not found" << std::endl; return; }
+  // Draw all graphs
+  const auto& effMap = iEffMap.at(varLbl).at("MC_WToMuNu");
+  const auto& uncMap = iUncMap.at(varLbl).at("MC_WToMuNu");
+  //
+  std::string pTCUT = "$p_{T} > 25$~GeV/c";
+  //
+  // Initialize the latex table
+  std::vector< std::string > texTable;
+  //
+  // Determine number of columns
+  const std::vector< std::string > colChg = (isHFReweight ? std::vector< std::string >({ "" , "Minus" , "Minus" , "Plus" , "Plus" }) : std::vector< std::string >({ "" , "Minus" , "Plus" }));
+  const std::vector< std::string > colCor = (isHFReweight ? std::vector< std::string >({ "" , "NoCorr" , "HFCorr" , "NoCorr" , "HFCorr" }) : std::vector< std::string >({ "" , "NoCorr" , "NoCorr" }));
+  const std::vector< std::string > colTyp = (isHFReweight ? std::vector< std::string >({ "VAR" , "Total" , "Total" , "Total" , "Total" }) : std::vector< std::string >({ "VAR" , "Total" , "Total" }));
+  std::vector< std::string >    colTitle1 = (isHFReweight ? std::vector< std::string >({ "$\\eta_{LAB}$ Range" , "$\\PW^{-}\\to\\mu^{-}$ Truth Efficiency" , "$\\PW^{-}\\to\\mu^{-}$ Reweighted Efficiency" , "$\\PW^{+}\\to\\mu^{+}$ Truth Efficiency" , "$\\PW^{+}\\to\\mu^{+}$ Reweighted Efficiency" }) : std::vector< std::string >({ "$\\eta_{LAB}$ Range" , "$\\PW^{-}\\to\\mu^{-}$ Truth Efficiency" , "$\\PW^{+}\\to\\mu^{+}$ Truth Efficiency" }));
+if (useEtaCM) { colTitle1[0] = "$\\eta_{CM}$ Range"; }
+  //
+  texTable.push_back("\\begin{table}[h!]");
+  texTable.push_back("  \\centering");
+  //texTable.push_back("  \\resizebox{\\textwidth}{!}{");
+  createEff1DTable(texTable, colTyp, colCor, colTitle1, colChg, effMap, uncMap, col);
+  //texTable.push_back("  }");
+  texTable.push_back(Form("  \\caption{%s}",
+                          Form("Muon truth efficiency as a function of the generated %s, derived from the $\\PW \\to \\mu+\\nu_{\\mu}$ %s \\POWHEG samples separated in negative and positive charged muons. %sGenerated muons are require to match reconstructed muons passing all analysis cuts.%s Results corresponds to \\eq{eq:MCTruthEfficiency}",
+                               (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
+                               col.c_str(),
+                               ( (col=="PA") ? "The \\pPb and \\Pbp MC samples are combined as described in \\sect{sec:CombiningBeamDirection}. " : ""),
+                               (isHFReweight ? "The event activity of the MC samples have been re-weighted." : "")
+                               )
+                          )
+                     );
+  texTable.push_back(Form("  \\label{tab:mcEfficiency_WToMu_%s}", col.c_str()));
+  texTable.push_back("\\end{table}");
+  //
+  for (const auto& row : texTable) { file << row << std::endl; }
+  file << std::endl; file << std::endl;
+  //
+};
+
+
+void createUnc1DTable(std::vector< std::string >& texTable, const std::vector< std::string >& colTyp, const std::vector< std::string >& colCor, const std::vector< std::string >& colTitle1,
+                      const std::vector< std::string >& colChg, const EffMap2_t& effMap, const Unc1DMap2_t& uncMap, const std::string& col)
+{
+  //
+  const uint nCol = colTyp.size();
+  //
+  texTable.push_back("  \\renewcommand{\\arraystretch}{1.5}");
+  texTable.push_back(Form("  \\begin{tabular}{|c|*%dc|}", (nCol-1)));
+  texTable.push_back("    \\hline");
+  std::string tmp;
+  tmp = ("    ");
+  for (uint i = 0; i < nCol; i++) {
+    tmp += colTitle1[i];
+    if (i<(nCol-1)) { tmp += " & "; }
+    else { tmp += "\\\\"; }
+  }
+  texTable.push_back(tmp);
+  texTable.push_back("    \\hline\\hline");
+  //
+  const auto& nomUnc = uncMap.at(col).at("Plus").at("Total").at("TnP_Stat");
+  //
+  for (int iBin = 0; iBin < nomUnc.GetNrows(); iBin++) {
+    tmp = ("    ");
+    for (uint i = 0; i < nCol; i++) {
+      const auto&  typ = colTyp[i];
+      const auto&  cor = colCor[i];
+      const auto&  chg = colChg[i];
+      std::string val;
+      if (cor=="TnP_Syst_STA") {
+        const auto& nomEff = effMap.at(col).at("Plus").at("Total").at("TnP_Nominal")[0];
+        const double tnpErr = 0.0060*nomEff.GetEfficiency(iBin);
+        val = Form("%.4f", tnpErr );
+      }
+      else  if (cor=="TnP_Syst_PU") {
+        const auto& nomEff = effMap.at(col).at("Plus").at("Total").at("TnP_Nominal")[0];
+        const double tnpErr = 0.0034*nomEff.GetEfficiency(iBin);
+        val = Form("%.4f", tnpErr );
+      }
+      else if (cor=="TnP_Stat_MuID" || cor=="TnP_Stat_Iso" || cor=="TnP_Stat_Trig") {
+        double tnpErr = 0.0;
+        if (uncMap.at(col).at(chg).at(typ).count(cor+"_p21_p24")>0) {
+          for (const auto& cr : uncMap.at(col).at(chg).at(typ)) {
+            if (cr.first.find(cor+"_")!=std::string::npos) {
+              tnpErr += std::pow( cr.second[iBin] , 2.0 );
+            }
+          }
+          tnpErr = std::sqrt( tnpErr );
+        }
+        else {
+          tnpErr = uncMap.at(col).at(chg).at(typ).at(cor)[iBin];
+        }
+        val = Form("%.4f", tnpErr );
+      }
+      else if (typ=="Total") {
+        const auto& tnpErr = uncMap.at(col).at(chg).at(typ).at(cor)[iBin];
+        val = Form("%.4f", tnpErr );
+      }
+      else {
+        const auto& nomEff = effMap.at(col).at("Plus").at("Total").at("NoCorr")[0];
+        const double min = nomEff.GetTotalHistogram()->GetXaxis()->GetBinLowEdge(iBin+1);
+        const double max = nomEff.GetTotalHistogram()->GetXaxis()->GetBinUpEdge(iBin+1);
+        val = Form("%s%.2f , %s%.2f", sgn(min), min, sgn(max) , max);
+      }
+      tmp += val;
+      if (i<(nCol-1)) { tmp += " & "; } else { tmp += "\\\\"; }
+    }
+    texTable.push_back(tmp);
+    texTable.push_back("    \\hline");
+  }
+  //
+  texTable.push_back("  \\end{tabular}");
+  //
+};
+
+
+void makeTnPUnc1DTable(std::ofstream& file, const EffMap_t& iEffMap, const Unc1DMap_t& iUncMap, const std::string& col, const std::string& chg)
+{
+  //
+  bool useEtaCM = false; if (iEffMap.count("EtaCM")>0) { useEtaCM = true; }
+  std::string varLbl = "EtaCM"; if (!useEtaCM) { varLbl = "Eta"; }
+  if (iUncMap.count(varLbl)==0) { std::cout << "[ERROR] Variable " << varLbl << " was not found" << std::endl; return; }
+  // Draw all graphs
+  const auto& uncMap = iUncMap.at(varLbl).at("MC_WToMuNu");
+  const auto& effMap = iEffMap.at(varLbl).at("MC_WToMuNu");
+  //
+  std::string pTCUT = "$p_{T} > 25$~GeV/c";
+  //
+  // Initialize the latex table
+  std::vector< std::string > texTable;
+  //
+  // Determine number of columns
+  std::vector< std::string > colChg = { "" , chg , chg , chg , chg , chg , chg , chg , chg };
+  std::vector< std::string > colCor = { "" , "TnP_Syst_MuID" , "TnP_Syst_Iso" , "TnP_Syst_Trig" , "TnP_Syst_BinIso" , "TnP_Syst_BinMuID" , "TnP_Syst_STA" , "TnP_Syst_PU" , "TnP_Syst" };
+  std::vector< std::string > colTyp = { "VAR" , "Total" , "Total" , "Total" , "Total" , "Total" , "Total" , "Total" , "Total" };
+  std::vector< std::string > colTitle1 = { "$\\eta_{LAB}$ Range" , "MuID" , "Iso" , "Trig" , "Iso Binned" , "MuID Binned" , "STA" , "PU" , "Total" };
+  if (useEtaCM) { colTitle1[0] = "$\\eta_{CM}$ Range"; }
+  //
+  texTable.push_back("\\begin{table}[h!]");
+  texTable.push_back("  \\centering");
+  texTable.push_back("  \\resizebox{\\textwidth}{!}{");
+  createUnc1DTable(texTable, colTyp, colCor, colTitle1, colChg, effMap, uncMap, col);
+  texTable.push_back("  }");
+  texTable.push_back(Form("  \\caption{%s}",
+                          Form("Systematic uncertainties corresponding to the muon efficiency corrections derived applying the Tag and Probe scale factors event by event. Each source  for each source  The errors are shown as a function of the generated %s, derived from the %s %s \\POWHEG samples separated in negative and positive charged muons. %sGenerated muons are require to match reconstructed muons passing all analysis cuts.",
+                               (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
+                               (chg=="Plus" ? "$\\PW^{+} \\to \\mu^{+}+\\nu_{\\mu}$" : "$\\PW^{-} \\to \\mu^{-}+\\nu_{\\mu}$"),
+                               col.c_str(),
+                               ( (col=="PA") ? "The \\pPb and \\Pbp MC samples are combined as described in \\sect{sec:CombiningBeamDirection}. " : "")
+                               )
+                          )
+                     );
+  texTable.push_back(Form("  \\label{tab:tnpSystUncertainty_WToMu_%s_%s}", chg.c_str(), col.c_str()));
+  texTable.push_back("\\end{table}");
+  //
+  for (const auto& row : texTable) { file << row << std::endl; }
+  file << std::endl; file << std::endl;
+  //
+  //
+  // Initialize the latex table
+  texTable.clear(); colChg.clear(); colCor.clear(); colTyp.clear(); colTitle1.clear();
+  //
+  // Determine number of columns
+  colChg = std::vector< std::string >({ "" , chg , chg , chg , chg });
+  colCor = std::vector< std::string >({ "" , "TnP_Stat_MuID" , "TnP_Stat_Iso" , "TnP_Stat_Trig" , "TnP_Stat" });
+  colTyp = std::vector< std::string >({ "VAR" , "Total" , "Total" , "Total" , "Total" });
+  colTitle1 = std::vector< std::string >({ "$\\eta_{LAB}$ Range" , "MuID" , "Iso" , "Trig" , "Total" });
+  if (useEtaCM) { colTitle1[0] = "$\\eta_{CM}$ Range"; }
+  //
+  texTable.push_back("\\begin{table}[h!]");
+  texTable.push_back("  \\centering");
+  texTable.push_back("  \\resizebox{\\textwidth}{!}{");
+  createUnc1DTable(texTable, colTyp, colCor, colTitle1, colChg, effMap, uncMap, col);
+  texTable.push_back("  }");
+  texTable.push_back(Form("  \\caption{%s}",
+                          Form("Statistic uncertainties corresponding to the muon efficiency corrections derived applying the Tag and Probe scale factors event by event. Each source  for each source  The errors are shown as a function of the generated %s, derived from the %s %s \\POWHEG samples separated in negative and positive charged muons. %sGenerated muons are require to match reconstructed muons passing all analysis cuts.",
+                               (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
+                               (chg=="Plus" ? "$\\PW^{+} \\to \\mu^{+}+\\nu_{\\mu}$" : "$\\PW^{-} \\to \\mu^{-}+\\nu_{\\mu}$"),
+                               col.c_str(),
+                               ( (col=="PA") ? "The \\pPb and \\Pbp MC samples are combined as described in \\sect{sec:CombiningBeamDirection}. " : "")
+                               )
+                          )
+                     );
+  texTable.push_back(Form("  \\label{tab:tnpStatUncertainty_WToMu_%s_%s}", chg.c_str(), col.c_str()));
+  texTable.push_back("\\end{table}");
+  //
+  for (const auto& row : texTable) { file << row << std::endl; }
+  file << std::endl; file << std::endl;
+
+
+
+};
+
+
+bool printEff1DTables(const EffMap_t& effMap, const Unc1DMap_t& uncMap, const std::string& outDir, const bool isHFReweight)
+{
+  //
+  std::cout << "[INFO] Filling the efficiency tables" << std::endl;
+  //
+  for (const auto& c : effMap.at("EtaCM").at("MC_WToMuNu")) {
+    // Create Output Directory
+    const std::string tableDir = outDir + "/Tables/Efficiency/" + c.first;
+    makeDir(tableDir);
+    // Create Output Files for MC Efficiency
+    const std::string fileName_MC = "mcEfficiency_" + c.first;
+    std::ofstream file_MC((tableDir + "/" + fileName_MC + ".tex").c_str());
+    if (file_MC.is_open()==false) { std::cout << "[ERROR] File " << fileName_MC << " was not created!" << std::endl; return false; }
+    //
+    makeMCEff1DTable(file_MC, effMap, uncMap, c.first, isHFReweight);
+    //
+    // Create Output Files for TnP Efficiency
+    const std::string fileName_TnPEff = "corrEfficiency_" + c.first;
+    std::ofstream file_TnPEff((tableDir + "/" + fileName_TnPEff + ".tex").c_str());
+    if (file_TnPEff.is_open()==false) { std::cout << "[ERROR] File " << fileName_TnPEff << " was not created!" << std::endl; return false; }
+    //
+    makeCorrEff1DTable(file_TnPEff, effMap, uncMap, c.first);
+    //
+    // Create Output Files for TnP Uncertainties
+    const std::string fileName_TnPUnc = "tnpUncertainty_" + c.first;
+    std::ofstream file_TnPUnc((tableDir + "/" + fileName_TnPUnc + ".tex").c_str());
+    if (file_TnPUnc.is_open()==false) { std::cout << "[ERROR] File " << fileName_TnPUnc << " was not created!" << std::endl; return false; }
+    //
+    makeTnPUnc1DTable(file_TnPUnc, effMap, uncMap, c.first, "Plus");
+    //
+    makeTnPUnc1DTable(file_TnPUnc, effMap, uncMap, c.first, "Minus");
+  }
+  //
+  return true;
 };

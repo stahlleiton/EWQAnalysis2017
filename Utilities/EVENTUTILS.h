@@ -181,7 +181,7 @@ namespace PYTHIA {
 //
 namespace EXTERN {
   std::map< std::string , std::map< std::string , double > > XSec = {
-    { "TTall"              , { { "pPb" , 45.00   }  , { "Pbp" , 45.00   } } } // CMS Measurement: https://arxiv.org/pdf/1709.07411.pdf
+    { "TTall"    , { { "pPb" , 45.00   }  , { "Pbp" , 45.00   } } } // CMS Measurement: https://arxiv.org/pdf/1709.07411.pdf
   };
 };
 //
@@ -216,12 +216,10 @@ namespace PA {
       POWHEG_WToTauNu_Minus_pPb    =  35,
       POWHEG_WToTauNu_Minus_Pbp    = -35,
       POWHEG_TTall_pPb             =  36,
-      POWHEG_TTall_Pbp             = -36,
-      // For External
-      EXTERN_TTall_pPb             =  46,
-      EXTERN_TTall_Pbp             = -46
+      POWHEG_TTall_Pbp             = -36
       };
   //
+  // This Dictionary is used to assign a unique tag to each MC sample
   const std::map< std::string , int > MCTypeDictionary = {
     { "Invalid"                      , int(MCType::Invalid)},
     // For Pythia8
@@ -250,11 +248,46 @@ namespace PA {
     { "POWHEG_WToTauNu_Minus_pPb"    , int(MCType::POWHEG_WToTauNu_Minus_pPb)},
     { "POWHEG_WToTauNu_Minus_Pbp"    , int(MCType::POWHEG_WToTauNu_Minus_Pbp)},
     { "POWHEG_TTall_pPb"             , int(MCType::POWHEG_TTall_pPb)},
-    { "POWHEG_TTall_Pbp"             , int(MCType::POWHEG_TTall_Pbp)},
-    // For External
-    { "EXTERN_TTall_pPb"             , int(MCType::EXTERN_TTall_pPb)},
-    { "EXTERN_TTall_Pbp"             , int(MCType::EXTERN_TTall_Pbp)}
+    { "POWHEG_TTall_Pbp"             , int(MCType::POWHEG_TTall_Pbp)}
   };
+  //
+  // This Dictionary is used to determine the cross-section used for each MC sample (based on their ID)
+  const std::map< int , std::string > MCXSectionDictionary = {
+    { int(MCType::Invalid)                      , "Invalid"},
+    // For Pythia8
+    { int(MCType::PYTHIA_QCDToMu_pPb)           , "PYTHIA_QCDToMu_pPb"},
+    { int(MCType::PYTHIA_QCDToMu_Pbp)           , "PYTHIA_QCDToMu_Pbp"},
+    // For Pyquen
+    { int(MCType::PYQUEN_WToMuNu_pPb)           , "PYQUEN_WToMuNu_pPb"},
+    { int(MCType::PYQUEN_WToMuNu_Pbp)           , "PYQUEN_WToMuNu_Pbp"},
+    { int(MCType::PYQUEN_DYToMuMu_M_30_Inf_pPb) , "PYQUEN_DYToMuMu_M_30_Inf_pPb"},
+    { int(MCType::PYQUEN_DYToMuMu_M_30_Inf_Pbp) , "PYQUEN_DYToMuMu_M_30_Inf_Pbp"},
+    { int(MCType::PYQUEN_WToTauNu_pPb)          , "PYQUEN_WToTauNu_pPb"},
+    { int(MCType::PYQUEN_WToTauNu_Pbp)          , "PYQUEN_WToTauNu_Pbp"},
+    { int(MCType::PYQUEN_TTall_pPb)             , "PYQUEN_TTall_pPb"},
+    { int(MCType::PYQUEN_TTall_Pbp)             , "PYQUEN_TTall_Pbp"},
+    // For Powheg
+    { int(MCType::POWHEG_WToMuNu_Plus_pPb)      , "POWHEG_WToMuNu_Plus_pPb"},
+    { int(MCType::POWHEG_WToMuNu_Plus_Pbp)      , "POWHEG_WToMuNu_Plus_Pbp"},
+    { int(MCType::POWHEG_WToMuNu_Minus_pPb)     , "POWHEG_WToMuNu_Minus_pPb"},
+    { int(MCType::POWHEG_WToMuNu_Minus_Pbp)     , "POWHEG_WToMuNu_Minus_Pbp"},
+    { int(MCType::POWHEG_DYToMuMu_M_30_Inf_pPb) , "POWHEG_DYToMuMu_M_30_Inf_pPb"},
+    { int(MCType::POWHEG_DYToMuMu_M_30_Inf_Pbp) , "POWHEG_DYToMuMu_M_30_Inf_Pbp"},
+    { int(MCType::POWHEG_DYToMuMu_M_10_30_pPb)  , "POWHEG_DYToMuMu_M_10_30_pPb"},
+    { int(MCType::POWHEG_DYToMuMu_M_10_30_Pbp)  , "POWHEG_DYToMuMu_M_10_30_Pbp"},
+    { int(MCType::POWHEG_WToTauNu_Plus_pPb)     , "POWHEG_WToTauNu_Plus_pPb"},
+    { int(MCType::POWHEG_WToTauNu_Plus_Pbp)     , "POWHEG_WToTauNu_Plus_Pbp"},
+    { int(MCType::POWHEG_WToTauNu_Minus_pPb)    , "POWHEG_WToTauNu_Minus_pPb"},
+    { int(MCType::POWHEG_WToTauNu_Minus_Pbp)    , "POWHEG_WToTauNu_Minus_Pbp"},
+    { int(MCType::POWHEG_TTall_pPb)             , "EXTERN_TTall_pPb"},
+    { int(MCType::POWHEG_TTall_Pbp)             , "EXTERN_TTall_Pbp"}
+  };
+  //
+  std::string getMCXSecName(const int& MCTypeID)
+    {
+      if (MCXSectionDictionary.count(MCTypeID)>0) { return MCXSectionDictionary.at(MCTypeID); }
+      return "Invalid";
+    };
   //
   std::string getMCTypeName(const int& MCTypeID)
     {
@@ -268,12 +301,12 @@ namespace PA {
     return int(MCType::Invalid);
   };
   //
-  bool getCrossSection(double& xSection, const std::string& MCTypeName)
+  bool getCrossSection(double& xSection, const std::string& MCXSecName)
   {
     xSection = -1.0;
-    std::string GENTAG  = MCTypeName; GENTAG.erase(GENTAG.find("_"), GENTAG.length());
-    std::string NAMETAG = MCTypeName; NAMETAG = NAMETAG.substr(NAMETAG.find("_")+1); NAMETAG.erase(NAMETAG.find_last_of("_"), 5);
-    std::string COLTAG  = MCTypeName; COLTAG = COLTAG.substr(COLTAG.find_last_of("_")+1);
+    std::string GENTAG  = MCXSecName; GENTAG.erase(GENTAG.find("_"), GENTAG.length());
+    std::string NAMETAG = MCXSecName; NAMETAG = NAMETAG.substr(NAMETAG.find("_")+1); NAMETAG.erase(NAMETAG.find_last_of("_"), 5);
+    std::string COLTAG  = MCXSecName; COLTAG = COLTAG.substr(COLTAG.find_last_of("_")+1);
     if (GENTAG == "POWHEG") {
       if (POWHEG::XSec.count(NAMETAG) == 0) { std::cout << "[ERROR] POWHEG Cross-section was not found for process: " << NAMETAG << std::endl; return false; }
       if (POWHEG::XSec.at(NAMETAG).count(COLTAG) == 0) { std::cout << "[ERROR] POWHEG Cross-section was not found for process: " << (NAMETAG+"_"+COLTAG) << std::endl; return false; }
@@ -302,7 +335,7 @@ namespace PA {
   //
   bool getCrossSection(double& xSection, const int& MCTypeID)
   {
-    return getCrossSection(xSection, getMCTypeName(MCTypeID));
+    return getCrossSection(xSection, getMCXSecName(MCTypeID));
   };
 };
 

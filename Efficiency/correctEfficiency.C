@@ -176,20 +176,28 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const bool a
   corrType["TnP_Nominal"] = 1;  
   if (applyHFCorr) { corrType["HFCorr"] = 1; }
   //
+  //corrType["TnP_Stat_MuID"   ] = corrType_.at("TnP_Syst_MuID");
+  //corrType["TnP_Stat_Iso"    ] = corrType_.at("TnP_Syst_Iso");
+  corrType["TnP_Syst_MuID"   ] = corrType_.at("TnP_Syst_MuID");
+  corrType["TnP_Syst_Iso"    ] = corrType_.at("TnP_Syst_Iso");
+  corrType["TnP_Syst_BinMuID"] = corrType_.at("TnP_Syst_BinMuID");
+  corrType["TnP_Syst_BinIso" ] = corrType_.at("TnP_Syst_BinIso");
   for (uint iEta = 1; iEta < absEtaTnP_.size(); iEta++) {
-    const std::string etaLbl = Form("%.0f_%.0f", absEtaTnP_[iEta-1]*10., absEtaTnP_[iEta]*10.);
+    const std::string etaLbl = Form("p%.0f_p%.0f", absEtaTnP_[iEta-1]*10., absEtaTnP_[iEta]*10.);
     corrType[Form("TnP_Stat_MuID_%s"    , etaLbl.c_str())] = corrType_.at("TnP_Stat_MuID");
     corrType[Form("TnP_Stat_Iso_%s"     , etaLbl.c_str())] = corrType_.at("TnP_Stat_Iso");
-    corrType[Form("TnP_Syst_MuID_%s"    , etaLbl.c_str())] = corrType_.at("TnP_Syst_MuID");
-    corrType[Form("TnP_Syst_Iso_%s"     , etaLbl.c_str())] = corrType_.at("TnP_Syst_Iso");
-    corrType[Form("TnP_Syst_BinMuID_%s" , etaLbl.c_str())] = corrType_.at("TnP_Syst_BinMuID");
-    corrType[Form("TnP_Syst_BinIso_%s"  , etaLbl.c_str())] = corrType_.at("TnP_Syst_BinIso");
+    //corrType[Form("TnP_Syst_MuID_%s"    , etaLbl.c_str())] = corrType_.at("TnP_Syst_MuID");
+    //corrType[Form("TnP_Syst_Iso_%s"     , etaLbl.c_str())] = corrType_.at("TnP_Syst_Iso");
+    //corrType[Form("TnP_Syst_BinMuID_%s" , etaLbl.c_str())] = corrType_.at("TnP_Syst_BinMuID");
+    //corrType[Form("TnP_Syst_BinIso_%s"  , etaLbl.c_str())] = corrType_.at("TnP_Syst_BinIso");
   }
   //
+  //corrType["TnP_Stat_Trig"] = corrType_.at("TnP_Syst_Trig");
+  corrType["TnP_Syst_Trig"] = corrType_.at("TnP_Syst_Trig");
   for (uint iEta = 1; iEta < etaTnP_.size(); iEta++) {
-    const std::string etaLbl = Form("%.0f_%.0f", etaTnP_[iEta-1]*10., etaTnP_[iEta]*10.);
+    const std::string etaLbl = Form("%s%.0f_%s%.0f", (etaTnP_[iEta-1]<0.?"m":"p") , etaTnP_[iEta-1]*10. , (etaTnP_[iEta]<0.?"m":"p") , etaTnP_[iEta]*10.);
     corrType[Form("TnP_Stat_Trig_%s" , etaLbl.c_str())] = corrType_.at("TnP_Stat_Trig");
-    corrType[Form("TnP_Syst_Trig_%s" , etaLbl.c_str())] = corrType_.at("TnP_Syst_Trig");
+    //corrType[Form("TnP_Syst_Trig_%s" , etaLbl.c_str())] = corrType_.at("TnP_Syst_Trig");
   }
   //
   bool doMCWeight = false;
@@ -428,12 +436,12 @@ TnPVec_t getMCWeights(const std::unique_ptr<HiEvtTree>& evtTree, const CorrMap_t
     int    idx  = -1;
     double w_MC =  1.0;
     //
-    if (cor.first=="MC_Syst_SCALE"  ) { idx = 1;   }
-    if (cor.first=="MC_Syst_CT14"   ) { idx = 112; }
-    if (cor.first=="MC_Syst_NNLO"   ) { idx = 227; }
-    if (cor.first=="MC_Syst_CT10"   ) { idx = 170; }
-    if (cor.first=="MC_Syst_MMHT"   ) { idx = 171; }
-    if (cor.first=="MC_Syst_EPPS16" ) { idx = 285; }
+    if      (cor.first=="MC_Syst_SCALE"  ) { idx = 1;   }
+    else if (cor.first=="MC_Syst_CT14"   ) { idx = 112; }
+    else if (cor.first=="MC_Syst_NNLO"   ) { idx = 227; }
+    else if (cor.first=="MC_Syst_CT10"   ) { idx = 170; }
+    else if (cor.first=="MC_Syst_MMHT"   ) { idx = 171; }
+    else if (cor.first=="MC_Syst_EPPS16" ) { idx = 285; }
     //
     for (uint i = 0; i < cor.second; i++) {
       //
@@ -459,37 +467,44 @@ TnPVec_t getTnPScaleFactors(const double& pt, const double& eta, const CorrMap_t
     //
     sfTnP[cor.first].clear();
     for (uint i = 1; i <= cor.second; i++) {
-      if (cor.first=="TnP_Stat_MuID"    ) { sf_MuID = tnp_weight_muid_ppb( pt , eta ,  i  ); }
-      if (cor.first=="TnP_Stat_Trig"    ) { sf_Trig = tnp_weight_trg_ppb (      eta ,  i  ); }
-      if (cor.first=="TnP_Stat_Iso"     ) { sf_Iso  = tnp_weight_iso_ppb ( pt , eta ,  i  ); }
-      if (cor.first=="TnP_Syst_MuID"    ) { sf_MuID = tnp_weight_muid_ppb( pt , eta , -i  ); }
-      if (cor.first=="TnP_Syst_Trig"    ) { sf_Trig = tnp_weight_trg_ppb (      eta , -i  ); }
-      if (cor.first=="TnP_Syst_Iso"     ) { sf_Iso  = tnp_weight_iso_ppb ( pt , eta , -i  ); }
-      if (cor.first=="TnP_Syst_BinMuID" ) { sf_MuID = tnp_weight_muid_ppb( pt , eta , -10 ); }
-      if (cor.first=="TnP_Syst_BinIso"  ) { sf_Iso  = tnp_weight_iso_ppb ( pt , eta , -10 ); }
+      if ( (cor.first=="NoCorr") || (cor.first=="HFCorr") ) { sf_MuID = 1.0; sf_Trig = 1.0; sf_Iso = 1.0; }
       //
-      for (uint iEta = 1; iEta < absEtaTnP_.size(); iEta++) {
-        if (std::abs(eta) >= absEtaTnP_[iEta-1] && std::abs(eta) < absEtaTnP_[iEta]) {
-          const std::string etaLbl = Form("%.0f_%.0f", absEtaTnP_[iEta-1]*10., absEtaTnP_[iEta]*10.);
-          if (cor.first==Form("TnP_Stat_MuID_%s"     , etaLbl.c_str())) { sf_MuID = tnp_weight_muid_ppb( pt , eta ,  i  ); }
-          if (cor.first==Form("TnP_Stat_Iso_%s"      , etaLbl.c_str())) { sf_Iso  = tnp_weight_iso_ppb ( pt , eta ,  i  ); }
-          if (cor.first==Form("TnP_Syst_MuID_%s"     , etaLbl.c_str())) { sf_MuID = tnp_weight_muid_ppb( pt , eta , -i  ); }
-          if (cor.first==Form("TnP_Syst_Iso_%s"      , etaLbl.c_str())) { sf_Iso  = tnp_weight_iso_ppb ( pt , eta , -i  ); }
-          if (cor.first==Form("TnP_Syst_BinMuID_%s"  , etaLbl.c_str())) { sf_MuID = tnp_weight_muid_ppb( pt , eta , -10 ); }
-          if (cor.first==Form("TnP_Syst_BinMuIso_%s" , etaLbl.c_str())) { sf_Iso  = tnp_weight_iso_ppb ( pt , eta , -10 ); }
+      else if (cor.first=="TnP_Stat_MuID"    ) { sf_MuID = tnp_weight_muid_ppb( pt , eta ,  i  ); }
+      else if (cor.first=="TnP_Stat_Trig"    ) { sf_Trig = tnp_weight_trg_ppb (      eta ,  i  ); }
+      else if (cor.first=="TnP_Stat_Iso"     ) { sf_Iso  = tnp_weight_iso_ppb ( pt , eta ,  i  ); }
+      else if (cor.first=="TnP_Syst_MuID"    ) { sf_MuID = tnp_weight_muid_ppb( pt , eta , -i  ); }
+      else if (cor.first=="TnP_Syst_Trig"    ) { sf_Trig = tnp_weight_trg_ppb (      eta , -i  ); }
+      else if (cor.first=="TnP_Syst_Iso"     ) { sf_Iso  = tnp_weight_iso_ppb ( pt , eta , -i  ); }
+      else if (cor.first=="TnP_Syst_BinMuID" ) { sf_MuID = tnp_weight_muid_ppb( pt , eta , -10 ); }
+      else if (cor.first=="TnP_Syst_BinIso"  ) { sf_Iso  = tnp_weight_iso_ppb ( pt , eta , -10 ); }
+      //
+      else if (cor.first.find("MuID_")!=std::string::npos || cor.first.find("Iso_")!=std::string::npos) {
+        for (uint iEta = 1; iEta < absEtaTnP_.size(); iEta++) {
+          if (std::abs(eta) >= absEtaTnP_[iEta-1] && std::abs(eta) < absEtaTnP_[iEta]) {
+            const std::string etaLbl = Form("p%.0f_p%.0f", absEtaTnP_[iEta-1]*10., absEtaTnP_[iEta]*10.);
+            if      (cor.first==Form("TnP_Stat_MuID_%s"     , etaLbl.c_str())) { sf_MuID = tnp_weight_muid_ppb( pt , eta ,  i  ); }
+            else if (cor.first==Form("TnP_Stat_Iso_%s"      , etaLbl.c_str())) { sf_Iso  = tnp_weight_iso_ppb ( pt , eta ,  i  ); }
+            else if (cor.first==Form("TnP_Syst_MuID_%s"     , etaLbl.c_str())) { sf_MuID = tnp_weight_muid_ppb( pt , eta , -i  ); }
+            else if (cor.first==Form("TnP_Syst_Iso_%s"      , etaLbl.c_str())) { sf_Iso  = tnp_weight_iso_ppb ( pt , eta , -i  ); }
+            else if (cor.first==Form("TnP_Syst_BinMuID_%s"  , etaLbl.c_str())) { sf_MuID = tnp_weight_muid_ppb( pt , eta , -10 ); }
+            else if (cor.first==Form("TnP_Syst_BinIso_%s"   , etaLbl.c_str())) { sf_Iso  = tnp_weight_iso_ppb ( pt , eta , -10 ); }
+            break;
+          }
         }
       }
       //
-      for (uint iEta = 1; iEta < etaTnP_.size(); iEta++) {
-        if (eta >= etaTnP_[iEta-1] && eta < etaTnP_[iEta]) {
-          const std::string etaLbl = Form("%.0f_%.0f", etaTnP_[iEta-1]*10., etaTnP_[iEta]*10.);
-          if (cor.first==Form("TnP_Stat_Trig_%s" , etaLbl.c_str())) { sf_Trig = tnp_weight_trg_ppb( eta ,  i  ); }
-          if (cor.first==Form("TnP_Syst_Trig_%s" , etaLbl.c_str())) { sf_Trig = tnp_weight_trg_ppb( eta , -i  ); }
+      else if (cor.first.find("Trig_")!=std::string::npos) {
+        for (uint iEta = 1; iEta < etaTnP_.size(); iEta++) {
+          if (eta >= etaTnP_[iEta-1] && eta < etaTnP_[iEta]) {
+            const std::string etaLbl = Form("%s%.0f_%s%.0f", (etaTnP_[iEta-1]<0.?"m":"p") , etaTnP_[iEta-1]*10. , (etaTnP_[iEta]<0.?"m":"p") , etaTnP_[iEta]*10.);
+            if      (cor.first==Form("TnP_Stat_Trig_%s" , etaLbl.c_str())) { sf_Trig = tnp_weight_trg_ppb( eta ,  i  ); }
+            else if (cor.first==Form("TnP_Syst_Trig_%s" , etaLbl.c_str())) { sf_Trig = tnp_weight_trg_ppb( eta , -i  ); }
+            break;
+          }
         }
       }
       //
-      if ( (cor.first=="NoCorr") ||  (cor.first=="HFCorr") ) { sf_TnP = 1.0; }
-      else { sf_TnP = ( sf_MuID * sf_Trig * sf_Iso ); }
+      sf_TnP = ( sf_MuID * sf_Trig * sf_Iso );
       //
       sfTnP.at(cor.first).push_back( sf_TnP );
     }
@@ -571,6 +586,7 @@ bool getTnPUncertainties(Unc1DVec_t& unc, const EffVec_t& eff)
   const uint nBin = nom.GetCopyTotalHisto()->GetNbinsX();
   for (const auto& co : eff) {
     if (co.first=="TnP_Nominal" || co.first.find("TnP_")==std::string::npos) continue;
+    if (eff.count(co.first+"_")>0) continue;
     unc[co.first].ResizeTo(nBin);
     for (uint iBin = 1; iBin <= nBin; iBin++) {
       double uncVal = 0.0;
@@ -614,8 +630,8 @@ bool getTnPUncertainties(Unc1DVec_t& unc, const EffVec_t& eff)
         uncVal += std::pow( unc.at(co.first)[iBin] , 2.0 );
       }
     }
-    uncVal += std::pow( ( 0.0034 * nom.GetEfficiency(iBin+1) ) , 2.0 ); // Impact of PileUp and Event Activity on Isolation
-    uncVal += std::pow( ( 0.0060 * nom.GetEfficiency(iBin+1) ) , 2.0 ); // STA Efficiency mismodelling
+    uncVal += std::pow( ( 0.0034 * nom.GetEfficiency(iBin+1) ) , 2.0 ); // Impact of PileUp and Event Activity on Isolation, defined as relative uncertainty
+    uncVal += std::pow( ( 0.0060 * nom.GetEfficiency(iBin+1) ) , 2.0 ); // STA Efficiency mismodelling, defined as relative uncertainty
     unc.at("TnP_Syst")[iBin] = std::sqrt( uncVal );
   }
   // Compute total TnP uncertainty
@@ -812,7 +828,7 @@ void mergeEff(EffMap_t& eff)
                 for (uint i = 0; i < co.second.size(); i++) {
                   // Just add the pPb, no need to combine
                   const TEfficiency& eff_pPb = s.second.at("pPb").at(ch.first).at(t.first).at(co.first)[i];
-                  const TEfficiency& eff_Pbp = s.second.at("Pbp").at(ch.first).at(t.first).at(co.first)[i];
+                  const TEfficiency& eff_Pbp = s.second.at("Pbp").at(ch.first).at(t.first).at(co.first)[i]; // Only used for the weight
                   // Passed Histogram
                   TH1D hPassed = *((TH1D*)eff_pPb.GetPassedHistogram());
                   hPassed.Add(eff_pPb.GetPassedHistogram(), co.second[i].GetPassedHistogram(), eff_pPb.GetWeight(), eff_Pbp.GetWeight());
@@ -845,6 +861,7 @@ void mergeEff(EffMap_t& eff)
             for (auto& t : ch.second) {
               for (auto& co : t.second) {
                 for (uint i = 0; i < co.second.size(); i++) {
+                  // Use the Plus W MC sample for the plus muon efficiency and the Minus W MC sample for the minus muon efficiency
                   const std::string name = "eff1D_" + v.first +"_"+ sample +"_"+ c.first +"_"+ ch.first +"_"+ t.first +"_"+ co.first + ((co.second.size()>1) ? Form("_%d",i) : "");
                   eff.at(v.first)[sample][c.first][ch.first][t.first][co.first].push_back(eff.at(v.first).at(sample+"_"+ch.first).at(c.first).at(ch.first).at(t.first).at(co.first)[i]);
                   eff.at(v.first).at(sample).at(c.first).at(ch.first).at(t.first).at(co.first)[i].SetName(name.c_str());

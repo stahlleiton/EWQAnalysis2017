@@ -6,8 +6,8 @@ bool checkSettings     ( const GlobalInfo& userInput);
 bool parseFile         ( std::string FileName  , std::vector< StringMap_t >& data );
 bool parseString       ( std::string input     , std::vector< double >& output );
 bool iniWorkEnv        ( StringVectorMap_t& DIR  , const std::string& workDirName );
-void iniFileDir        ( StringMapVector_t& inputFitDirs , const StringDiMapVector_t& inputInitialFilesDirs ,
-                         const StringMap_t& inputFitDir , const StringDiMap_t& inputInitialFilesDir , const StringVectorMap_t& DIR );
+void iniFileDir        ( StringMapVector_t& inputFitDirs , StringDiMapVector_t& inputInitialFilesDirs ,
+                         const StringMap_t& inputFitDir  , const StringDiMap_t& inputInitialFilesDir , const StringVectorMap_t& DIR );
 void findSubDir        ( std::vector< std::string >& dirlist, std::string dirname );
 bool readFile          ( std::string FileName  , std::vector< std::vector< std::string > >& content, const int nCol=-1, int nRow=-1 );
 bool getInputFileNames ( const std::string& InputTrees, std::map< std::string, std::vector< std::vector< std::string > > >& InputFileCollection );

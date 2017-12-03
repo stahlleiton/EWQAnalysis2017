@@ -11,6 +11,7 @@
 // RooFit headers
 #include "RooWorkspace.h"
 #include "RooAbsData.h"
+#include "RooAddPdf.h"
 #include "RooAbsReal.h"
 #include "RooRealVar.h"
 #include "RooFormulaVar.h"
@@ -20,6 +21,9 @@
 #include <iostream>
 #include <string>
 
+
+double getErrorHi(const RooRealVar& var);
+double getErrorLo(const RooRealVar& var);
 
 
 bool resultsEWQ2tree(
@@ -74,12 +78,12 @@ bool resultsEWQ2tree(
     TFile inputFile(inputFilePath.c_str(), "READ");
     //
     if (inputFile.IsOpen()==false || inputFile.IsZombie()==true) {
-      std::cout << "[ERROR] The input file " << inputFilePath << " could not be created!" << std::endl;
+      std::cout << "[ERROR] The input file " << inputFilePath << " could not be created!" << std::endl; return false;
     }
     //
     // Extract the Workspace
     RooWorkspace* ws = (RooWorkspace*) inputFile.Get("workspace");
-    if (ws == NULL) { std::cout << "[Error] File: " << inputFilePath << " does not have the workspace!" << std::endl; inputFile.Close(); return false; }
+    if (ws == NULL) { std::cout << "[ERROR] File: " << inputFilePath << " does not have the workspace!" << std::endl; inputFile.Close(); return false; }
     //
     // Extract the information from the workspace
     const std::string DSTAG = (ws->obj("DSTAG"))     ? ((TObjString*)ws->obj("DSTAG"))->GetString().Data()     : "";
@@ -149,10 +153,11 @@ bool resultsEWQ2tree(
       if (ws->var(poiName.c_str())!=NULL) {
         RooRealVar* poi = (RooRealVar*) ws->var(poiName.c_str());
         RooRealVar* poi_parIni = ( parIni ? (RooRealVar*) parIni->find(poiName.c_str()) : NULL );
-        if (p.second.count("Min")) { p.second.at("Min") = poi ? poi->getMin()   : -1.0; }
-        if (p.second.count("Max")) { p.second.at("Max") = poi ? poi->getMax()   : -1.0; }
-        if (p.second.count("Val")) { p.second.at("Val") = poi ? poi->getVal()   : -1.0; }
-        if (p.second.count("Err")) { p.second.at("Err") = poi ? poi->getError() : -1.0; }
+        if (p.second.count("Min")  ) { p.second.at("Min")   = poi ? poi->getMin()    : -1.0; }
+        if (p.second.count("Max")  ) { p.second.at("Max")   = poi ? poi->getMax()    : -1.0; }
+        if (p.second.count("Val")  ) { p.second.at("Val")   = poi ? poi->getVal()    : -1.0; }
+        if (p.second.count("ErrLo")) { p.second.at("ErrLo") = poi ? getErrorLo(*poi) : -1.0; }
+        if (p.second.count("ErrHi")) { p.second.at("ErrHi") = poi ? getErrorHi(*poi) : -1.0; }
         if (p.second.count("parIni_Val")) { p.second.at("parIni_Val") = poi_parIni ? poi_parIni->getMin() : -1.0; }
         if (p.second.count("parIni_Err")) { p.second.at("parIni_Err") = poi_parIni ? poi_parIni->getMax() : -1.0; }
       }
@@ -161,10 +166,12 @@ bool resultsEWQ2tree(
         const std::string pdfName = ( "pdfMET_Tot" + tag );
         RooFitResult* fitResult = (RooFitResult*) ws->obj(Form("fitResult_%s", pdfName.c_str()));
         RooFormulaVar* poi = (RooFormulaVar*) ws->function(poiName.c_str());
-        if (p.second.count("Min")) { p.second.at("Min") = -1.0; }
-        if (p.second.count("Max")) { p.second.at("Max") = -1.0; }
-        if (p.second.count("Val")) { p.second.at("Val") = poi ? poi->getVal() : -1.0; }
-        if (p.second.count("Err")) { p.second.at("Err") = (poi && fitResult) ? poi->getPropagatedError(*fitResult) : -1.0; }
+        const double error = ((poi && fitResult) ? poi->getPropagatedError(*fitResult) : -1.0);
+        if (p.second.count("Min")  ) { p.second.at("Min")   = -1.0; }
+        if (p.second.count("Max")  ) { p.second.at("Max")   = -1.0; }
+        if (p.second.count("Val")  ) { p.second.at("Val")   = poi ? poi->getVal() : -1.0; }
+        if (p.second.count("ErrLo")) { p.second.at("ErrLo") = error; }
+        if (p.second.count("ErrHi")) { p.second.at("ErrHi") = error; }
         if (p.second.count("parIni_Val")) { p.second.at("parIni_Val") = (poi && parIni) ? poi->getVal(*parIni) : -1.0; }
         if (p.second.count("parIni_Err")) { p.second.at("parIni_Err") = -1.0; }
       }
@@ -172,13 +179,30 @@ bool resultsEWQ2tree(
     //
     // Fill the remaining Variable Information
     for (auto& v : info.Var) {
-      if ( (v.first.find("VAR_")!=std::string::npos) || (v.first.find("POI_")!=std::string::npos) ) continue;
-      RooRealVar* var_pPb = (RooRealVar*) ws->var((v.first+"_pPb").c_str());
-      RooRealVar* var_Pbp = (RooRealVar*) ws->var((v.first+"_Pbp").c_str());
-      if (v.second.count("Val")) {
-        if (COL=="pPb") { v.second.at("Val") = var_pPb ? var_pPb->getVal() : -1.0; }
-        if (COL=="Pbp") { v.second.at("Val") = var_Pbp ? var_Pbp->getVal() : -1.0; }
-        if (COL=="PA" ) { v.second.at("Val") = (var_pPb && var_Pbp) ? (var_pPb->getVal() + var_Pbp->getVal()) : -1.0; }
+      if (v.first=="Luminosity") {
+        RooRealVar* var_pPb = (RooRealVar*) ws->var((v.first+"_pPb").c_str());
+        RooRealVar* var_Pbp = (RooRealVar*) ws->var((v.first+"_Pbp").c_str());
+        if (v.second.count("Val")) {
+          if (COL=="pPb") { v.second.at("Val") = var_pPb ? var_pPb->getVal() : -1.0; }
+          if (COL=="Pbp") { v.second.at("Val") = var_Pbp ? var_Pbp->getVal() : -1.0; }
+          if (COL=="PA" ) { v.second.at("Val") = (var_pPb && var_Pbp) ? (var_pPb->getVal() + var_Pbp->getVal()) : -1.0; }
+        }
+      }
+      else if (v.first=="N_DS_Entries") {
+        if (v.second.count("Val")) { v.second.at("Val") = ds ? ds->sumEntries() : -1.0; }
+      }
+      else if (v.first=="N_FIT_Entries") {
+        const std::string pdfName = ( "pdfMET_Tot" + tag );
+        RooAddPdf* pdf = (RooAddPdf*) ws->pdf(pdfName.c_str());
+        const RooArgSet coefList(pdf->coefList());
+        if (v.second.count("Val")) { v.second.at("Val") = pdf ? pdf->expectedEvents(&coefList) : -1.0; }
+      }
+      else if (v.first=="TEST_FIT") {
+        RooRealVar* chi2 = (RooRealVar*) ws->var("chi2_MET");
+        RooRealVar* ndof = (RooRealVar*) ws->var("ndof_MET");
+        if (v.second.count("Val")) { v.second.at("Val") = (chi2 && ndof) ? (chi2->getVal() / ndof->getVal()) : -1.0; }
+        if (v.second.count("Chi2")) { v.second.at("Chi2") = chi2 ? chi2->getVal() : -1.0; }
+        if (v.second.count("NDoF")) { v.second.at("NDoF") = ndof ? ndof->getVal() : -1.0; }
       }
     }
     //
@@ -208,7 +232,21 @@ bool resultsEWQ2tree(
   //
   // return
   return true;
-}
+};
+
+
+double getErrorHi(const RooRealVar& var)
+{
+  if (var.getErrorLo()==0.0 && var.getErrorHi()==0.0) { return var.getError(); }
+  return std::abs(var.getErrorHi());
+};
+
+
+double getErrorLo(const RooRealVar& var)
+{
+  if (var.getErrorLo()==0.0 && var.getErrorHi()==0.0) { return var.getError(); }
+  return std::abs(var.getErrorLo());
+};
 
 
 #endif // #ifndef resultsEWQ2tree_C

@@ -149,11 +149,13 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StringDiMap_t
                   if ( (label.find("WToMu")==std::string::npos) && (label.find("QCDTo")==std::string::npos) ) {
                     const std::string refLabel = "W" + cha + chg + "_" + col;
                     if (info.Par.count("N_"+refLabel)==0) { std::cout << "[ERROR] Parameter " << ("N_"+refLabel) << " was not found" << std::endl; return false; }
-                    if (!ws.var(("rN_"+label).c_str())     ) { ws.factory(Form("%s[1.0]", ("rN_"+label).c_str())); }
-                    if (!ws.var(("NRef_"+refLabel).c_str())) { ws.factory(info.Par.at("NRef_"+refLabel).c_str());  }
+                    if (!ws.var(("rN_"+label).c_str())  ) { ws.factory(Form("%s[1.0]", ("rN_"+label).c_str())); }
+                    if (obj=="W") { if (!ws.var(("NRef_"+refLabel).c_str())) { ws.factory(info.Par.at("NRef_"+refLabel).c_str()); } }
+                    else { if (!ws.var(("N_"+refLabel).c_str())) { ws.factory(info.Par.at("N_"+refLabel).c_str());  } }
                     //
                     RooWorkspace tmp; tmp.factory( info.Par.at("N_"+label).c_str() );
-                    ws.var(("rN_"+label).c_str())->setVal( tmp.var(("N_"+label).c_str())->getVal() / ws.var(("NRef_"+refLabel).c_str())->getVal() );
+                    if (obj=="W") { ws.var(("rN_"+label).c_str())->setVal( tmp.var(("N_"+label).c_str())->getVal() / ws.var(("NRef_"+refLabel).c_str())->getVal() ); }
+                    else { ws.var(("rN_"+label).c_str())->setVal( tmp.var(("N_"+label).c_str())->getVal() / ws.var(("N_"+refLabel).c_str())->getVal() ); }
                     ws.var(("rN_"+label).c_str())->setConstant(kTRUE);
                     //
                     if (info.Par.count("rRN_"+label)>0 && info.Par.at("rRN_"+label)!="") { tmp.factory(info.Par.at("rRN_"+label).c_str()); }
@@ -168,7 +170,7 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StringDiMap_t
                   }
                   else {
                     ws.factory( info.Par.at("N_"+label).c_str() );
-                    if (mainLabel.find("QCD")!=std::string::npos) { ws.var(("N_"+label).c_str())->setConstant(kTRUE); }
+                    if (obj=="QCD") { ws.var(("N_"+label).c_str())->setConstant(kTRUE); }
                   }
                   // create the PDF
                   ws.factory(Form("RooExtendPdf::%s(%s,%s)", Form("pdfMETTot_%s", label.c_str()),
@@ -237,7 +239,6 @@ bool histToPdf(RooWorkspace& ws, const string& pdfName, const string& dsName, co
   ws.import(*pdf);
   return true;
 };
-
 
 TH1* rebinhist(const TH1& hist, double xmin, double xmax)
 {

@@ -379,14 +379,14 @@ bool applyLumiWeight(RooWorkspace& ws, GlobalInfo& info, const std::string dDSNa
       if (info.Var.count("rLumi")>0) { luminosity *= info.Var.at("rLumi").at("Val"); }
       if (info.Var.count(("Luminosity_"+col).c_str())==0) { info.Var["Luminosity_"+col]["Val"] = luminosity; }
       // Get the Cross-Section
-      const std::string mcTypeName = PA::getMCTypeName(int(mcType->getVal()));
-      const std::string mcSample   = mcTypeName.substr(mcTypeName.find("_")+1);
+      const std::string mcXSecName = PA::getMCXSecName(int(mcType->getVal()));
+      const std::string mcSample   = mcXSecName.substr(mcXSecName.find("_")+1);
       const std::string mcTag      = mcSample.substr(0, mcSample.find_last_of("_"));
-      if (!PA::getCrossSection(xSection, mcTypeName)) { return false; }
+      if (!PA::getCrossSection(xSection, mcXSecName)) { return false; }
       if (info.Var.count(("rXSection_"+mcTag).c_str())>0) { xSection *= info.Var.at(("rXSection_"+mcTag).c_str()).at("Val"); }
       mcID = mcType->getVal();
       if (info.Var.count(("XSection_"+mcSample).c_str())==0) { info.Var["XSection_"+mcSample]["Val"] = xSection; }
-      std::string oStr = std::string("[INFO] ") + mcTypeName + " set to : Cross-section " + Form("%g", xSection) + " nb ";
+      std::string oStr = std::string("[INFO] ") + mcXSecName + " set to : Cross-section " + Form("%g", xSection) + " nb ";
       if (info.Var.count(("rXSection_"+mcTag).c_str())>0) {
         const double v = info.Var.at(("rXSection_"+mcTag).c_str()).at("Val");
         oStr += std::string("(") + Form("%s%.0f%%", ((v>=1.0) ? "+" : "-"), std::abs((v-1.0)*100.0)) + ") ";
