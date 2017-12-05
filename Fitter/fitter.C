@@ -264,6 +264,9 @@ void fitter(
   std::unique_ptr<TObjArray> aDSTAG;
   if (!createDataSets(Workspace, aDSTAG, userInput, DIR)) { return; }
 
+  // Set the MET to the user choice
+  if (!setMET(Workspace, userInput.Par.at("METType"))) { return; }
+
   // -------------------------------------------------------------------------------
   // STEP 3: APPLY THE CORRECTIONS
   /*

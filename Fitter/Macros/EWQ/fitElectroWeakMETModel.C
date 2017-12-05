@@ -328,7 +328,9 @@ int importDataset(RooWorkspace& myws  , const std::map<string, RooWorkspace>& in
     // Extract the RooDatasets
     std::string dsType = "COR";
     if (inputWS.at(label).data(Form("dPl_%s_%s", dsType.c_str(), label.c_str()))==NULL) { dsType = "LUM"; }
+    if (inputWS.at(label).data(Form("dPl_%s_%s", dsType.c_str(), label.c_str()))==NULL) { dsType = "SET"; }
     if (inputWS.at(label).data(Form("dPl_%s_%s", dsType.c_str(), label.c_str()))==NULL) { dsType = "RAW"; }
+    if (inputWS.at(label).data(Form("dPl_%s_%s", dsType.c_str(), label.c_str()))==NULL) { std::cout << "[ERROR] Sample " << (dsType + "_" + label) << " was not found!" << std::endl; return -1; }
     const std::string extLabel = dsType + "_" + label;
     std::cout << "[INFO] Importing local RooDataSet " << extLabel << std::endl;
     //
