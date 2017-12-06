@@ -10,7 +10,7 @@
 #include "TTree.h"
 #include "TGraphAsymmErrors.h"
 #include "TEfficiency.h"
-#include "TVector.h"
+#include "TVectorD.h"
 #include "TH1.h"
 #include "TCanvas.h"
 #include "TPad.h"
@@ -24,12 +24,12 @@
 // c++ headers
 #include <dirent.h>
 #include <iostream>
+#include <fstream>
 #include <map>
 #include <array>
 // CMS headers
 #include "../../Utilities/CMS/tdrstyle.C"
 #include "../../Utilities/CMS/CMS_lumi.C"
-
 
 
 // ------------------ TYPE -------------------------------
@@ -53,6 +53,8 @@ typedef std::map< anabin<0>   , DoubleTriMap      > DoubleBinTriMap;
 typedef std::map< std::string , DoubleBinTriMap   > VarBinMap;
 typedef std::vector< BinPentaMap                  > BinPentaMapVec;
 typedef std::map< std::string , BinPentaMapVec    > BinSextaMap;
+typedef std::map< std::string , std::vector< double > > DoubleVecMap;
+typedef std::vector< std::pair< std::string , uint > > CorrMap;
 
 
 // Tree Info Structure (wrapper to carry information around)
@@ -182,7 +184,7 @@ void iniResultsTreeInfo( TreeInfo& info , const std::string& thePoiNames )
     thePoiNamesVec.push_back( thePoiNamesStr.substr(0, thePoiNamesStr.find(",")) );
     thePoiNamesStr = thePoiNamesStr.substr(thePoiNamesStr.find(",")+1);
   }
-  const std::vector< std::string > poiVarType = { "Min" , "Max" , "Val" , "Err" , "parIni_Val" , "parIni_Err" };
+  const std::vector< std::string > poiVarType = { "Min" , "Max" , "Val" , "Err" , "ErrLo" , "ErrHi" , "parIni_Val" , "parIni_Err" };
   //
   for (const auto& p : thePoiNamesVec) {
     for (const auto& t : poiVarType) {
@@ -192,6 +194,11 @@ void iniResultsTreeInfo( TreeInfo& info , const std::string& thePoiNames )
   //
   // Define the names of the remaining variables
   info.Var["Luminosity"]["Val"] = -1.0;
+  info.Var["N_DS_Entries"]["Val"] = -1.0;
+  info.Var["N_FIT_Entries"]["Val"] = -1.0;
+  info.Var["TEST_FIT"]["Chi2"] = -1.0;
+  info.Var["TEST_FIT"]["NDoF"] = -1.0;
+  info.Var["TEST_FIT"]["Val"] = -1.0;
   //
   // Initialize the model name containers
   const std::vector< std::string > objType = { "W" , "WToTau" , "DY" , "TTbar" , "QCD" };
@@ -271,33 +278,19 @@ void setBranchAddress( TTree& tree , TreeInfo& info )
 void iniAcceptanceAndEfficiency( BinPentaMap& eff , const VarBinMap& inputVar )
 {
   //
+  std::vector< std::string > lbl = { "Val" , "Err_Stat_High" , "Err_Stat_Low" , "Err_Syst_High" , "Err_Syst_Low" , "Err_Tot_High" , "Err_Tot_Low" };
+  //
   for (const auto& c : inputVar) {
     for (const auto& b : c.second) {
       for (const auto& ch : b.second) {
         // For MC Acceptance
-        eff[c.first][ch.first]["Acceptance_MC"]["Val"][b.first] = 1.0;
-        eff[c.first][ch.first]["Acceptance_MC"]["Err_Stat_High"][b.first] = 0.0;
-        eff[c.first][ch.first]["Acceptance_MC"]["Err_Stat_Low" ][b.first] = 0.0;
-        eff[c.first][ch.first]["Acceptance_MC"]["Err_Syst_High"][b.first] = 0.0;
-        eff[c.first][ch.first]["Acceptance_MC"]["Err_Syst_Low" ][b.first] = 0.0;
-        eff[c.first][ch.first]["Acceptance_MC"]["Err_Tot_High" ][b.first] = 0.0;
-        eff[c.first][ch.first]["Acceptance_MC"]["Err_Tot_Low"  ][b.first] = 0.0;
-        // For MC Efficiency
-        eff[c.first][ch.first]["Efficiency_MC"]["Val"][b.first] = 1.0;
-        eff[c.first][ch.first]["Efficiency_MC"]["Err_Stat_High"][b.first] = 0.0;
-        eff[c.first][ch.first]["Efficiency_MC"]["Err_Stat_Low" ][b.first] = 0.0;
-        eff[c.first][ch.first]["Efficiency_MC"]["Err_Syst_High"][b.first] = 0.0;
-        eff[c.first][ch.first]["Efficiency_MC"]["Err_Syst_Low" ][b.first] = 0.0;
-        eff[c.first][ch.first]["Efficiency_MC"]["Err_Tot_High" ][b.first] = 0.0;
-        eff[c.first][ch.first]["Efficiency_MC"]["Err_Tot_Low"  ][b.first] = 0.0;
-        // For Corrected Efficiency
-        eff[c.first][ch.first]["Efficiency_TnP"]["Val"][b.first] = 1.0;
-        eff[c.first][ch.first]["Efficiency_TnP"]["Err_Stat_High"][b.first] = 0.0;
-        eff[c.first][ch.first]["Efficiency_TnP"]["Err_Stat_Low" ][b.first] = 0.0;
-        eff[c.first][ch.first]["Efficiency_TnP"]["Err_Syst_High"][b.first] = 0.0;
-        eff[c.first][ch.first]["Efficiency_TnP"]["Err_Syst_Low" ][b.first] = 0.0;
-        eff[c.first][ch.first]["Efficiency_TnP"]["Err_Tot_High" ][b.first] = 0.0;
-        eff[c.first][ch.first]["Efficiency_TnP"]["Err_Tot_Low"  ][b.first] = 0.0;
+        for (const auto& l : lbl) {
+          eff[c.first][ch.first]["Acceptance_MC"][l][b.first] = ( (l=="Val") ? 1.0 : 0.0 );
+          // For MC Efficiency
+          eff[c.first][ch.first]["Efficiency_MC"][l][b.first] = ( (l=="Val") ? 1.0 : 0.0 );
+          // For Corrected Efficiency
+          eff[c.first][ch.first]["Efficiency_TnP"][l][b.first] = ( (l=="Val") ? 1.0 : 0.0 );
+        }
       }
     }
   }
@@ -312,6 +305,46 @@ double sumErrors( const double& ErrorA , const double& ErrorB )
 };
 
 
+CorrMap effTnPType_ = {
+  { "TnP_Stat_Iso"    , 100 } , { "TnP_Stat_MuID"    , 100 } , { "TnP_Stat_Trig" , 2 } ,
+  { "TnP_Syst_BinIso" ,   1 } , { "TnP_Syst_BinMuID" ,   1 } , { "TnP_Syst_Iso"  , 2 } , { "TnP_Syst_MuID" , 2 } , { "TnP_Syst_Trig" , 2 } , { "TnP_Syst_PU" , 2 } , { "TnP_Syst_STA" , 2 }
+};
+std::vector< double > absEtaTnP_ = { 0.0 , 1.2 , 2.1 , 2.4 };
+std::vector< double > etaTnP_    = { -2.4 , -2.1 , -1.6 , -1.2 , -0.9 , -0.6 , -0.3 , 0.0 , 0.3 , 0.6 , 0.9 , 1.2 , 1.6 , 2.1 , 2.4 };
+
+
+void computeTnPUncertainty( double& Error_High , double& Error_Low , const DoubleVecMap& variation , const double& nominal , const std::string& vType = "TnP_" )
+{
+  for (const auto& co : variation) {
+    if (co.first.find(vType)==std::string::npos) continue;
+    //
+    double Err_High = 0.0 , Err_Low = 0.0;
+    if (co.second.size() > 2) {
+      double sum = 0.0;
+      for(uint i = 0; i < co.second.size(); i++) {
+        const double diff = ( co.second[i] - nominal );
+        sum += ( diff * diff );
+      }
+      Err_High = std::sqrt( sum / co.second.size() );
+      Err_Low  = Err_High;
+    }
+    else if (co.second.size() == 2) {
+      Err_High = std::max( std::max( (co.second[0] - nominal) , (co.second[1] - nominal) ) , 0.0 );
+      Err_Low  = std::max( std::max( (nominal - co.second[0]) , (nominal - co.second[1]) ) , 0.0 );
+    }
+    else if (co.second.size() == 1) {
+      Err_High = std::abs(co.second[0] - nominal);
+      Err_Low  = Err_High;
+    }
+    // Let's symmetryze the errors, more conservative
+    if (Err_High > Err_Low) { Err_Low = Err_High; } else { Err_High = Err_Low; }
+    //
+    Error_High = sumErrors( Error_High , Err_High );
+    Error_Low  = sumErrors( Error_Low  , Err_Low  );
+  }
+};
+
+
 void getEffContent( double& val , double& err_High , double& err_Low , const TEfficiency& eff , const double& binVal )
 {
   auto hist = eff.GetTotalHistogram();
@@ -323,7 +356,7 @@ void getEffContent( double& val , double& err_High , double& err_Low , const TEf
 };
 
 
-void getUncContent( double& err_High , double& err_Low , const TVector& unc , const TEfficiency& eff , const double& binVal )
+void getUncContent( double& err_High , double& err_Low , const TVectorD& unc , const TEfficiency& eff , const double& binVal )
 {
   auto hist = eff.GetTotalHistogram();
   if (hist==NULL) { return; }
@@ -335,8 +368,32 @@ void getUncContent( double& err_High , double& err_Low , const TVector& unc , co
 };
 
 
-bool getAcceptanceAndEfficiency( BinPentaMap& effMap , const std::string& inputFilePath , const bool useEtaCM = true )
+bool getAcceptanceAndEfficiency( BinPentaMap& effMap , const std::string& inputFilePath , const bool useEtaCM = true , const bool redoEffVariations = false , const bool isNominal = true )
 {
+  //
+  if (isNominal && redoEffVariations) {
+    // Initialize the Correction Type Map
+    CorrMap effTnP;
+    effTnP["TnP_Syst_STA"] = effTnPType_.at("TnP_Syst_STA");
+    effTnP["TnP_Syst_PU" ] = effTnPType_.at("TnP_Syst_PU");
+    effTnP[Form("TnP_Stat_Trig_%s" , etaLbl.c_str())] = effTnPType_.at("TnP_Stat_Trig");
+    for (uint iEta = 1; iEta < absEtaTnP_.size(); iEta++) {
+      const std::string etaLbl = Form("%.0f_%.0f", absEtaTnP_[iEta-1]*10., absEtaTnP_[iEta]*10.);
+      effTnP[Form("TnP_Stat_MuID_%s"    , etaLbl.c_str())] = effTnPType_.at("TnP_Stat_MuID");
+      effTnP[Form("TnP_Stat_Iso_%s"     , etaLbl.c_str())] = effTnPType_.at("TnP_Stat_Iso");
+      effTnP[Form("TnP_Syst_MuID_%s"    , etaLbl.c_str())] = effTnPType_.at("TnP_Syst_MuID");
+      effTnP[Form("TnP_Syst_Iso_%s"     , etaLbl.c_str())] = effTnPType_.at("TnP_Syst_Iso");
+      effTnP[Form("TnP_Syst_BinMuID_%s" , etaLbl.c_str())] = effTnPType_.at("TnP_Syst_BinMuID");
+      effTnP[Form("TnP_Syst_BinIso_%s"  , etaLbl.c_str())] = effTnPType_.at("TnP_Syst_BinIso");
+    }
+    for (uint iEta = 1; iEta < etaTnP_.size(); iEta++) {
+      const std::string etaLbl = Form("%.0f_%.0f", etaTnP_[iEta-1]*10., etaTnP_[iEta]*10.);
+      effTnP[Form("TnP_Stat_Trig_%s" , etaLbl.c_str())] = effTnPType_.at("TnP_Stat_Trig");
+      effTnP[Form("TnP_Syst_Trig_%s" , etaLbl.c_str())] = effTnPType_.at("TnP_Syst_Trig");
+    }
+    effTnPType_.clear();
+    effTnPType_ = effTnP;
+  }
   //
   // Open the input file
   TFile inputFile(inputFilePath.c_str(), "READ");
@@ -354,50 +411,114 @@ bool getAcceptanceAndEfficiency( BinPentaMap& effMap , const std::string& inputF
       const std::string col = c.first;
       std::string charge = ""; if (ch.first=="Pl") { charge = "Plus"; } if (ch.first=="Mi") { charge = "Minus"; }
       //
-      const std::string accDir    = Form("TnPEfficiency1D/%s/%s/%s/Acceptance/NoCorr" , var.c_str(), sample.c_str(), col.c_str());
-      const std::string effDir    = Form("TnPEfficiency1D/%s/%s/%s/Total/NoCorr"      , var.c_str(), sample.c_str(), col.c_str());
-      const std::string effTnPDir = Form("TnPEfficiency1D/%s/%s/%s/Total/TnP_Nominal" , var.c_str(), sample.c_str(), col.c_str());
-      const std::string uncTnPDir = Form("TnPEfficiency1D/%s/%s/%s/Total"             , var.c_str(), sample.c_str(), col.c_str());
+      std::map< std::string , std::string > effFileDir , uncTnPDir;
+      effFileDir["Acceptance_MC" ] = Form("TnPEfficiency1D/%s/%s/%s/Acceptance/NoCorr" , var.c_str(), sample.c_str(), col.c_str());
+      effFileDir["Efficiency_MC" ] = Form("TnPEfficiency1D/%s/%s/%s/Total/NoCorr"      , var.c_str(), sample.c_str(), col.c_str());
+      effFileDir["Efficiency_TnP"] = Form("TnPEfficiency1D/%s/%s/%s/Total/TnP_Nominal" , var.c_str(), sample.c_str(), col.c_str());
+      uncTnPDir["Efficiency_TnP"]  = Form("TnPEfficiency1D/%s/%s/%s/Total"             , var.c_str(), sample.c_str(), col.c_str());
       //
-      const std::string accName        = Form("eff1D_%s_%s_%s_%s_Acceptance_NoCorr" , var.c_str(), sample.c_str(), col.c_str(), charge.c_str());
-      const std::string effName        = Form("eff1D_%s_%s_%s_%s_Total_NoCorr"      , var.c_str(), sample.c_str(), col.c_str(), charge.c_str());
-      const std::string effTnPName     = Form("eff1D_%s_%s_%s_%s_Total_TnP_Nominal" , var.c_str(), sample.c_str(), col.c_str(), charge.c_str());
-      const std::string uncStatTnPName = Form("unc1D_%s_%s_%s_%s_Total_TnP_Stat"    , var.c_str(), sample.c_str(), col.c_str(), charge.c_str());
-      const std::string uncSystTnPName = Form("unc1D_%s_%s_%s_%s_Total_TnP_Syst"    , var.c_str(), sample.c_str(), col.c_str(), charge.c_str());
+      std::map< std::string , std::vector< std::string > > effFileName;
+      std::map< std::string , std::string > uncTnPName;
+      effFileName["Acceptance_MC" ].push_back( Form("eff1D_%s_%s_%s_%s_Acceptance_NoCorr" , var.c_str(), sample.c_str(), col.c_str(), charge.c_str()) );
+      effFileName["Efficiency_MC" ].push_back( Form("eff1D_%s_%s_%s_%s_Total_NoCorr"      , var.c_str(), sample.c_str(), col.c_str(), charge.c_str()) );
+      effFileName["Efficiency_TnP"].push_back( Form("eff1D_%s_%s_%s_%s_Total_TnP_Nominal" , var.c_str(), sample.c_str(), col.c_str(), charge.c_str()) );
+      uncTnPName["Efficiency_TnP_Stat"] = Form("unc1D_%s_%s_%s_%s_Total_TnP_Stat" , var.c_str(), sample.c_str(), col.c_str(), charge.c_str());
+      uncTnPName["Efficiency_TnP_Syst"] = Form("unc1D_%s_%s_%s_%s_Total_TnP_Syst" , var.c_str(), sample.c_str(), col.c_str(), charge.c_str());
       //
-      auto accObj        = (TEfficiency*) inputFile.Get(Form("%s/%s", accDir.c_str(), accName.c_str()));
-      auto effObj        = (TEfficiency*) inputFile.Get(Form("%s/%s", effDir.c_str(), effName.c_str()));
-      auto effTnPObj     = (TEfficiency*) inputFile.Get(Form("%s/%s", effTnPDir.c_str(), effTnPName.c_str()));
-      auto uncStatTnPObj = (TVector*    ) inputFile.Get(Form("%s/%s", uncTnPDir.c_str(), uncStatTnPName.c_str()));
-      auto uncSystTnPObj = (TVector*    ) inputFile.Get(Form("%s/%s", uncTnPDir.c_str(), uncSystTnPName.c_str()));
+      if (isNominal) {
+        // If user wants to redo the efficiency variations at observable level
+        if (redoEffVariations) {
+          for (const auto& effT : effTnPType_) {
+            if ( (effT.first.find("_STA")!=std::string::npos) || (effT.first.find("_PU")!=std::string::npos) ) continue;
+            const std::string name = Form("Efficiency_%s", effT.first.c_str());
+            effFileDir[name] = Form("TnPEfficiency1D/%s/%s/%s/Total/%s" , var.c_str(), sample.c_str(), col.c_str(), effT.first.c_str());
+            for (uint i = 0; i < effT.second; i++) {
+              std::string effName = Form("eff1D_%s_%s_%s_%s_Total_%s" , var.c_str(), sample.c_str(), col.c_str(), charge.c_str(), effT.first.c_str());
+              if (effT.second>1) { effName = Form("%s_%d" , effName.c_str(), i); }
+              effFileName[name].push_back( effName );
+            }
+          }
+        }
+        for (const auto& effT : effTnPType_) {
+          if ( (effT.first.find("_STA")!=std::string::npos) || (effT.first.find("_PU")!=std::string::npos) ) continue;
+          const std::string name = Form("Efficiency_%s", effT.first.c_str());
+          uncTnPDir[name]  = Form("TnPEfficiency1D/%s/%s/%s/Total/%s" , var.c_str(), sample.c_str(), col.c_str(), effT.first.c_str());
+          uncTnPName[name] = Form("unc1D_%s_%s_%s_%s_Total_%s" , var.c_str(), sample.c_str(), col.c_str(), charge.c_str(), effT.first.c_str());
+        }
+      }
       //
-      if (accObj==NULL       ) { std::cout << "[ERROR] Acceptance object in "                  << accDir    << " was not found in file " << inputFilePath << std::endl; return false; }
-      if (effObj==NULL       ) { std::cout << "[ERROR] Efficiency object in "                  << effDir    << " was not found in file " << inputFilePath << std::endl; return false; }
-      if (effTnPObj==NULL    ) { std::cout << "[ERROR] TnP Efficiency object in "              << effTnPDir << " was not found in file " << inputFilePath << std::endl; return false; }
-      if (uncStatTnPObj==NULL) { std::cout << "[ERROR] TnP Statistical Uncertainty object in " << uncTnPDir << " was not found in file " << inputFilePath << std::endl; return false; }
-      if (uncSystTnPObj==NULL) { std::cout << "[ERROR] TnP Systematic Uncertainty object in "  << uncTnPDir << " was not found in file " << inputFilePath << std::endl; return false; }
+      std::map< std::string , TEfficiency* > effFileObj;
+      for (const auto& effT : effFileName) {
+        for (uint i = 0; i < effT.second.size(); i++) {
+          const std::string name = effT.first + ( (effT.second.size()>1) ? Form("_%d", i) : "");
+          effFileObj[name] = (TEfficiency*) inputFile.Get(Form("%s/%s", effFileDir.at(effT.first).c_str(), effT.second[i].c_str()));
+          if (effFileObj.at(name)==NULL) { std::cout << "[ERROR] " << effT.second[i] << " located in " << effFileDir.at(effT.first) << " was not found in file " << inputFilePath << std::endl; return false; }
+        }
+      }
+      //
+      std::map< std::string , TVectorD* > uncTnPObj;
+      for (const auto& uncT : uncTnPName) {
+        uncFileObj[uncT.first] = (TVectorD*) inputFile.Get(Form("%s/%s", uncTnPDir.at(effT.first).c_str(), effT.second[i].c_str()));
+        if (uncTnPObj.at(name)==NULL) { std::cout << "[ERROR] " << uncT.second[i] << " located in " << uncTnPDir.at(uncT.first) << " was not found in file " << inputFilePath << std::endl; return false; }
+      }
       //
       for (const auto& b : ch.second.at("Acceptance_MC").at("Val")) {
         // Compute the center value of the bin
         const double etaVal = ( ( b.first.etabin().high() + b.first.etabin().low() ) / 2.0 );
-        // Fill Acceptance
-        getEffContent(eff.at("Acceptance_MC").at("Val").at(b.first) , eff.at("Acceptance_MC").at("Err_Stat_High").at(b.first) , eff.at("Acceptance_MC").at("Err_Stat_Low").at(b.first) , *accObj , etaVal);
-        // Fill Efficiency
-        getEffContent(eff.at("Efficiency_MC").at("Val").at(b.first) , eff.at("Efficiency_MC").at("Err_Stat_High").at(b.first) , eff.at("Efficiency_MC").at("Err_Stat_Low").at(b.first) , *effObj , etaVal);
-        // Fill TnP Efficiency
-        getEffContent(eff.at("Efficiency_TnP").at("Val").at(b.first) , eff.at("Efficiency_TnP").at("Err_Stat_High").at(b.first) , eff.at("Efficiency_TnP").at("Err_Stat_Low").at(b.first) , *effTnPObj , etaVal);
-        // Fill TnP Statistical Uncertainty
-        getUncContent(eff.at("Efficiency_TnP").at("Err_Syst_High").at(b.first) , eff.at("Efficiency_TnP").at("Err_Syst_Low").at(b.first) , *uncStatTnPObj , *effTnPObj , etaVal);
-        // Fill TnP Systematic Uncertainty
-        getUncContent(eff.at("Efficiency_TnP").at("Err_Syst_High").at(b.first) , eff.at("Efficiency_TnP").at("Err_Syst_Low").at(b.first) , *uncSystTnPObj , *effTnPObj , etaVal);
+        // Fill the Efficiency Objects
+        for (const auto& effT : effFileObj) {
+          getEffContent(eff[effT.first]["Val"][b.first] , eff[effT.first]["Err_Stat_High"][b.first] , eff[effT.first]["Err_Stat_Low"][b.first] , *(effT.second) , etaVal);
+          eff[effT.first]["Err_Syst_High"][b.first] = 0.0; eff[effT.first]["Err_Syst_Low"][b.first] = 0.0;
+        }
+        // Only compute uncertainties for Nominal case , for systematics we only care about their value
+        if (isNominal) {
+          if (redoEffVariations) {
+            // Impact of PileUp and Event Activity on Isolation +- 0.0034
+            eff["Efficiency_TnP_Syst_PU_0"]["Val"][b.first] = eff.at("Efficiency_TnP").at("Val").at(b.first)*(1.0 + 0.0034);
+            eff["Efficiency_TnP_Syst_PU_1"]["Val"][b.first] = eff.at("Efficiency_TnP").at("Val").at(b.first)*(1.0 - 0.0034);
+            // STA Efficiency mismodelling +-0.006
+            eff["Efficiency_TnP_Syst_STA_0"]["Val"][b.first] = eff.at("Efficiency_TnP").at("Val").at(b.first)*(1.0 + 0.0060);
+            eff["Efficiency_TnP_Syst_STA_1"]["Val"][b.first] = eff.at("Efficiency_TnP").at("Val").at(b.first)*(1.0 - 0.0060);
+            // Set default values to other parameters
+            std::vector< std::string > effLbl = { "Efficiency_TnP_Syst_PU_0" , "Efficiency_TnP_Syst_PU_1" , "Efficiency_TnP_Syst_STA_0" , "Efficiency_TnP_Syst_STA_1" };
+            std::vector< std::string > parLbL = { "Err_Stat_High" , "Err_Stat_Low" , "Err_Syst_High" , "Err_Syst_Low" };
+            for (const auto& e : effLbl) { for (const auto& p : parLbl) { eff.at(e)[p][b.first] = 0.0; } }
+          }
+          // Fill TnP Uncertainties
+          for (const auto& uncT : uncTnPObj) {
+            const std::string name = Form("%s_PROP", uncT.first);
+            getUncContent(eff[name]["Err_Syst_High"][b.first] , eff[name]["Err_Syst_Low"][b.first] , *(uncT.second) , etaVal);
+            eff[name]["Err_Stat_High"][b.first] = 0.0; eff[name]["Err_Stat_Low"][b.first] = 0.0;
+            eff[name]["Val"][b.first] = eff.at("Efficiency_TnP").at("Val").at(b.first);
+            // Add the TnP Stat and Syst to the corrected efficiency systematic error
+            if (uncT.first=="Efficiency_TnP_Stat" || uncT.first=="Efficiency_TnP_Syst") {
+              getUncContent(eff.at("Efficiency_TnP").at("Err_Syst_High").at(b.first) , eff.at("Efficiency_TnP").at("Err_Syst_Low").at(b.first) , *(uncT.second) , etaVal);
+            }
+          }
+          if (redoEffVariations) {
+            // Impact of PileUp and Event Activity on Isolation +- 0.0034
+            eff["Efficiency_TnP_Syst_PU_PROP"]["Err_Syst_Low" ][b.first] = 0.0034*eff.at("Efficiency_TnP").at("Val").at(b.first);
+            eff["Efficiency_TnP_Syst_PU_PROP"]["Err_Syst_High"][b.first] = eff.at("Efficiency_TnP_Syst_PU").at("Err_Syst_Low").at(b.first);
+            // STA Efficiency mismodelling +-0.006
+            eff["Efficiency_TnP_Syst_STA_PROP"]["Err_Syst_Low" ][b.first] = 0.0060*eff.at("Efficiency_TnP").at("Val").at(b.first);
+            eff["Efficiency_TnP_Syst_STA_PROP"]["Err_Syst_High"][b.first] = eff.at("Efficiency_TnP_Syst_STA").at("Err_Syst_Low").at(b.first);
+            // Set default values to other parameters
+            std::vector< std::string > effLbl = { "Efficiency_TnP_Syst_PU_PROP" , "Efficiency_TnP_Syst_STA_PROP" };
+            std::vector< std::string > parLbL = { "Val" , "Err_Stat_High" , "Err_Stat_Low" };
+            for (const auto& e : effLbl) { for (const auto& p : parLbl) { eff.at(e)[p][b.first] = ( (p=="Val") ? eff.at("Efficiency_TnP").at("Val").at(b.first) : 0.0 ); } }
+          }
+        }
         // Fill the Total Uncertainties
         for (auto& e : eff) {
-          e.second.at("Err_Tot_Low" ).at(b.first) = sumErrors(e.second.at("Err_Stat_Low" ).at(b.first), e.second.at("Err_Syst_Low" ).at(b.first));
-          e.second.at("Err_Tot_High").at(b.first) = sumErrors(e.second.at("Err_Stat_High").at(b.first), e.second.at("Err_Syst_High").at(b.first));
+          e.second["Err_Tot_Low" ][b.first] = sumErrors(e.second["Err_Stat_Low" ][b.first], e.second["Err_Syst_Low" ][b.first]);
+          e.second["Err_Tot_High"][b.first] = sumErrors(e.second["Err_Stat_High"][b.first], e.second["Err_Syst_High"][b.first]);
         }
       }
     }
   }
+  // Close Input File
+  inputFile.Close();
+  // Return
   return true;
 };
 
@@ -449,17 +570,38 @@ bool correctRawYields( VarBinMap& inputVar , const BinPentaMap& effMap , const s
           for (const auto& t : ch.second.at("N_WToMu")) { if (t.first=="Val") continue; Efficiency[t.first] = 0.0; }
         }
         //
-        const auto& N_Raw  = ch.second.at("N_WToMu");
-        auto&       N_Corr = inputVar.at(c.first).at(b.first).at(ch.first).at("N_WToMu");
         // Create a backup
-        for (const auto& t : N_Raw) { inputVar.at(c.first).at(b.first).at(ch.first)["N_WToMu_RAW"][t.first] = t.second; }
+        auto& N_Co = inputVar.at(c.first).at(b.first).at(ch.first);
+        for (const auto& t : N_Co.at("N_WToMu")) { N_Co["N_WToMu_RAW"][t.first] = t.second; }
+        if (accName=="Acceptance_MC" ) { for (const auto& t : eff.at(accName)) { N_Co[accName][t.first] = t.second.at(b.first); } }
+        if (effName=="Efficiency_MC" || effName=="Efficiency_TnP") { for (const auto& t : eff.at(effName)) { N_Co[effName][t.first] = t.second.at(b.first); } }
         //
-        // Fill with the corrected values
+        auto&       N_Corr = N_Co.at("N_WToMu");;
+        const auto& N_Raw  = N_Co.at("N_WToMu_RAW");
+        //
+        // Fill with the corrected values;
         N_Corr.at("Val") = getCorrectedYieldValue(N_Raw.at("Val") , Acceptance.at("Val") , Efficiency.at("Val"));
         N_Corr.at("Err_Stat_Low" ) = getCorrectedYieldError(N_Raw.at("Val") , Acceptance.at("Val") , Efficiency.at("Val") , N_Raw.at("Err_Stat_Low" ) , 0.0 , 0.0);
         N_Corr.at("Err_Stat_High") = getCorrectedYieldError(N_Raw.at("Val") , Acceptance.at("Val") , Efficiency.at("Val") , N_Raw.at("Err_Stat_High") , 0.0 , 0.0);
-        N_Corr.at("Err_Syst_Low" ) = getCorrectedYieldError(N_Raw.at("Val") , Acceptance.at("Val") , Efficiency.at("Val") , N_Raw.at("Err_Syst_Low" ) , Acceptance.at("Err_Tot_Low" ) , Efficiency.at("Err_Tot_Low" ));
-        N_Corr.at("Err_Syst_High") = getCorrectedYieldError(N_Raw.at("Val") , Acceptance.at("Val") , Efficiency.at("Val") , N_Raw.at("Err_Syst_High") , Acceptance.at("Err_Tot_High") , Efficiency.at("Err_Tot_High"));
+        //
+        for (const auto& effT : eff) {
+          if (effT.first=="Accentance_MC") continue;
+          auto& N_Corr = inputVar.at(c.first).at(b.first).at(ch.first)[Form("N_WToMu_%s", effT.first.c_str())];
+          N_Corr["Val"] = getCorrectedYieldValue(N_Raw.at("Val") , Acceptance.at("Val") , eff.at(effT.first).at("Val").at(b.first));
+          N_Corr["Err_Stat_Low" ] = getCorrectedYieldError(N_Raw.at("Val") , Acceptance.at("Val") , Efficiency.at("Val") ,
+                                                           N_Raw.at("Err_Syst_Low" ) , Acceptance.at("Err_Stat_Low" ) , eff.at(effT.first).at("Err_Stat_Low").at(b.first));
+          N_Corr["Err_Stat_High"] = getCorrectedYieldError(N_Raw.at("Val") , Acceptance.at("Val") , Efficiency.at("Val") ,
+                                                           N_Raw.at("Err_Syst_High") , Acceptance.at("Err_Stat_High") , eff.at(effT.first).at("Err_Stat_High").at(b.first));
+          N_Corr["Err_Syst_Low" ] = getCorrectedYieldError(N_Raw.at("Val") , Acceptance.at("Val") , Efficiency.at("Val") ,
+                                                           N_Raw.at("Err_Syst_Low" ) , Acceptance.at("Err_Syst_Low" ) , eff.at(effT.first).at("Err_Syst_Low").at(b.first));
+          N_Corr["Err_Syst_High"] = getCorrectedYieldError(N_Raw.at("Val") , Acceptance.at("Val") , Efficiency.at("Val") ,
+                                                           N_Raw.at("Err_Syst_High") , Acceptance.at("Err_Syst_High") , eff.at(effT.first).at("Err_Syst_High").at(b.first));
+        }
+        // If the user don't want to redo the uncertainties and just propagate
+        if (eff.count("Efficiency_TnP_Syst_PU_0")==0) {
+          N_Corr.at("Err_Syst_Low" ) = getCorrectedYieldError(N_Raw.at("Val") , Acceptance.at("Val") , Efficiency.at("Val") , N_Raw.at("Err_Syst_Low" ) , Acceptance.at("Err_Tot_Low" ) , Efficiency.at("Err_Tot_Low" ));
+          N_Corr.at("Err_Syst_High") = getCorrectedYieldError(N_Raw.at("Val") , Acceptance.at("Val") , Efficiency.at("Val") , N_Raw.at("Err_Syst_High") , Acceptance.at("Err_Tot_High") , Efficiency.at("Err_Tot_High"));
+        }
       }
     }
   }
@@ -478,9 +620,9 @@ double getChargeAsymmetryValue( const double& N_Plus , const double& N_Minus )
 double getChargeAsymmetryError( const double& N_Plus , const double& N_Minus , const double& Err_Plus , const double& Err_Minus )
 {
   const double sum      = ( N_Plus + N_Minus );
-  const double common   = ( 2.0 / (sum * sum) );
-  const double error2Pl = std::pow( ( Err_Plus * N_Minus ) , 2.0 );
-  const double error2Mi = std::pow( ( Err_Minus * N_Plus ) , 2.0 );
+  const double common   = ( (2.0 * N_Minus * N_Plus) / (sum * sum) );
+  const double error2Pl = std::pow( ( Err_Plus  / N_Plus  ) , 2.0 );
+  const double error2Mi = std::pow( ( Err_Minus / N_Minus ) , 2.0 );
   return ( std::abs(common) * std::sqrt( error2Pl + error2Mi ) );
 };
 
@@ -491,8 +633,8 @@ bool computeChargeAsymmetry( BinPentaMap& var , const VarBinMap& inputVar )
   for (const auto& c : inputVar) {
     for (const auto& b : c.second) {
       // Check that everything is fine
-      if (b.second.count("Pl")==0) { std::cout << "[ERROR] Plus charge is missing in bin [" << b.first.etabin().high() << " , " << b.first.etabin().low() << "]" << std::endl; return false; }
-      if (b.second.count("Mi")==0) { std::cout << "[ERROR] Minus charge is missing in bin [" << b.first.etabin().high() << " , " << b.first.etabin().low() << "]" << std::endl; return false; }
+      if (b.second.count("Pl")==0) { std::cout << "[ERROR] Plus charge is missing in bin ["  << b.first.etabin().low() << " , " << b.first.etabin().high() << "]" << std::endl; return false; }
+      if (b.second.count("Mi")==0) { std::cout << "[ERROR] Minus charge is missing in bin [" << b.first.etabin().low() << " , " << b.first.etabin().high() << "]" << std::endl; return false; }
       if (b.second.at("Mi").count("N_WToMu")==0 || b.second.at("Pl").count("N_WToMu")==0) {
         std::cout << "[ERROR] N_WToMu variable is missing in bin [" << b.first.etabin().high() << " , " << b.first.etabin().low() << "]" << std::endl; return false;
       }
@@ -505,6 +647,42 @@ bool computeChargeAsymmetry( BinPentaMap& var , const VarBinMap& inputVar )
       // Compute charge asymmetry error
       const std::vector< std::string > errType = { "Err_Stat_High" , "Err_Stat_Low" , "Err_Syst_High" , "Err_Syst_Low" };
       for (const auto& t : errType) { oVar[t][b.first] = getChargeAsymmetryError(iVar_Pl.at("Val"), iVar_Mi.at("Val"), iVar_Pl.at(t), iVar_Mi.at(t)); }
+      //
+      // If user wants to redo the efficiency variations at observable level
+      for (const auto& v : b.second.at("Pl")) {
+        if (
+            (v.first=="N_WToMu_Efficiency_MC") ||
+            (v.first.find("N_WToMu_Efficiency_TnP_")!=std::string::npos && v.first.find("_PROP")!=std::string::npos)
+            ) {
+          std::string name = v.first; name.erase(0, std::string("N_WToMu_").length());
+          auto& tmpOVar    = var[c.first][""][Form("Charge_Asymmetry_%s", name.c_str())];
+          auto& tmpIVar_Pl = b.second.at("Pl").at(v.first);
+          auto& tmpIVar_Mi = b.second.at("Mi").at(v.first);
+          tmpOVar["Val"][b.first] = getChargeAsymmetryValue(tmpIVar_Pl.at("Val"), tmpIVar_Mi.at("Val"));
+          for (const auto& t : errType) { tmpOVar[t][b.first] = getChargeAsymmetryError(tmpIVar_Pl.at("Val"), tmpIVar_Mi.at("Val"), tmpIVar_Pl.at(t), tmpIVar_Mi.at(t)); }
+        }
+      }
+        
+        for (uint i = 0; i < effT.second; i++) {
+      if (b.second.at("Mi").count("N_WToMu_Efficiency_TnP_Syst_PU_0")>0) {
+        DoubleVecMap variation;
+        for (const auto& effT : effTnPType_) {
+          for (uint i = 0; i < effT.second; i++) {
+            const std::string name = std::string("N_WToMu_Efficiency_") + effT.first + ( (effT.second>1) ? Form("_%d", i) : "" );
+            if (b.second.at("Mi").count(name)==0 || b.second.at("Pl").count(name)==0) {
+              std::cout << "[ERROR] " << name << " variable is missing in bin [" << b.first.etabin().high() << " , " << b.first.etabin().low() << "]" << std::endl; return false;
+            }
+            //if (effT.first.find("_Stat_")!=std::string::npos) {
+            //  variation[effT.first+"_Pl"].push_back( getChargeAsymmetryValue(b.second.at("Pl").at(name).at("Val"), iVar_Mi.at("Val")) );
+            //  variation[effT.first+"_Mi"].push_back( getChargeAsymmetryValue(iVar_Pl.at("Val"), b.second.at("Mi").at(name).at("Val")) );
+            //}
+            //else {
+              variation[effT.first].push_back( getChargeAsymmetryValue(b.second.at("Pl").at(name).at("Val"), b.second.at("Mi").at(name).at("Val")) );
+              //}
+          }
+        }
+        computeTnPUncertainty( oVar.at("Err_Syst_High").at(b.first) , oVar.at("Err_Syst_Low").at(b.first) , variation , oVar.at("Val").at(b.first) );
+      }
     }
   }
   return true;
@@ -582,6 +760,29 @@ bool computeForwardBackwardRatio( BinPentaMap& var , const VarBinMap& inputVar )
       }
       for (const auto& t : errType) { oVar_Pl[t][b.first] = getForwardBackwardRatioError(iVar_FwPl.at("Val"), iVar_BwPl.at("Val"), iVar_FwPl.at(t), iVar_BwPl.at(t)); }
       for (const auto& t : errType) { oVar_Mi[t][b.first] = getForwardBackwardRatioError(iVar_FwMi.at("Val"), iVar_BwMi.at("Val"), iVar_FwMi.at(t), iVar_BwMi.at(t)); }
+      //
+      // If user wants to redo the efficiency variations at observable level
+      if (c.second.at(binFw).at("Mi").count("N_WToMu_Efficiency_TnP_Stat_Iso_0")>0) {
+        DoubleVecMap variation_Inc , variation_Pl , variation_Mi;
+        for (const auto& effT : effTnPType_) {
+          for (uint i = 0; i < effT.second; i++) {
+            const std::string name = std::string("N_WToMu_Efficiency_") + effT.first + ( (effT.second>1) ? Form("_%d", i) : "" );
+            if (c.second.at(binFw).at("Mi").count(name)==0 || c.second.at(binFw).at("Pl").count(name)==0) {
+              std::cout << "[ERROR] " << name << " variable is missing in bin [" << b.first.etabin().high() << " , " << b.first.etabin().low() << "]" << std::endl; return false;
+            }
+            const auto& iV_FwPl = c.second.at(binFw).at("Pl").at(name);
+            const auto& iV_FwMi = c.second.at(binFw).at("Mi").at(name);
+            const auto& iV_BwPl = c.second.at(binBw).at("Pl").at(name);
+            const auto& iV_BwMi = c.second.at(binBw).at("Mi").at(name);
+            variation_Inc[effT.first].push_back( getForwardBackwardRatioValue( ( iV_FwPl.at("Val") + iV_FwMi.at("Val") ) , ( iV_BwPl.at("Val") + iV_BwMi.at("Val") ) ) );
+            variation_Pl [effT.first].push_back( getForwardBackwardRatioValue( iV_FwPl.at("Val") , iV_BwPl.at("Val") ) );
+            variation_Mi [effT.first].push_back( getForwardBackwardRatioValue( iV_FwMi.at("Val") , iV_BwMi.at("Val") ) );
+          }
+        }
+        computeTnPUncertainty( oVar_Inc.at("Err_Syst_High").at(b.first) , oVar_Inc.at("Err_Syst_Low").at(b.first) , variation_Inc , oVar_Inc.at("Val").at(b.first) );
+        computeTnPUncertainty( oVar_Pl.at("Err_Syst_High").at(b.first)  , oVar_Pl.at("Err_Syst_Low").at(b.first)  , variation_Pl  , oVar_Pl.at("Val").at(b.first)  );
+        computeTnPUncertainty( oVar_Mi.at("Err_Syst_High").at(b.first)  , oVar_Mi.at("Err_Syst_Low").at(b.first)  , variation_Mi  , oVar_Mi.at("Val").at(b.first)  );
+      }
     }
   }
   return true;
@@ -636,19 +837,44 @@ bool computeCrossSection( BinPentaMap& var , const VarBinMap& inputVar )
       const std::vector< std::string > errType = { "Err_Stat_High" , "Err_Stat_Low" , "Err_Syst_High" , "Err_Syst_Low" };
       for (const auto& t : errType) { oVar_Pl[t][b.first] = getCrossSectionError(iVar_Pl.at("Val"), Luminosity, BinWidth, iVar_Pl.at(t), Err_Luminosity.at(t)); }
       for (const auto& t : errType) { oVar_Mi[t][b.first] = getCrossSectionError(iVar_Mi.at("Val"), Luminosity, BinWidth, iVar_Mi.at(t), Err_Luminosity.at(t)); }
+
+      //
+      // If user wants to redo the efficiency variations at observable level
+      if (b.second.at("Mi").count("N_WToMu_Efficiency_TnP_Stat_Iso_0")>0) {
+        DoubleVecMap variation_Pl , variation_Mi;
+        for (const auto& effT : effTnPType_) {
+          for (uint i = 0; i < effT.second; i++) {
+            const std::string name = std::string("N_WToMu_Efficiency_") + effT.first + ( (effT.second>1) ? Form("_%d", i) : "" );
+            if (b.second.at("Mi").count(name)==0 || b.second.at("Pl").count(name)==0) {
+              std::cout << "[ERROR] " << name << " variable is missing in bin [" << b.first.etabin().high() << " , " << b.first.etabin().low() << "]" << std::endl; return false;
+            }
+            variation_Pl[effT.first].push_back( getCrossSectionValue(b.second.at("Pl").at(name).at("Val"), Luminosity, BinWidth) );
+            variation_Mi[effT.first].push_back( getCrossSectionValue(b.second.at("Mi").at(name).at("Val"), Luminosity, BinWidth) );
+          }
+        }
+        computeTnPUncertainty( oVar_Pl.at("Err_Syst_High").at(b.first) , oVar_Pl.at("Err_Syst_Low").at(b.first) , variation_Pl , oVar_Pl.at("Val").at(b.first) );
+        computeTnPUncertainty( oVar_Mi.at("Err_Syst_High").at(b.first) , oVar_Mi.at("Err_Syst_Low").at(b.first) , variation_Mi , oVar_Mi.at("Val").at(b.first) );
+      }
     }
   }
   return true;
 };
 
 
-std::string formatResultVarName(const std::string varName, const bool useEtaCM)
+std::string formatResultVarName(const std::string varName, const bool useEtaCM, const bool isSyst = false, const bool useLATEX = false)
 {
   std::string label = "";
-  const std::string etaLbl = ( useEtaCM ? "#eta_{CM}" : "#eta" );
-  if (varName == "Charge_Asymmetry"      ) { label = "( N^{+} - N^{-} ) / ( N^{+} + N^{-} )"; }
-  if (varName == "ForwardBackward_Ratio" ) { label = "R_{FB}"; }
-  if (varName == "Cross_Section"         ) { label = Form("B #times d#sigma/d%s (nb)", etaLbl.c_str()); }
+  const std::string etaLbl = std::string(useLATEX ? "\\" : "#") + ( useEtaCM ? "eta_{CM}" : "eta_{LAB}" );
+  if (isSyst) {
+    if (varName == "Charge_Asymmetry"      ) { label = "Abs. Unc. ( N^{+} - N^{-} ) / ( N^{+} + N^{-} )"; }
+    if (varName == "ForwardBackward_Ratio" ) { label = "Abs. Unc. R_{FB}"; }
+    if (varName == "Cross_Section"         ) { label = Form("Rel. Unc. B %s/d%s", (useLATEX ? "\\times d\\sigma" : "#times d#sigma"), etaLbl.c_str()); }
+  }
+  else {
+    if (varName == "Charge_Asymmetry"      ) { label = "( N^{+} - N^{-} ) / ( N^{+} + N^{-} )"; }
+    if (varName == "ForwardBackward_Ratio" ) { label = "R_{FB}"; }
+    if (varName == "Cross_Section"         ) { label = Form("B %s/d%s (nb)", (useLATEX ? "\\times d\\sigma" : "#times d#sigma"), etaLbl.c_str()); }
+  }
   return label;
 };
 
@@ -780,12 +1006,12 @@ bool fillResultsGraph(GraphPentaMap& graphMap, const BinSextaMap& var)
               // X value
               double X , dummy; graph0.GetPoint(iBin, X, dummy);
               // X Error
-              const double Err_X_High = graph0.GetErrorXhigh(iBin)*0.8;
-              const double Err_X_Low  = graph0.GetErrorXlow (iBin)*0.8;
+              const double Err_X_High = graph0.GetErrorXhigh(iBin);
+              const double Err_X_Low  = graph0.GetErrorXlow (iBin);
               // Y value
               const double Nom_Y = v.second.at("Val").at(b.first);
               // Y Error
-              double Err_Y = 0.0;
+              double Err_Y_High = 0.0 , Err_Y_Low = 0.0;
               if (nVariation > 2) {
                 double sum = 0.0;
                 for (const auto& iGr : lbl.second) {
@@ -795,19 +1021,23 @@ bool fillResultsGraph(GraphPentaMap& graphMap, const BinSextaMap& var)
                     sum += ( diff * diff );
                   }
                 }
-                Err_Y = std::sqrt( sum / nVariation );
+                Err_Y_High = std::sqrt( sum / nVariation );
+                Err_Y_Low  = Err_Y_High;
               }
               else if (nVariation == 2) {
                 double Sys_Y_0; lbl.second.at("Variation_0").GetPoint(iBin, dummy, Sys_Y_0);
                 double Sys_Y_1; lbl.second.at("Variation_1").GetPoint(iBin, dummy, Sys_Y_1);
-                Err_Y = std::max( std::abs(Sys_Y_0 - Nom_Y) , std::abs(Sys_Y_1 - Nom_Y) );
+                Err_Y_High = std::max( std::max( (Sys_Y_0 - Nom_Y) , (Sys_Y_1 - Nom_Y) ) , 0.0 );
+                Err_Y_Low  = std::max( std::max( (Nom_Y - Sys_Y_0) , (Nom_Y - Sys_Y_1) ) , 0.0 );
               }
               else if (nVariation == 1) {
                 double Sys_Y; lbl.second.at("Variation_0").GetPoint(iBin, dummy, Sys_Y);
-                Err_Y = std::abs(Sys_Y - Nom_Y);
+                Err_Y_High = std::abs(Sys_Y - Nom_Y);
+                Err_Y_Low  = Err_Y_High;
               }
-              const double Err_Y_High = Err_Y;
-              const double Err_Y_Low  = Err_Y;
+              //
+              // Let's symmetryze the errors, more conservative
+              if (Err_Y_High > Err_Y_Low) { Err_Y_Low = Err_Y_High; } else { Err_Y_High = Err_Y_Low; }
               //
               // Fill the systematic total graph
               //
@@ -831,8 +1061,6 @@ bool fillResultsGraph(GraphPentaMap& graphMap, const BinSextaMap& var)
             const double Err_X = ( (b.first.etabin().high() - b.first.etabin().low()) / 2.0 ); // Width of eta bin
             double Err_X_High = Err_X;
             double Err_X_Low  = Err_X;
-            if (gr.first=="Err_Syst") { Err_X_High *= 0.4; Err_X_Low *= 0.4; }
-            if (gr.first=="Err_Stat") { Err_X_High *= 0.6; Err_X_Low *= 0.6; }
 
             // Y Value
             const double Y = v.second.at("Val").at(b.first);
@@ -903,14 +1131,14 @@ void formatLegendEntry(TLegendEntry& e)
 };
 
 
-void formatResultsGraph(TGraphAsymmErrors& graph, const std::string& col, const std::string& var, const std::string& chg, const bool& useEtaCM, const bool& incAcc)
+void formatResultsGraph(TGraphAsymmErrors& graph, const std::string& col, const std::string& var, const std::string& chg, const bool& useEtaCM, const bool& incAcc, const bool isSyst = false)
 {
   //
   // Set the Axis Titles
   std::string xLabel = "#mu"; if (chg == "Pl") { xLabel += "^{+}"; }; if (chg == "Mi") { xLabel += "^{-}"; }; xLabel += " #eta";
   if (useEtaCM) { xLabel += "_{CM}"; }
   else { xLabel += "_{LAB}"; }
-  std::string yLabel = formatResultVarName(var, useEtaCM);
+  std::string yLabel = formatResultVarName(var, useEtaCM, isSyst);
   graph.SetTitle(Form(";%s;%s", xLabel.c_str(), yLabel.c_str()));
   //
   // General
@@ -981,26 +1209,35 @@ void drawGraph( GraphPentaMap& graphMap , const std::string& outDir , const bool
           double legOff = 0.0; if (accType=="") { legOff = 0.05; }
           TLegend leg(0.2, (0.71 - legOff), 0.4, (0.84 - legOff));
           // Initialize the graph x range variables
-          double xMin , xMax;
+          double xMin=0.0 , xMax=0.0 , yErrMin=9999999. , yErrMax=-1.;
           // Draw graph
           if ( type=="Nominal" )  {
             // Format the graphs
             const bool incAcc = (accType!="");
-            for (auto& gr : graph) { formatResultsGraph(gr.second, col, var, chg, useEtaCM, incAcc); }
-            graph.at("Err_Tot").SetMarkerColor(kBlack);
-            graph.at("Err_Syst").SetFillColor(kOrange);
-            graph.at("Err_Stat").SetFillColor(kGreen+3);
+            grVec.push_back(graph.at("Err_Tot"));
+            grVec.push_back(graph.at("Err_Syst"));
+            for (int j = 0; j < grVec.back().GetN(); j++) {
+              grVec.back().SetPointError(j, grVec.back().GetErrorXlow(j)*0.4, grVec.back().GetErrorXhigh(j)*0.4, grVec.back().GetErrorYlow(j), grVec.back().GetErrorYhigh(j));
+            }
+            grVec.push_back(graph.at("Err_Stat"));
+            for (int j = 0; j < grVec.back().GetN(); j++) {
+              grVec.back().SetPointError(j, grVec.back().GetErrorXlow(j)*0.8, grVec.back().GetErrorXhigh(j)*0.8, grVec.back().GetErrorYlow(j), grVec.back().GetErrorYhigh(j));
+            }
+            for (auto& gr : grVec) { formatResultsGraph(gr, col, var, chg, useEtaCM, incAcc); }
+            grVec[0].SetMarkerColor(kBlack);
+            grVec[1].SetFillColor(kOrange);
+            grVec[2].SetFillColor(kGreen+3);
             // Create Legend
-            formatLegendEntry(*leg.AddEntry(&graph.at("Err_Tot" ), "Data", "pe"));
-            formatLegendEntry(*leg.AddEntry(&graph.at("Err_Stat"), "Statistical Uncertainty", "f"));
-            formatLegendEntry(*leg.AddEntry(&graph.at("Err_Syst"), "Systematic Uncertainty", "f"));
+            formatLegendEntry(*leg.AddEntry(&grVec[0], "Data", "pe"));
+            formatLegendEntry(*leg.AddEntry(&grVec[2], "Statistical Uncertainty", "f"));
+            formatLegendEntry(*leg.AddEntry(&grVec[1], "Systematic Uncertainty", "f"));
             // Draw the graphs
-            graph.at("Err_Tot").Draw("ap");
-            graph.at("Err_Stat").Draw("same2");
-            graph.at("Err_Syst").Draw("same2");
-            graph.at("Err_Tot").Draw("samep");
+            grVec[0].Draw("ap");
+            grVec[2].Draw("same2");
+            grVec[1].Draw("same2");
+            grVec[0].Draw("samep");
             //
-            xMin = graph.at("Err_Tot").GetXaxis()->GetXmin(); xMax = graph.at("Err_Tot").GetXaxis()->GetXmax();
+            xMin = grVec[0].GetXaxis()->GetXmin(); xMax = grVec[0].GetXaxis()->GetXmax();
           }
           else {
             // Format the graphs
@@ -1008,18 +1245,24 @@ void drawGraph( GraphPentaMap& graphMap , const std::string& outDir , const bool
             for (auto& gr : graph) { formatResultsGraph(gr.second, col, var, chg, useEtaCM, incAcc); }
             graph.at("Total").SetMarkerColor(kAzure+10);
             graph.at("Total").SetFillColor(kRed);
-            for (auto& gr : graph) { if (gr.first!="Total") { gr.second.SetMarkerColor(kBlack);  gr.second.SetMarkerSize(0.0); gr.second.SetLineColor(kBlack); } }
+            for (auto& gr : graph) { if (gr.first!="Total") { gr.second.SetMarkerColor(kBlack);  gr.second.SetMarkerSize(0.0); gr.second.SetLineColor(kBlack); gr.second.SetLineWidth(2.0); } }
             // Create Legend
             formatLegendEntry(*leg.AddEntry(&graph.at("Total"), "Nominal Result", "pe"));
             formatLegendEntry(*leg.AddEntry(&graph.at("Total"), Form("%s Uncertainty", type.c_str()), "f"));
             formatLegendEntry(*leg.AddEntry(&graph.at("Variation_0"), Form("%s Variation", type.c_str()), "l"));
             // Draw the Graph
             graph.at("Total").Draw("ap");
-            for (auto& gr : graph) { if (gr.first!="Total") { gr.second.Draw("samep"); } }
             graph.at("Total").Draw("same2");
+            for (auto& gr : graph) { if (gr.first!="Total") { gr.second.Draw("samep"); } }
             graph.at("Total").Draw("samep");
             //
             xMin = graph.at("Total").GetXaxis()->GetXmin(); xMax = graph.at("Total").GetXaxis()->GetXmax();
+            //
+            for (int j = 0; j < graph.at("Total").GetN(); j++) {
+              double yErr = graph.at("Total").GetErrorYhigh(j);
+              if (var=="Cross_Section") { double x, yVal; graph.at("Total").GetPoint(j, x, yVal); yErr /= std::abs(yVal); }
+              if (yErrMax < yErr) { yErrMax = yErr; };  if (yErrMin > yErr) { yErrMin = yErr; }
+            }
           }
           // Draw the Line
           TLine line_FB(xMin, 1.0, xMax, 1.0); line_FB.SetLineStyle(2);
@@ -1032,6 +1275,11 @@ void drawGraph( GraphPentaMap& graphMap , const std::string& outDir , const bool
           c.Modified(); c.Update();
           // Draw the text
           for (const auto& s: textToPrint) { tex.DrawLatex(0.22, 0.86-dy, s.c_str()); dy+=0.045; }
+          if ( type!="Nominal" )  {
+            tex.SetTextSize(0.030);
+            if (var=="Cross_Section") { tex.DrawLatex(0.20, 0.16, Form("Rel. Unc. [ %.2f%% , %.2f%% ]", (yErrMin*100.), (yErrMax*100.))); }
+            else { tex.DrawLatex(0.20, 0.16, Form("Abs. Unc. [ %.2f%% , %.2f%% ]", (yErrMin*100.), (yErrMax*100.))); }
+          }
           // Update
           c.Modified(); c.Update(); // Pure paranoia
           //
@@ -1105,7 +1353,7 @@ void drawCombineSystematicGraph( const GraphPentaMap& graphMap , const std::stri
         std::map< std::string , TGraphAsymmErrors > grMap;
         // Initialize the Legend
         double legOff = 0.0; if (accType=="") { legOff = 0.05; }
-        TLegend leg(0.2, (0.61 - legOff), 0.4, (0.84 - legOff));
+        TLegend leg(0.2, (0.54 - legOff), 0.4, (0.82 - legOff));
         double xMin = 0.0 , xMax = 0.0;
         //
         for (const auto& lbl : v.second) {
@@ -1131,7 +1379,6 @@ void drawCombineSystematicGraph( const GraphPentaMap& graphMap , const std::stri
                                               Err_Y_Low, Err_Y_High
                                               );
           }
-          xMin = grMap.at(lbl.first).GetXaxis()->GetXmin(); xMax = grMap.at(lbl.first).GetXaxis()->GetXmax();
         }
         //
         // Draw the graphs in the same canvas
@@ -1141,8 +1388,8 @@ void drawCombineSystematicGraph( const GraphPentaMap& graphMap , const std::stri
           auto& graph = gr.second;
           // Format the graphs
           const bool incAcc = (accType!="");
-          formatResultsGraph(graph, col, var, chg, useEtaCM, incAcc);
-          graph.SetMarkerColor(iCnt);
+          formatResultsGraph(graph, col, var, chg, useEtaCM, incAcc, true);
+          graph.SetMarkerColor((iCnt==uint(kWhite) ? uint(kOrange) : iCnt));
           graph.SetMarkerSize(1.0);
           graph.SetLineColor(iCnt);
           graph.SetLineWidth(2);
@@ -1152,10 +1399,12 @@ void drawCombineSystematicGraph( const GraphPentaMap& graphMap , const std::stri
           if (var == "ForwardBackward_Ratio") { graph.GetYaxis()->SetRangeUser(-0.05,  0.1); }
           iCnt++;
           // Create Legend
-          formatLegendEntry(*leg.AddEntry(&graph, grLbl.c_str(), "p"));
+          formatLegendEntry(*leg.AddEntry(&graph, grLbl.c_str(), "f"));
           //
-          if (firstPlot) { graph.Draw("ap"); firstPlot = false; }
-          graph.Draw("samep"); //2
+          if (firstPlot) { graph.Draw("a2"); firstPlot = false; }
+          graph.Draw("same2");
+          //
+          xMin = graph.GetXaxis()->GetXmin(); xMax = graph.GetXaxis()->GetXmax();
         }
         //
         TLine line(xMin, 0.0, xMax, 0.0); line.SetLineStyle(2);
@@ -1187,7 +1436,7 @@ void drawCombineSystematicGraph( const GraphPentaMap& graphMap , const std::stri
         if (accType=="MC" && effType=="TnP") { label = "AccMC_EffTnP"; }
         //
         // Create Output Directory
-        const std::string plotDir = outDir+"/" + col+"/" + label+"/" + var+"/" + "Systematic";
+        const std::string plotDir = outDir+"/Plots/" + col+"/" + label+"/" + var+"/" + "Systematic";
         makeDir(plotDir + "/png/");
         makeDir(plotDir + "/pdf/");
         makeDir(plotDir + "/root/");
@@ -1203,6 +1452,824 @@ void drawCombineSystematicGraph( const GraphPentaMap& graphMap , const std::stri
       }
     }
   }
+};
+
+
+const char*  sgn (const double n) {
+  if (n >= 0.) { return "+"; } else { return ""; }
+};
+
+
+void createYieldTable(std::vector< std::string >& texTable, const std::vector< std::string >& colVar, const std::vector< std::string >& colTitle1,
+                      const VarBinMap& inputVar, const std::string& col, const std::string& chg)
+{
+  //
+  const uint nCol = colVar.size();
+  //
+  texTable.push_back("  \\renewcommand{\\arraystretch}{1.5}");
+  texTable.push_back(Form("  \\begin{tabular}{|c|*%dc|}", (nCol-1)));
+  texTable.push_back("    \\hline");
+  std::string tmp;
+  tmp = ("    ");
+  for (uint i = 0; i < nCol; i++) {
+    tmp += colTitle1[i];
+    if (i<(nCol-1)) { tmp += " & "; }
+    else { tmp += "\\\\"; }
+  }
+  texTable.push_back(tmp);
+  texTable.push_back("    \\hline\\hline");
+  //
+  for (const auto& b : inputVar.at(col)) {
+    tmp = ("    ");
+    for (uint i = 0; i < nCol; i++) {
+      const auto& v = colVar[i];
+      const auto& var = b.second.at(chg).at(v);
+      std::string val;
+      if (v=="Muon_Eta") {
+        const double min = b.first.etabin().low();
+        const double max = b.first.etabin().high();
+        val = Form("%s%.2f , %s%.2f", sgn(min), min, sgn(max) , max);
+      }
+      else if (v=="N_DS_Entries") {
+        val = Form("%g", var.at("Val"));
+      }
+      else if (v=="N_FIT_Entries") {
+        val = Form("%.2f", var.at("Val"));
+      }
+      else if (v=="TEST_FIT") {
+        val = Form("%.2f", var.at("Val"));
+      }
+      else if (v=="Acceptance_MC" || v=="Efficiency_MC" || v=="Efficiency_TnP") {
+        const double errLow = var.at("Err_Stat_Low")*100.;
+        const double errHi  = var.at("Err_Stat_High")*100.;
+        if (errLow==errHi) { val = Form("$%.2f \\pm %.2f$", var.at("Val")*100., errLow ); }
+        else { val = Form("$%.2f + %.2f - %.2f$", var.at("Val")*100., errHi, errLow ); }
+      }
+      else {
+        const double errLow = var.at("Err_Stat_Low");
+        const double errHi  = var.at("Err_Stat_High");
+        if (errLow==errHi) { val = Form("$%.2f \\pm %.2f$", var.at("Val"), errLow ); }
+        else { val = Form("$%.2f + %.2f - %.2f$", var.at("Val"), errHi, errLow ); }
+      }
+      tmp += val;
+      if (i<(nCol-1)) { tmp += " & "; } else { tmp += "\\\\"; }
+    }
+    texTable.push_back(tmp);
+    texTable.push_back("    \\hline");
+  }
+  //
+  texTable.push_back("  \\end{tabular}");
+  //
+};
+
+
+void makeRawYieldsTable(std::ofstream& file, const VarBinMap& inputVar, const std::string& col, const std::string chg)
+{
+  //
+  const auto& inVar = inputVar.at(col).begin()->second.at(chg);
+  bool useEtaCM = false; if (inVar.count("useEtaCM")>0 && inVar.at("useEtaCM").at("Val")>0) { useEtaCM = true; }
+  //
+  // Extract kinematic info
+  std::string pTCUT = "";
+  if (inVar.count("Muon_Pt")>0) {
+    if (inVar.at("Muon_Pt").at("Min") >0.0 && inVar.at("Muon_Pt").at("Max")>=1000.0) { pTCUT = Form("$p_{T} > %.0f$~GeV/c", inVar.at("Muon_Pt").at("Min")); }
+    if (inVar.at("Muon_Pt").at("Min")<=0.0 && inVar.at("Muon_Pt").at("Max") <1000.0) { pTCUT = Form("$p_{T} < %.0f$~GeV/c", inVar.at("Muon_Pt").at("Max")); }
+    if (inVar.at("Muon_Pt").at("Min") >0.0 && inVar.at("Muon_Pt").at("Max") <1000.0) { pTCUT = Form("$%.0f < p_{T} < %.0f$~GeV/c", inVar.at("Muon_Pt").at("Min"), inVar.at("Muon_Pt").at("Max")); }
+  }
+  //
+  // Initialize the latex table
+  std::vector< std::string > texTable;
+  //
+  // Determine number of columns
+  const std::vector< std::string > allColVar    = { "Muon_Eta" , "N_DS_Entries" , "N_FIT_Entries" , "N_WToMu_RAW" , "N_DYToMu" , "N_WToTauToMu" , "N_TTbarToMu" , "N_QCDToMu" , "TEST_FIT" };
+  std::vector< std::string > allColTitle1 = { "$\\eta_{LAB}$ Range" , "Total"  , "Expected" , "Signal" , "$Z/\\gamma*\\to\\mu^{+}+\\mu^{-}$" , "$W\\to\\tau+\\nu_{\\tau}$" , "$t\\bar{t}$" , "QCD" , "$\\chi^{2}/NDoF$" };
+  if (useEtaCM) { allColTitle1[0] = "$\\eta_{CM}$ Range"; }
+  std::vector< std::string > colVar , colTitle1, colTitle2;
+  for(uint i = 0; i < allColVar.size(); i++) {
+    if (inVar.count(allColVar[i])>0) {
+      colVar.push_back(allColVar[i]);
+      colTitle1.push_back(allColTitle1[i]);
+    }
+  }
+  //
+  texTable.push_back("\\begin{table}[h!]");
+  texTable.push_back("  \\centering");
+  texTable.push_back("  \\resizebox{\\textwidth}{!}{");
+  createYieldTable(texTable, colVar, colTitle1, inputVar, col, chg);
+  texTable.push_back("  }");
+  texTable.push_back(Form("  \\caption{%s}",
+                          Form("Raw yields of %s and background processes, extracted from the nominal fits for each %s bin in the %s collision system. All analysis cuts are applied%s.",
+                               (chg=="Pl" ? "$\\PW^{+} \\to \\mu^{+}+\\nu_{\\mu}$" : "$\\PW^{-} \\to \\mu^{-}+\\nu_{\\mu}$"),
+                               (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
+                               (col=="PA" ? "combined \\pPb and \\Pbp" : (col=="pPb" ? "\\pPb" : (col=="Pbp" ? "\\Pbp" : "????"))),
+                               (pTCUT!="" ? Form(" including the muon %s cut", pTCUT.c_str()) : "")
+                               )
+                          )
+                     );
+  texTable.push_back(Form("  \\label{tab:RawYields_WToMu%s_%s}", chg.c_str(), col.c_str()));
+  texTable.push_back("\\end{table}");
+  //
+  for (const auto& row : texTable) { file << row << std::endl; }
+  file << std::endl; file << std::endl;
+  //
+};
+
+
+void makeCorrYieldsTable(std::ofstream& file, const VarBinMap& inputVar, const std::string& col, const std::string chg)
+{
+  //
+  const auto& inVar = inputVar.at(col).begin()->second.at(chg);
+  bool useEtaCM = false; if (inVar.count("useEtaCM")>0 && inVar.at("useEtaCM").at("Val")>0) { useEtaCM = true; }
+  //
+  // Extract kinematic info
+  std::string pTCUT = "";
+  if (inVar.count("Muon_Pt")>0) {
+    if (inVar.at("Muon_Pt").at("Min") >0.0 && inVar.at("Muon_Pt").at("Max")>=1000.0) { pTCUT = Form("$p_{T} > %.0f$~GeV/c", inVar.at("Muon_Pt").at("Min")); }
+    if (inVar.at("Muon_Pt").at("Min")<=0.0 && inVar.at("Muon_Pt").at("Max") <1000.0) { pTCUT = Form("$p_{T} < %.0f$~GeV/c", inVar.at("Muon_Pt").at("Max")); }
+    if (inVar.at("Muon_Pt").at("Min") >0.0 && inVar.at("Muon_Pt").at("Max") <1000.0) { pTCUT = Form("$%.0f < p_{T} < %.0f$~GeV/c", inVar.at("Muon_Pt").at("Min"), inVar.at("Muon_Pt").at("Max")); }
+  }
+  //
+  // Initialize the latex table
+  std::vector< std::string > texTable;
+  //
+  // Determine number of columns
+  const std::vector< std::string > allColVar    = { "Muon_Eta" , "N_WToMu_RAW" , "Acceptance_MC" , "Efficiency_MC" , "Efficiency_TnP" , "N_WToMu" };
+  std::vector< std::string > allColTitle1 = { "$\\eta_{LAB}$ Range" , "Raw Yield"  , "MC Acceptance ($\\%$)" , "MC Efficiency ($\\%$)" , "Efficiency ($\\%$)" , "Corrected Yield" };
+  if (useEtaCM) { allColTitle1[0] = "$\\eta_{CM}$ Range"; }
+  std::vector< std::string > colVar , colTitle1, colTitle2;
+  for(uint i = 0; i < allColVar.size(); i++) {
+    if (inVar.count(allColVar[i])>0) {
+      colVar.push_back(allColVar[i]);
+      colTitle1.push_back(allColTitle1[i]);
+    }
+  }
+  //
+  texTable.push_back("\\begin{table}[h!]");
+  texTable.push_back("  \\centering");
+  //texTable.push_back("  \\resizebox{\\textwidth}{!}{");
+  createYieldTable(texTable, colVar, colTitle1, inputVar, col, chg);
+  //texTable.push_back("  }");
+  texTable.push_back(Form("  \\caption{%s}",
+                          Form("Corrected yields of %s, given for each %s bin in the %s collision system. All analysis cuts are applied%s.%s All uncertainties shown are statistical only.",
+                               (chg=="Pl" ? "$\\PW^{+} \\to \\mu^{+}+\\nu_{\\mu}$" : "$\\PW^{-} \\to \\mu^{-}+\\nu_{\\mu}$"),
+                               (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
+                               (col=="PA" ? "combined \\pPb and \\Pbp" : (col=="pPb" ? "\\pPb" : (col=="Pbp" ? "\\Pbp" : "????"))),
+                               (pTCUT!="" ? Form(" including the muon %s cut", pTCUT.c_str()) : ""),
+                               (inVar.count("Efficiency_TnP")>0 ? " The muon efficiency has been corrected by applying the Tag and Probe scale factors event by event." : "")
+                               )
+                          )
+                     );
+  texTable.push_back(Form("  \\label{tab:CorrYields_WToMu%s_%s}", chg.c_str(), col.c_str()));
+  texTable.push_back("\\end{table}");
+  //
+  for (const auto& row : texTable) { file << row << std::endl; }
+  file << std::endl; file << std::endl;
+  //
+};
+
+
+bool printYieldsTables(const VarBinMap& inputVar, const std::string& outDir)
+{
+  //
+  std::cout << "[INFO] Filling the yield tables" << std::endl;
+  //
+  for (const auto& c : inputVar) {
+    // Create Output Directory
+    const std::string tableDir = outDir + "/Tables/SignalExtraction/" + c.first;
+    makeDir(tableDir);
+    // Create Output Files for RAW Yields
+    const std::string fileName_RAW = "rawYield_" + c.first;
+    std::ofstream file_RAW((tableDir + "/" + fileName_RAW + ".tex").c_str());
+    if (file_RAW.is_open()==false) { std::cout << "[ERROR] File " << fileName_RAW << " was not created!" << std::endl; return false; }
+    //
+    makeRawYieldsTable(file_RAW, inputVar, c.first, "Mi");
+    makeRawYieldsTable(file_RAW, inputVar, c.first, "Pl");
+    //
+    // Create Output Files for CORRECTED Yields
+    const std::string fileName_CORR = "corrYield_" + c.first;
+    std::ofstream file_CORR((tableDir + "/" + fileName_CORR + ".tex").c_str());
+    if (file_CORR.is_open()==false) { std::cout << "[ERROR] File " << fileName_CORR << " was not created!" << std::endl; return false; }
+    //
+    makeCorrYieldsTable(file_CORR, inputVar, c.first, "Mi");
+    makeCorrYieldsTable(file_CORR, inputVar, c.first, "Pl");
+  }
+  //
+  return true;
+};
+
+
+void createResultTable(std::vector< std::string >& texTable, const std::vector< std::string >& colVar, const std::vector< std::string >& colTitle1,
+                       const std::vector< std::string >& colChg, const std::vector< std::string >& colEta,
+                       const VarBinMap& inputVar, const BinPentaMap& resultVar, const std::string& col)
+{
+  //
+  const uint nCol = colVar.size();
+  //
+  texTable.push_back("  \\renewcommand{\\arraystretch}{1.5}");
+  texTable.push_back(Form("  \\begin{tabular}{|c|*%dc|}", (nCol-1)));
+  texTable.push_back("    \\hline");
+  std::string tmp;
+  tmp = ("    ");
+  for (uint i = 0; i < nCol; i++) {
+    tmp += colTitle1[i];
+    if (i<(nCol-1)) { tmp += " & "; }
+    else { tmp += "\\\\"; }
+  }
+  texTable.push_back(tmp);
+  texTable.push_back("    \\hline\\hline");
+  //
+  std::string varLbl = "Cross_Section"; for (const auto& v : colVar) { if (v=="ForwardBackward_Ratio") { varLbl = v; break; } }  
+  //
+  for (const auto& b : resultVar.at(col).at("Pl").at(varLbl).at("Val")) {
+    tmp = ("    ");
+    for (uint i = 0; i < nCol; i++) {
+      auto bin = b.first;
+      if (colEta[i]=="Inv") { bin = anabin<0>(-1.0*bin.etabin().high() , ( (bin.etabin().low() == 0.0) ? 0.0 : -1.0*bin.etabin().low() )); }
+      const auto&    v = colVar[i];
+      const auto&  chg = colChg[i];
+      std::string val;
+      if (v=="Muon_Eta") {
+        const double min = b.first.etabin().low();
+        const double max = b.first.etabin().high();
+        val = Form("%s%.2f , %s%.2f", sgn(min), min, sgn(max) , max);
+      }
+      else if (v=="Cross_Section") {
+        const auto& rVar = resultVar.at(col).at(chg).at(v);
+        const double errLow = rVar.at("Err_Stat_Low").at(b.first);
+        const double errHi  = rVar.at("Err_Stat_High").at(b.first);
+        const double rVal   = rVar.at("Val").at(b.first);
+        if (errLow==errHi) { val = Form("$%.2f \\pm %.2f$", rVal, errLow ); }
+        else { val = Form("$%.2f + %.2f - %.2f$", rVal, errHi, errLow ); }
+      }
+      else if (v=="ForwardBackward_Ratio" || v=="Charge_Asymmetry") {
+        const auto& rVar = resultVar.at(col).at(chg).at(v);
+        const double errLow = rVar.at("Err_Stat_Low").at(b.first);
+        const double errHi  = rVar.at("Err_Stat_High").at(b.first);
+        const double rVal   = rVar.at("Val").at(b.first);
+        if (errLow==errHi) { val = Form("$%.3f \\pm %.3f$", rVal, errLow ); }
+        else { val = Form("$%.3f + %.3f - %.3f$", rVal, errHi, errLow ); }
+      }
+      else {
+        const auto& iVar = inputVar.at(col).at(bin).at(chg).at(v);
+        const double errLow = iVar.at("Err_Stat_Low");
+        const double errHi  = iVar.at("Err_Stat_High");
+        const double iVal   = iVar.at("Val");
+        if (errLow==errHi) { val = Form("$%.2f \\pm %.2f$", iVal, errLow ); }
+        else { val = Form("$%.2f + %.2f - %.2f$", iVal, errHi, errLow ); }
+      }
+      tmp += val;
+      if (i<(nCol-1)) { tmp += " & "; } else { tmp += "\\\\"; }
+    }
+    texTable.push_back(tmp);
+    texTable.push_back("    \\hline");
+  }
+  //
+  texTable.push_back("  \\end{tabular}");
+  //
+};
+
+
+void makeCrossSectionTable(std::ofstream& file, const BinPentaMap& resultVar, const VarBinMap& inputVar, const std::string& col)
+{
+  //
+  const auto& inVar = inputVar.at(col).begin()->second.at("Pl");
+  bool useEtaCM = false; if (inVar.count("useEtaCM")>0 && inVar.at("useEtaCM").at("Val")>0) { useEtaCM = true; }
+  //
+  // Extract kinematic info
+  std::string pTCUT = "";
+  if (inVar.count("Muon_Pt")>0) {
+    if (inVar.at("Muon_Pt").at("Min") >0.0 && inVar.at("Muon_Pt").at("Max")>=1000.0) { pTCUT = Form("$p_{T} > %.0f$~GeV/c", inVar.at("Muon_Pt").at("Min")); }
+    if (inVar.at("Muon_Pt").at("Min")<=0.0 && inVar.at("Muon_Pt").at("Max") <1000.0) { pTCUT = Form("$p_{T} < %.0f$~GeV/c", inVar.at("Muon_Pt").at("Max")); }
+    if (inVar.at("Muon_Pt").at("Min") >0.0 && inVar.at("Muon_Pt").at("Max") <1000.0) { pTCUT = Form("$%.0f < p_{T} < %.0f$~GeV/c", inVar.at("Muon_Pt").at("Min"), inVar.at("Muon_Pt").at("Max")); }
+  }
+  const double lumiVal = ( (inVar.count("Luminosity")>0) ? inVar.at("Luminosity").at("Val")      : -1. );
+  const double lumiErr = ( (inVar.count("Luminosity")>0) ? inVar.at("Luminosity").at("Val")*0.05 : -1. ); // 5% error
+  //
+  // Initialize the latex table
+  std::vector< std::string > texTable;
+  //
+  // Determine number of columns
+  const std::vector< std::string > colChg = { "Mi" , "Mi" , "Mi" , "Pl" , "Pl" };
+  const std::vector< std::string > colEta = { "" , "" , "" , "" , "" };
+  const std::vector< std::string > colVar = { "Muon_Eta" , "N_WToMu" , "Cross_Section" , "N_WToMu" , "Cross_Section" };
+  std::vector< std::string >    colTitle1 = { "$\\eta_{LAB}$ Range" , "$\\PW^{-}\\ $ Yield"  , "" , "$\\PW^{+}\\ $ Yield" , "" };
+  if (useEtaCM) { colTitle1[0] = "$\\eta_{CM}$ Range"; }
+  colTitle1[2] = Form("$\\PW^{-}\\ %s$", formatResultVarName("Cross_Section", useEtaCM, false, true).c_str());
+  colTitle1[4] = Form("$\\PW^{+}\\ %s$", formatResultVarName("Cross_Section", useEtaCM, false, true).c_str());
+  //
+  texTable.push_back("\\begin{table}[h!]");
+  texTable.push_back("  \\centering");
+  texTable.push_back("  \\resizebox{\\textwidth}{!}{");
+  createResultTable(texTable, colVar, colTitle1, colChg, colEta, inputVar, resultVar, col);
+  texTable.push_back("  }");
+  texTable.push_back(Form("  \\caption{%s}",
+                          Form("Cross-Section of $\\PW^{\\pm} \\to \\mu^{\\pm}+\\nu_{\\mu}$, given for each %s bin in the %s collision system. The luminosity of the sample corresponds to $%.1f \\pm %.1f$~/nb. All analysis cuts are applied%s. All uncertainties shown are statistical only.",
+                               (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
+                               (col=="PA" ? "combined \\pPb and \\Pbp" : (col=="pPb" ? "\\pPb" : (col=="Pbp" ? "\\Pbp" : "????"))),
+                               lumiVal, lumiErr,
+                               (pTCUT!="" ? Form(" including the muon %s cut", pTCUT.c_str()) : "")
+                               )
+                          )
+                     );
+  texTable.push_back(Form("  \\label{tab:CrossSection_WToMu_%s}", col.c_str()));
+  texTable.push_back("\\end{table}");
+  //
+  for (const auto& row : texTable) { file << row << std::endl; }
+  file << std::endl; file << std::endl;
+  //
+};
+
+
+void makeForwardBackwardTable(std::ofstream& file, const BinPentaMap& resultVar, const VarBinMap& inputVar, const std::string& col)
+{
+  //
+  const auto& inVar = inputVar.at(col).begin()->second.at("Pl");
+  bool useEtaCM = false; if (inVar.count("useEtaCM")>0 && inVar.at("useEtaCM").at("Val")>0) { useEtaCM = true; }
+  //
+  // Extract kinematic info
+  std::string pTCUT = "";
+  if (inVar.count("Muon_Pt")>0) {
+    if (inVar.at("Muon_Pt").at("Min") >0.0 && inVar.at("Muon_Pt").at("Max")>=1000.0) { pTCUT = Form("$p_{T} > %.0f$~GeV/c", inVar.at("Muon_Pt").at("Min")); }
+    if (inVar.at("Muon_Pt").at("Min")<=0.0 && inVar.at("Muon_Pt").at("Max") <1000.0) { pTCUT = Form("$p_{T} < %.0f$~GeV/c", inVar.at("Muon_Pt").at("Max")); }
+    if (inVar.at("Muon_Pt").at("Min") >0.0 && inVar.at("Muon_Pt").at("Max") <1000.0) { pTCUT = Form("$%.0f < p_{T} < %.0f$~GeV/c", inVar.at("Muon_Pt").at("Min"), inVar.at("Muon_Pt").at("Max")); }
+  }
+  //
+  // Initialize the latex table
+  std::vector< std::string > texTable;
+  //
+  // Determine number of columns
+  const std::vector< std::string > colChg = { "Pl" , "Mi" , "Mi" , "Pl" , "Pl" , "Mi" , "Pl" , "" };
+  const std::vector< std::string > colEta = { "" , "" , "Inv" , "" , "Inv" , "" , "" , "" };
+  const std::vector< std::string > colVar = { "Muon_Eta" , "N_WToMu" , "N_WToMu" , "N_WToMu" , "N_WToMu" , "ForwardBackward_Ratio" , "ForwardBackward_Ratio" , "ForwardBackward_Ratio" };
+  std::vector< std::string >    colTitle1 = { "$\\eta_{LAB}$ Range" , "$\\PW^{-}\\ $ Fwd Yield" , "$\\PW^{-}\\ $ Bwd Yield" , "$\\PW^{+}\\ $ Fwd Yield" , "$\\PW^{+}\\ $ Bwd Yield"  , "" , "" , "" };
+  if (useEtaCM) { colTitle1[0] = "$\\eta_{CM}$ Range"; }
+  colTitle1[5] = Form("$\\PW^{-}\\ %s$", formatResultVarName("ForwardBackward_Ratio", useEtaCM, false, true).c_str());
+  colTitle1[6] = Form("$\\PW^{+}\\ %s$", formatResultVarName("ForwardBackward_Ratio", useEtaCM, false, true).c_str());
+  colTitle1[7] = Form("$\\PW\\ %s$", formatResultVarName("ForwardBackward_Ratio", useEtaCM, false, true).c_str());
+  //
+  texTable.push_back("\\begin{table}[h!]");
+  texTable.push_back("  \\centering");
+  texTable.push_back("  \\resizebox{\\textwidth}{!}{");
+  createResultTable(texTable, colVar, colTitle1, colChg, colEta, inputVar, resultVar, col);
+  texTable.push_back("  }");
+  texTable.push_back(Form("  \\caption{%s}",
+                          Form("Forward-Backward ratio of $\\PW^{\\pm} \\to \\mu^{\\pm}+\\nu_{\\mu}$, given for each %s bin in the %s collision system. All analysis cuts are applied%s. All uncertainties shown are statistical only.",
+                               (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
+                               (col=="PA" ? "combined \\pPb and \\Pbp" : (col=="pPb" ? "\\pPb" : (col=="Pbp" ? "\\Pbp" : "????"))),
+                               (pTCUT!="" ? Form(" including the muon %s cut", pTCUT.c_str()) : "")
+                               )
+                          )
+                     );
+  texTable.push_back(Form("  \\label{tab:ForwardBackwardRatio_WToMu_%s}", col.c_str()));
+  texTable.push_back("\\end{table}");
+  //
+  for (const auto& row : texTable) { file << row << std::endl; }
+  file << std::endl; file << std::endl;
+  //
+};
+
+
+void makeChargeAsymmetryTable(std::ofstream& file, const BinPentaMap& resultVar, const VarBinMap& inputVar, const std::string& col)
+{
+  //
+  const auto& inVar = inputVar.at(col).begin()->second.at("Pl");
+  bool useEtaCM = false; if (inVar.count("useEtaCM")>0 && inVar.at("useEtaCM").at("Val")>0) { useEtaCM = true; }
+  //
+  // Extract kinematic info
+  std::string pTCUT = "";
+  if (inVar.count("Muon_Pt")>0) {
+    if (inVar.at("Muon_Pt").at("Min") >0.0 && inVar.at("Muon_Pt").at("Max")>=1000.0) { pTCUT = Form("$p_{T} > %.0f$~GeV/c", inVar.at("Muon_Pt").at("Min")); }
+    if (inVar.at("Muon_Pt").at("Min")<=0.0 && inVar.at("Muon_Pt").at("Max") <1000.0) { pTCUT = Form("$p_{T} < %.0f$~GeV/c", inVar.at("Muon_Pt").at("Max")); }
+    if (inVar.at("Muon_Pt").at("Min") >0.0 && inVar.at("Muon_Pt").at("Max") <1000.0) { pTCUT = Form("$%.0f < p_{T} < %.0f$~GeV/c", inVar.at("Muon_Pt").at("Min"), inVar.at("Muon_Pt").at("Max")); }
+  }
+  //
+  // Initialize the latex table
+  std::vector< std::string > texTable;
+  //
+  // Determine number of columns
+  const std::vector< std::string > colChg = { "Pl" , "Pl" , "Mi" , "" };
+  const std::vector< std::string > colEta = { "" , "" , "" , "" };
+  const std::vector< std::string > colVar = { "Muon_Eta" , "N_WToMu" , "N_WToMu" , "Charge_Asymmetry" };
+  std::vector< std::string >    colTitle1 = { "$\\eta_{LAB}$ Range" , "$\\PW^{+}\\ $ Yield" , "$\\PW^{-}\\ $ Yield" , "" };
+  if (useEtaCM) { colTitle1[0] = "$\\eta_{CM}$ Range"; }
+  colTitle1[3] = Form("$%s$", formatResultVarName("Charge_Asymmetry", useEtaCM, false, true).c_str());
+  //
+  texTable.push_back("\\begin{table}[h!]");
+  texTable.push_back("  \\centering");
+  //texTable.push_back("  \\resizebox{\\textwidth}{!}{");
+  createResultTable(texTable, colVar, colTitle1, colChg, colEta, inputVar, resultVar, col);
+  //texTable.push_back("  }");
+  texTable.push_back(Form("  \\caption{%s}",
+                          Form("$\\PW\\ $ charge asymmetry, given for each %s bin in the %s collision system. All analysis cuts are applied%s. All uncertainties shown are statistical only.",
+                               (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
+                               (col=="PA" ? "combined \\pPb and \\Pbp" : (col=="pPb" ? "\\pPb" : (col=="Pbp" ? "\\Pbp" : "????"))),
+                               (pTCUT!="" ? Form(" including the muon %s cut", pTCUT.c_str()) : "")
+                               )
+                          )
+                     );
+  texTable.push_back(Form("  \\label{tab:ChargeAsymmetry_WToMu_%s}", col.c_str()));
+  texTable.push_back("\\end{table}");
+  //
+  for (const auto& row : texTable) { file << row << std::endl; }
+  file << std::endl; file << std::endl;
+  //
+};
+
+
+bool printResultsTables(const BinSextaMap& var, const VarBinMap& inputVar, const std::string& outDir)
+{
+  //
+  std::cout << "[INFO] Filling the result tables" << std::endl;
+  //
+  // Fill the tables
+  //
+  if (var.count("Nominal")==0 || var.at("Nominal").size()==0) { std::cout << "[ERROR] Nominal results were not found" << std::endl; return false; }
+  //
+  for (const auto& c : var.at("Nominal")[0]) {
+    //
+    const auto& resultVar = var.at("Nominal")[0];
+    // Create Output Directory
+    const std::string tableDir = outDir + "/Tables/Results/" + c.first;
+    makeDir(tableDir);
+    // Create Output Files for Cross Sections
+    const std::string fileName_XSEC = "crossSection_" + c.first;
+    std::ofstream file_XSEC((tableDir + "/" + fileName_XSEC + ".tex").c_str());
+    if (file_XSEC.is_open()==false) { std::cout << "[ERROR] File " << fileName_XSEC << " was not created!" << std::endl; return false; }
+    //
+    makeCrossSectionTable(file_XSEC, resultVar, inputVar, c.first);
+    //
+    // Create Output Files for Forward-Backward Ratios
+    const std::string fileName_FB = "forwardBackward_" + c.first;
+    std::ofstream file_FB((tableDir + "/" + fileName_FB + ".tex").c_str());
+    if (file_FB.is_open()==false) { std::cout << "[ERROR] File " << fileName_FB << " was not created!" << std::endl; return false; }
+    //
+    makeForwardBackwardTable(file_FB, resultVar, inputVar, c.first);
+    //
+    // Create Output Files for Muon Charge Asymmetry Ratios
+    const std::string fileName_CA = "chargeAsymmetry_" + c.first;
+    std::ofstream file_CA((tableDir + "/" + fileName_CA + ".tex").c_str());
+    if (file_CA.is_open()==false) { std::cout << "[ERROR] File " << fileName_CA << " was not created!" << std::endl; return false; }
+    //
+    makeChargeAsymmetryTable(file_CA, resultVar, inputVar, c.first);
+  }
+  //
+  return true;
+};
+
+
+void createSystematicTable(std::vector< std::string >& texTable, const std::vector< std::string >& colVar, const std::vector< std::string >& colTitle1,
+                           const std::vector< std::string >& colChg, const GraphPentaMap& graphMap, const std::string& col)
+{
+  //
+  const uint nCol = colVar.size();
+  //
+  texTable.push_back("  \\renewcommand{\\arraystretch}{1.5}");
+  texTable.push_back(Form("  \\begin{tabular}{|c|*%dc|}", (nCol-1)));
+  texTable.push_back("    \\hline");
+  std::string tmp;
+  tmp = ("    ");
+  for (uint i = 0; i < nCol; i++) {
+    tmp += colTitle1[i];
+    if (i<(nCol-1)) { tmp += " & "; }
+    else { tmp += "\\\\"; }
+  }
+  texTable.push_back(tmp);
+  texTable.push_back("    \\hline\\hline");
+  //
+  std::string varLbl = "Cross_Section"; for (const auto& v : colVar) { if (v=="ForwardBackward_Ratio") { varLbl = v; break; } }
+  const auto& nomGr = graphMap.at(col).at("Pl").at(varLbl).at("Nominal").at("Err_Tot");
+  //
+  for (int iBin = 0; iBin < nomGr.GetN(); iBin++) {
+    tmp = ("    ");
+    double x , y , xErrLo , xErrHi , yErrLo , yErrHi;
+    nomGr.GetPoint(iBin, x, y);
+    xErrLo = nomGr.GetErrorXlow(iBin); xErrHi = nomGr.GetErrorXhigh(iBin);
+    for (uint i = 0; i < nCol; i++) {
+      //
+      const auto&    v = colVar[i];
+      const auto&  chg = colChg[i];
+      std::string val;
+      //
+      if (v=="Muon_Eta") {
+        const double min = (x-xErrLo);
+        const double max = (x+xErrHi);
+        val = Form("%s%.2f , %s%.2f", sgn(min), min, sgn(max) , max);
+      }
+      else if (v=="Cross_Section") {
+        const auto& grSyst = graphMap.at(col).at(chg).at(v).at("Nominal").at("Err_Syst");
+        const auto& grStat = graphMap.at(col).at(chg).at(v).at("Nominal").at("Err_Stat");
+        grStat.GetPoint(iBin, x, y);
+        const double statErrLow = grStat.GetErrorYlow(iBin);
+        const double statErrHi  = grStat.GetErrorYhigh(iBin);
+        const double systErrLow = grSyst.GetErrorYlow(iBin);
+        const double systErrHi  = grSyst.GetErrorYhigh(iBin);
+        const double rVal       = y;
+        if (statErrLow==statErrHi) { val = Form("$%.2f \\pm %.2f$ (stat)", rVal, statErrLow ); }
+        else { val = Form("$%.2f + %.2f - %.2f$ (stat)", rVal, statErrHi, statErrLow ); }
+        if (systErrLow==systErrHi) { val += Form("$ \\pm %.2f$ (syst)", systErrLow ); }
+        else { val += Form("$ + %.2f - %.2f$ (syst)", systErrHi, systErrLow ); }
+      }
+      else if (v=="ForwardBackward_Ratio" || v=="Charge_Asymmetry") {
+        const auto& grSyst = graphMap.at(col).at(chg).at(v).at("Nominal").at("Err_Syst");
+        const auto& grStat = graphMap.at(col).at(chg).at(v).at("Nominal").at("Err_Stat");
+        grStat.GetPoint(iBin, x, y);
+        const double statErrLow = grStat.GetErrorYlow(iBin);
+        const double statErrHi  = grStat.GetErrorYhigh(iBin);
+        const double systErrLow = grSyst.GetErrorYlow(iBin);
+        const double systErrHi  = grSyst.GetErrorYhigh(iBin);
+        const double rVal       = y;
+        if (statErrLow==statErrHi) { val = Form("$%.3f \\pm %.3f$ (stat)", rVal, statErrLow ); }
+        else { val = Form("$%.2f + %.3f - %.3f$ (stat)", rVal, statErrHi, statErrLow ); }
+        if (systErrLow==systErrHi) { val += Form("$ \\pm %.3f$ (syst)", systErrLow ); }
+        else { val += Form("$ + %.3f - %.3f$ (syst)", systErrHi, systErrLow ); }
+      }
+      tmp += val;
+      if (i<(nCol-1)) { tmp += " & "; } else { tmp += "\\\\"; }
+    }
+    texTable.push_back(tmp);
+    texTable.push_back("    \\hline");
+  }
+  //
+  texTable.push_back("  \\end{tabular}");
+  //
+};
+
+
+void makeCrossSectionSystTable(std::ofstream& file, const GraphPentaMap& graphMap, const std::string& col, const bool useEtaCM = true)
+{
+  //
+  // Initialize the latex table
+  std::vector< std::string > texTable;
+  //
+  const std::string pTCUT = Form("$p_{T} > %.0f$~GeV/c", 25.0);
+  const double lumiVal = ( (col=="pPb") ? PA::LUMI::Data_pPb : PA::LUMI::Data_Pbp );
+  const double lumiErr = 0.05;
+  //
+  // Determine number of columns
+  const std::vector< std::string > colChg = { "Mi" , "Mi" , "Pl" };
+  const std::vector< std::string > colVar = { "Muon_Eta" , "Cross_Section" , "Cross_Section" };
+  std::vector< std::string >    colTitle1 = { "$\\eta_{LAB}$ Range" , "" , "" };
+  if (useEtaCM) { colTitle1[0] = "$\\eta_{CM}$ Range"; }
+  colTitle1[1] = Form("$\\PW^{-}\\ %s$", formatResultVarName("Cross_Section", useEtaCM, false, true).c_str());
+  colTitle1[2] = Form("$\\PW^{+}\\ %s$", formatResultVarName("Cross_Section", useEtaCM, false, true).c_str());
+  //
+  texTable.push_back("\\begin{table}[h!]");
+  texTable.push_back("  \\centering");
+  //texTable.push_back("  \\resizebox{\\textwidth}{!}{");
+  createSystematicTable(texTable, colVar, colTitle1, colChg, graphMap, col);
+  //texTable.push_back("  }");
+  texTable.push_back(Form("  \\caption{%s}",
+                          Form("Cross-Section of $\\PW^{\\pm} \\to \\mu^{\\pm}+\\nu_{\\mu}$, given for each %s bin in the %s collision system. The luminosity of the sample corresponds to $%.1f \\pm %.1f$~/nb. All analysis cuts are applied%s.",
+                               (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
+                               (col=="PA" ? "combined \\pPb and \\Pbp" : (col=="pPb" ? "\\pPb" : (col=="Pbp" ? "\\Pbp" : "????"))),
+                               lumiVal, lumiErr,
+                               (pTCUT!="" ? Form(" including the muon %s cut", pTCUT.c_str()) : "")
+                               )
+                          )
+                     );
+  texTable.push_back(Form("  \\label{tab:CrossSectionSyst_WToMu_%s}", col.c_str()));
+  texTable.push_back("\\end{table}");
+  //
+  for (const auto& row : texTable) { file << row << std::endl; }
+  file << std::endl; file << std::endl;
+  //
+};
+
+
+void makeForwardBackwardSystTable(std::ofstream& file, const GraphPentaMap& graphMap, const std::string& col, const bool useEtaCM = true)
+{
+  //
+  // Initialize the latex table
+  std::vector< std::string > texTable;
+  //
+  const std::string pTCUT = Form("$p_{T} > %.0f$~GeV/c", 25.0);
+  //
+  // Determine number of columns
+  const std::vector< std::string > colChg = { "Pl" , "Mi" , "Pl" , "" };
+  const std::vector< std::string > colVar = { "Muon_Eta" , "ForwardBackward_Ratio" , "ForwardBackward_Ratio" , "ForwardBackward_Ratio" };
+  std::vector< std::string >    colTitle1 = { "$\\eta_{LAB}$ Range" , "" , "" , "" };
+  if (useEtaCM) { colTitle1[0] = "$\\eta_{CM}$ Range"; }
+  colTitle1[1] = Form("$\\PW^{-}\\ %s$", formatResultVarName("ForwardBackward_Ratio", useEtaCM, false, true).c_str());
+  colTitle1[2] = Form("$\\PW^{+}\\ %s$", formatResultVarName("ForwardBackward_Ratio", useEtaCM, false, true).c_str());
+  colTitle1[3] = Form("$\\PW\\ %s$", formatResultVarName("ForwardBackward_Ratio", useEtaCM, false, true).c_str());
+  //
+  texTable.push_back("\\begin{table}[h!]");
+  texTable.push_back("  \\centering");
+  texTable.push_back("  \\resizebox{\\textwidth}{!}{");
+  createSystematicTable(texTable, colVar, colTitle1, colChg, graphMap, col);
+  texTable.push_back("  }");
+  texTable.push_back(Form("  \\caption{%s}",
+                          Form("Forward-Backward ratio of $\\PW^{\\pm} \\to \\mu^{\\pm}+\\nu_{\\mu}$, given for each %s bin in the %s collision system. All analysis cuts are applied%s.",
+                               (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
+                               (col=="PA" ? "combined \\pPb and \\Pbp" : (col=="pPb" ? "\\pPb" : (col=="Pbp" ? "\\Pbp" : "????"))),
+                               (pTCUT!="" ? Form(" including the muon %s cut", pTCUT.c_str()) : "")
+                               )
+                          )
+                     );
+  texTable.push_back(Form("  \\label{tab:ForwardBackwardRatioSyst_WToMu_%s}", col.c_str()));
+  texTable.push_back("\\end{table}");
+  //
+  for (const auto& row : texTable) { file << row << std::endl; }
+  file << std::endl; file << std::endl;
+  //
+};
+
+
+void makeChargeAsymmetrySystTable(std::ofstream& file, const GraphPentaMap& graphMap, const std::string& col, const bool useEtaCM = true)
+{
+  //
+  // Initialize the latex table
+  std::vector< std::string > texTable;
+  //
+  const std::string pTCUT = Form("$p_{T} > %.0f$~GeV/c", 25.0);
+  //
+  // Determine number of columns
+  const std::vector< std::string > colChg = { "Pl" , "" };
+  const std::vector< std::string > colVar = { "Muon_Eta" , "Charge_Asymmetry" };
+  std::vector< std::string >    colTitle1 = { "$\\eta_{LAB}$ Range" , "" };
+  if (useEtaCM) { colTitle1[0] = "$\\eta_{CM}$ Range"; }
+  colTitle1[1] = Form("$%s$", formatResultVarName("Charge_Asymmetry", useEtaCM, false, true).c_str());
+  //
+  texTable.push_back("\\begin{table}[h!]");
+  texTable.push_back("  \\centering");
+  //texTable.push_back("  \\resizebox{\\textwidth}{!}{");
+  createSystematicTable(texTable, colVar, colTitle1, colChg, graphMap, col);
+  //texTable.push_back("  }");
+  texTable.push_back(Form("  \\caption{%s}",
+                          Form("$\\PW\\ $ charge asymmetry, given for each %s bin in the %s collision system. All analysis cuts are applied%s",
+                               (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
+                               (col=="PA" ? "combined \\pPb and \\Pbp" : (col=="pPb" ? "\\pPb" : (col=="Pbp" ? "\\Pbp" : "????"))),
+                               (pTCUT!="" ? Form(" including the muon %s cut", pTCUT.c_str()) : "")
+                               )
+                          )
+                     );
+  texTable.push_back(Form("  \\label{tab:ChargeAsymmetrySyst_WToMu_%s}", col.c_str()));
+  texTable.push_back("\\end{table}");
+  //
+  for (const auto& row : texTable) { file << row << std::endl; }
+  file << std::endl; file << std::endl;
+  //
+};
+
+
+bool printSystematicTables(const GraphPentaMap& graphMap , const std::string& outDir , const bool useEtaCM = true)
+{
+  //
+  std::cout << "[INFO] Filling the systematic tables" << std::endl;
+  //
+  // Fill the tables
+  //
+  for (const auto& c : graphMap) {
+    //
+    // Create Output Directory
+    const std::string tableDir = outDir + "/Tables/Systematics/" + c.first;
+    makeDir(tableDir);
+    // Create Output Files for Cross Sections
+    const std::string fileName_XSEC = "crossSection_" + c.first;
+    std::ofstream file_XSEC((tableDir + "/" + fileName_XSEC + ".tex").c_str());
+    if (file_XSEC.is_open()==false) { std::cout << "[ERROR] File " << fileName_XSEC << " was not created!" << std::endl; return false; }
+    //
+    makeCrossSectionSystTable(file_XSEC, graphMap, c.first, useEtaCM);
+    //
+    // Create Output Files for Forward-Backward Ratios
+    const std::string fileName_FB = "forwardBackward_" + c.first;
+    std::ofstream file_FB((tableDir + "/" + fileName_FB + ".tex").c_str());
+    if (file_FB.is_open()==false) { std::cout << "[ERROR] File " << fileName_FB << " was not created!" << std::endl; return false; }
+    //
+    makeForwardBackwardSystTable(file_FB, graphMap, c.first, useEtaCM);
+    //
+    // Create Output Files for Muon Charge Asymmetry Ratios
+    const std::string fileName_CA = "chargeAsymmetry_" + c.first;
+    std::ofstream file_CA((tableDir + "/" + fileName_CA + ".tex").c_str());
+    if (file_CA.is_open()==false) { std::cout << "[ERROR] File " << fileName_CA << " was not created!" << std::endl; return false; }
+    //
+    makeChargeAsymmetrySystTable(file_CA, graphMap, c.first, useEtaCM);
+  }
+  //
+  return true;
+};
+
+
+
+void createFullSystematicTable(std::vector< std::string >& texTable, const std::vector< std::string >& colVar, const std::vector< std::string >& colTitle1,
+                               const std::vector< std::string >& colChg, const GraphPentaMap& graphMap, const std::string& col)
+{
+  //
+  const uint nCol = colVar.size();
+  //
+  texTable.push_back("  \\renewcommand{\\arraystretch}{1.5}");
+  texTable.push_back(Form("  \\begin{tabular}{|c|*%dc|}", (nCol-1)));
+  texTable.push_back("    \\hline");
+  std::string tmp;
+  tmp = ("    ");
+  for (uint i = 0; i < nCol; i++) {
+    tmp += colTitle1[i];
+    if (i<(nCol-1)) { tmp += " & "; }
+    else { tmp += "\\\\"; }
+  }
+  texTable.push_back(tmp);
+  texTable.push_back("    \\hline\\hline");
+  //
+  std::string varLbl = "Cross_Section"; for (const auto& v : colVar) { if (v=="ForwardBackward_Ratio") { varLbl = v; break; } }
+  //
+  for (const auto& sys : graphMap.at(col).at("Pl").at(varLbl)) {
+    //
+    const auto& sysLbl = sys.first;
+    if (sysLbl=="Nominal") continue;
+    tmp = ("    ");
+    for (uint i = 0; i < nCol; i++) {
+      //
+      const auto&      v = colVar[i];
+      const auto&    chg = colChg[i];
+      std::string val;
+      //
+      if (v=="Title_Syst") {
+        val = sysLbl; if (val.find("_")!=std::string::npos) { val.replace(val.find("_"), 1, " "); }
+      }
+      else {
+        const auto& grSyst = graphMap.at(col).at(chg).at(v).at(sysLbl).at("Total");
+        double eMax = -9999.0;
+        for (int iBin = 0; iBin < grSyst.GetN(); iBin++) {
+          const double systErrLow = grSyst.GetErrorYlow(iBin);
+          const double systErrHi  = grSyst.GetErrorYhigh(iBin);
+          if (systErrLow > eMax) { eMax = systErrLow; }
+          if (systErrHi  > eMax) { eMax = systErrHi;  }
+        }
+        val = Form(" %.4f ", eMax );
+      }
+      tmp += val;
+      if (i<(nCol-1)) { tmp += " & "; } else { tmp += "\\\\"; }
+    }
+    texTable.push_back(tmp);
+    texTable.push_back("    \\hline");
+  }
+  //
+  texTable.push_back("  \\end{tabular}");
+  //
+};
+
+
+void makeFullSystematicTable(std::ofstream& file, const GraphPentaMap& graphMap, const std::string& col, const bool useEtaCM = true)
+{
+  //
+  // Initialize the latex table
+  std::vector< std::string > texTable;
+  //
+  const std::string pTCUT = Form("$p_{T} > %.0f$~GeV/c", 25.0);
+  //
+  // Determine number of columns
+  const std::vector< std::string > colChg = { "" , "Mi" , "Pl" , "Mi" , "Pl" , "" , "" };
+  const std::vector< std::string > colVar = { "Title_Syst" , "Cross_Section" , "Cross_Section" , "ForwardBackward_Ratio" , "ForwardBackward_Ratio" , "ForwardBackward_Ratio" , "Charge_Asymmetry" };
+  std::vector< std::string >    colTitle1 = { "Systematic Variation" , "" , "" , "" , "" , "" , "" };
+  colTitle1[1] = Form("$\\PW^{-}\\ %s$", formatResultVarName("Cross_Section", useEtaCM, false, true).c_str());
+  colTitle1[2] = Form("$\\PW^{+}\\ %s$", formatResultVarName("Cross_Section", useEtaCM, false, true).c_str());
+  colTitle1[3] = Form("$\\PW^{-}\\ %s$", formatResultVarName("ForwardBackward_Ratio", useEtaCM, false, true).c_str());
+  colTitle1[4] = Form("$\\PW^{+}\\ %s$", formatResultVarName("ForwardBackward_Ratio", useEtaCM, false, true).c_str());
+  colTitle1[5] = Form("$\\PW\\ %s$", formatResultVarName("ForwardBackward_Ratio", useEtaCM, false, true).c_str());
+  colTitle1[6] = Form("$%s$", formatResultVarName("Charge_Asymmetry", useEtaCM, false, true).c_str());
+  //
+  texTable.push_back("\\begin{table}[h!]");
+  texTable.push_back("  \\centering");
+  texTable.push_back("  \\resizebox{\\textwidth}{!}{");
+  createFullSystematicTable(texTable, colVar, colTitle1, colChg, graphMap, col);
+  texTable.push_back("  }");
+  texTable.push_back(Form("  \\caption{%s}",
+                          Form("$\\PW\\ $ systematic separated in each category in the %s collision system. All analysis cuts are applied%s.",
+                               (col=="PA" ? "combined \\pPb and \\Pbp" : (col=="pPb" ? "\\pPb" : (col=="Pbp" ? "\\Pbp" : "????"))),
+                               (pTCUT!="" ? Form(" including the muon %s cut", pTCUT.c_str()) : "")
+                               )
+                          )
+                     );
+  texTable.push_back(Form("  \\label{tab:ChargeAsymmetrySyst_WToMu_%s}", col.c_str()));
+  texTable.push_back("\\end{table}");
+  //
+  for (const auto& row : texTable) { file << row << std::endl; }
+  file << std::endl; file << std::endl;
+  //
+};
+
+
+bool printFullSystematicTable(const GraphPentaMap& graphMap , const std::string& outDir , const bool useEtaCM = true)
+{
+  //
+  std::cout << "[INFO] Filling the systematic tables" << std::endl;
+  //
+  // Fill the tables
+  //
+  for (const auto& c : graphMap) {
+    //
+    // Create Output Directory
+    const std::string tableDir = outDir + "/Tables/Systematics/" + c.first;
+    makeDir(tableDir);
+    // Create Output Files for Full Systematics
+    const std::string fileName_SYST = "systematic_" + c.first;
+    std::ofstream file_SYST((tableDir + "/" + fileName_SYST + ".tex").c_str());
+    if (file_SYST.is_open()==false) { std::cout << "[ERROR] File " << fileName_SYST << " was not created!" << std::endl; return false; }
+    //
+    makeFullSystematicTable(file_SYST, graphMap, c.first, useEtaCM);
+  }
+  //
+  return true;
 };
 
 

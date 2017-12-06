@@ -124,7 +124,7 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
     RooRealVar   muMT   = RooRealVar ( "Muon_MT"    , "W Transverse Mass" ,  -1.0 , 100000.0 ,  "GeV/c^{2}" );
     RooRealVar   cent   = RooRealVar ( "Centrality" , "Centrality"        ,  -1.0 , 100000.0 ,  ""          );
     RooCategory  type   = RooCategory( "Event_Type" , "Event Type");
-    type.defineType("Other", -1); type.defineType("DYToMuMu", 1);
+    type.defineType("Other", -1); type.defineType("DYToMuMu", 1); type.defineType("ZToMuMu", 2);
     RooArgSet cols = RooArgSet(met, muPt, muEta, muIso, muMT, cent);
     cols.add(type);
     ///// Initiliaze RooDataSets
@@ -227,9 +227,11 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
       //
       // Event Type: DrellYan->MuMu
       if (eventType=="Other") {
-        if (PA::passDrellYanVeto(muonTree) == false) { eventType = "DYToMuMu"; }  // Found a Drell-Yan candidate
+        if (PA::passDrellYanVeto(muonTree) == false) {
+          if (PA::hasZBoson(muonTree) == true) { eventType = "ZToMuMu"; }  // Found a Z->MuMu candidate
+          else { eventType = "DYToMuMu"; } // Found a Drell-Yan candidate outside of Z mass region
+        }
       }
-      if (eventType=="DYToMuMu") continue; // Remove Drell-Yan events
       //
       // Isolation and Charge of Leading Muon
       const float leadMuIso = muonTree->PF_Muon_IsoPFR03NoPUCorr()[leadMuPFIdx];
@@ -315,6 +317,7 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
   return true;
 };
 
+
 bool checkEWQDS(RooDataSet* DS, const string& DSName, const std::string& Analysis)
 {
   if (DS->numEntries()==0 || DS->sumEntries()==0) { std::cout << "[WARNING] Original dataset: " << DS->GetName() << " is empty, will remake it!" << std::endl; return false; }
@@ -337,6 +340,84 @@ bool checkEWQDS(RooDataSet* DS, const string& DSName, const std::string& Analysi
 };
 
 
+bool setMETonDS(RooWorkspace& ws, const std::string& dDSName, const std::string& mcDSName, const std::string& metDSName, const std::string& metType)
+{
+  // Check if Data
+  const bool isMC = (dDSName.find("MC_")!=std::string::npos);
+  // Get the RooDatasets
+  auto  dDS = (RooDataSet*)ws.data(dDSName.c_str());
+  if ( dDS==NULL) { std::cout << "[ERROR] setMETonDS: Dataset " << dDSName << " was not found in the workspace!" << std::endl; return false; }
+  auto metDS = (RooDataSet*)ws.data(metDSName.c_str());
+  if (metDS==NULL) { std::cout << "[ERROR] setMETonDS: Dataset " << metDSName << " was not found in the workspace!" << std::endl; return false; }
+  RooDataSet* mcDS = NULL; if (isMC) { mcDS = (RooDataSet*)ws.data(mcDSName.c_str()); }
+  if (isMC && mcDS==NULL) { std::cout << "[ERROR] setMETonDS: Dataset " << mcDSName << " was not found in the workspace!" << std::endl; return false; }
+  // Get the sample name
+  std::string sample = dDS->GetName(); sample = sample.substr(sample.find((isMC ? "MC_" : "DATA_")));
+  std::string chg    = dDS->GetName(); chg    = chg.substr(1, chg.find("_")-1);
+  std::string col    = dDS->GetName(); col    = col.substr(col.find_last_of("_")+1);
+  if ( (col!="pPb") && (col!="Pbp") ) { std::cout << "[ERROR] Collision system " << col << " is invalid!" << std::endl; return false; }
+  if ( (chg!="Pl" ) && (chg!="Mi" ) ) { std::cout << "[ERROR] Charge "           << chg << " is invalid!" << std::endl; return false; }
+  // Initialize the RooArgSets
+  RooArgSet cols    = *dDS->get();
+  RooArgSet metCols = *metDS->get();
+  RooArgSet mcCols = (isMC ? *mcDS->get() : RooArgSet());
+  // Initialize the new RooDataSets
+  auto dWDS  = std::unique_ptr<RooDataSet>(new RooDataSet( Form("d%s_SET_%s" , chg.c_str(), sample.c_str()) , Form("d%s" , chg.c_str()) , cols) );
+  std::unique_ptr<RooDataSet> mcWDS; if (isMC) { mcWDS.reset(new RooDataSet( Form("mc%s_SET_%s", chg.c_str(), sample.c_str()) , Form("mc%s", chg.c_str()) , mcCols)); }
+  // Set the MET
+  for (int i = 0; i < dDS->numEntries(); i++) {
+    dDS->get(i);
+    metDS->get(i);
+    // Extract the User MET
+    auto metMag = (RooRealVar*)metCols.find(Form("MET_Mag_%s", metType.c_str()));
+    if (metMag==NULL) { std::cout << "[ERROR] setMETonDS: Variable MET Mag of " << metType << " was not found in " << metDSName << std::endl; return false; }
+    auto metPhi = (RooRealVar*)metCols.find(Form("MET_Phi_%s", metType.c_str()));
+    if (metPhi==NULL) { std::cout << "[ERROR] setMETonDS: Variable MET Phi of " << metType << " was not found in " << metDSName << std::endl; return false; }
+    // Extract the Nominal MET
+    auto metMag_Nom = (RooRealVar*)cols.find("MET");
+    if (metMag_Nom==NULL) { std::cout << "[ERROR] setMETonDS: Variable MET Mag was not found in " << dDSName << std::endl; return false; }
+    // Set the Nominal MET to the User MET
+    metMag_Nom->setVal( metMag->getVal() );
+    // Fill the new RooDataSets
+    dWDS->addFast(cols);
+    //
+    if (isMC) {
+      mcDS->get(i);
+      auto metPhi_Nom = (RooRealVar*)mcCols.find("MET_Phi");
+      if (metPhi_Nom==NULL) { std::cout << "[ERROR] setMETonDS: Variable MET Phi was not found in " << mcDSName << std::endl; return false; }
+      metPhi_Nom->setVal( metPhi->getVal() );
+      mcWDS->addFast(mcCols);
+    }
+  }
+  // Import to RooWorkspace
+  ws.import(*dWDS);
+  if (isMC) { ws.import(*mcWDS); }
+  // Return
+  return true;
+  //
+};
+
+
+bool setMET(RooWorkspaceMap_t& Workspaces, const std::string& metType)
+{
+  //
+  for (auto& ws : Workspaces) {
+    RooWorkspace& myws = ws.second;
+    // Get the sample name
+    const auto& dsList =  myws.allData();
+    std::string sample = dsList.front()->GetName(); sample = sample.substr(sample.find("_")+1);
+    std::cout << "[INFO] Setting MET of sample " << sample << " to " << metType << std::endl;
+    // Apply the Lumi re-weighting to positive muon dataset
+    if (!setMETonDS(myws, ("dPl_"+sample), ("mcPl_"+sample), ("metPl_"+sample), metType)) { return false; }
+    // Apply the Lumi re-weighting to negative muon dataset
+    if (!setMETonDS(myws, ("dMi_"+sample), ("mcMi_"+sample), ("metMi_"+sample), metType)) { return false; }
+  }
+  //
+  return true;
+  //
+};
+
+
 bool applyLumiWeight(RooWorkspace& ws, GlobalInfo& info, const std::string dDSName, const std::string& mcDSName, const bool verbose = false)
 {
   //
@@ -348,7 +429,7 @@ bool applyLumiWeight(RooWorkspace& ws, GlobalInfo& info, const std::string dDSNa
   if (mcDS==NULL) { std::cout << "[ERROR] applyLumiWeight: Dataset " << mcDSName << " was not found in the workspace!" << std::endl; return false; }
   // Get the sample name
   std::string sample = dDS->GetName(); sample = sample.substr(sample.find("MC_"));
-  std::string chg    = dDS->GetName(); chg    = chg.substr(1, sample.find("_"));
+  std::string chg    = dDS->GetName(); chg    = chg.substr(1, chg.find("_")-1);
   std::string col    = dDS->GetName(); col    = col.substr(col.find_last_of("_")+1);
   if ( (col!="pPb") && (col!="Pbp") ) { std::cout << "[ERROR] Collision system " << col << " is invalid!" << std::endl; return false; }
   if ( (chg!="Pl" ) && (chg!="Mi" ) ) { std::cout << "[ERROR] Charge "           << chg << " is invalid!" << std::endl; return false; }
@@ -379,14 +460,14 @@ bool applyLumiWeight(RooWorkspace& ws, GlobalInfo& info, const std::string dDSNa
       if (info.Var.count("rLumi")>0) { luminosity *= info.Var.at("rLumi").at("Val"); }
       if (info.Var.count(("Luminosity_"+col).c_str())==0) { info.Var["Luminosity_"+col]["Val"] = luminosity; }
       // Get the Cross-Section
-      const std::string mcTypeName = PA::getMCTypeName(int(mcType->getVal()));
-      const std::string mcSample   = mcTypeName.substr(mcTypeName.find("_")+1);
+      const std::string mcXSecName = PA::getMCXSecName(int(mcType->getVal()));
+      const std::string mcSample   = mcXSecName.substr(mcXSecName.find("_")+1);
       const std::string mcTag      = mcSample.substr(0, mcSample.find_last_of("_"));
-      if (!PA::getCrossSection(xSection, mcTypeName)) { return false; }
+      if (!PA::getCrossSection(xSection, mcXSecName)) { return false; }
       if (info.Var.count(("rXSection_"+mcTag).c_str())>0) { xSection *= info.Var.at(("rXSection_"+mcTag).c_str()).at("Val"); }
       mcID = mcType->getVal();
       if (info.Var.count(("XSection_"+mcSample).c_str())==0) { info.Var["XSection_"+mcSample]["Val"] = xSection; }
-      std::string oStr = std::string("[INFO] ") + mcTypeName + " set to : Cross-section " + Form("%g", xSection) + " nb ";
+      std::string oStr = std::string("[INFO] ") + mcXSecName + " set to : Cross-section " + Form("%g", xSection) + " nb ";
       if (info.Var.count(("rXSection_"+mcTag).c_str())>0) {
         const double v = info.Var.at(("rXSection_"+mcTag).c_str()).at("Val");
         oStr += std::string("(") + Form("%s%.0f%%", ((v>=1.0) ? "+" : "-"), std::abs((v-1.0)*100.0)) + ") ";
@@ -425,8 +506,9 @@ bool reweightMCLumi(RooWorkspaceMap_t& Workspaces, GlobalInfo& info)
     if (ws.first.find("MC_")!=std::string::npos) {
       RooWorkspace& myws = ws.second;
       // Get the sample name
-      const auto& dsList =  myws.allData();
-      std::string sample = dsList.front()->GetName(); sample = sample.substr(sample.find("_")+1);
+      std::string sample = "SET_" + ws.first;
+      if (myws.data(Form("dPl_%s", sample.c_str()))==NULL) { sample = "RAW_" + ws.first; }
+      if (myws.data(Form("dPl_%s", sample.c_str()))==NULL) { std::cout << "[ERROR] Sample " << sample << " was not found in the workspace!" << std::endl; return false; }
       std::cout << "[INFO] Re-weighting the Luminosity of " << sample << std::endl;
       // Apply the Lumi re-weighting to positive muon dataset
       if (!applyLumiWeight(myws, info, ("dPl_"+sample), ("mcPl_"+sample), true)) { return false; }
@@ -679,7 +761,9 @@ bool correctMC(RooWorkspaceMap_t& Workspaces, const GlobalInfo& info)
       RooWorkspace& myws = ws.second;
       // Get the sample name
       std::string sample = "LUM_" + ws.first;
+      if (myws.data(Form("dPl_%s", sample.c_str()))==NULL) { sample = "SET_" + ws.first; }
       if (myws.data(Form("dPl_%s", sample.c_str()))==NULL) { sample = "RAW_" + ws.first; }
+      if (myws.data(Form("dPl_%s", sample.c_str()))==NULL) { std::cout << "[ERROR] Sample " << sample << " was not found in the workspace!" << std::endl; return false; }
       const std::string corrString = std::string(applyTnPCorr ? " TnPCorr " : "") + std::string(applyHFCorr ? " HFCorr " : "")  + std::string(applyRecoilCorr ? " RecoilCorr " : "");
       std::cout << "[INFO] Applying corrections ( " << corrString << " ) to " << sample << std::endl;
       // Extract the corrections
@@ -734,7 +818,9 @@ bool createPADataset(RooWorkspaceMap_t& Workspaces, const std::string& sampleTag
   // Extract the RooDatasets
   std::string dsType = "COR";
   if (Workspaces.at(sample_pPb).data(("dPl_"+dsType+"_"+sample_pPb).c_str())==NULL) { dsType = "LUM"; }
+  if (Workspaces.at(sample_pPb).data(("dPl_"+dsType+"_"+sample_pPb).c_str())==NULL) { dsType = "SET"; }
   if (Workspaces.at(sample_pPb).data(("dPl_"+dsType+"_"+sample_pPb).c_str())==NULL) { dsType = "RAW"; }
+  if (Workspaces.at(sample_pPb).data(("dPl_"+dsType+"_"+sample_pPb).c_str())==NULL) { std::cout << "[ERROR] Sample " << sampleTag << " was not found!" << std::endl; return false; }
   const std::string dsSampleTag  = dsType + "_" + sampleTag;
   const std::string dsSample_pPb = dsSampleTag + "_pPb";
   const std::string dsSample_Pbp = dsSampleTag + "_Pbp";

@@ -47,8 +47,9 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   // Format Object name
   std::string process = "";
   char chgL = ' '; if (chg=="Pl") { chgL = '+'; } else if (chg=="Mi") { chgL = '-'; }
-  if      (obj=="WToTau") { process = Form("W^{%c}#rightarrow#tau^{%c}", chgL, chgL); } else if (obj=="W") { process = Form("W^{%c}", chgL);; } 
+  if      (obj=="WToTau") { process = Form("W^{%c}#rightarrow#tau^{%c}", chgL, chgL); } else if (obj=="W") { process = Form("W^{%c}", chgL);; }
   else if (obj=="DY"    ) { process = "Z/#gamma*"; }
+  else if (obj=="Z"     ) { process = "Z"; }
   else if (obj=="QCD"   ) { process = "QCD";      }
   else if (obj=="TTbar" ) { process = "t#bar{t}"; }
   if (cha=="ToMu") { process += Form("#rightarrow#mu^{%c}+x", chgL); }
@@ -89,7 +90,7 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
     }
     else {
       double norm = ws.data(dsName.c_str())->sumEntries();
-      const std::map< std::string , int > colorMap = { {"W" , kYellow} , {"DY" , kGreen+2} , {"WToTau" , kRed+1} , {"QCD" , kAzure-9} , {"TTbar" , kOrange+2} };
+      const std::map< std::string , int > colorMap = { {"W" , kYellow} , {"DY" , kGreen+2} , {"WToTau" , kRed+1} , {"QCD" , kAzure-9} , {"TTbar" , kOrange+1} };
       std::unique_ptr<TIterator> parIt = std::unique_ptr<TIterator>(pdfList.createIterator());
       std::unique_ptr<RooArgList> list = std::unique_ptr<RooArgList>((RooArgList*)pdfList.Clone());      
       if (list==NULL) { std::cout << "[ERROR] List of PDFs from " << pdfName << " is empty!" << std::endl; return false; }
@@ -277,9 +278,9 @@ void parseVarName(const std::string& name, std::string& label)
   else if (s1=="XSection"){ s1="#sigma"; } else if (s1=="AccXEff"){ s1="#alphax#epsilon"; }
   // Format Object name
   std::string chg = ""; if (s2.find("Pl")!=std::string::npos) { chg = "+"; } else if (s2.find("Mi")!=std::string::npos) { chg = "-"; }
-  if (s2.find("WToTau")!=std::string::npos) { s2 = "W#rightarrow#tau"; } else if (s2.find("W")!=std::string::npos) { s2 = "W"; } 
-  else if (s2.find("DYZ")!=std::string::npos) { s2 = "Z/#gamma*"; } else if (s2.find("QCD")!=std::string::npos) { s2 = "QCD"; }
-  else if (s2.find("TTbar")!=std::string::npos) { s2 = "t#bar{t}"; }
+  if (s2.find("WToTau")!=std::string::npos) { s2 = "W#rightarrow#tau"; } else if (s2.find("W")!=std::string::npos) { s2 = "W#rightarrow#mu"; }
+  else if (s2.find("DY")!=std::string::npos) { s2 = "Z/#gamma*"; } else if (s2.find("Z")!=std::string::npos) { s2 = "Z"; }
+  else if (s2.find("QCD")!=std::string::npos) { s2 = "QCD"; } else if (s2.find("TTbar")!=std::string::npos) { s2 = "t#bar{t}"; }
   s2 = ( s2 + chg );
   if(s3!=""){ label = Form("%s_{%s}^{%s}", s1.c_str(), s2.c_str(), s3.c_str()); } else { label = Form("%s^{%s}", s1.c_str(), s2.c_str()); }
   return;

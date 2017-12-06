@@ -224,13 +224,13 @@ void setEWQCutParameters(GlobalInfo& info)
       // Define the Event Type range
       if (info.Par.at("Event_Type")=="") { info.Par.at("Event_Type") = "Other"; }
     }
-    // Selecting DYZ->MuMu Enhanced Events
-    if (info.Flag.at("fitDY")) {
+    // Selecting Z->MuMu Enhanced Events
+    if (info.Flag.at("fitZ")) {
       // Define the Muon Iso range
       if (info.Var.at("Muon_Iso").at("Max")==100000.0) { info.Var.at("Muon_Iso").at("Max") = 0.15; }
       if (info.Var.at("Muon_Iso").at("Min")>=info.Var.at("Muon_Iso").at("Max")) { info.Var.at("Muon_Iso").at("Min") = 0.0; }
       // Define the Event Type range
-      if (info.Par.at("Event_Type")=="") { info.Par.at("Event_Type") = "DYToMuMu"; }
+      if (info.Par.at("Event_Type")=="") { info.Par.at("Event_Type") = "ZToMuMu"; }
     }
     // Print Informstion
     std::cout << "[INFO] Setting MET Magnitud range to min: " << info.Var.at("MET").at("Min") << " and max " << info.Var.at("MET").at("Max") << std::endl;
@@ -328,7 +328,9 @@ int importDataset(RooWorkspace& myws  , const std::map<string, RooWorkspace>& in
     // Extract the RooDatasets
     std::string dsType = "COR";
     if (inputWS.at(label).data(Form("dPl_%s_%s", dsType.c_str(), label.c_str()))==NULL) { dsType = "LUM"; }
+    if (inputWS.at(label).data(Form("dPl_%s_%s", dsType.c_str(), label.c_str()))==NULL) { dsType = "SET"; }
     if (inputWS.at(label).data(Form("dPl_%s_%s", dsType.c_str(), label.c_str()))==NULL) { dsType = "RAW"; }
+    if (inputWS.at(label).data(Form("dPl_%s_%s", dsType.c_str(), label.c_str()))==NULL) { std::cout << "[ERROR] Sample " << (dsType + "_" + label) << " was not found!" << std::endl; return -1; }
     const std::string extLabel = dsType + "_" + label;
     std::cout << "[INFO] Importing local RooDataSet " << extLabel << std::endl;
     //
@@ -390,7 +392,7 @@ int importDataset(RooWorkspace& myws  , const std::map<string, RooWorkspace>& in
 void setMETGlobalParameterRange(RooWorkspace& myws, GlobalInfo& info)
 {
   myws.var("MET")->setRange("METWindow", info.Var.at("MET").at("Min"), info.Var.at("MET").at("Max"));
-  info.Par["METRange_Cut"] = Form("(MET>%g && MET<%g)", info.Var.at("MET").at("Min"), info.Var.at("MET").at("Max"));
+  info.Par["METRange_Cut"] = Form("(MET>=%g && MET<%g)", info.Var.at("MET").at("Min"), info.Var.at("MET").at("Max"));
   const int nBins = min(int( round((info.Var.at("MET").at("Max") - info.Var.at("MET").at("Min"))/info.Var.at("MET").at("binWidth")) ), 1000);
   myws.var("MET")->setBins(nBins);
   return;
@@ -402,7 +404,8 @@ void setMETFileName(string& fileName, string& outputDir, const string& DSTAG, co
   std::string dsTag  = DSTAG; dsTag.erase(dsTag.find("_MUON"), dsTag.length());
   std::string colTag = DSTAG; colTag = colTag.substr(colTag.find_last_of("_")+1);
   const std::string metTAG = "MET" + info.Par.at("METType");
-  outputDir = Form("%s%s/%s/%s/", outputDir.c_str(), metTAG.c_str(), dsTag.c_str(), colTag.c_str());
+  const std::string objTag = info.StrV.at("fitObject")[0];
+  outputDir = Form("%s%s/%s/%s/%s/", outputDir.c_str(), metTAG.c_str(), dsTag.c_str(), objTag.c_str(), colTag.c_str());
   const bool ispPb = ( info.Flag.at("fitpPb") || info.Flag.at("fitPA") );
   const double etaMin = ( info.Flag.at("useEtaCM") ? PA::EtaLABtoCM(info.Var.at("Muon_Eta").at("Min"), ispPb) : info.Var.at("Muon_Eta").at("Min") );
   const double etaMax = ( info.Flag.at("useEtaCM") ? PA::EtaLABtoCM(info.Var.at("Muon_Eta").at("Max"), ispPb) : info.Var.at("Muon_Eta").at("Max") );

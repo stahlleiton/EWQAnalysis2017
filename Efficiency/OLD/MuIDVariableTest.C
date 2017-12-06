@@ -16,14 +16,14 @@
 #include <TClonesArray.h>
 #include <TLorentzVector.h>
 
-#include "HiMuonTree.h"
+#include "../../Utilities/HiMuonTree.h"
 
 using namespace std;
 
 
 class MuIDTest {
   public:
-    MuIDTest(const bool _isMC, const string _inputFile, const string _outputFile, const double _muPtCut);
+    MuIDTest(const bool _isMC, const std::vector<std::string> _inputFile, const std::string _outputFile, const double _muPtCut);
     ~MuIDTest();
     void init();
     void variableTest();
@@ -34,7 +34,8 @@ class MuIDTest {
     void setHistStyle(TH1 &h);
     
     bool isMC;
-    string inputFile, outputFile;
+  std::vector<std::string> inputFile;
+    std::string outputFile;
     double muPtCut;
 
     TFile *fout;
@@ -81,12 +82,12 @@ class MuIDTest {
     TH1D h_InTrk_ValFrac[5];
 };
 
-MuIDTest::MuIDTest(const bool _isMC, const string _inputFile, const string _outputFile, const double _muPtCut) {
+MuIDTest::MuIDTest(const bool _isMC, const std::vector< std::string > _inputFile, const std::string _outputFile, const double _muPtCut) {
   isMC = _isMC;
   inputFile = _inputFile;
   outputFile = _outputFile;
   muPtCut = _muPtCut;
-  cout << "MuIDTest::MuIDTest() " << isMC << " " << inputFile << " " << outputFile << " " << muPtCut << endl;
+  cout << "MuIDTest::MuIDTest() " << isMC << " " << inputFile[0] << " " << outputFile << " " << muPtCut << endl;
 }
 
 MuIDTest::~MuIDTest() {
@@ -232,7 +233,7 @@ void MuIDTest::variableTest() {
   cout << "MuIDTest::variableTest() " << endl;
   // Load input file and trees
   HiMuonTree tree = HiMuonTree();
-  tree.GetTree(inputFile.c_str());
+  tree.GetTree(inputFile);
   cout << "MuIDTest::variableTest() after HiMuonTree GetTree " << endl;
 
   Long64_t nentries = tree.GetEntries();
@@ -241,8 +242,8 @@ void MuIDTest::variableTest() {
     if (tree.GetEntry(evt)<0) break;
     
     // Pick up single mu event for dxy, dz test
-    TClonesArray Reco_Muon_Mom = tree.Reco_Muon_Mom();
-    unsigned int nmu = Reco_Muon_Mom.GetEntries();
+    std::vector<TLorentzVector> Reco_Muon_Mom = tree.Reco_Muon_Mom();
+    unsigned int nmu = Reco_Muon_Mom.size();
     vector<float> v_BestTrk_dXY = tree.Reco_Muon_BestTrk_dXY();
     vector<float> v_BestTrk_dZ = tree.Reco_Muon_BestTrk_dZ();
 
@@ -252,23 +253,23 @@ void MuIDTest::variableTest() {
     }
     
     // Pick up Z->mumu event
-    TClonesArray Reco_DiMuon_Mom = tree.Reco_DiMuon_Mom();
+    std::vector<TLorentzVector> Reco_DiMuon_Mom = tree.Reco_DiMuon_Mom();
     vector<char> Reco_DiMuon_Charge = tree.Reco_DiMuon_Charge();
     vector<float> Reco_DiMuon_VtxProb = tree.Reco_DiMuon_VtxProb();
-    unsigned int ndimu = Reco_DiMuon_Mom.GetEntries();
+    unsigned int ndimu = Reco_DiMuon_Mom.size();
     
     for (unsigned int idimu=0; idimu<ndimu; idimu++) {
-      TLorentzVector *dimu = (TLorentzVector *)Reco_DiMuon_Mom.At(idimu);
+      TLorentzVector *dimu = &Reco_DiMuon_Mom[idimu];
       hMass.Fill(dimu->M());
       hPt.Fill(dimu->Pt());
 
       // Track down who are Z's daughters
-      vector<unsigned short> Muon1_Idx = tree.Reco_DiMuon_Muon1_Idx();
-      vector<unsigned short> Muon2_Idx = tree.Reco_DiMuon_Muon2_Idx();
+      std::vector<UChar_t> Muon1_Idx = tree.Reco_DiMuon_Muon1_Idx();
+      std::vector<UChar_t> Muon2_Idx = tree.Reco_DiMuon_Muon2_Idx();
       unsigned short muIdx1 = Muon1_Idx.at(idimu);
       unsigned short muIdx2 = Muon2_Idx.at(idimu);
-      TLorentzVector *mu1 = (TLorentzVector *)Reco_Muon_Mom.At(muIdx1);
-      TLorentzVector *mu2 = (TLorentzVector *)Reco_Muon_Mom.At(muIdx2);
+      TLorentzVector *mu1 = &Reco_Muon_Mom[muIdx1];
+      TLorentzVector *mu2 = &Reco_Muon_Mom[muIdx2];
       
       // Z->mumu event is selected within 80-100 GeV/c2 mass range
       // + daughter muons within certain eta & pT ragions
@@ -576,9 +577,10 @@ void setHistoError(TH1 *h) {
 
 
 void MuIDVariableTest_Sub(const double muPtCut) {
-  string inputFileMC="root://eoscms//eos/cms/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/HiEWQForest_DYToMuMu_pPb_8160GeV_20170323.root";
+  std::vector<std::string> inputFileMC; inputFileMC.push_back("root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official/POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_pPb_8160GeV_20171003.root");
   string outputFileMC=Form("outMC_muPtCut_%.0f.root",muPtCut);
-  string inputFileData="root://eoscms//eos/cms/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20170323.root";
+  std::vector<std::string> inputFileData;
+  inputFileData.push_back("root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20171003.root");
   string outputFileData=Form("outData_muPtCut_%.0f.root",muPtCut);
   
   MuIDTest mctest(true, inputFileMC, outputFileMC, muPtCut);
