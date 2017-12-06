@@ -1156,8 +1156,6 @@ void HiMuonTree::GenerateDictionaries(void)
     "vector<Float_t>"
   };
   std::string CWD = getcwd(NULL, 0);
-  void * dirp = gSystem->OpenDirectory((CWD+"/cpp").c_str());
-  if (dirp) { gSystem->FreeDirectory(dirp); gSystem->Exec(Form("rm -rf %s", (CWD+"/cpp/").c_str())); }
   gSystem->mkdir((CWD+"/cpp").c_str(), kTRUE);
   gSystem->ChangeDirectory((CWD+"/cpp").c_str());
   gInterpreter->AddIncludePath(Form("%s", (CWD+"/cpp").c_str())); // Needed to find the new dictionaries

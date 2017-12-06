@@ -146,7 +146,7 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StringDiMap_t
                 //
                 if (proceed) {
                   // create the variables for this model
-                  if ( (label.find("WToMu")==std::string::npos) && (label.find("QCDTo")==std::string::npos) ) {
+                  if ( (obj=="W") && (model.first!=obj) && (model.first!="QCD") ) {
                     const std::string refLabel = "W" + cha + chg + "_" + col;
                     if (info.Par.count("N_"+refLabel)==0) { std::cout << "[ERROR] Parameter " << ("N_"+refLabel) << " was not found" << std::endl; return false; }
                     if (!ws.var(("rN_"+label).c_str())  ) { ws.factory(Form("%s[1.0]", ("rN_"+label).c_str())); }
@@ -170,7 +170,7 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StringDiMap_t
                   }
                   else {
                     ws.factory( info.Par.at("N_"+label).c_str() );
-                    if (obj=="QCD") { ws.var(("N_"+label).c_str())->setConstant(kTRUE); }
+                    if ( (obj=="QCD" && model.first!="QCD") || (obj=="Z" && model.first!="DY") ) { ws.var(("N_"+label).c_str())->setConstant(kTRUE); }
                   }
                   // create the PDF
                   ws.factory(Form("RooExtendPdf::%s(%s,%s)", Form("pdfMETTot_%s", label.c_str()),
@@ -222,17 +222,18 @@ bool histToPdf(RooWorkspace& ws, const string& pdfName, const string& dsName, co
   // 1) Remove the Under and Overflow bins
   hist->ClearUnderflowAndOverflow();
   // 2) Set negative bin content to zero
-  for (int i=0; i<=hist->GetNbinsX(); i++) { if (hist->GetBinContent(i)<0) { hist->SetBinContent(i, 0.0000000001); } }
+  for (int i=0; i<=hist->GetNbinsX(); i++) { if (hist->GetBinContent(i)<0.0) { hist->SetBinContent(i, 0.0); } }
   // 2) Reduce the range of histogram and rebin it
-  std::unique_ptr<TH1> hClean = std::unique_ptr<TH1>(rebinhist(*hist, range[1], range[2]));
-  if (hClean==NULL) { std::cout << "[WARNING] Cleaned Histogram of " << histName << " is NULL!" << std::endl; return false; }
+  hist.reset((TH1D*)rebinhist(*hist, range[1], range[2]));
+  if (hist==NULL) { std::cout << "[WARNING] Cleaned Histogram of " << histName << " is NULL!" << std::endl; return false; }
   string dataName = pdfName;
   dataName.replace(dataName.find("pdf"), string("pdf").length(), "dh");
-  std::unique_ptr<RooDataHist> dataHist = std::unique_ptr<RooDataHist>(new RooDataHist(dataName.c_str(), "", *ws.var(var.c_str()), hClean.get()));
+  std::unique_ptr<RooDataHist> dataHist = std::unique_ptr<RooDataHist>(new RooDataHist(dataName.c_str(), "", *ws.var(var.c_str()), hist.get()));
   if (dataHist==NULL) { std::cout << "[WARNING] DataHist used to create " << pdfName << " failed!" << std::endl; return false; } 
   if (dataHist->sumEntries()==0) { std::cout << "[WARNING] DataHist used to create " << pdfName << " is empty!" << std::endl; return false; } 
-  if (std::abs(dataHist->sumEntries() - hClean->GetSumOfWeights())>0.001) { std::cout << "[ERROR] DataHist used to create " << pdfName << "  " << " is invalid!  " << std::endl; return false; }
+  if (std::abs(dataHist->sumEntries() - hist->GetSumOfWeights())>0.001) { std::cout << "[ERROR] DataHist used to create " << pdfName << "  " << " is invalid!  " << std::endl; return false; }
   ws.import(*dataHist);
+  ws.var(var.c_str())->setBins(int(range[0])); // Bug Fix
   std::unique_ptr<RooHistPdf> pdf = std::unique_ptr<RooHistPdf>(new RooHistPdf(pdfName.c_str(), pdfName.c_str(), *ws.var(var.c_str()), *((RooDataHist*)ws.data(dataName.c_str()))));
   //std::unique_ptr<RooKeysPdf> pdf = std::unique_ptr<RooKeysPdf>(new RooKeysPdf(pdfName.c_str(), pdfName.c_str(), *ws.var("ctauErr"), *((RooDataSet*)ws.data(dataName.c_str())),RooKeysPdf::NoMirror, isPbPb?0.4:0.4));
   if (pdf==NULL) { std::cout << "[WARNING] RooHistPDF " << pdfName << " is NULL!" << std::endl; return false; }
@@ -251,12 +252,12 @@ TH1* rebinhist(const TH1& hist, double xmin, double xmax)
   vector<double> newbins;
   newbins.push_back(hcopy->GetBinLowEdge(imin));
   for (int i=imin; i<=imax; i++) {    
-    if (hcopy->GetBinContent(i)>0.0000001) {
+    if (hcopy->GetBinContent(i)>0.0) {
       newbins.push_back(hcopy->GetBinLowEdge(i)+hcopy->GetBinWidth(i));
     } else {
       int nrebin=2;
       for (i++; i<=imax; i++) {
-        if (hcopy->GetBinContent(i)>0.0000001) {
+        if (hcopy->GetBinContent(i)>0.0) {
           newbins.push_back(hcopy->GetBinLowEdge(i)+hcopy->GetBinWidth(i));
           hcopy->SetBinContent(i,hcopy->GetBinContent(i)/nrebin);
           break;

@@ -124,7 +124,7 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
     RooRealVar   muMT   = RooRealVar ( "Muon_MT"    , "W Transverse Mass" ,  -1.0 , 100000.0 ,  "GeV/c^{2}" );
     RooRealVar   cent   = RooRealVar ( "Centrality" , "Centrality"        ,  -1.0 , 100000.0 ,  ""          );
     RooCategory  type   = RooCategory( "Event_Type" , "Event Type");
-    type.defineType("Other", -1); type.defineType("DYToMuMu", 1);
+    type.defineType("Other", -1); type.defineType("DYToMuMu", 1); type.defineType("ZToMuMu", 2);
     RooArgSet cols = RooArgSet(met, muPt, muEta, muIso, muMT, cent);
     cols.add(type);
     ///// Initiliaze RooDataSets
@@ -227,9 +227,11 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
       //
       // Event Type: DrellYan->MuMu
       if (eventType=="Other") {
-        if (PA::passDrellYanVeto(muonTree) == false) { eventType = "DYToMuMu"; }  // Found a Drell-Yan candidate
+        if (PA::passDrellYanVeto(muonTree) == false) {
+          if (PA::hasZBoson(muonTree) == true) { eventType = "ZToMuMu"; }  // Found a Z->MuMu candidate
+          else { eventType = "DYToMuMu"; } // Found a Drell-Yan candidate outside of Z mass region
+        }
       }
-      if (eventType=="DYToMuMu") continue; // Remove Drell-Yan events
       //
       // Isolation and Charge of Leading Muon
       const float leadMuIso = muonTree->PF_Muon_IsoPFR03NoPUCorr()[leadMuPFIdx];
@@ -358,7 +360,7 @@ bool setMETonDS(RooWorkspace& ws, const std::string& dDSName, const std::string&
   // Initialize the RooArgSets
   RooArgSet cols    = *dDS->get();
   RooArgSet metCols = *metDS->get();
-  RooArgSet mcCols; if (isMC) { mcCols = *mcDS->get(); }
+  RooArgSet mcCols = (isMC ? *mcDS->get() : RooArgSet());
   // Initialize the new RooDataSets
   auto dWDS  = std::unique_ptr<RooDataSet>(new RooDataSet( Form("d%s_SET_%s" , chg.c_str(), sample.c_str()) , Form("d%s" , chg.c_str()) , cols) );
   std::unique_ptr<RooDataSet> mcWDS; if (isMC) { mcWDS.reset(new RooDataSet( Form("mc%s_SET_%s", chg.c_str(), sample.c_str()) , Form("mc%s", chg.c_str()) , mcCols)); }

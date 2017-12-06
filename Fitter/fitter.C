@@ -23,7 +23,7 @@ void fitter(
             const std::bitset<3> fitColl  = 7,          // Fit System: (bit 0 (1)) pPb  , (bit 1 (2)) Pbp   , (bit 2 (4)) PA
             const std::bitset<3> fitChg   = 3,          // Fit Charge: (bit 0 (1)) Plus , (bit 1 (2)) Minus , (bit 2 (4)) Inclusive
             // Select the type of objects to fit
-                  std::bitset<3> fitObj   = 2,          // Fit Objects: (bit 0 (1)) W , (bit 1 (2)) QCD
+                  std::bitset<3> fitObj   = 2,          // Fit Objects: (bit 0 (1)) W , (bit 1 (2)) QCD , (bit 2 (4)) Z
             // Select the fitting options
             const unsigned int   numCores = 32,         // Number of cores used for fitting
             const std::bitset<1> fitVar   = 1,          // Fit Variable: 1: MET
@@ -51,6 +51,11 @@ void fitter(
   RooMsgService::instance().getStream(1).removeTopic(RooFit::NumIntegration);
   RooMsgService::instance().getStream(1).removeTopic(RooFit::Minimization);
   RooMsgService::instance().setGlobalKillBelow(RooFit::WARNING);
+  //
+  // Remove the cpp directory (bug fix)
+  const std::string CWD = getcwd(NULL, 0);
+  void * dirp = gSystem->OpenDirectory((CWD+"/cpp").c_str());
+  if (dirp) { gSystem->FreeDirectory(dirp); gSystem->Exec(Form("rm -rf %s", (CWD+"/cpp/").c_str())); }
   //
   GlobalInfo userInput;
   //
@@ -104,10 +109,9 @@ void fitter(
   //
   //
   // Store more information for fitting
-  const std::string CWD = getcwd(NULL, 0);
   userInput.Par["extTreesFileDir"] = Form("%s/Input/", CWD.c_str());
-  userInput.Par["extDSDir_DATA"]   = "";
-  userInput.Par["extDSDir_MC"]     = "";
+  userInput.Par["extDSDir_DATA"]   = "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Dataset/";
+  userInput.Par["extDSDir_MC"]     = "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Dataset/";
   if (userInput.Par.at("Analysis").find("Nu")!=std::string::npos) {
     userInput.Var["MET"]["type"] = varType;
     if      (workDirName=="NominalCM_BinWidth3") { userInput.Var["MET"]["binWidth"] = 3.0; }
@@ -120,8 +124,8 @@ void fitter(
         ) { userInput.Par["extInitFileDir_MET_QCD"] = ""; }
     else if (workDirName.find("CM")!=std::string::npos    ) { userInput.Par["extInitFileDir_MET_QCD"] = Form("%s/Input/NominalCM/", CWD.c_str()); }
     else                                                    { userInput.Par["extInitFileDir_MET_QCD"] = Form("%s/Input/Nominal/", CWD.c_str());   }
-    userInput.Par["extInitFileDir_MET_W" ] = "";
-    userInput.Par["extInitFileDir_MET_DY"] = "";
+    userInput.Par["extInitFileDir_MET_W"] = "";
+    userInput.Par["extInitFileDir_MET_Z"] = "";
   }
   // Set all the Boolean Flags from the input settings
   //
@@ -143,7 +147,7 @@ void fitter(
   //
   if (userInput.Par.at("Analysis").find("W")!=std::string::npos) {
     userInput.StrV["charge"] = std::vector<std::string>({"Plus","Minus","ChgInc"});
-    userInput.StrV["object"] = std::vector<std::string>({"W", "QCD", "DY"});
+    userInput.StrV["object"] = std::vector<std::string>({"W", "QCD", "Z"});
     userInput.StrV["template"] = std::vector<std::string>({"W","QCD","DY","WToTau","TTbar"});
   }
   //
@@ -190,7 +194,7 @@ void fitter(
   StringDiMap_t inputInitialFilesDir;
   inputInitialFilesDir["MET"]["QCD"] = userInput.Par.at("extInitFileDir_MET_QCD");
   inputInitialFilesDir["MET"]["W"  ] = userInput.Par.at("extInitFileDir_MET_W"  );
-  inputInitialFilesDir["MET"]["DY" ] = userInput.Par.at("extInitFileDir_MET_DY" );
+  inputInitialFilesDir["MET"]["Z"  ] = userInput.Par.at("extInitFileDir_MET_Z" );
 
   // Initiliaze all the input Fit and Initial File Directories
   StringMapVector_t inputFitDirs;

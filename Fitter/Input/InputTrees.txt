@@ -13,7 +13,7 @@ MC_TTbar_MUON_pPb  , /store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb201
 
 MC_TTbar_MUON_Pbp  , /store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official/POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_TTall_Pbp_8160GeV_20171003.root           , POWHEG_TTall_Pbp
 
-MC_DY_MUON_pPb     , /store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official/POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_pPb_8160GeV_20170813.root   , POWHEG_DYToMuMu_M_30_Inf_pPb
+MC_DY_MUON_pPb     , /store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official/POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_pPb_8160GeV_20171003.root   , POWHEG_DYToMuMu_M_30_Inf_pPb
 
 MC_DY_MUON_pPb     , /store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official/POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_10_30_pPb_8160GeV_20171003.root, POWHEG_DYToMuMu_M_10_30_pPb
 
