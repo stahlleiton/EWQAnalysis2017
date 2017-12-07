@@ -708,7 +708,10 @@ bool applyMCCorrection(RooWorkspace& ws, const RooWorkspace& corrWS, const std::
         recoilCorr.setPt(reference_pT, boson_pT);
         // Correct the MET
         TVector2 MET_CORR;
-        if (!recoilCorr.correctMET(MET_CORR, MET_RAW, recoilMethod)) { return false; }
+        std::string recoilMethodLbl = "";
+        if (recoilMethod.find("Scaling" )!=std::string::npos) { recoilMethodLbl = "Scaling";  }
+        if (recoilMethod.find("Smearing")!=std::string::npos) { recoilMethodLbl = "Smearing"; }
+        if (!recoilCorr.correctMET(MET_CORR, MET_RAW, recoilMethodLbl)) { return false; }
         // Correct the Muon Transverse Mass
         const double muMTVal = PA::getWTransverseMass(muPt->getVal(), muPhi->getVal(), MET_CORR.Mod(), MET_CORR.Phi());
         // Set the corrected MET and Transverse Mass
@@ -747,12 +750,11 @@ bool correctMC(RooWorkspaceMap_t& Workspaces, const GlobalInfo& info)
   if (applyRecoilCorr) {
     recoilMethod = info.Par.at("RecoilCorrMethod");
     const std::string met = info.Par.at("METType");
-    std::string recoilPath = ""; if (info.Par.count("RecoilPath")>0) { recoilPath = info.Par.at("RecoilPath"); }
-    if (recoilPath!="") { recoilPath += "/"; }
-    std::string preCWD = getcwd(NULL, 0); preCWD.erase(preCWD.find_last_of("/"), 100);
-    const std::string recoilDir     = Form("%s/Corrections/MET_Recoil/FitRecoil_v1/%s", preCWD.c_str(), recoilPath.c_str());
-    const std::string fileName_MC   = Form("%sMC_DYToMuMu_PYQUEN/MET_%s/PA/Results/fits_RecoilPDF_%s_PA.root", recoilDir.c_str(), met.c_str(), met.c_str());
-    const std::string fileName_DATA = Form("%sDATA/MET_%s/PA/Results/fits_RecoilPDF_%s_PA.root", recoilDir.c_str(), met.c_str(), met.c_str());
+    const std::string recoilPath = info.Par.at("RecoilPath");
+    const std::string col = "PA";
+    const std::string HFCorrLbl = (applyHFCorr ? "HFCorr" : "noHFCorr");
+    const std::string fileName_MC   = Form("%sMC_DYToMuMu_POWHEG/MET_%s/%s/%s/doubleGauss/Results/fits_RecoilPDF_%s_%s.root", recoilPath.c_str(), met.c_str(), col.c_str(), HFCorrLbl.c_str(), met.c_str(), col.c_str());
+    const std::string fileName_DATA = Form("%sDATA/MET_%s/%s/doubleGauss/Results/fits_RecoilPDF_%s_%s.root", recoilPath.c_str(), met.c_str(), col.c_str(), met.c_str(), col.c_str());
     if (!recoilCorr.setInputFiles(met, fileName_MC, fileName_DATA)) { return false; }
   }
   //
@@ -770,7 +772,12 @@ bool correctMC(RooWorkspaceMap_t& Workspaces, const GlobalInfo& info)
       bool makeCorrFile = false; RooWorkspace corrWS;
       if (applyRecoilCorr) { makeCorrFile = (!readCorrectionDS(corrWS, sample, recoilMethod)); }
       // Initialize the MET Recoil Corrector
-      if (applyRecoilCorr) { recoilCorr.setInitialSetup(sample); }
+      if (applyRecoilCorr) {
+        if      (recoilMethod.find("OneGaussianMC"  )!=std::string::npos) { recoilCorr.setInitialSetup(sample, true, false, true); }
+        else if (recoilMethod.find("OneGaussianDATA")!=std::string::npos) { recoilCorr.setInitialSetup(sample, false, true, true); }
+        else if (recoilMethod.find("OneGaussian"    )!=std::string::npos) { recoilCorr.setInitialSetup(sample, true, true, true);  }
+        else { recoilCorr.setInitialSetup(sample, false, false, true); }
+      }
       // Apply the MC correction to positive muon dataset
       if (!applyMCCorrection(myws, corrWS, ("dPl_"+sample), ("mcPl_"+sample), applyTnPCorr, HFCorr.get(), recoilCorr, recoilMethod)) { return false; }
       // Apply the MC correction to negative muon dataset

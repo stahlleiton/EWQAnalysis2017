@@ -1,8 +1,8 @@
 //////////////////////////////////////////////////////////
 // This class has been automatically generated on
-// Wed Feb 22 19:02:06 2017 by ROOT version 6.08/04
+// Tue Dec  5 15:49:31 2017 by ROOT version 6.06/00
 // from TTree Muon_PF/
-// found on file: root://eoscms//eos/cms/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20170213.root
+// found on file: root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20171003.root
 //////////////////////////////////////////////////////////
 
 #ifndef muPFAna_h
@@ -18,10 +18,6 @@
 #include "vector"
 #include "TClonesArray.h"
 #include "vector"
-#include "vector"
-#include "vector"
-#include "TVector2.h"
-#include "TLorentzVector.h"
 
 class muPFAna {
 public :
@@ -36,9 +32,10 @@ public :
    vector<float>   *PF_Candidate_Eta;
    vector<float>   *PF_Candidate_Phi;
    vector<float>   *PF_Candidate_Pt;
+   UChar_t         PF_Muon_N;
    TClonesArray    *PF_Muon_Mom;
    vector<char>    *PF_Muon_Charge;
-   vector<short>   *PF_Muon_Reco_Idx;
+   vector<char>    *PF_Muon_Reco_Idx;
    vector<float>   *PF_Muon_IsoPFR03;
    vector<float>   *PF_Muon_IsoPFR03NoPUCorr;
    vector<float>   *PF_Muon_IsoPFR04;
@@ -53,15 +50,16 @@ public :
    vector<float>   *PF_Muon_Had_Neu_sumR04Et;
    vector<float>   *PF_Muon_Had_PU_sumR03Pt;
    vector<float>   *PF_Muon_Had_PU_sumR04Pt;
+   UShort_t        PF_DiMuon_N;
    TClonesArray    *PF_DiMuon_Mom;
    vector<char>    *PF_DiMuon_Charge;
-   vector<unsigned short> *PF_DiMuon_Muon1_Idx;
-   vector<unsigned short> *PF_DiMuon_Muon2_Idx;
+   vector<unsigned char> *PF_DiMuon_Muon1_Idx;
+   vector<unsigned char> *PF_DiMuon_Muon2_Idx;
    TClonesArray    *PF_DiMuon_Vertex;
    vector<float>   *PF_DiMuon_VtxProb;
    vector<float>   *PF_DiMuon_DCA;
    vector<float>   *PF_DiMuon_MassErr;
-   TVector2        *PF_MET_Mom;
+   TClonesArray    *PF_MET_Mom;
    TClonesArray    *PF_MuonMET_TransMom;
 
    // List of branches
@@ -70,6 +68,7 @@ public :
    TBranch        *b_PF_Candidate_Eta;   //!
    TBranch        *b_PF_Candidate_Phi;   //!
    TBranch        *b_PF_Candidate_Pt;   //!
+   TBranch        *b_PF_Muon_N;   //!
    TBranch        *b_PF_Muon_Mom;   //!
    TBranch        *b_PF_Muon_Charge;   //!
    TBranch        *b_PF_Muon_Reco_Idx;   //!
@@ -87,6 +86,7 @@ public :
    TBranch        *b_PF_Muon_Had_Neu_sumR04Et;   //!
    TBranch        *b_PF_Muon_Had_PU_sumR03Pt;   //!
    TBranch        *b_PF_Muon_Had_PU_sumR04Pt;   //!
+   TBranch        *b_PF_DiMuon_N;   //!
    TBranch        *b_PF_DiMuon_Mom;   //!
    TBranch        *b_PF_DiMuon_Charge;   //!
    TBranch        *b_PF_DiMuon_Muon1_Idx;   //!
@@ -118,11 +118,11 @@ muPFAna::muPFAna(TTree *tree) : fChain(0)
 // if parameter tree is not specified (or zero), connect the file
 // used to generate this class and read the Tree.
    if (tree == 0) {
-      TFile *f = (TFile*)gROOT->GetListOfFiles()->FindObject("root://eoscms//eos/cms/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20170213.root");
+      TFile *f = (TFile*)gROOT->GetListOfFiles()->FindObject("root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20171003.root");
       if (!f || !f->IsOpen()) {
-         f = new TFile("root://eoscms//eos/cms/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20170213.root");
+         f = new TFile("root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20171003.root");
       }
-      TDirectory * dir = (TDirectory*)f->Get("root://eoscms//eos/cms/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20170213.root:/muonAna");
+      TDirectory * dir = (TDirectory*)f->Get("root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20171003.root:/muonAna");
       dir->GetObject("Muon_PF",tree);
 
    }
@@ -208,6 +208,7 @@ void muPFAna::Init(TTree *tree)
    fChain->SetBranchAddress("PF_Candidate_Eta", &PF_Candidate_Eta, &b_PF_Candidate_Eta);
    fChain->SetBranchAddress("PF_Candidate_Phi", &PF_Candidate_Phi, &b_PF_Candidate_Phi);
    fChain->SetBranchAddress("PF_Candidate_Pt", &PF_Candidate_Pt, &b_PF_Candidate_Pt);
+   fChain->SetBranchAddress("PF_Muon_N", &PF_Muon_N, &b_PF_Muon_N);
    fChain->SetBranchAddress("PF_Muon_Mom", &PF_Muon_Mom, &b_PF_Muon_Mom);
    fChain->SetBranchAddress("PF_Muon_Charge", &PF_Muon_Charge, &b_PF_Muon_Charge);
    fChain->SetBranchAddress("PF_Muon_Reco_Idx", &PF_Muon_Reco_Idx, &b_PF_Muon_Reco_Idx);
@@ -225,6 +226,7 @@ void muPFAna::Init(TTree *tree)
    fChain->SetBranchAddress("PF_Muon_Had_Neu_sumR04Et", &PF_Muon_Had_Neu_sumR04Et, &b_PF_Muon_Had_Neu_sumR04Et);
    fChain->SetBranchAddress("PF_Muon_Had_PU_sumR03Pt", &PF_Muon_Had_PU_sumR03Pt, &b_PF_Muon_Had_PU_sumR03Pt);
    fChain->SetBranchAddress("PF_Muon_Had_PU_sumR04Pt", &PF_Muon_Had_PU_sumR04Pt, &b_PF_Muon_Had_PU_sumR04Pt);
+   fChain->SetBranchAddress("PF_DiMuon_N", &PF_DiMuon_N, &b_PF_DiMuon_N);
    fChain->SetBranchAddress("PF_DiMuon_Mom", &PF_DiMuon_Mom, &b_PF_DiMuon_Mom);
    fChain->SetBranchAddress("PF_DiMuon_Charge", &PF_DiMuon_Charge, &b_PF_DiMuon_Charge);
    fChain->SetBranchAddress("PF_DiMuon_Muon1_Idx", &PF_DiMuon_Muon1_Idx, &b_PF_DiMuon_Muon1_Idx);
@@ -293,4 +295,5 @@ float muPFAna::Get(TString varname, int idx) {
    if (varname == "PF_DiMuon_MassErr") return PF_DiMuon_MassErr->at(idx);
    return -1e99;
 }
+
 #endif // #ifdef muPFAna_cxx

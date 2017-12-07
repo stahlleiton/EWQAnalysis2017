@@ -1,6 +1,7 @@
 #include "TFile.h"
 #include "TH1.h"
 #include "TString.h"
+#include "TStyle.h"
 
 
 bool kint = true;
@@ -23,6 +24,7 @@ double area(TGraph *g);
 double integralUFOF(TH1 *h);
 
 void plot(const char* dataname="data.root", const char* mcname="mc.root") {
+  gStyle->SetOptStat(0);
    TCanvas *c1 = new TCanvas();
    TFile *fdata = TFile::Open(dataname);
    TFile *fmc = TFile::Open(mcname);
@@ -57,27 +59,33 @@ void plot(const char* dataname="data.root", const char* mcname="mc.root") {
 
       hdata_OS->SetLineColor(kBlack);
       hdata_OS->SetMarkerColor(kBlack);
+      hdata_OS->SetTitle("");
       hdata_OS->GetXaxis()->SetTitle(varnames[i]);
+      hdata_OS->SetMarkerStyle(20);
       hdata_SS->SetLineColor(kBlue);
       hdata_SS->SetMarkerColor(kBlue);
+      hdata_SS->SetMarkerStyle(20);
       hdata_bkg->SetLineColor(kGreen+2);
       hdata_bkg->SetMarkerColor(kGreen+2);
+      hdata_bkg->SetMarkerStyle(20);
       hmc_OS->SetLineColor(kRed);
       hmc_OS->SetMarkerColor(kRed);
-
+      hmc_OS->SetMarkerStyle(20);
+      
       hdata_OS->Draw();
       if (kint) hdata_OS->GetYaxis()->SetRangeUser(0,1);
-      hdata_SS->Draw("same");
-      hdata_bkg->Draw("same");
-      hmc_OS->Draw("same");
 
-      TLegend *tleg = new TLegend(0.5,0.2,0.9,0.5);
+      TLegend *tleg = new TLegend(0.6,0.2,0.85,0.4);
       tleg->SetBorderSize(0);
       tleg->AddEntry(hdata_OS,"Data OS", "p");
       tleg->AddEntry(hmc_OS,"MC OS", "p");
       tleg->AddEntry(hdata_SS,"Data SS", "p");
       tleg->AddEntry(hdata_bkg,"Data low MET", "p");
-      tleg->Draw();
+      tleg->Draw("same");
+
+      hdata_SS->Draw("same");
+      hdata_bkg->Draw("same");
+      hmc_OS->Draw("same");
 
       c1->SaveAs(varnames[i] + ".pdf");
 
@@ -85,6 +93,7 @@ void plot(const char* dataname="data.root", const char* mcname="mc.root") {
          TText tt;
          cout << varnames[i] << ": ";
          TGraph *thegraph = roc(hdata_OS, hdata_SS);
+         thegraph->SetMarkerStyle(20);
          haxes_roc->Draw();
          thegraph->Draw("P");
          float a = area(thegraph);
@@ -98,6 +107,7 @@ void plot(const char* dataname="data.root", const char* mcname="mc.root") {
          }
 
          thegraph = roc(hdata_OS, hdata_bkg);
+         thegraph->SetMarkerStyle(20);
          haxes_roc->Draw();
          thegraph->Draw("P");
          a = area(thegraph);

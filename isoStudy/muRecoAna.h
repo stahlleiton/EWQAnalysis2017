@@ -1,8 +1,8 @@
 //////////////////////////////////////////////////////////
 // This class has been automatically generated on
-// Wed Feb 22 19:01:55 2017 by ROOT version 6.08/04
+// Tue Dec  5 15:49:23 2017 by ROOT version 6.06/00
 // from TTree Muon_Reco/
-// found on file: root://eoscms//eos/cms/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20170213.root
+// found on file: root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20171003.root
 //////////////////////////////////////////////////////////
 
 #ifndef muRecoAna_h
@@ -19,7 +19,6 @@
 #include "vector"
 #include "vector"
 #include "vector"
-#include "TLorentzVector.h"
 
 class muRecoAna {
 public :
@@ -29,9 +28,13 @@ public :
 // Fixed size dimensions of array or collections stored in the TTree if any.
 
    // Declaration of leaf types
+   UChar_t         Reco_Muon_N;
    TClonesArray    *Reco_Muon_Mom;
    vector<char>    *Reco_Muon_Charge;
-   vector<short>   *Reco_Muon_PF_Idx;
+   vector<char>    *Reco_Muon_PF_Idx;
+   vector<vector<unsigned char> > *Pat_Muon_Trig;
+   vector<float>   *Pat_Muon_dB;
+   vector<float>   *Pat_Muon_dBErr;
    vector<bool>    *Reco_Muon_isPF;
    vector<bool>    *Reco_Muon_isGlobal;
    vector<bool>    *Reco_Muon_isTracker;
@@ -106,20 +109,28 @@ public :
    vector<float>   *Reco_Muon_IsoR05;
    vector<float>   *Reco_Muon_Trk_sumR03Pt;
    vector<float>   *Reco_Muon_Trk_sumR05Pt;
+   UShort_t        Reco_DiMuon_N;
    TClonesArray    *Reco_DiMuon_Mom;
    vector<char>    *Reco_DiMuon_Charge;
-   vector<unsigned short> *Reco_DiMuon_Muon1_Idx;
-   vector<unsigned short> *Reco_DiMuon_Muon2_Idx;
+   vector<unsigned char> *Reco_DiMuon_Muon1_Idx;
+   vector<unsigned char> *Reco_DiMuon_Muon2_Idx;
    vector<bool>    *Reco_DiMuon_isCowBoy;
    TClonesArray    *Reco_DiMuon_Vertex;
    vector<float>   *Reco_DiMuon_VtxProb;
    vector<float>   *Reco_DiMuon_DCA;
+   vector<float>   *Reco_DiMuon_CTau;
+   vector<float>   *Reco_DiMuon_CTauErr;
+   vector<float>   *Reco_DiMuon_CosAlpha;
    vector<float>   *Reco_DiMuon_MassErr;
 
    // List of branches
+   TBranch        *b_Reco_Muon_N;   //!
    TBranch        *b_Reco_Muon_Mom;   //!
    TBranch        *b_Reco_Muon_Charge;   //!
    TBranch        *b_Reco_Muon_PF_Idx;   //!
+   TBranch        *b_Pat_Muon_Trig;   //!
+   TBranch        *b_Pat_Muon_dB;   //!
+   TBranch        *b_Pat_Muon_dBErr;   //!
    TBranch        *b_Reco_Muon_isPF;   //!
    TBranch        *b_Reco_Muon_isGlobal;   //!
    TBranch        *b_Reco_Muon_isTracker;   //!
@@ -194,6 +205,7 @@ public :
    TBranch        *b_Reco_Muon_IsoR05;   //!
    TBranch        *b_Reco_Muon_Trk_sumR03Pt;   //!
    TBranch        *b_Reco_Muon_Trk_sumR05Pt;   //!
+   TBranch        *b_Reco_DiMuon_N;   //!
    TBranch        *b_Reco_DiMuon_Mom;   //!
    TBranch        *b_Reco_DiMuon_Charge;   //!
    TBranch        *b_Reco_DiMuon_Muon1_Idx;   //!
@@ -202,6 +214,9 @@ public :
    TBranch        *b_Reco_DiMuon_Vertex;   //!
    TBranch        *b_Reco_DiMuon_VtxProb;   //!
    TBranch        *b_Reco_DiMuon_DCA;   //!
+   TBranch        *b_Reco_DiMuon_CTau;   //!
+   TBranch        *b_Reco_DiMuon_CTauErr;   //!
+   TBranch        *b_Reco_DiMuon_CosAlpha;   //!
    TBranch        *b_Reco_DiMuon_MassErr;   //!
 
    muRecoAna(TTree *tree=0);
@@ -224,11 +239,11 @@ muRecoAna::muRecoAna(TTree *tree) : fChain(0)
 // if parameter tree is not specified (or zero), connect the file
 // used to generate this class and read the Tree.
    if (tree == 0) {
-      TFile *f = (TFile*)gROOT->GetListOfFiles()->FindObject("root://eoscms//eos/cms/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20170213.root");
+      TFile *f = (TFile*)gROOT->GetListOfFiles()->FindObject("root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20171003.root");
       if (!f || !f->IsOpen()) {
-         f = new TFile("root://eoscms//eos/cms/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20170213.root");
+         f = new TFile("root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20171003.root");
       }
-      TDirectory * dir = (TDirectory*)f->Get("root://eoscms//eos/cms/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20170213.root:/muonAna");
+      TDirectory * dir = (TDirectory*)f->Get("root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20171003.root:/muonAna");
       dir->GetObject("Muon_Reco",tree);
 
    }
@@ -274,6 +289,9 @@ void muRecoAna::Init(TTree *tree)
    Reco_Muon_Mom = 0;
    Reco_Muon_Charge = 0;
    Reco_Muon_PF_Idx = 0;
+   Pat_Muon_Trig = 0;
+   Pat_Muon_dB = 0;
+   Pat_Muon_dBErr = 0;
    Reco_Muon_isPF = 0;
    Reco_Muon_isGlobal = 0;
    Reco_Muon_isTracker = 0;
@@ -356,6 +374,9 @@ void muRecoAna::Init(TTree *tree)
    Reco_DiMuon_Vertex = 0;
    Reco_DiMuon_VtxProb = 0;
    Reco_DiMuon_DCA = 0;
+   Reco_DiMuon_CTau = 0;
+   Reco_DiMuon_CTauErr = 0;
+   Reco_DiMuon_CosAlpha = 0;
    Reco_DiMuon_MassErr = 0;
    // Set branch addresses and branch pointers
    if (!tree) return;
@@ -363,9 +384,13 @@ void muRecoAna::Init(TTree *tree)
    fCurrent = -1;
    fChain->SetMakeClass(1);
 
+   fChain->SetBranchAddress("Reco_Muon_N", &Reco_Muon_N, &b_Reco_Muon_N);
    fChain->SetBranchAddress("Reco_Muon_Mom", &Reco_Muon_Mom, &b_Reco_Muon_Mom);
    fChain->SetBranchAddress("Reco_Muon_Charge", &Reco_Muon_Charge, &b_Reco_Muon_Charge);
    fChain->SetBranchAddress("Reco_Muon_PF_Idx", &Reco_Muon_PF_Idx, &b_Reco_Muon_PF_Idx);
+   fChain->SetBranchAddress("Pat_Muon_Trig", &Pat_Muon_Trig, &b_Pat_Muon_Trig);
+   fChain->SetBranchAddress("Pat_Muon_dB", &Pat_Muon_dB, &b_Pat_Muon_dB);
+   fChain->SetBranchAddress("Pat_Muon_dBErr", &Pat_Muon_dBErr, &b_Pat_Muon_dBErr);
    fChain->SetBranchAddress("Reco_Muon_isPF", &Reco_Muon_isPF, &b_Reco_Muon_isPF);
    fChain->SetBranchAddress("Reco_Muon_isGlobal", &Reco_Muon_isGlobal, &b_Reco_Muon_isGlobal);
    fChain->SetBranchAddress("Reco_Muon_isTracker", &Reco_Muon_isTracker, &b_Reco_Muon_isTracker);
@@ -440,6 +465,7 @@ void muRecoAna::Init(TTree *tree)
    fChain->SetBranchAddress("Reco_Muon_IsoR05", &Reco_Muon_IsoR05, &b_Reco_Muon_IsoR05);
    fChain->SetBranchAddress("Reco_Muon_Trk_sumR03Pt", &Reco_Muon_Trk_sumR03Pt, &b_Reco_Muon_Trk_sumR03Pt);
    fChain->SetBranchAddress("Reco_Muon_Trk_sumR05Pt", &Reco_Muon_Trk_sumR05Pt, &b_Reco_Muon_Trk_sumR05Pt);
+   fChain->SetBranchAddress("Reco_DiMuon_N", &Reco_DiMuon_N, &b_Reco_DiMuon_N);
    fChain->SetBranchAddress("Reco_DiMuon_Mom", &Reco_DiMuon_Mom, &b_Reco_DiMuon_Mom);
    fChain->SetBranchAddress("Reco_DiMuon_Charge", &Reco_DiMuon_Charge, &b_Reco_DiMuon_Charge);
    fChain->SetBranchAddress("Reco_DiMuon_Muon1_Idx", &Reco_DiMuon_Muon1_Idx, &b_Reco_DiMuon_Muon1_Idx);
@@ -448,6 +474,9 @@ void muRecoAna::Init(TTree *tree)
    fChain->SetBranchAddress("Reco_DiMuon_Vertex", &Reco_DiMuon_Vertex, &b_Reco_DiMuon_Vertex);
    fChain->SetBranchAddress("Reco_DiMuon_VtxProb", &Reco_DiMuon_VtxProb, &b_Reco_DiMuon_VtxProb);
    fChain->SetBranchAddress("Reco_DiMuon_DCA", &Reco_DiMuon_DCA, &b_Reco_DiMuon_DCA);
+   fChain->SetBranchAddress("Reco_DiMuon_CTau", &Reco_DiMuon_CTau, &b_Reco_DiMuon_CTau);
+   fChain->SetBranchAddress("Reco_DiMuon_CTauErr", &Reco_DiMuon_CTauErr, &b_Reco_DiMuon_CTauErr);
+   fChain->SetBranchAddress("Reco_DiMuon_CosAlpha", &Reco_DiMuon_CosAlpha, &b_Reco_DiMuon_CosAlpha);
    fChain->SetBranchAddress("Reco_DiMuon_MassErr", &Reco_DiMuon_MassErr, &b_Reco_DiMuon_MassErr);
    Notify();
 }
@@ -477,6 +506,7 @@ Int_t muRecoAna::Cut(Long64_t entry)
 // returns -1 otherwise.
    return 1;
 }
+
 float muRecoAna::Get(TString varname, int idx) {
    if (varname == "Reco_Muon_Charge") return Reco_Muon_Charge->at(idx);
    if (varname == "Reco_Muon_PF_Idx") return Reco_Muon_PF_Idx->at(idx);

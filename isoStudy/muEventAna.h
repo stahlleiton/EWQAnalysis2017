@@ -17,6 +17,7 @@
 #include <TChain.h>
 #include <TFile.h>
 #include <TTree.h>
+#include <TLorentzVector.h>
 
 #include <map>
 #include <iostream>
@@ -44,8 +45,8 @@ public :
    UInt_t          Event_Run;
    UShort_t        Event_Lumi;
    UInt_t          Event_Bx;
-   UInt_t          Event_Orbit;
-   UInt_t          Event_Number;
+   ULong64_t       Event_Orbit;
+   ULong64_t       Event_Number;
    UChar_t         Event_nPV;
    TVector3        *Event_PriVtx_Pos;
    TVector3        *Event_PriVtx_Err;

@@ -36,6 +36,8 @@ void muEventAna::Loop(const char* filename)
    //by  b_branchname->GetEntry(ientry); //read only this branch
    if (fChain == 0) return;
 
+   TH1::SetDefaultSumw2(kTRUE);
+
    Long64_t nentries = fChain->GetEntriesFast();
 
    TFile *f = new TFile(filename,"RECREATE");
@@ -132,13 +134,13 @@ void muEventAna::Loop(const char* filename)
       if (ientry < 0) break;
 
       // trigger selection
-      // b_Event_Trig_Fired->GetEntry(jentry);
-      // if (!Event_Trig_Fired->at(itrig)) continue;
+      b_Event_Trig_Fired->GetEntry(jentry);
+      if (!Event_Trig_Fired->at(itrig)) continue;
 
       // nPV selection
       b_Event_nPV->GetEntry(jentry);
       if ((jentry%100000)==0) cout << (int) Event_nPV << " " << jentry << endl;
-      if (Event_nPV < 2) continue;
+      //if (Event_nPV != 1) continue;
 
       nb = fChain->GetEntry(jentry);   nbytes += nb;
       fFriend1->GetEntry(jentry);

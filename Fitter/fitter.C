@@ -112,6 +112,7 @@ void fitter(
   userInput.Par["extTreesFileDir"] = Form("%s/Input/", CWD.c_str());
   userInput.Par["extDSDir_DATA"]   = "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Dataset/";
   userInput.Par["extDSDir_MC"]     = "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Dataset/";
+  userInput.Par["RecoilPath"]      = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil/";
   if (userInput.Par.at("Analysis").find("Nu")!=std::string::npos) {
     userInput.Var["MET"]["type"] = varType;
     if      (workDirName=="NominalCM_BinWidth3") { userInput.Var["MET"]["binWidth"] = 3.0; }
@@ -476,7 +477,6 @@ bool setParameters(const StringMap_t& row, GlobalInfo& info, GlobalInfo& userInf
   }
   info.Par["Model"] = "";
   info.Par["Cut"]   = "";
-  userInfo.Par["RecoilPath"] = "";
   for(const auto& s : userInfo.StrV.at("object")) {
     info.Flag["incMCTemp_"+s] = false;
     for(const auto& o : userInfo.StrV.at("template")) { info.Flag["incMCTemp_"+s+"_"+o]   = false; }
