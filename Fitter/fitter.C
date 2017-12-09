@@ -17,17 +17,17 @@ bool createDataSets    ( std::map< std::string, RooWorkspace >& Workspace , std:
 
 void fitter(
             const std::string workDirName = "QCDTemplate",// Working directory
-            const std::bitset<1> useExt   = 0,          // Use external: (bit 0 (1)) Input DataSets
+            const uint           varType  = 0,          // Type of MET to Fit: (0) PF Raw, (1) PF Type1, (2) NoHF Raw, (3) NoHF Type 1
+            const std::bitset<1> useExt   = 1,          // Use external: (bit 0 (1)) Input DataSets
             // Select the type of datasets to fit
             const std::bitset<2> fitData  = 1,          // Fit Sample: (bit 0 (1)) Data , (bit 1 (2)) MC
-            const std::bitset<3> fitColl  = 7,          // Fit System: (bit 0 (1)) pPb  , (bit 1 (2)) Pbp   , (bit 2 (4)) PA
+            const std::bitset<3> fitColl  = 4,          // Fit System: (bit 0 (1)) pPb  , (bit 1 (2)) Pbp   , (bit 2 (4)) PA
             const std::bitset<3> fitChg   = 3,          // Fit Charge: (bit 0 (1)) Plus , (bit 1 (2)) Minus , (bit 2 (4)) Inclusive
             // Select the type of objects to fit
                   std::bitset<3> fitObj   = 2,          // Fit Objects: (bit 0 (1)) W , (bit 1 (2)) QCD , (bit 2 (4)) Z
             // Select the fitting options
             const unsigned int   numCores = 32,         // Number of cores used for fitting
             const std::bitset<1> fitVar   = 1,          // Fit Variable: 1: MET
-            const uint           varType  = 0,          // Type of MET to Fit: (0) PF Raw, (1) PF Type1, (2) NoHF Raw, (3) NoHF Type 1
             const std::string    Analysis = "WToMuNu",  // Type of Analysis
             // Select the drawing options
             const bool setLogScale  = true              // Draw plot with log scale
@@ -105,14 +105,49 @@ void fitter(
     userInput.Par["RecoilCorrMethod"] = "Smearing";
     fitObj = 1;
   }
+  else if (workDirName.find("METcomparison")!=std::string::npos) {
+    userInput.Flag["applyHFCorr"]     = false;
+    userInput.Flag["applyTnPCorr"]    = true;
+    userInput.Flag["applyRecoilCorr"] = false;
+    userInput.Par["RecoilCorrMethod"] = "";
+    fitObj = 4;
+  }
+  else if (workDirName.find("HFrewStudy")!=std::string::npos) {
+    userInput.Flag["applyHFCorr"]     = true;
+    userInput.Flag["applyTnPCorr"]    = true;
+    userInput.Flag["applyRecoilCorr"] = false;
+    userInput.Par["RecoilCorrMethod"] = "";
+    fitObj = 4;
+  }
+  else if (workDirName.find("RecoilStudy_Smearing")!=std::string::npos) {
+    userInput.Flag["applyHFCorr"]     = true;
+    userInput.Flag["applyTnPCorr"]    = true;
+    userInput.Flag["applyRecoilCorr"] = true;
+    userInput.Par["RecoilCorrMethod"] = "Smearing";
+    fitObj = 4;
+  }
+  else if (workDirName.find("RecoilStudy_ScalingGeneral")!=std::string::npos) {
+    userInput.Flag["applyHFCorr"]     = true;
+    userInput.Flag["applyTnPCorr"]    = true;
+    userInput.Flag["applyRecoilCorr"] = true;
+    userInput.Par["RecoilCorrMethod"] = "Scaling_OneGaussianDATA";
+    fitObj = 4;
+  }
+  else if (workDirName.find("RecoilStudy_ScalingGauss")!=std::string::npos) {
+    userInput.Flag["applyHFCorr"]     = true;
+    userInput.Flag["applyTnPCorr"]    = true;
+    userInput.Flag["applyRecoilCorr"] = true;
+    userInput.Par["RecoilCorrMethod"] = "Scaling_OneGaussian";
+    fitObj = 4;
+  }
   else { std::cout << "[ERROR] Workdirname has not been defined!" << std::endl; return; }
   //
   //
   // Store more information for fitting
   userInput.Par["extTreesFileDir"] = Form("%s/Input/", CWD.c_str());
-  userInput.Par["extDSDir_DATA"]   = "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Dataset/";
-  userInput.Par["extDSDir_MC"]     = "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Dataset/";
-  userInput.Par["RecoilPath"]      = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil/";
+  userInput.Par["extDSDir_DATA"]   = "/grid_mnt/vol__vol_U__u/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/DataSet/";
+  userInput.Par["extDSDir_MC"]     = "/grid_mnt/vol__vol_U__u/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/DataSet/";
+  userInput.Par["RecoilPath"]      = "/grid_mnt/vol__vol_U__u/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil/";
   if (userInput.Par.at("Analysis").find("Nu")!=std::string::npos) {
     userInput.Var["MET"]["type"] = varType;
     if      (workDirName=="NominalCM_BinWidth3") { userInput.Var["MET"]["binWidth"] = 3.0; }
