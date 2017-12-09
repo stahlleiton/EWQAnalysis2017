@@ -63,7 +63,6 @@ void     getFitText  ( const TF1& fit, std::vector<std::string>& text );
 void     formatLegendEntry ( TLegendEntry& e );
 void     updateYAxisRange ( std::unique_ptr<TGraphErrors>& graph , const std::unique_ptr<TF1>& fit );
 double   roundVal    ( const double& v, const uint& n=3 ) { return ( floor(v * pow(10, n)) / pow(10, n) ); }
-Double_t pol1        ( Double_t *x , Double_t *par ) { return ( par[0] + par[1]*(x[0] - par[2]) ); }
 bool     createInputFiles ( const std::string& dirPath , const FitMap_t& iniFitMap , const bool& useEtaCM , const BinMapMap_t& binMap );
 
 // Global 
@@ -91,7 +90,7 @@ void makeQCDTemplate(
   //
   const std::vector< std::string > col = { "pPb" , "Pbp" , "PA" };
   for (const auto& c : col) {
-    const std::string dirPath = Form("%s/Fitter/Output/%s/%s/%s/%s/result/", preCWD.c_str(), workDirName.c_str(), METTag.c_str(), DSTag.c_str(), c.c_str());
+    const std::string dirPath = Form("%s/Fitter/Output/%s/%s/%s/QCD/%s/result/", preCWD.c_str(), workDirName.c_str(), METTag.c_str(), DSTag.c_str(), c.c_str());
     const std::string outDir  = Form("%s/Output/%s/%s/%s/%s/", CWD.c_str(), workDirName.c_str(), METTag.c_str(), DSTag.c_str(), c.c_str());
     // Find all the workspaces
     std::vector<std::string> fileNames;
@@ -522,7 +521,7 @@ bool fitGraph(const GraphMap_t& graphMap, FitMap_t& fitMap)
                                 lbl.first.c_str(), 
                                 std::get<0>(graph.first).first*10., std::get<0>(graph.first).second*10.,
                                 std::get<1>(graph.first).first*10., std::get<1>(graph.first).second*10.);
-        fitMap[var.first][lbl.first][graph.first] = std::unique_ptr<TF1>(new TF1(name.c_str(), pol1, 0.15, graph.second->GetXaxis()->GetXmax(), 3));
+        fitMap[var.first][lbl.first][graph.first] = std::unique_ptr<TF1>(new TF1(name.c_str(), "[0] + [1]*(x - [2])", graph.second->GetXaxis()->GetXmin(), graph.second->GetXaxis()->GetXmax()));
         if (fitMap.at(var.first).at(lbl.first).at(graph.first)==NULL) {
           std::cout << "[ERROR] Element in fitMap is NULL!" << std::endl; return false;
         }
@@ -541,7 +540,7 @@ bool fitGraph(const GraphMap_t& graphMap, FitMap_t& fitMap)
         fitMap.at(var.first).at(lbl.first).at(graph.first)->SetParLimits(1, -50., 50.);
         fitMap.at(var.first).at(lbl.first).at(graph.first)->FixParameter(2, x0);
         // Fit the graph
-        graph.second->Fit(name.c_str(), "0QEFSWL", "", (floor((x1-ex1)*100.)/100.), (ceil((x2+ex2)*100.)/100.));
+        graph.second->Fit(name.c_str(), "0MEQEX0");
       }
     }
   }
@@ -613,8 +612,14 @@ void getFitText(const TF1& fit, std::vector<std::string>& text)
   text.push_back(Form("#chi^{2} / ndf     %.3f / %d", fit.GetChisquare(), fit.GetNDF()));
   // Set the parameters text
   for (int i = 0; i < fit.GetNpar(); i++) {
+    //
+    std::string warningLbl = "";
+    double parMin, parMax; fit.GetParLimits(i, parMin, parMax);
+    if ((std::abs(fit.GetParameter(i) - parMin) < 3.0*fit.GetParError(i)) ||
+        (std::abs(fit.GetParameter(i) - parMax) < 3.0*fit.GetParError(i))) { warningLbl = " (!)"; }
+    //
     if (fit.GetParError(i)>0.0) {
-      text.push_back(Form("%s     %.3f #pm %.3f", fit.GetParName(i), fit.GetParameter(i), fit.GetParError(i)));
+      text.push_back(Form("%s     %.3f #pm %.3f%s", fit.GetParName(i), fit.GetParameter(i), fit.GetParError(i), warningLbl.c_str()));
     }
   }
 };
@@ -716,8 +721,16 @@ void drawExGraph(const std::string& outDir, GraphMap_t& exGraphMap, const bool& 
           std::vector< std::string > resultText;
           // Set each variable Label
           double val  = 0.0, xDummy = 0.0, err = 0.0;
-          for (int i = 0; i < graph.second->GetN(); i++) { graph.second->GetPoint(i, xDummy, val); err = graph.second->GetErrorY(i); if (graph.second->GetErrorX(i)>2.0) { break; } }
+          //
+          uint iInc = 0;
+          for (int i = 0; i < graph.second->GetN(); i++) { iInc = i; if (graph.second->GetErrorX(i)>2.0) { break; } }
+          graph.second->GetPoint(iInc, xDummy, val); err = graph.second->GetErrorY(iInc);
           resultText.push_back(Form("Inclusive : %.5f#pm%.5f", val, err));
+          //
+          double xInc[] = { xDummy } , yInc[] = { val } , xErrInc[] = { graph.second->GetErrorX(iInc) } , yErrInc[] = { err };
+          TGraphErrors gInc(1, xInc, yInc, xErrInc, yErrInc);
+          gInc.SetMarkerColor(kRed); gInc.SetMarkerSize(1.0); gInc.SetLineColor(kRed);
+          gInc.Draw("same p");
           //
           tmp->GetPoint(0, xDummy, val); err = tmp->GetErrorY(0);
           resultText.push_back(Form("Mean : %.5f#pm%.5f", val, err));

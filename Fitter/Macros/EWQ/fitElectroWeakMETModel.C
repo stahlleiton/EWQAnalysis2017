@@ -6,7 +6,8 @@
 #include "../Utilities/initClasses.h"
 #include "../../../Utilities/EVENTUTILS.h"
 
-void   setMETGlobalParameterRange ( RooWorkspace& myws , GlobalInfo& info );
+void   updateMETParameterRange    ( RooWorkspace& myws );
+void   setMETGlobalParameterRange ( RooWorkspace& myws , const GlobalInfo& info );
 void   setEWQCutParameters  ( GlobalInfo& info );
 bool   setEWQModel          ( StringDiMap_t& model, GlobalInfo&  info );
 int    importDataset        ( RooWorkspace& myws  , const std::map<string, RooWorkspace>& inputWS , const GlobalInfo& info);
@@ -126,21 +127,24 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
         if (myws.obj("fitObject")) { ((TObjString*)myws.obj("fitObject"))->SetString(obj.c_str()); }
         else { tmp.SetString(obj.c_str()); myws.import(*((TObject*)&tmp), "fitObject"); }
         // Total PDF Name
-        std::string label = obj + cha + chg + "_" + col;
-        std::string pdfName = ( "pdfMET_Tot" + label );
+        const std::string label = obj + cha + chg + "_" + col;
+        const std::string pdfName = ( "pdfMET_Tot" + label );
         // Plot Name
         std::string modelN = info.Par.at("Model_"+label);
         modelN.erase(std::remove(modelN.begin(), modelN.end(), ' '), modelN.end());
         stringReplace( modelN, "[", "_" ); stringReplace( modelN, "]", "" ); stringReplace( modelN, "+", "_" ); stringReplace( modelN, ",", "" ); stringReplace( modelN, ";", "" );
         if (myws.obj("modelName")) { ((TObjString*)myws.obj("modelName"))->SetString(modelN.c_str()); }
         else { tmp.SetString(modelN.c_str()); myws.import(*((TObject*)&tmp), "modelName"); }
-        std::string plotLabel = label + "_Model_" + modelN;
+        const std::string plotLabel = label + "_Model_" + modelN;
         // Output File Name
         std::string fileName = "";
         std::string outDir = outputDir;
         setMETFileName(fileName, outDir, DSTAG, plotLabel, info);
         // Dataset Name
-        std::string dsName = ( "d" + chg + "_" + DSTAG );
+        const std::string dsName = ( "d" + chg + "_" + DSTAG );
+        // Update the MET Fit Range
+        //updateMETParameterRange(myws); // DOES NOT WORK SO DONT USE
+        const std::string dsNameFit = ( (myws.data((dsName+"_FIT").c_str())!=NULL) ? (dsName+"_FIT") : dsName );
         // check if we have already done this fit. If yes, do nothing and return true.
         bool found =  true; bool skipFit = false;
         std::unique_ptr<RooArgSet> newpars;
@@ -154,18 +158,18 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
         // Fit the Datasets
         if (skipFit==false) {
           if (myws.pdf(pdfName.c_str())) {
-            bool isWeighted = myws.data(dsName.c_str())->isWeighted();
+            bool isWeighted = myws.data(dsNameFit.c_str())->isWeighted();
             int numCores = info.Int.at("numCores");
             RooArgList* pdfConstrains = (RooArgList*)myws.genobj(Form("pdfConstr%s", label.c_str()));
             std::unique_ptr<RooFitResult> fitResult;
             if (pdfConstrains!=NULL && pdfConstrains->getSize()>0) {
               std::cout << "[INFO] Fitting with constrain PDFs" << std::endl;
-              auto tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsName.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Minos(!isWeighted),
+              auto tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Minos(!isWeighted),
                                                           RooFit::Range("METWindow"), RooFit::ExternalConstraints(*pdfConstrains), RooFit::NumCPU(numCores), RooFit::Save());
               fitResult = std::unique_ptr<RooFitResult>(tmp);
             }
             else {
-              auto tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsName.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted),
+              auto tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted),
                                                            RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
               fitResult = std::unique_ptr<RooFitResult>(tmp);
             }
@@ -389,10 +393,42 @@ int importDataset(RooWorkspace& myws  , const std::map<string, RooWorkspace>& in
 };
 
 
-void setMETGlobalParameterRange(RooWorkspace& myws, GlobalInfo& info)
+void updateMETParameterRange(RooWorkspace& myws)
+{
+  // Defualt range
+  myws.var("MET")->setRange("METWindow", myws.var("MET")->getMin(), myws.var("MET")->getMax());
+  //
+  const std::string DSTAG = (myws.obj("DSTAG"))     ? ((TObjString*)myws.obj("DSTAG"))->GetString().Data()     : "";
+  const std::string chg   = (myws.obj("fitCharge")) ? ((TObjString*)myws.obj("fitCharge"))->GetString().Data() : "";
+  const std::string dsName = ( "d" + chg + "_" + DSTAG );
+  double metMin , metMax;
+  metMin = myws.var("MET")->getMin(); metMax = myws.var("MET")->getMax();
+  //myws.data(dsName.c_str())->getRange(*myws.var("MET"), metMin, metMax); metMin -= 0.0001;  metMax += 0.0001;
+  const int nBins = std::min(int( std::round(((metMax - metMin)*double(myws.var("MET")->getBins()))/(myws.var("MET")->getMax() - myws.var("MET")->getMin())) ), 1000);
+  //
+  auto hTot = std::unique_ptr<TH1D>((TH1D*)myws.data(dsName.c_str())->createHistogram("TMP", *myws.var("MET"), RooFit::Binning(nBins, metMin, metMax)));
+  std::vector<double> rangeMET; getRange(rangeMET, *hTot, 10); // KEEP THIS NUMBER WITH 7, JUST KEEP IT LIKE THAT :D
+  metMin = std::floor(rangeMET[0]); metMax = std::ceil(rangeMET[1]);
+  if (metMin < myws.var("MET")->getMin()) { metMin = myws.var("MET")->getMin(); }
+  if (metMax > myws.var("MET")->getMax()) { metMax = myws.var("MET")->getMax(); }
+  // Lets force the min to be 0
+  metMin = 0.0;
+  //
+  const std::string metFitRange = Form("(%.6f <= MET && MET < %.6f)", metMin, metMax);
+  if (myws.data(dsName.c_str())->reduce(metFitRange.c_str())->numEntries() < myws.data(dsName.c_str())->numEntries()) {
+    myws.var("MET")->setRange("METWindow", metMin, metMax);
+    auto dataToFit = std::unique_ptr<RooDataSet>((RooDataSet*)(myws.data(dsName.c_str())->reduce(metFitRange.c_str())->Clone((dsName+"_FIT").c_str())));
+    myws.import(*dataToFit);
+    std::cout << Form("[INFO] MET range was updated to : %g <= MET < %g", metMin, metMax) << std::endl;
+  }
+  //
+  return;
+};
+
+
+void setMETGlobalParameterRange(RooWorkspace& myws, const GlobalInfo& info)
 {
   myws.var("MET")->setRange("METWindow", info.Var.at("MET").at("Min"), info.Var.at("MET").at("Max"));
-  info.Par["METRange_Cut"] = Form("(MET>=%g && MET<%g)", info.Var.at("MET").at("Min"), info.Var.at("MET").at("Max"));
   const int nBins = min(int( round((info.Var.at("MET").at("Max") - info.Var.at("MET").at("Min"))/info.Var.at("MET").at("binWidth")) ), 1000);
   myws.var("MET")->setBins(nBins);
   return;

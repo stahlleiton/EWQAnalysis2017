@@ -495,4 +495,44 @@ bool isParAtLimit(const RooRealVar& var)
 };
 
 
+void getRange(std::vector<double>& range, const TH1D& hist, const int& nMaxBins)
+{
+  // 1) Find the bin with the maximum Y value
+  const int binMaximum = hist.GetMaximumBin();
+  // 2) Loop backward and find the first bin
+  int binWithContent = -1;
+  int firstBin = 1;
+  for (int i = binMaximum; i > 0; i--) {
+    if (hist.GetBinContent(i) > 0.0) {
+      if ( (binWithContent > 0) && ((binWithContent-i) > nMaxBins) && (hist.GetBinContent(i) < 5.0) ) { firstBin = binWithContent; break; }
+      else { binWithContent = i; }
+    }
+  }
+  // 3) Loop forward and find the last bin
+  binWithContent = -1;
+  int lastBin = hist.GetNbinsX();
+  for (int i = binMaximum; i < hist.GetNbinsX(); i++) {
+    if (hist.GetBinContent(i) > 0.0) {
+      if ( ( binWithContent > 0) && ((i - binWithContent) > nMaxBins) && (hist.GetBinContent(i) < 5.0) ) { lastBin = binWithContent+1; break; }
+      else { binWithContent = i; }
+    }
+  }
+  // 4) Build the set of bins
+  const int startBin = ( (firstBin > 1) ? (firstBin - 1) : firstBin );
+  const int nNewBins = lastBin - startBin + 1;
+  double binning[nNewBins+2];
+  binning[0] = hist.GetXaxis()->GetXmin();
+  binning[nNewBins+1] = hist.GetXaxis()->GetXmax();
+  for (int i = 1; i <= nNewBins; i++) {
+    int iBin = startBin + i;
+    binning[i] = hist.GetBinLowEdge(iBin);
+  }
+  // 5) Save the bin range
+  range.push_back(binning[(firstBin>1)?1:0]);
+  range.push_back(binning[nNewBins]);
+  //
+  return;
+};
+
+
 #endif // #ifndef initClasses_h

@@ -523,13 +523,13 @@ bool reweightMCLumi(RooWorkspaceMap_t& Workspaces, GlobalInfo& info)
 };
 
 
-bool readCorrectionDS(RooWorkspace& corrWS, const std::string sampleTag, const std::string recoilMethod)
+bool readCorrectionDS(RooWorkspace& corrWS, const std::string sampleTag, const std::string recoilMethod, const bool applyHFCorr)
 {
   //
   bool done = false;
   std::string sample = sampleTag; sample = sample.substr(sample.find("MC_"));
   const std::string corrDirName  = Form("%s/Correction/Recoil_%s", getcwd(NULL, 0), recoilMethod.c_str());
-  const std::string corrFileName = Form("Corr_%s_Recoil_%s.root", sample.c_str(), recoilMethod.c_str());
+  const std::string corrFileName = Form("Corr_%s%s_Recoil_%s.root", sample.c_str(), (applyHFCorr?"_HFCorr":""), recoilMethod.c_str());
   const std::string corrFilePath = Form("%s/%s", corrDirName.c_str(), corrFileName.c_str());
   //
   if (existFile(corrFilePath)) {
@@ -554,12 +554,12 @@ bool readCorrectionDS(RooWorkspace& corrWS, const std::string sampleTag, const s
 };
 
 
-void writeCorrectionDS(const RooWorkspace& ws, const std::string sampleTag, const std::string recoilMethod)
+void writeCorrectionDS(const RooWorkspace& ws, const std::string sampleTag, const std::string recoilMethod, const bool applyHFCorr)
 {
   //
   std::string sample = sampleTag; sample = sample.substr(sample.find("MC_"));
   const std::string corrDirName  = Form("%s/Correction/Recoil_%s", getcwd(NULL, 0), recoilMethod.c_str());
-  const std::string corrFileName = Form("Corr_%s_Recoil_%s.root", sample.c_str(), recoilMethod.c_str());
+  const std::string corrFileName = Form("Corr_%s%s_Recoil_%s.root", sample.c_str(), (applyHFCorr?"_HFCorr":""), recoilMethod.c_str());
   const std::string corrFilePath = Form("%s/%s", corrDirName.c_str(), corrFileName.c_str());
   if (!existDir(corrDirName)) { makeDir(corrDirName); }
   //
@@ -770,7 +770,7 @@ bool correctMC(RooWorkspaceMap_t& Workspaces, const GlobalInfo& info)
       std::cout << "[INFO] Applying corrections ( " << corrString << " ) to " << sample << std::endl;
       // Extract the corrections
       bool makeCorrFile = false; RooWorkspace corrWS;
-      if (applyRecoilCorr) { makeCorrFile = (!readCorrectionDS(corrWS, sample, recoilMethod)); }
+      if (applyRecoilCorr) { makeCorrFile = (!readCorrectionDS(corrWS, sample, recoilMethod, applyHFCorr)); }
       // Initialize the MET Recoil Corrector
       if (applyRecoilCorr) {
         if      (recoilMethod.find("OneGaussianMC"  )!=std::string::npos) { recoilCorr.setInitialSetup(sample, true, false, true); }
@@ -783,7 +783,7 @@ bool correctMC(RooWorkspaceMap_t& Workspaces, const GlobalInfo& info)
       // Apply the MC correction to negative muon dataset
       if (!applyMCCorrection(myws, corrWS, ("dMi_"+sample), ("mcMi_"+sample), applyTnPCorr, HFCorr.get(), recoilCorr, recoilMethod)) { return false; }
       // Save the corrections
-      if (applyRecoilCorr && makeCorrFile) { writeCorrectionDS(myws, sample, recoilMethod); }
+      if (applyRecoilCorr && makeCorrFile) { writeCorrectionDS(myws, sample, recoilMethod, applyHFCorr); }
       // Store in the workspace the info regarding the corrections applied
       TObjString tmp; tmp.SetString(corrString.c_str()); myws.import(*((TObject*)&tmp), "CorrectionApplied");
       if (applyRecoilCorr) { tmp.SetString(recoilMethod.c_str()); myws.import(*((TObject*)&tmp), "RecoilMethod"); }
