@@ -406,7 +406,9 @@ bool setMET(RooWorkspaceMap_t& Workspaces, const std::string& metType)
     // Get the sample name
     const auto& dsList =  myws.allData();
     std::string sample = dsList.front()->GetName(); sample = sample.substr(sample.find("_")+1);
-    std::cout << "[INFO] Setting MET of sample " << sample << " to " << metType << std::endl;
+    const std::string METType = (myws.obj("METType")) ? ((TObjString*)myws.obj("METType"))->GetString().Data() : "";
+    if (metType == METType) { std::cout << "[INFO] User define MET for sample " << sample << " is the default (" << METType << "), skipping the setMET" << std::endl; continue; }
+    std::cout << "[INFO] Setting MET of sample " << sample << " from " << METType << " to " << metType << std::endl;
     // Apply the Lumi re-weighting to positive muon dataset
     if (!setMETonDS(myws, ("dPl_"+sample), ("mcPl_"+sample), ("metPl_"+sample), metType)) { return false; }
     // Apply the Lumi re-weighting to negative muon dataset

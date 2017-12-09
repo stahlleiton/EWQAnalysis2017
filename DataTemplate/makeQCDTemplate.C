@@ -70,9 +70,8 @@ const std::vector< std::string > cutSelection = {
   "p^{#mu}_{T}>25 GeV/c, |#eta^{#mu}|<2.4, Iso^{#mu}<0.15", "#mu Tight ID , Drell-Yan Veto"
 };
 std::map< std::string, std::tuple< std::string > > yAxis;
+std::string fitType_ = "" , useBin_ = "";
 const double isoPoint = 0.03;
-const std::string useBin_  = "Inclusive"; // Can also  be Inclusive , Mean , Eta (Nothing)
-const std::string fitType_ = "Fixed";     // Can also  be Constrain or Fixed
 std::string MODELNAME_ = "";
 
 void makeQCDTemplate(
@@ -85,8 +84,6 @@ void makeQCDTemplate(
   if (workDirName.find("QCDTemplate")==std::string::npos) { std::cout << "[ERROR] Invalid input workdirname " << workDirName << std::endl; return; }
   const std::string CWD = getcwd(NULL, 0);
   std::string preCWD = CWD; preCWD.erase(preCWD.find_last_of("/"), 100);
-  //
-  if (fitType_!="Constrain" && fitType_!="Fixed") { std::cout << "[ERROR] Fit type is wrong. WTF is wrong with you." << std::endl; return; }
   //
   const std::vector< std::string > col = { "pPb" , "Pbp" , "PA" };
   for (const auto& c : col) {
@@ -129,7 +126,14 @@ void makeQCDTemplate(
     // Delete the extrapolated graphs
     exGraphMap.clear();
     // Create new input files
-    createInputFiles((outDir+"InputFiles/"), fitMap, useEtaCM, MU_BIN_RANGE);
+    const std::vector< std::string > binList = { "Inclusive" , "Mean" , "Eta" };
+    const std::vector< std::string > fitList = { "Constrain" , "Fixed" };
+    for (const auto& useBin : binList) {
+      for (const auto& fitType : fitList) {
+        useBin_ = useBin; fitType_ = fitType;
+        createInputFiles((outDir+"InputFiles/"), fitMap, useEtaCM, MU_BIN_RANGE);
+      }
+    }
     // Create the fits
     fitMap.clear();
   }

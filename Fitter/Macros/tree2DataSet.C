@@ -36,7 +36,7 @@ bool tree2DataSet(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& FileIn
   info.Flag["applyCorr"]    = true;
   info.Flag["updateDS"]     = UpdateDS;
   info.Par ["Analysis"]     = Analysis;
-  info.Par ["VarType"]      = VarType;
+  info.Par ["VarType"]      = "PF_RAW"; // Hardcoded for the moment
   // Check if Analysis type is supported
   if (!checkAnalysis(Analysis, info)) return false;
   // Make RooDatasets
