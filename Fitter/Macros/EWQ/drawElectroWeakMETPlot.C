@@ -32,6 +32,7 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   //
   const std::string tag = ( obj + cha + chg + "_" + col );
   const std::string dsName = ( "d" + chg + "_" + DSTAG );
+  const std::string dsNameFit = ( (ws.data((dsName+"_FIT").c_str())!=NULL) ? (dsName+"_FIT") : dsName );
   const std::string pdfName = Form("pdfMET_Tot%s", tag.c_str());
   const bool paperStyle = false;
   const bool setLogScale = yLogScale;
@@ -70,12 +71,12 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
     ws.data(dsName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::DataError(RooAbsData::SumW2), 
                                     RooFit::XErrorSize(0), RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
   }
-  legInfo["DATA"][Form("plot_Tot%s", dsName.c_str())] = "Data";
+  legInfo["DATA"][Form("plot_Tot%s", dsName.c_str())] = ( isMC ? "Simulation" : "Data" );
   //
   if (ws.pdf(pdfName.c_str())) {
     RooArgList pdfList = ((RooAddPdf*)ws.pdf(pdfName.c_str()))->pdfList();
     if (pdfList.getSize()==1) {
-      double norm = ws.data(dsName.c_str())->sumEntries();
+      double norm = ws.data(dsNameFit.c_str())->sumEntries();
       ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())),
                                       RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::NumCPU(32),
                                       RooFit::LineColor(kBlack), RooFit::LineStyle(1), RooFit::Precision(1e-4)
@@ -89,7 +90,7 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
       drawMode = 1;
     }
     else {
-      double norm = ws.data(dsName.c_str())->sumEntries();
+      double norm = ws.data(dsNameFit.c_str())->sumEntries();
       const std::map< std::string , int > colorMap = { {"W" , kYellow} , {"DY" , kGreen+2} , {"WToTau" , kRed+1} , {"QCD" , kAzure-9} , {"TTbar" , kOrange+1} };
       std::unique_ptr<TIterator> parIt = std::unique_ptr<TIterator>(pdfList.createIterator());
       std::unique_ptr<RooArgList> list = std::unique_ptr<RooArgList>((RooArgList*)pdfList.Clone());      
@@ -107,17 +108,19 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
         RooAbsPdf* it = elem.second;
         const std::string name = it->GetName();
         std::string obj = name; obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find(cha));
-        ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", name.c_str())), RooFit::Components(*list),
-                                        RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::NumCPU(32),
-                                        RooFit::FillStyle(1001), RooFit::FillColor(colorMap.at(obj)), RooFit::VLines(), RooFit::DrawOption("LF"), RooFit::LineColor(kBlack), RooFit::LineStyle(1)
-                                        );
-        legInfo["TEMP"][Form("plot_%s", name.c_str())] = formatCut(obj);
+        if (norm > 0.0) {
+          ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", name.c_str())), RooFit::Components(*list),
+                                          RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::NumCPU(32),
+                                          RooFit::FillStyle(1001), RooFit::FillColor(colorMap.at(obj)), RooFit::VLines(), RooFit::DrawOption("LF"), RooFit::LineColor(kBlack), RooFit::LineStyle(1)
+                                          );
+          legInfo["TEMP"][Form("plot_%s", name.c_str())] = formatCut(obj);
+        }
         list->remove(*it);
         norm -= elem.first;
       }
       ws.data(dsName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::DataError(RooAbsData::SumW2), 
                                       RooFit::XErrorSize(0), RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
-      norm = ws.data(dsName.c_str())->sumEntries();
+      norm = ws.data(dsNameFit.c_str())->sumEntries();
       ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())),
                                       RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::NumCPU(32),
                                       RooFit::LineColor(kBlack), RooFit::LineStyle(1), RooFit::Precision(1e-4)
@@ -210,7 +213,8 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   frame.at("MAIN")->Draw();
   //
   int lumiId = 0;
-  if (col=="pPb") { lumiId = 115; } else if (col=="Pbp") { lumiId = 116; } else if (col=="PA") { lumiId = 117; }
+  if (isMC) { if (col=="pPb") { lumiId = 112; } else if (col=="Pbp") { lumiId = 113; } else if (col=="PA") { lumiId = 114; } }
+  else      { if (col=="pPb") { lumiId = 115; } else if (col=="Pbp") { lumiId = 116; } else if (col=="PA") { lumiId = 117; } }
   CMS_lumi(pad.at("MAIN"), lumiId, 33, "");
   //
   printElectroWeakMETParameters(*pad.at("MAIN"), ws, pdfName, drawMode);
@@ -315,8 +319,7 @@ void printElectroWeakMETParameters(TPad& pad, const RooWorkspace& ws, const std:
     parseVarName(it->GetName(), label); if (label=="") continue;
     // Print the parameter's results
     std::string txtLbl;
-    if (s.find("Sigma2")!=std::string::npos) { txtLbl = Form("%s = %.3f#pm%.3f", label.c_str(), it->getValV()*1000., it->getError()*1000.); }
-    else { txtLbl = Form("%s = %.3f#pm%.3f", label.c_str(), it->getValV(), it->getError()); }
+    txtLbl = Form("%s = %.3f#pm%.3f", label.c_str(), it->getValV(), it->getError());
     if (isParAtLimit(*it)) { txtLbl += " (!)"; }
     t.DrawLatex(xPos, yPos-dy, txtLbl.c_str()); dy+=dYPos;
   }
@@ -362,6 +365,11 @@ void printElectroWeakBinning(TPad& pad, const RooWorkspace& ws, const std::strin
     }
   }
   for (const auto& txt : text) { if (text[0]!=txt) { t.DrawLatex(xPos, yPos-dy, Form("%s", txt.c_str())); dy+=dYPos; } }
+  //
+  const double outTot = ws.data(dsName.c_str())->numEntries();
+  const double outCut = ( (ws.data((dsName+"_FIT").c_str())!=NULL) ? ws.data((dsName+"_FIT").c_str())->numEntries() : outTot );
+  if (outCut != outTot) { t.DrawLatex(xPos, yPos-dy, Form("Loss: (%.4f%%) %.0f evts", ((outTot-outCut)*100.0/outTot), (outTot-outCut))); }
+  //
   pad.Update();
   return;
 };
@@ -392,7 +400,7 @@ void setRange(RooPlot& frame, const RooWorkspace& ws, const std::string& varName
   Double_t Yup(0.),Ydown(0.);
   if(setLogScale)
   {
-    Yup = YMax*pow((YMax/0.1), 0.5);
+    Yup = YMax*pow((YMax/0.1), 0.55);
     Ydown = 0.01;
   }
   else
@@ -401,6 +409,21 @@ void setRange(RooPlot& frame, const RooWorkspace& ws, const std::string& varName
     Ydown = 0.0;
   }
   frame.GetYaxis()->SetRangeUser(Ydown,Yup);
+  //
+  // Draw Lines for the MET range if cut
+  if (ws.data((dsName+"_FIT").c_str())!=NULL) {
+    double metMin = ws.var("MET")->getMin("METWindow");
+    if (metMin > 0.0) {
+      auto minline = new TLine(metMin, 0.0, metMin, (setLogScale?(Ydown*TMath::Power((Yup/Ydown),0.5)):(Ydown + (Yup-Ydown)*0.5)));
+      minline->SetLineStyle(2); minline->SetLineColor(1); minline->SetLineWidth(3);
+      frame.addObject(minline);
+    }
+    double metMax = ws.var("MET")->getMax("METWindow");
+    auto maxline = new TLine(metMax, 0.0, metMax, (setLogScale?(Ydown*TMath::Power((Yup/Ydown),0.5)):(Ydown + (Yup-Ydown)*0.5)));
+    maxline->SetLineStyle(2); maxline->SetLineColor(1); maxline->SetLineWidth(3);
+    frame.addObject(maxline);
+  }
+  //
   return;
 };
 

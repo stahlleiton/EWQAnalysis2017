@@ -79,7 +79,7 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StringDiMap_t
                 }
                 if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
                 // create the PDF
-                ws.factory(Form("RooGenericPdf::%s('TMath::Exp(TMath::Sqrt(@0+@1)*@2)*TMath::Power((@0+@1),@3)', {%s, %s, %s, %s})", Form("pdfMET_%s", label.c_str()), "MET", 
+                ws.factory(Form("RooGenericPdf::%s('TMath::Exp(-1.0*TMath::Sqrt(@0+TMath::Abs(@1))*TMath::Abs(@2))*TMath::Power((@0+TMath::Abs(@1)),@3)', {%s, %s, %s, %s})", Form("pdfMET_%s", label.c_str()), "MET", 
                                 Form("x0_%s", label.c_str()), 
                                 Form("Beta_%s", label.c_str()), 
                                 Form("Alpha_%s", label.c_str())
@@ -117,10 +117,13 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StringDiMap_t
                 }
                 if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
                 // create the PDF
-                ws.factory(Form("RooGenericPdf::%s('@0*TMath::Exp(-1.0*((@0*@0)/(TMath::Power((@1 + @2*(@0) + @3*(@0*@0)), 2.0))))', {%s, %s, %s, %s})", Form("pdfMET_%s", label.c_str()), "MET", 
-                                Form("Sigma0_%s", label.c_str()), 
-                                Form("Sigma1_%s", label.c_str()), 
-                                Form("Sigma2_%s", label.c_str())
+                const double metMax = 50.; // Optimized to reduce corralation (range set to 100 GeV/c)
+                ws.factory(Form("RooFormulaVar::NormMET('(@0 - %.6f)/%.6f',{MET})", metMax, metMax));
+                ws.factory(Form("RooGenericPdf::%s('@0*TMath::Exp(-1.0*((@0*@0)/(2.0*TMath::Power((@1 + (@2)*(@4) + (@3*@3)*((2.0*@4*@4)-1.0)), 2.0))))', {%s, %s, %s, %s, %s})", Form("pdfMET_%s", label.c_str()), "MET", 
+                                Form("Sigma0_%s", label.c_str()),
+                                Form("Sigma1_%s", label.c_str()),
+                                Form("Sigma2_%s", label.c_str()),
+                                "NormMET"
                                 ));
                 ws.factory(Form("RooExtendPdf::%s(%s,%s)", Form("pdfMETTot_%s", label.c_str()),
                                 Form("pdfMET_%s", label.c_str()),
@@ -146,16 +149,19 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StringDiMap_t
                 //
                 if (proceed) {
                   // create the variables for this model
-                  if ( (obj=="W") && (model.first!=obj) && (model.first!="QCD") ) {
-                    const std::string refLabel = "W" + cha + chg + "_" + col;
+                  bool useMCRatio = false;
+                  const std::string refVarLabel = ( (obj=="W") ? ("NRef_W"+cha+chg+"_"+col) : ("N_W"+cha+chg+"_"+col) );
+                  if (info.Par.count(refVarLabel)>0) { RooWorkspace tmp; tmp.factory(info.Par.at(refVarLabel).c_str()); if (tmp.var(refVarLabel.c_str())->getVal()>0.0) { useMCRatio = true; } }
+                  //
+                  if ( (obj=="W" || obj=="QCD") && (useMCRatio) && (model.first!="QCD") && (model.first!="W") ) {
+                    const std::string refLabel    = "W" + cha + chg + "_" + col;
+                    const std::string refVarLabel = ( (obj=="W") ? ("NRef_"+refLabel) : ("N_"+refLabel) );
                     if (info.Par.count("N_"+refLabel)==0) { std::cout << "[ERROR] Parameter " << ("N_"+refLabel) << " was not found" << std::endl; return false; }
                     if (!ws.var(("rN_"+label).c_str())  ) { ws.factory(Form("%s[1.0]", ("rN_"+label).c_str())); }
-                    if (obj=="W") { if (!ws.var(("NRef_"+refLabel).c_str())) { ws.factory(info.Par.at("NRef_"+refLabel).c_str()); } }
-                    else { if (!ws.var(("N_"+refLabel).c_str())) { ws.factory(info.Par.at("N_"+refLabel).c_str());  } }
+                    if (!ws.var(refVarLabel.c_str())) { ws.factory(info.Par.at(refVarLabel).c_str()); }
                     //
                     RooWorkspace tmp; tmp.factory( info.Par.at("N_"+label).c_str() );
-                    if (obj=="W") { ws.var(("rN_"+label).c_str())->setVal( tmp.var(("N_"+label).c_str())->getVal() / ws.var(("NRef_"+refLabel).c_str())->getVal() ); }
-                    else { ws.var(("rN_"+label).c_str())->setVal( tmp.var(("N_"+label).c_str())->getVal() / ws.var(("N_"+refLabel).c_str())->getVal() ); }
+                    ws.var(("rN_"+label).c_str())->setVal( tmp.var(("N_"+label).c_str())->getVal() / ws.var(refVarLabel.c_str())->getVal() );
                     ws.var(("rN_"+label).c_str())->setConstant(kTRUE);
                     //
                     if (info.Par.count("rRN_"+label)>0 && info.Par.at("rRN_"+label)!="") { tmp.factory(info.Par.at("rRN_"+label).c_str()); }
@@ -170,7 +176,7 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StringDiMap_t
                   }
                   else {
                     ws.factory( info.Par.at("N_"+label).c_str() );
-                    if ( (obj=="QCD" && model.first!="QCD") || (obj=="Z" && model.first!="DY") ) { ws.var(("N_"+label).c_str())->setConstant(kTRUE); }
+                    if ( (obj=="Z" && model.first!="DY") ) { ws.var(("N_"+label).c_str())->setConstant(kTRUE); }
                   }
                   // create the PDF
                   ws.factory(Form("RooExtendPdf::%s(%s,%s)", Form("pdfMETTot_%s", label.c_str()),
@@ -346,12 +352,12 @@ void setMETModelParameters(GlobalInfo& info)
           for (const auto v : varNames) {
             if (info.Par.count(v+"_"+objLabel)==0 || info.Par.at(v+"_"+objLabel)=="") {
               if (info.Par.count(v+"_"+objFoundLabel)==0 || info.Par.at(v+"_"+objFoundLabel)=="") {
-                if (v=="Beta"   ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),  -3.280 ,  -20.000,    0.000); }
-                if (v=="Alpha"  ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   5.940,   -40.000,   40.000); }
-                if (v=="x0"     ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   2.390,     0.000,   40.000); }
-                if (v=="Sigma0" ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),  11.500,  -100.000,  100.000); }
-                if (v=="Sigma1" ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   0.175,   -50.000,   50.000); }
-                if (v=="Sigma2" ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   0.000,    -5.000,    5.000); }
+                if (v=="Beta"   ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   3.500 ,  -20.000,   20.000); }
+                if (v=="Alpha"  ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   6.000,   -20.000,   20.000); }
+                if (v=="x0"     ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   2.500,   -40.000,   40.000); }
+                if (v=="Sigma0" ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),  15.300,   -10.000,  100.000); }
+                if (v=="Sigma1" ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   6.500,   -30.000,   50.000); }
+                if (v=="Sigma2" ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   0.600,   -50.000,   50.000); }
               }
               else {
                 std::string content = info.Par.at(v+"_"+objFoundLabel); content = content.substr( content.find("[") );
