@@ -527,9 +527,12 @@ bool RecoilCorrector::computeRecoilInvCDF(
     rf.SetFunction(wf, uVal);
     // Proceed to find the root value
     rf.Solve();
-    if (rf.Status() != 0) { std::cout << "[ERROR] Computing the inverse CDF for model " << model << " failed with status " << rf.Status() << std::endl; return false; }
+    if (rf.Status() != 0) {
+      std::cout << "[WARNING] Computing the inverse CDF for model " << model << " failed with status " << rf.Status() << std::endl;
+      uVal = uPar.at("mean") + ROOT::Math::gaussian_quantile( CDF , uPar.at("sigma") );
+    }
+    else { double uVal = rf.Root(); }
     // Check result
-    double uVal = rf.Root();
     if (uVal <= -1000. || uVal >= 1000.) { std::cout << "[ERROR] The inverse CDF for model " << model << " was not found!" << std::endl; return false; }
   }
   //
