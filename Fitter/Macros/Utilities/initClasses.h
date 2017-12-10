@@ -30,6 +30,7 @@
 #include "RooClassFactory.h"
 #include "RooFitResult.h"
 #include "RooArgList.h"
+#include "RooAbsArg.h"
 #include "RooPlot.h"
 #include "RooHist.h"
 

@@ -78,10 +78,11 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StringDiMap_t
                   }
                 }
                 if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
+                //
                 // create the PDF
-                ws.factory(Form("RooGenericPdf::%s('TMath::Exp(-1.0*TMath::Sqrt(@0+TMath::Abs(@1))*TMath::Abs(@2))*TMath::Power((@0+TMath::Abs(@1)),@3)', {%s, %s, %s, %s})", Form("pdfMET_%s", label.c_str()), "MET", 
-                                Form("x0_%s", label.c_str()), 
-                                Form("Beta_%s", label.c_str()), 
+                ws.factory(Form("RooGenericPdf::%s('TMath::Exp(-1.0*TMath::Sqrt((@0+@1)*@2*@2))*(TMath::Power(TMath::Abs(@0+@1),@3))', {%s, %s, %s, %s})", Form("pdfMET_%s", label.c_str()), "MET", 
+                                Form("x0_%s", label.c_str()),
+                                Form("Beta_%s", label.c_str()),
                                 Form("Alpha_%s", label.c_str())
                                 ));
                 ws.factory(Form("RooExtendPdf::%s(%s,%s)", Form("pdfMETTot_%s", label.c_str()),
@@ -352,9 +353,9 @@ void setMETModelParameters(GlobalInfo& info)
           for (const auto v : varNames) {
             if (info.Par.count(v+"_"+objLabel)==0 || info.Par.at(v+"_"+objLabel)=="") {
               if (info.Par.count(v+"_"+objFoundLabel)==0 || info.Par.at(v+"_"+objFoundLabel)=="") {
-                if (v=="Beta"   ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   3.500 ,  -20.000,   20.000); }
-                if (v=="Alpha"  ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   6.000,   -20.000,   20.000); }
-                if (v=="x0"     ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   2.500,   -40.000,   40.000); }
+                if (v=="Beta"   ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   3.100,     0.000,   10.000); }
+                if (v=="Alpha"  ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   6.000,   -10.000,   30.000); }
+                if (v=="x0"     ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   3.000,   -10.000,   30.000); }
                 if (v=="Sigma0" ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),  15.300,   -10.000,  100.000); }
                 if (v=="Sigma1" ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   6.500,   -30.000,   50.000); }
                 if (v=="Sigma2" ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   0.600,   -50.000,   50.000); }

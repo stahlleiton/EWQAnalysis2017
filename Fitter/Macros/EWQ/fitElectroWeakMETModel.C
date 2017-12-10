@@ -164,21 +164,89 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
             std::unique_ptr<RooFitResult> fitResult;
             if (pdfConstrains!=NULL && pdfConstrains->getSize()>0) {
               std::cout << "[INFO] Fitting with constrain PDFs" << std::endl;
-              auto tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Minos(!isWeighted),
+              auto tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), /*RooFit::Minos(!isWeighted),*/
                                                           RooFit::Range("METWindow"), RooFit::ExternalConstraints(*pdfConstrains), RooFit::NumCPU(numCores), RooFit::Save());
-              fitResult = std::unique_ptr<RooFitResult>(tmp);
+              fitResult.reset(tmp);
             }
             else {
               auto tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted),
                                                            RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
-              fitResult = std::unique_ptr<RooFitResult>(tmp);
+              fitResult.reset(tmp);
+              bool fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
+              if (fitFailed) {
+                tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Offset(kTRUE), RooFit::Strategy(2),
+                                                       RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
+                fitResult.reset(tmp);
+                fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
+              }
+              if (fitFailed) {
+                if (myws.var(("x0_"+label).c_str())) { myws.var(("x0_"+label).c_str())->setMin(0.0); }
+                tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Offset(kTRUE), RooFit::Strategy(2),
+                                                       RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
+                fitResult.reset(tmp);
+                fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
+              }
+              if (fitFailed) {
+                tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::InitialHesse(kTRUE),
+                                                       RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
+                fitResult.reset(tmp);
+                fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
+              }
+              if (fitFailed) {
+                tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Minimizer("Minuit2","migrad"),
+                                                       RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
+                fitResult.reset(tmp);
+                fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
+              }
+              if (fitFailed) {
+                tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Minimizer("Minuit","minimize"),
+                                                       RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
+                fitResult.reset(tmp);
+                fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
+              }
+              if (fitFailed) {
+                tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Minimizer("Minuit2","minimize"),
+                                                       RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
+                fitResult.reset(tmp);
+                fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
+              }
+              if (fitFailed) {
+                if (myws.var(("x0_"+label).c_str())) { myws.var(("x0_"+label).c_str())->setVal(4.0); }
+                tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Offset(kTRUE), RooFit::Strategy(2),
+                                                       RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
+                fitResult.reset(tmp);
+                fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
+              }
+              if (fitFailed) {
+                tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::InitialHesse(kTRUE),
+                                                       RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
+                fitResult.reset(tmp);
+                fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
+              }
+              if (fitFailed) {
+                tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Minimizer("Minuit2","migrad"),
+                                                       RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
+                fitResult.reset(tmp);
+                fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
+              }
+              if (fitFailed) {
+                if (myws.var(("Alpha_"+label).c_str())) { myws.var(("Alpha_"+label).c_str())->setVal(6.0); }
+                tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Offset(kTRUE), RooFit::Strategy(2),
+                                                       RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
+                fitResult.reset(tmp);
+                fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
+              }
             }
             if (fitResult!=NULL) {
               fitResult->Print("v");
               myws.import(*fitResult, Form("fitResult_%s", pdfName.c_str()));
             }
             else { std::cout << "[ERROR] Fit Result returned by the PDF is NULL!" << std::endl; return false; }
-            if (fitResult->status()!=0) { std::cout << "[ERROR] Fit failed with status " << int(fitResult->status()) << " !" << std::endl; return false; }
+            for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) {
+              if (fitResult->statusCodeHistory(iSt)!=0) {
+                std::cout << "[ERROR] Fit failed in " << fitResult->statusLabelHistory(iSt) << " with status " << fitResult->statusCodeHistory(iSt) << " !" << std::endl; return false;
+              }
+            }
           }
           else if ( myws.obj(("CutAndCount_"+label).c_str()) ) {
             // cut and count
