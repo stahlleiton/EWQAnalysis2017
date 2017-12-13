@@ -2,6 +2,8 @@
 // Auxiliary Headers
 #include "../Utilities/HiMETTree.h"
 #include "../Utilities/HiMuonTree.h"
+#include "../Utilities/HiEvtTree.h"
+#include "../Utilities/HFweight.h"
 #include "../Utilities/EVENTUTILS.h"
 // ROOT headers
 #include "TROOT.h"
@@ -40,24 +42,26 @@ using TH2DMap_t    =  std::map< std::string , std::map< std::string , std::map< 
 using EffMap_t     =  std::map< std::string , std::map< std::string , std::map< std::string , std::map< std::string , std::map< std::string , TEfficiency > > > > >;
 using VarMap_t     =  std::map< std::string , std::map< std::string , std::map< std::string , std::map< std::string , std::vector< double > > > > >;
 using BinMap_t     =  std::map< std::string , std::vector< double > >;
+using BinMapMap_t  =  std::map< std::string , BinMap_t >;
 using Bin2DMap_t   =  std::map< std::string , std::pair< std::vector< double > , std::vector< double > > >;
+using Bin2DMapMap_t =  std::map< std::string , Bin2DMap_t >;
 using FileInfo_t   =  std::vector< std::pair< std::string , double > >;
 
 
 // ------------------ FUNCTION -------------------------------
-void     initEff1D          ( TH1DMap_t& h , const BinMap_t& binMap );
+void     initEff1D          ( TH1DMap_t& h , const BinMapMap_t& binMap );
 bool     fillEff1D          ( TH1DMap_t& h , const bool& pass , const std::string& type , const VarMap_t& var , const double sfTnP=1.0 , const double evtWeight=1.0 );
 bool     loadEff1D          ( EffMap_t& eff, const TH1DMap_t& h );
-void     formatEff1D        ( TEfficiency& eff , const std::string& var , const std::string& charge , const std::string& type );
+void     formatEff1D        ( TEfficiency& eff , const std::string& var , const std::string& charge , const std::string& type , const std::string& col );
 void     drawEff1D          ( const std::string& outDir, EffMap_t& effMap );
-void     initEff2D          ( TH2DMap_t& h , const Bin2DMap_t& binMap );
+void     initEff2D          ( TH2DMap_t& h , const Bin2DMapMap_t& binMap );
 bool     fillEff2D          ( TH2DMap_t& h , const bool& pass , const std::string& type , const VarMap_t& var , const double sfTnP=1.0 , const double evtWeight=1.0 );
 bool     loadEff2D          ( EffMap_t& eff, const TH2DMap_t& h );
-void     formatEff2D        ( TEfficiency& eff , const std::string& var , const std::string& charge , const std::string& type);
+void     formatEff2D        ( TEfficiency& eff , const std::string& var , const std::string& charge , const std::string& type , const std::string& col );
 void     drawEff2D          ( const std::string& outDir, EffMap_t& effMap );
-void     formatComparison2D ( TH2& histo , const std::string& var , const std::string& charge , const std::string& type );
+void     formatComparison2D ( TH2& histo , const std::string& var , const std::string& charge , const std::string& type , const std::string& col );
 void     compareEff2D       ( const std::string& outDir , EffMap_t& effMap , const std::string comp );
-void     mergeEff           ( EffMap_t& eff );
+bool     mergeEff           ( EffMap_t& eff );
 void     writeEff           ( TFile& file , const EffMap_t& eff , const std::string& mainDirName );
 void     saveEff            ( const std::string& outDir , const EffMap_t& eff1D , const EffMap_t& eff2D );
 void     setGlobalWeight    ( TH1DMap_t& h , const double& weight , const std::string& sample , const std::string& col );
@@ -67,19 +71,22 @@ void     formatLegendEntry  ( TLegendEntry& e );
 void     formatDecayLabel   ( std::string& label , const std::string& inLabel );
 void     clearEff           ( EffMap_t& effMap );
 void     getStats2D         ( double& mean , double& rms , double& min , double& max , const TH2& hist );
-void     fillErrorEff2D     ( TH2D& hist , const TEfficiency& eff , const std::string& var);
+void     fillErrorEff2D     ( TH2D& hist , const TEfficiency& eff , const std::string& var , const std::string& col );
 bool     checkWeights       ( const TH1& pass , const TH1& total );
 void     redrawBorder       ( );
 
 
 // ------------------ GLOBAL -------------------------------
 // Kinematic Info
-const BinMap_t  MU_BIN_ = {
-  { "Eta" , { -2.4 , -2.2 , -2.0 , -1.8 , -1.6 , -1.4 , -1.2 , -1.0 , -0.8 , -0.6 , -0.4 , -0.2 , 0.0 , 0.2 , 0.4 , 0.6 , 0.8 , 1.0 , 1.2 , 1.4 , 1.6 , 1.8 , 2.0 , 2.2 , 2.4 } },
-  { "Pt"  , { 25., 30., 35., 40., 50, 70., 200. } }
+BinMapMap_t  MU_BIN_;
+Bin2DMapMap_t MU_BIN_2D_;
+const BinMap_t  TMP_pPb = {
+  { "EtaCM" , { -2.86 , -2.60 , -2.40 , -2.20 , -1.93 , -1.80 , -1.60 , -1.40 , -1.20 , -1.00 , -0.80 , -0.60 , -0.40 , -0.20 , 0.00 , 0.20 , 0.40 , 0.60 , 0.80 , 1.00 , 1.20 , 1.40 , 1.60 , 1.80, 1.93 } },
+  { "Pt"    , { 25., 30., 35., 40., 50, 70., 200. } }
 };
-const Bin2DMap_t MU_BIN_2D_ = {
-  { "Pt_Eta" , { MU_BIN_.at("Pt") , MU_BIN_.at("Eta")} }
+const BinMap_t  TMP_Pbp = {
+  { "EtaCM" , { -1.93 , -1.80 , -1.60 , -1.40 , -1.20 , -1.00 , -0.80 , -0.60 , -0.40 , -0.20 , 0.00 , 0.20 , 0.40 , 0.60 , 0.80 , 1.00 , 1.20 , 1.40 , 1.60 , 1.80 , 1.93 , 2.20 , 2.40 , 2.60 , 2.86 } },
+  { "Pt"    , { 25., 30., 35., 40., 50, 70., 200. } }
 };
 //
 // Trigger Info
@@ -97,28 +104,36 @@ const std::vector< std::string > effType = {"Acceptance" , "Identification" , "T
 // Input Files for analysis
 const std::string path_MC = "root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official";
 const std::map< std::string , std::vector< std::pair< std::string , double > > > inputFileMap_ = {
-  {"MC_QCDToMu_pPb"          , { { Form("%s/%s", path_MC.c_str(), "PYTHIA/HiEWQForest_Embedded_Official_PYTHIA8_QCD_PtHat20_MuPt15_pPb_8160GeV_20170813.root")         , PYTHIA::XSec.at("QCDToMu").at("pPb")           } } },
-  {"MC_QCDToMu_Pbp"          , { { Form("%s/%s", path_MC.c_str(), "PYTHIA/HiEWQForest_Embedded_Official_PYTHIA8_QCD_PtHat20_MuPt15_Pbp_8160GeV_20170813.root")         , PYTHIA::XSec.at("QCDToMu").at("Pbp")           } } },
-  {"MC_TTall_pPb"            , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_TTall_pPb_8160GeV_20170813.root")           , POWHEG::XSec.at("TTall").at("pPb")             } } },
-  {"MC_TTall_Pbp"            , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_TTall_Pbp_8160GeV_20170813.root")           , POWHEG::XSec.at("TTall").at("Pbp")             } } },
-  {"MC_ZToMuMu_M_30_Inf_pPb" , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_pPb_8160GeV_20170813.root")   , POWHEG::XSec.at("DYToMuMu_M_30_Inf").at("pPb") } } },
-  {"MC_ZToMuMu_M_30_Inf_Pbp" , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_Pbp_8160GeV_20170813.root")   , POWHEG::XSec.at("DYToMuMu_M_30_Inf").at("Pbp") } } },
-  {"MC_DYToMuMu_M_10_30_pPb" , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_10_30_pPb_8160GeV_20170813.root"), POWHEG::XSec.at("DYToMuMu_M_10_30").at("pPb")  } } },
-  {"MC_DYToMuMu_M_10_30_Pbp" , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_10_30_Pbp_8160GeV_20170813.root"), POWHEG::XSec.at("DYToMuMu_M_10_30").at("Pbp")  } } },
-  {"MC_WToTauNu_Plus_pPb"    , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToTauNu_Plus_pPb_8160GeV_20170813.root")   , POWHEG::XSec.at("WToTauNu_Plus").at("pPb")     } } },
-  {"MC_WToTauNu_Minus_pPb"   , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToTauNu_Minus_pPb_8160GeV_20170813.root")  , POWHEG::XSec.at("WToTauNu_Minus").at("pPb")    } } },
-  {"MC_WToTauNu_Plus_Pbp"    , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToTauNu_Plus_Pbp_8160GeV_20170813.root")   , POWHEG::XSec.at("WToTauNu_Plus").at("Pbp")     } } },
-  {"MC_WToTauNu_Minus_Pbp"   , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToTauNu_Minus_Pbp_8160GeV_20170813.root")  , POWHEG::XSec.at("WToTauNu_Minus").at("Pbp")    } } },
-  {"MC_WToMuNu_Plus_pPb"     , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Plus_pPb_8160GeV_20170813.root")    , POWHEG::XSec.at("WToMuNu_Plus").at("pPb")      } } },
-  {"MC_WToMuNu_Minus_pPb"    , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_pPb_8160GeV_20170813.root")   , POWHEG::XSec.at("WToMuNu_Minus").at("pPb")     } } },
-  {"MC_WToMuNu_Plus_Pbp"     , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Plus_Pbp_8160GeV_20170813.root")    , POWHEG::XSec.at("WToMuNu_Plus").at("Pbp")      } } },
-  {"MC_WToMuNu_Minus_Pbp"    , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_Pbp_8160GeV_20170813.root")   , POWHEG::XSec.at("WToMuNu_Minus").at("Pbp")     } } }
+  {"MC_QCDToMu_pPb"          , { { Form("%s/%s", path_MC.c_str(), "PYTHIA/HiEWQForest_Embedded_Official_PYTHIA8_QCD_PtHat20_MuPt15_pPb_8160GeV_20171003.root")         , PYTHIA::XSec.at("QCDToMu").at("pPb")           } } },
+  {"MC_QCDToMu_Pbp"          , { { Form("%s/%s", path_MC.c_str(), "PYTHIA/HiEWQForest_Embedded_Official_PYTHIA8_QCD_PtHat20_MuPt15_pPb_8160GeV_20171003.root")         , PYTHIA::XSec.at("QCDToMu").at("pPb")           } } },
+  {"MC_TTall_pPb"            , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_TTall_pPb_8160GeV_20171003.root")           , EXTERN::XSec.at("TTall").at("pPb")             } } },
+  {"MC_TTall_Pbp"            , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_TTall_Pbp_8160GeV_20171003.root")           , EXTERN::XSec.at("TTall").at("Pbp")             } } },
+  {"MC_ZToMuMu_M_30_Inf_pPb" , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_pPb_8160GeV_20171003.root")   , POWHEG::XSec.at("DYToMuMu_M_30_Inf").at("pPb") } } },
+  {"MC_ZToMuMu_M_30_Inf_Pbp" , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_Pbp_8160GeV_20171003.root")   , POWHEG::XSec.at("DYToMuMu_M_30_Inf").at("Pbp") } } },
+  {"MC_DYToMuMu_M_10_30_pPb" , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_10_30_pPb_8160GeV_20171003.root"), POWHEG::XSec.at("DYToMuMu_M_10_30").at("pPb")  } } },
+  {"MC_DYToMuMu_M_10_30_Pbp" , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_10_30_Pbp_8160GeV_20171003.root"), POWHEG::XSec.at("DYToMuMu_M_10_30").at("Pbp")  } } },
+  {"MC_WToTauNu_Plus_pPb"    , {
+      { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_TAUOLA_WToTauNu_Plus_pPb_8160GeV_20171003.root")   , POWHEG::XSec.at("WToTauNu_Plus").at("pPb")     } } },
+  {"MC_WToTauNu_Minus_pPb"   , {
+      { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_TAUOLA_WToTauNu_Minus_pPb_8160GeV_20171003.root")  , POWHEG::XSec.at("WToTauNu_Minus").at("pPb")    } } },
+  {"MC_WToTauNu_Plus_Pbp"    , {
+      { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_TAUOLA_WToTauNu_Plus_Pbp_8160GeV_20171003.root")   , POWHEG::XSec.at("WToTauNu_Plus").at("Pbp")     } } },
+  {"MC_WToTauNu_Minus_Pbp"   , {
+      { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_TAUOLA_WToTauNu_Minus_Pbp_8160GeV_20171003.root")  , POWHEG::XSec.at("WToTauNu_Minus").at("Pbp")    } } },
+  {"MC_WToMuNu_Plus_pPb"     , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Plus_pPb_8160GeV_20171003.root")    , POWHEG::XSec.at("WToMuNu_Plus").at("pPb")      } } },
+  {"MC_WToMuNu_Minus_pPb"    , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_pPb_8160GeV_20171003.root")   , POWHEG::XSec.at("WToMuNu_Minus").at("pPb")     } } },
+  {"MC_WToMuNu_Plus_Pbp"     , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Plus_Pbp_8160GeV_20171003.root")    , POWHEG::XSec.at("WToMuNu_Plus").at("Pbp")      } } },
+  {"MC_WToMuNu_Minus_Pbp"    , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_Pbp_8160GeV_20171003.root")   , POWHEG::XSec.at("WToMuNu_Minus").at("Pbp")     } } }
 };
 std::map< std::string , std::vector< std::string > > sampleType_;
 
 
-void makeEfficiency(void)
+void makeEfficiency(const bool applyHFCorr = false)
 {
+  //
+  for (const auto& v : TMP_pPb) { MU_BIN_["PA"][v.first] = v.second; MU_BIN_["pPb"][v.first] = v.second; }
+  for (const auto& v : TMP_Pbp) { MU_BIN_["Pbp"][v.first] = v.second; }
+  for (const auto& c : MU_BIN_) { MU_BIN_2D_[c.first]["Pt_EtaCM"] = std::make_pair(std::vector<double>(c.second.at("Pt")) , std::vector<double>(c.second.at("EtaCM"))); }
   // Change the working directory
   const std::string CWD = getcwd(NULL, 0);
   const std::string mainDir = Form("%s/Efficiency/", CWD.c_str());
@@ -131,9 +146,9 @@ void makeEfficiency(void)
     if (std::find(sampleType_.at("sample").begin(), sampleType_.at("sample").end(), tmp)==sampleType_.at("sample").end()) { sampleType_.at("sample").push_back(tmp); }
   }
   //
-  // For computing time optimization
-  auto t1_ALL = std::chrono::high_resolution_clock::now();
-  auto t1 = t1_ALL;
+  // Initialize the HF corrections
+  std::unique_ptr<HFweight> corrHF;
+  if (applyHFCorr) { corrHF = std::unique_ptr<HFweight>(new HFweight("/afs/cern.ch/work/e/echapon/public/DY_pA_2016/HFweight.root")); }
   //
   // ------------------------------------------------------------------------------------------------------------------------
   //
@@ -151,10 +166,11 @@ void makeEfficiency(void)
   std::map< std::string , Long64_t > nentries;
   std::map< std::string , std::unique_ptr< HiMuonTree > > muonTree;
   std::map< std::string , std::unique_ptr< HiMETTree  > > metTree;
+  std::map< std::string , std::unique_ptr< HiEvtTree  > > evtTree;
   for (const auto & inputFile : inputFileMap_) {
-    const std::string sample   = inputFile.first;
-    const FileInfo_t  fileInfo = inputFile.second;
-    for (const auto& f : fileInfo) { std::cout << "[INFO] Loading File: " << f.first << std::endl; }
+    const std::string sample = inputFile.first;
+    std::vector< std::string >  fileInfo;
+    for (const auto& f : inputFile.second) { fileInfo.push_back(f.first); }
     //
     muonTree[sample] = std::unique_ptr<HiMuonTree>(new HiMuonTree());
     if (!muonTree.at(sample)->GetTree(fileInfo)) return;
@@ -164,6 +180,11 @@ void makeEfficiency(void)
     if (!metTree.at(sample)->GetTree(fileInfo)) return;
     if (metTree.at(sample)->GetEntries() != nentries.at(sample)) { std::cout << "[ERROR] Inconsistent number of entries between MET (" << 
         metTree.at(sample)->GetEntries() << ") and Muon Tree (" << muonTree.at(sample)->GetEntries() << ") !" << std::endl; return; }
+    //
+    evtTree[sample] = std::unique_ptr<HiEvtTree>(new HiEvtTree());
+    if (!evtTree.at(sample)->GetTree(fileInfo)) return;
+    if (evtTree.at(sample)->GetEntries() != nentries.at(sample)) { std::cout << "[ERROR] Inconsistent number of entries between Event (" << 
+        evtTree.at(sample)->GetEntries() << ") and Muon Tree (" << muonTree.at(sample)->GetEntries() << ") !" << std::endl; return; }
   }
   //
   // ------------------------------------------------------------------------------------------------------------------------
@@ -173,21 +194,31 @@ void makeEfficiency(void)
   for (auto & inputFile : inputFileMap_) {
     const std::string sample = inputFile.first;
     // Loop over the events
+    int treeIdx = -1;
+    double crossSection = -1.0;
+    std::cout << "[INFO] Starting to process " << nentries.at(sample) << " nentries" << std::endl;
+    // Loop over the events
     for (Long64_t jentry = 0; jentry < nentries.at(sample); jentry++) {
       //
       // Get the entry in the trees
-      if (metTree.at(sample)->GetEntry(jentry)<0) break;
-      if (muonTree.at(sample)->GetEntry(jentry)<0) break;
+      if (muonTree.at(sample)->GetEntry(jentry)<0) { std::cout << "[ERROR] Muon Tree invalid entry!"  << std::endl; return; }
+      if ( metTree.at(sample)->GetEntry(jentry)<0) { std::cout << "[ERROR] MET Tree invalid entry!"   << std::endl; return; }
+      if ( evtTree.at(sample)->GetEntry(jentry)<0) { std::cout << "[ERROR] HiEVT Tree invalid entry!" << std::endl; return; }
       //
-      if (jentry%200000==0) std::cout << sample << " : " << jentry << "/" << nentries[sample] << std::endl;
-      if (jentry%200000==0) { 
-        std::cout << "[INFO] Processing time: " << std::chrono::duration_cast<std::chrono::seconds>( std::chrono::high_resolution_clock::now() - t1 ).count() << " sec" << std::endl;
-        t1 = std::chrono::high_resolution_clock::now();
+      if (muonTree.at(sample)->Chain()->GetTreeNumber()!=treeIdx) {
+        treeIdx = muonTree.at(sample)->Chain()->GetTreeNumber();
+        std::cout << "[INFO] Processing Root File: " << inputFile.second[treeIdx].first << std::endl;
+        // Get the MC Cross-Section
+        crossSection = inputFile.second[treeIdx].second;
       }
+      //
+      loadBar(jentry, nentries.at(sample));
       // 
       // Check that the different tree agrees well
-      if (muonTree.at(sample)->Event_Run()    != metTree.at(sample)->Event_Run()   ) { std::cout << "[ERROR] MET Run does not agree!"   << std::endl; return; }
-      if (muonTree.at(sample)->Event_Number() != metTree.at(sample)->Event_Number()) { std::cout << "[ERROR] MET Event does not agree!" << std::endl; return; }
+      if (muonTree.at(sample)->Event_Run()    != metTree.at(sample)->Event_Run()   ) { std::cout << "[ERROR] MET Run does not agree!"     << std::endl; return; }
+      if (muonTree.at(sample)->Event_Number() != metTree.at(sample)->Event_Number()) { std::cout << "[ERROR] MET Event does not agree!"   << std::endl; return; }
+      if (muonTree.at(sample)->Event_Run()    != evtTree.at(sample)->run()         ) { std::cout << "[ERROR] HiEVT Run does not agree!"   << std::endl; return; }
+      if (muonTree.at(sample)->Event_Number() != evtTree.at(sample)->evt()         ) { std::cout << "[ERROR] HiEVT Event does not agree!" << std::endl; return; }
       //
       // Determine the collision system of the sample
       std::string col = "";
@@ -198,20 +229,24 @@ void makeEfficiency(void)
       // Determine the type of sample : i.e. MC_DYToMuMu
       std::string sampleType = sample;
       sampleType = sampleType.substr(0, (sampleType.find(col)-1));
+
+
+
       //
       // Get the Lumi re-weight for MC (global weight)
       const double lumi = ( (col=="pPb") ? PA::LUMI::Data_pPb : PA::LUMI::Data_Pbp );
-      const double mcWeight = ( ( muonTree.at(sample)->GetCrossSection() * lumi ) / muonTree.at(sample)->GetEntriesFast() );
+      const double mcWeight = ( ( crossSection * lumi ) / muonTree.at(sample)->GetTreeEntries() );
       // Set the global weight only in the first event (i.e. once per sample)
       if (jentry==0) {
         setGlobalWeight(h1D, mcWeight, sampleType, col);
         setGlobalWeight(h2D, mcWeight, sampleType, col);
       }
       // Define the event weight (set to 1.0 by default)
-      const double evtWeight = 1.0;
-      //
-      // Define the TnP scale factor (set to 1.0 by default)
+      double evtWeight = 1.0;
       const double sfTnP = 1.0;
+      //
+      // Determine the HF Weight
+      if (applyHFCorr) { evtWeight *= corrHF->weight(evtTree.at(sample)->hiHF(), HFweight::HFside::both, false); }
       //
       // Check Event Conditions
       //
@@ -231,14 +266,16 @@ void makeEfficiency(void)
         // Extract the kinematic information of generated muon
         const double mu_Gen_Pt  = muonTree.at(sample)->Gen_Muon_Mom()[iGenMu].Pt();
         const double mu_Gen_Eta = muonTree.at(sample)->Gen_Muon_Mom()[iGenMu].Eta();
+        const bool   ispPb = (col == "pPb");
+        const double mu_Gen_EtaCM = PA::EtaLABtoCM( mu_Gen_Eta , ispPb );
         // Determine the charge of the generated muon
         const short charge = muonTree.at(sample)->Gen_Muon_Charge()[iGenMu];
         const std::string chg = ( (charge < 0) ? "Minus" : "Plus" );
         // Fill the VarMap with the kinematic information
         VarMap_t genMuonVar;
-        genMuonVar[sampleType][col][chg]["Eta"]    = { mu_Gen_Eta };
-        genMuonVar[sampleType][col][chg]["Pt" ]    = { mu_Gen_Pt  };
-        genMuonVar[sampleType][col][chg]["Pt_Eta"] = { mu_Gen_Pt , mu_Gen_Eta };
+        genMuonVar[sampleType][col][chg]["EtaCM"]    = { mu_Gen_EtaCM };
+        genMuonVar[sampleType][col][chg]["Pt" ]      = { mu_Gen_Pt  };
+        genMuonVar[sampleType][col][chg]["Pt_EtaCM"] = { mu_Gen_Pt , mu_Gen_EtaCM };
         // Initialize the boolean flags
         bool passIdentification = false;
         bool passTrigger        = false;
@@ -259,22 +296,14 @@ void makeEfficiency(void)
             passIdentification = PA::isGoodMuon(iPFMu , muonTree.at(sample));
             //
             if (passIdentification) {
-              // Extract the kinematic information of generated muon
-              const double mu_PF_Pt  = muonTree.at(sample)->PF_Muon_Mom()[iPFMu].Pt();
-              const double mu_PF_Eta = muonTree.at(sample)->PF_Muon_Mom()[iPFMu].Eta();
-              // Fill the VarMap with the kinematic information
-              VarMap_t pfMuonVar;
-              pfMuonVar[sampleType][col][chg]["Eta"]    = { mu_PF_Eta };
-              pfMuonVar[sampleType][col][chg]["Pt" ]    = { mu_PF_Pt  };
-              pfMuonVar[sampleType][col][chg]["Pt_Eta"] = { mu_PF_Pt , mu_PF_Eta };
               //
               // Trigger Efficiency (Based on Identified muons)
               //
               // Check if the reconstructed muon is matched to the trigger
               passTrigger = PA::isTriggerMatched(triggerIndex_, iPFMu, muonTree.at(sample));
               //
-              if (!fillEff1D(h1D, passTrigger, "Trigger", pfMuonVar, sfTnP, evtWeight)) { return; }
-              if (!fillEff2D(h2D, passTrigger, "Trigger", pfMuonVar, sfTnP, evtWeight)) { return; }
+              if (!fillEff1D(h1D, passTrigger, "Trigger", genMuonVar, sfTnP, evtWeight)) { return; }
+              if (!fillEff2D(h2D, passTrigger, "Trigger", genMuonVar, sfTnP, evtWeight)) { return; }
               //
               if (passTrigger) {
                 //
@@ -283,17 +312,17 @@ void makeEfficiency(void)
                 // Check if the reconstructed muon pass isolation cuts
                 passIsolation = PA::isIsolatedMuon(iPFMu , muonTree.at(sample));
                 //
-                if (!fillEff1D(h1D, passIsolation, "Isolation", pfMuonVar, sfTnP, evtWeight)) { return; }
-                if (!fillEff2D(h2D, passIsolation, "Isolation", pfMuonVar, sfTnP, evtWeight)) { return; }
+                if (!fillEff1D(h1D, passIsolation, "Isolation", genMuonVar, sfTnP, evtWeight)) { return; }
+                if (!fillEff2D(h2D, passIsolation, "Isolation", genMuonVar, sfTnP, evtWeight)) { return; }
                 //
                 if (passIsolation) {
                   //
                   // Event-Based Efficiency (Based on Identified and Isolated muons that passed the Trigger)
                   //
-                  if (!fillEff1D(h1D, passEvent, "Event", pfMuonVar, sfTnP, evtWeight)) { return; }
-                  if (!fillEff2D(h2D, passEvent, "Event", pfMuonVar, sfTnP, evtWeight)) { return; }
-                  if (!fillEff1D(h1D, passDYVeto, "DrellYanVeto", pfMuonVar, sfTnP, evtWeight)) { return; }
-                  if (!fillEff2D(h2D, passDYVeto, "DrellYanVeto", pfMuonVar, sfTnP, evtWeight)) { return; }
+                  if (!fillEff1D(h1D, passEvent, "Event", genMuonVar, sfTnP, evtWeight)) { return; }
+                  if (!fillEff2D(h2D, passEvent, "Event", genMuonVar, sfTnP, evtWeight)) { return; }
+                  if (!fillEff1D(h1D, passDYVeto, "DrellYanVeto", genMuonVar, sfTnP, evtWeight)) { return; }
+                  if (!fillEff2D(h2D, passDYVeto, "DrellYanVeto", genMuonVar, sfTnP, evtWeight)) { return; }
                 }
               }
             }
@@ -316,7 +345,6 @@ void makeEfficiency(void)
         //
         if (!fillEff1D(h1D, (isGoodGenMuon && passIdentification && passTrigger && passIsolation && passEvent && passDYVeto), "Acceptance_Efficiency", genMuonVar, sfTnP, evtWeight)) { return; }
         if (!fillEff2D(h2D, (isGoodGenMuon && passIdentification && passTrigger && passIsolation && passEvent && passDYVeto), "Acceptance_Efficiency", genMuonVar, sfTnP, evtWeight)) { return; }
-
       }
     }
   }
@@ -334,8 +362,8 @@ void makeEfficiency(void)
   // ------------------------------------------------------------------------------------------------------------------------
   //
   // Merge Efficiencies
-  mergeEff(eff1D);
-  mergeEff(eff2D);
+  if (!mergeEff(eff1D)) { return; }
+  if (!mergeEff(eff2D)) { return; }
   //
   // ------------------------------------------------------------------------------------------------------------------------
   //
@@ -360,20 +388,21 @@ void makeEfficiency(void)
 };
 
 
-void initEff1D(TH1DMap_t& h, const BinMap_t& binMap)
+void initEff1D(TH1DMap_t& h, const BinMapMap_t& binMap)
 {
-  for (const auto& bins : binMap) {
-    for (const auto& sample : sampleType_.at("sample")) {
-      for (const auto& col : COLL_) {
+  for (const auto& col : COLL_) {
+    for (const auto& bins : binMap.at(col)) {
+      Double_t bin[bins.second.size()];
+      for (uint i = 0; i < bins.second.size(); i++) { bin[i] = bins.second[i]; }
+      for (const auto& sample : sampleType_.at("sample")) {
         for (const auto& chg : CHG_) {
           for (const auto& type : effType) {
-            Double_t bin[bins.second.size()];
-            for (uint i = 0; i < bins.second.size(); i++) { bin[i] = bins.second[i]; }
+            h[bins.first][sample][col][chg][type] = std::make_tuple(TH1D() , TH1D() , 1.0);
             std::get<0>(h[bins.first][sample][col][chg][type]) = TH1D("Passed", "Passed", (bins.second.size()-1), bin);
             std::get<1>(h[bins.first][sample][col][chg][type]) = TH1D("Total" , "Total" , (bins.second.size()-1), bin);
             std::get<2>(h[bins.first][sample][col][chg][type]) = 1.0;
             //
-            const std::string name = "eff1D_" + bins.first +"_"+ sample +"_"+ col +"_"+ chg +"_"+ type;
+            const std::string name = "h1D_" + bins.first +"_"+ sample +"_"+ col +"_"+ chg +"_"+ type;
             std::get<0>(h.at(bins.first).at(sample).at(col).at(chg).at(type)).SetName((name+"_Passed").c_str());
             std::get<1>(h.at(bins.first).at(sample).at(col).at(chg).at(type)).SetName((name+"_Total").c_str());
             std::get<0>(h.at(bins.first).at(sample).at(col).at(chg).at(type)).Sumw2(kTRUE);
@@ -403,8 +432,15 @@ bool fillEff1D(TH1DMap_t& h, const bool& pass, const std::string& type, const Va
           if ( (s.first.find("Minus")!=std::string::npos || s.first.find("Plus")!=std::string::npos) && (s.first.find(ch.first)==std::string::npos) ) continue;
           if (ch.second.count(type)==0) { std::cout << "[ERROR] Efficiency type " << type << " is not defined" << std::endl; return false; }
           double xVar = var.at(sample).at(col).at(charge).at(v.first)[0];
-          if (v.first=="Eta" && c.first=="PA" && col=="Pbp") { xVar = -xVar; }
-          if (xVar >= MU_BIN_.at(v.first)[0] && xVar <= MU_BIN_.at(v.first)[MU_BIN_.at(v.first).size()-1]) { // Don't include values outside of range
+          if (c.first=="PA" && col=="Pbp") {
+            if (v.first=="Eta") { xVar = -xVar; } // Invert in the LAB frame
+            if (v.first=="EtaCM") {
+              xVar = PA::EtaCMtoLAB(xVar, false); // Switch from CM -> LAB, in Pbp system
+              xVar = -xVar;                       // Invert in the LAB frame, so from Pbp -> pPb
+              xVar = PA::EtaLABtoCM(xVar, true);  // Switch from LAB -> CM, in pPb system
+            }
+          }
+          if (xVar >= MU_BIN_.at(c.first).at(v.first)[0] && xVar <= MU_BIN_.at(c.first).at(v.first)[MU_BIN_.at(c.first).at(v.first).size()-1]) { // Don't include values outside of range
             // Fill the Pass histogram
             if (pass) { std::get<0>(ch.second.at(type)).Fill(xVar , (evtWeight*sfTnP)); }
             // Fill the total histogram
@@ -451,7 +487,7 @@ bool loadEff1D(EffMap_t& eff, const TH1DMap_t& h)
 };
 
 
-void formatEff1D(TEfficiency& eff, const std::string& var, const std::string& charge, const std::string& type)
+void formatEff1D(TEfficiency& eff, const std::string& var, const std::string& charge, const std::string& type, const std::string& col)
 {
   // Set the format of all graphs
   if (eff.GetDimension() != 1) { std::cout << "[ERROR] formatEff1D only works for dimension == 1" << std::endl; return; }
@@ -465,13 +501,13 @@ void formatEff1D(TEfficiency& eff, const std::string& var, const std::string& ch
     const std::string objLbl = ( (type.find("Acceptance")!=std::string::npos || type=="Total" || type=="Identification" || type=="Offline") ? "Gen #mu" : "Reco #mu" );
     // X-axis
     std::string xLabel = objLbl; if (charge=="Plus") xLabel += "^{+}"; if (charge=="Minus") xLabel += "^{-}";
-    if (var=="Eta") { xLabel += " #eta"; }
+    if (var=="EtaCM") { xLabel += " #eta_{CM}"; }
     if (var=="Pt" ) { xLabel += " p_{T} (GeV/c)"; }
     graph->GetXaxis()->CenterTitle(kFALSE);
     graph->GetXaxis()->SetTitleOffset(0.9);
     graph->GetXaxis()->SetTitleSize(0.050);
     graph->GetXaxis()->SetLabelSize(0.035);
-    graph->GetXaxis()->SetLimits(MU_BIN_.at(var)[0] , MU_BIN_.at(var)[MU_BIN_.at(var).size()-1]);
+    graph->GetXaxis()->SetLimits(MU_BIN_.at(col).at(var)[0] , MU_BIN_.at(col).at(var)[MU_BIN_.at(col).at(var).size()-1]);
     // Y-axis
     std::string yLabel = type + " Efficiency";
     if (type == "Acceptance") { yLabel = "Acceptance"; }
@@ -511,13 +547,13 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap)
               std::vector< std::string > textToPrint;
               std::string sampleLabel; formatDecayLabel(sampleLabel, sample);
               textToPrint.push_back(sampleLabel);
-              if (var=="Eta") textToPrint.push_back("p^{#mu}_{T} > 25 GeV/c");
+              if (var=="EtaCM") textToPrint.push_back("p^{#mu}_{T} > 25 GeV/c");
               if (var=="Pt" ) textToPrint.push_back("|#eta^{#mu}| < 2.4");
               // Draw graph
               eff.Draw("AP");
               c.Modified(); c.Update();
               // Format the Graph
-              formatEff1D(eff, var, charge, type);
+              formatEff1D(eff, var, charge, type, col);
               c.Modified(); c.Update();
               // Add Min, Max and Mean value of efficiency
               auto graph = eff.GetPaintedGraph();
@@ -558,23 +594,24 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap)
 };
 
 
-void initEff2D(TH2DMap_t& h, const Bin2DMap_t& binMap)
+void initEff2D(TH2DMap_t& h, const Bin2DMapMap_t& binMap)
 {
-  for (const auto& bins : binMap) {
-    for (const auto& sample : sampleType_.at("sample")) {
-      for (const auto& col : COLL_) {
+  for (const auto& col : COLL_) {
+    for (const auto& bins : binMap.at(col)) {
+      Double_t binX[bins.second.first.size()];
+      for (uint i = 0; i < bins.second.first.size(); i++) { binX[i] = bins.second.first[i]; }
+      Double_t binY[bins.second.second.size()];
+      for (uint i = 0; i < bins.second.second.size(); i++) { binY[i] = bins.second.second[i]; }
+      for (const auto& sample : sampleType_.at("sample")) {
         for (const auto& chg : CHG_) {
           for (const auto& type : effType) {
-            Double_t binX[bins.second.first.size()];
-            for (uint i = 0; i < bins.second.first.size(); i++) { binX[i] = bins.second.first[i]; }
-            Double_t binY[bins.second.second.size()];
-            for (uint i = 0; i < bins.second.second.size(); i++) { binY[i] = bins.second.second[i]; }
-
+            //
+            h[bins.first][sample][col][chg][type] = std::make_tuple(TH2D() , TH2D() , 1.0);
             std::get<0>(h[bins.first][sample][col][chg][type]) = TH2D("Passed", "Passed", (bins.second.first.size()-1), binX, (bins.second.second.size()-1), binY);
             std::get<1>(h[bins.first][sample][col][chg][type]) = TH2D("Total" , "Total" , (bins.second.first.size()-1), binX, (bins.second.second.size()-1), binY);
             std::get<2>(h[bins.first][sample][col][chg][type]) = 1.0;
             //
-            const std::string name = "eff2D_" + bins.first +"_"+ sample +"_"+ col +"_"+ chg +"_"+ type;
+            const std::string name = "h2D_" + bins.first +"_"+ sample +"_"+ col +"_"+ chg +"_"+ type;
             std::get<0>(h.at(bins.first).at(sample).at(col).at(chg).at(type)).SetName((name+"_Passed").c_str());
             std::get<1>(h.at(bins.first).at(sample).at(col).at(chg).at(type)).SetName((name+"_Total").c_str());
             std::get<0>(h.at(bins.first).at(sample).at(col).at(chg).at(type)).Sumw2(kTRUE);
@@ -605,10 +642,17 @@ bool fillEff2D(TH2DMap_t& h, const bool& pass, const std::string& type, const Va
           if (ch.second.count(type)==0) { std::cout << "[ERROR] Efficiency type " << type << " is not defined" << std::endl; return false; }
           double xVar = var.at(sample).at(col).at(charge).at(v.first)[0];
           double yVar = var.at(sample).at(col).at(charge).at(v.first)[1];
-          if (v.first=="Pt_Eta" && c.first=="PA" && col=="Pbp") { yVar = -yVar; }
+          if (c.first=="PA" && col=="Pbp") {
+            if (v.first=="Pt_Eta") { yVar = -yVar; } // Invert in the LAB frame
+            if (v.first=="Pt_EtaCM") {
+              yVar = PA::EtaCMtoLAB(yVar, false); // Switch from CM -> LAB, in Pbp system
+              yVar = -yVar;                       // Invert in the LAB frame, so from Pbp -> pPb
+              yVar = PA::EtaLABtoCM(yVar, true);  // Switch from LAB -> CM, in pPb system
+            }
+          }
           if (
-              (xVar >= MU_BIN_2D_.at(v.first).first[0] && xVar <= MU_BIN_2D_.at(v.first).first[MU_BIN_2D_.at(v.first).first.size()-1]) &&
-              (yVar >= MU_BIN_2D_.at(v.first).second[0] && yVar <= MU_BIN_2D_.at(v.first).second[MU_BIN_2D_.at(v.first).second.size()-1])
+              (xVar >= MU_BIN_2D_.at(c.first).at(v.first).first[0] && xVar <= MU_BIN_2D_.at(c.first).at(v.first).first[MU_BIN_2D_.at(c.first).at(v.first).first.size()-1]) &&
+              (yVar >= MU_BIN_2D_.at(c.first).at(v.first).second[0] && yVar <= MU_BIN_2D_.at(c.first).at(v.first).second[MU_BIN_2D_.at(c.first).at(v.first).second.size()-1])
               ) { // Don't include values outside of range
             // Fill the Pass histogram
             if (pass) { std::get<0>(ch.second.at(type)).Fill(xVar , yVar , (evtWeight*sfTnP)); }
@@ -656,7 +700,7 @@ bool loadEff2D(EffMap_t& eff, const TH2DMap_t& h)
 };
 
 
-void formatEff2D(TEfficiency& eff, const std::string& var, const std::string& charge, const std::string& type)
+void formatEff2D(TEfficiency& eff, const std::string& var, const std::string& charge, const std::string& type, const std::string& col)
 {
   // Set the format of all histograms
   if (eff.GetDimension() != 2) { std::cout << "[ERROR] formatEff2D only works for dimension == 2" << std::endl; return; }
@@ -666,28 +710,28 @@ void formatEff2D(TEfficiency& eff, const std::string& var, const std::string& ch
     // General
     const std::string objLbl = ( (type.find("Acceptance")!=std::string::npos || type=="Total" || type=="Identification" || type=="Offline") ? "Gen #mu" : "Reco #mu" );
     // X-axis
-    std::string xVar = ""; if (var=="Pt_Eta") { xVar = "Pt"; }
+    std::string xVar = ""; if (var=="Pt_EtaCM") { xVar = "Pt"; }
     std::string xLabel = objLbl; if (charge=="Plus") xLabel += "^{+}"; if (charge=="Minus") xLabel += "^{-}";
-    if (xVar=="Eta") { xLabel += " #eta"; }
+    if (xVar=="EtaCM") { xLabel += " #eta_{CM}"; }
     if (xVar=="Pt" ) { xLabel += " p_{T} (GeV/c)"; }
     histo->GetXaxis()->CenterTitle(kFALSE);
     histo->GetXaxis()->SetTitleOffset(1.2);
     histo->GetXaxis()->SetTitleSize(0.043);
     histo->GetXaxis()->SetLabelSize(0.035);
-    const double xMin = MU_BIN_.at(xVar)[0];
-    const double xMax = MU_BIN_.at(xVar)[MU_BIN_.at(xVar).size()-1];
+    const double xMin = MU_BIN_.at(col).at(xVar)[0];
+    const double xMax = MU_BIN_.at(col).at(xVar)[MU_BIN_.at(col).at(xVar).size()-1];
     histo->GetXaxis()->SetRangeUser(xMin , xMax);
     // Y-axis
-    std::string yVar = ""; if (var=="Pt_Eta") { yVar = "Eta"; }
+    std::string yVar = ""; if (var=="Pt_EtaCM") { yVar = "EtaCM"; }
     std::string yLabel = objLbl; if (charge=="Plus") yLabel += "^{+}"; if (charge=="Minus") yLabel += "^{-}";
-    if (yVar=="Eta") { yLabel += " #eta"; }
+    if (yVar=="EtaCM") { yLabel += " #eta_{CM}"; }
     if (yVar=="Pt" ) { yLabel += " p_{T} (GeV/c)"; }
     histo->GetYaxis()->CenterTitle(kFALSE);
     histo->GetYaxis()->SetTitleOffset(1.1);
     histo->GetYaxis()->SetTitleSize(0.045);
     histo->GetYaxis()->SetLabelSize(0.035);
-    const double yMin = MU_BIN_.at(yVar)[0];
-    const double yMax = MU_BIN_.at(yVar)[MU_BIN_.at(yVar).size()-1] + (MU_BIN_.at(yVar)[MU_BIN_.at(yVar).size()-1] - MU_BIN_.at(yVar)[0])*0.3;
+    const double yMin = MU_BIN_.at(col).at(yVar)[0];
+    const double yMax = MU_BIN_.at(col).at(yVar)[MU_BIN_.at(col).at(yVar).size()-1] + (MU_BIN_.at(col).at(yVar)[MU_BIN_.at(col).at(yVar).size()-1] - MU_BIN_.at(col).at(yVar)[0])*0.3;
     histo->GetYaxis()->SetLimits(yMin , yMax);
     histo->SetAxisRange(yMin , yMax , "Y");
     // Z-axis
@@ -737,7 +781,7 @@ void drawEff2D(const std::string& outDir, EffMap_t& effMap)
               eff.Draw("colz");
               c.Modified(); c.Update();
               // Format the Graph
-              formatEff2D(eff, var, charge, type);
+              formatEff2D(eff, var, charge, type, col);
               c.Modified(); c.Update();
               // Add Min, Max and Mean value of efficiency
               auto histo = eff.GetPaintedHistogram();
@@ -754,7 +798,7 @@ void drawEff2D(const std::string& outDir, EffMap_t& effMap)
               c.Modified(); c.Update();
               // Draw the efficiency relative errors with text
               TH2D hist;                        
-              fillErrorEff2D(hist, eff, var);
+              fillErrorEff2D(hist, eff, var, col);
               hist.SetMarkerSize(0.7);
               hist.Draw("SAME,TEXT");
               c.Modified(); c.Update();
@@ -784,34 +828,34 @@ void drawEff2D(const std::string& outDir, EffMap_t& effMap)
 };
 
 
-void formatComparisonEff2D(TH2& histo, const std::string& var, const std::string& charge, const std::string& type)
+void formatComparisonEff2D(TH2& histo, const std::string& var, const std::string& charge, const std::string& type, const std::string& col)
 {
   // Set the format of all histograms
   // General
   const std::string objLbl = ( (type.find("Acceptance")!=std::string::npos || type=="Total" || type=="Identification" || type=="Offline") ? "Gen #mu" : "Reco #mu" );
   // X-axis
-  std::string xVar = ""; if (var=="Pt_Eta") { xVar = "Pt"; }
+  std::string xVar = ""; if (var=="Pt_EtaCM") { xVar = "Pt"; }
   std::string xLabel = objLbl; if (charge=="Plus") xLabel += "^{+}"; if (charge=="Minus") xLabel += "^{-}";
-  if (xVar=="Eta") { xLabel += " #eta"; }
+  if (xVar=="EtaCM") { xLabel += " #eta_{CM}"; }
   if (xVar=="Pt" ) { xLabel += " p_{T} (GeV/c)"; }
   histo.GetXaxis()->CenterTitle(kFALSE);
   histo.GetXaxis()->SetTitleOffset(1.2);
   histo.GetXaxis()->SetTitleSize(0.043);
   histo.GetXaxis()->SetLabelSize(0.035);
-  const double xMin = MU_BIN_.at(xVar)[0];
-  const double xMax = MU_BIN_.at(xVar)[MU_BIN_.at(xVar).size()-1];
+  const double xMin = MU_BIN_.at(col).at(xVar)[0];
+  const double xMax = MU_BIN_.at(col).at(xVar)[MU_BIN_.at(col).at(xVar).size()-1];
   histo.GetXaxis()->SetRangeUser(xMin , xMax);
   // Y-axis
-  std::string yVar = ""; if (var=="Pt_Eta") { yVar = "Eta"; }
+  std::string yVar = ""; if (var=="Pt_EtaCM") { yVar = "EtaCM"; }
   std::string yLabel = objLbl; if (charge=="Plus") yLabel += "^{+}"; if (charge=="Minus") yLabel += "^{-}";
-  if (yVar=="Eta") { yLabel += " #eta"; }
+  if (yVar=="EtaCM") { yLabel += " #eta_{CM}"; }
   if (yVar=="Pt" ) { yLabel += " p_{T} (GeV/c)"; }
   histo.GetYaxis()->CenterTitle(kFALSE);
   histo.GetYaxis()->SetTitleOffset(1.1);
   histo.GetYaxis()->SetTitleSize(0.045);
   histo.GetYaxis()->SetLabelSize(0.035);
-  const double yMin = MU_BIN_.at(yVar)[0];
-  const double yMax = MU_BIN_.at(yVar)[MU_BIN_.at(yVar).size()-1] + (MU_BIN_.at(yVar)[MU_BIN_.at(yVar).size()-1] - MU_BIN_.at(yVar)[0])*0.3;
+  const double yMin = MU_BIN_.at(col).at(yVar)[0];
+  const double yMax = MU_BIN_.at(col).at(yVar)[MU_BIN_.at(col).at(yVar).size()-1] + (MU_BIN_.at(col).at(yVar)[MU_BIN_.at(col).at(yVar).size()-1] - MU_BIN_.at(col).at(yVar)[0])*0.3;
   histo.GetYaxis()->SetLimits(yMin , yMax);
   histo.SetAxisRange(yMin , yMax , "Y");
   // Z-axis
@@ -907,7 +951,7 @@ void compareEff2D(const std::string& outDir, EffMap_t& effMap, const std::string
               cmpHist.Draw("colz");
               c.Modified(); c.Update();
               // Format the hisstogram
-              formatComparisonEff2D(cmpHist, var, charge, type);
+              formatComparisonEff2D(cmpHist, var, charge, type, col);
               const double refVal = ( (opr=="/") ? 1.0 : 0.0 );
               if (min==max) { min -= 0.01; max += 0.01; }
               if (min > refVal) { cmpHist.GetZaxis()->SetRangeUser( (std::floor(min*100.)/100.) , (std::ceil(max*100.)/100.) ); }
@@ -917,7 +961,7 @@ void compareEff2D(const std::string& outDir, EffMap_t& effMap, const std::string
               }
               c.Modified(); c.Update();
               // Draw the white box to hide under/overflow bins
-              const double yMax = MU_BIN_2D_.at(var).second[MU_BIN_2D_.at(var).second.size()-1];
+              const double yMax = MU_BIN_2D_.at(col).at(var).second[MU_BIN_2D_.at(col).at(var).second.size()-1];
               TBox box(c.GetFrame()->GetX1(), yMax, c.GetFrame()->GetX2(), c.GetFrame()->GetY2());
               box.SetFillColor(kWhite); box.SetLineColor(kWhite);
               box.Draw("same");
@@ -952,7 +996,7 @@ void compareEff2D(const std::string& outDir, EffMap_t& effMap, const std::string
 };
   
 
-void mergeEff(EffMap_t& eff)
+bool mergeEff(EffMap_t& eff)
 {
   // Step 1: Merge pPb and Pbp (inverted) -> PA
   if(std::find(COLL_.begin(), COLL_.end(), "PA") != COLL_.end()) {
@@ -965,15 +1009,28 @@ void mergeEff(EffMap_t& eff)
               const TEfficiency& eff_pPb = s.second.at("pPb").at(ch.first).at(t.first);
               const TEfficiency& eff_Pbp = s.second.at("Pbp").at(ch.first).at(t.first);
               // Passed Histogram
-              TH1D hPassed = *((TH1D*)eff_pPb.GetPassedHistogram());
-              hPassed.Add(eff_pPb.GetPassedHistogram(), t.second.GetPassedHistogram(), eff_pPb.GetWeight(), eff_Pbp.GetWeight());
-              t.second.SetPassedHistogram(hPassed, "f");
-              // Total Histogram
-              TH1D hTotal = *((TH1D*)eff_pPb.GetTotalHistogram());
-              hTotal.Add(eff_pPb.GetTotalHistogram(), t.second.GetTotalHistogram(), eff_pPb.GetWeight(), eff_Pbp.GetWeight());
-              t.second.SetTotalHistogram(hTotal, "f");
-              // Set the statistics in case of weighted histograms
-              if ( checkWeights(hPassed, hTotal) ) { t.second.SetStatisticOption(TEfficiency::kFNormal); }
+              if (eff_pPb.GetDimension()==1) {
+                auto hPassed = *((TH1D*)eff_pPb.GetPassedHistogram());
+                hPassed.Add(eff_pPb.GetPassedHistogram(), t.second.GetPassedHistogram(), eff_pPb.GetWeight(), eff_Pbp.GetWeight());
+                t.second.SetPassedHistogram(hPassed, "f");
+                // Total Histogram
+                auto hTotal = *((TH1D*)eff_pPb.GetTotalHistogram());
+                hTotal.Add(eff_pPb.GetTotalHistogram(), t.second.GetTotalHistogram(), eff_pPb.GetWeight(), eff_Pbp.GetWeight());
+                t.second.SetTotalHistogram(hTotal, "f");
+                // Set the statistics in case of weighted histograms
+                if ( checkWeights(hPassed, hTotal) ) { t.second.SetStatisticOption(TEfficiency::kFNormal); }
+              }
+              else {
+                auto hPassed = *((TH2D*)eff_pPb.GetPassedHistogram());
+                hPassed.Add(eff_pPb.GetPassedHistogram(), t.second.GetPassedHistogram(), eff_pPb.GetWeight(), eff_Pbp.GetWeight());
+                t.second.SetPassedHistogram(hPassed, "f");
+                // Total Histogram
+                auto hTotal = *((TH2D*)eff_pPb.GetTotalHistogram());
+                hTotal.Add(eff_pPb.GetTotalHistogram(), t.second.GetTotalHistogram(), eff_pPb.GetWeight(), eff_Pbp.GetWeight());
+                t.second.SetTotalHistogram(hTotal, "f");
+                // Set the statistics in case of weighted histograms
+                if ( checkWeights(hPassed, hTotal) ) { t.second.SetStatisticOption(TEfficiency::kFNormal); }
+              }
             }
           }
         }
@@ -1005,6 +1062,7 @@ void mergeEff(EffMap_t& eff)
       }
     }
   }
+  return true;
 };
 
 
@@ -1157,16 +1215,16 @@ void getStats2D(double& mean, double& rms, double& min, double& max, const TH2& 
 };
 
 
-void fillErrorEff2D(TH2D& hist, const TEfficiency& eff, const std::string& var)
+void fillErrorEff2D(TH2D& hist, const TEfficiency& eff, const std::string& var, const std::string& col)
 {
   if (eff.GetDimension() != 2) { std::cout << "[ERROR] fillErrorEff2D only works for dimension == 2" << std::endl; return; }
   const uint xbin = 3;
-  const uint xIni = ( MU_BIN_2D_.at(var).first.size() - xbin );
+  const uint xIni = ( MU_BIN_2D_.at(col).at(var).first.size() - xbin );
   Double_t binX[xbin];
-  for (uint i = 0; i < xbin; i++) { binX[i] = MU_BIN_2D_.at(var).first[i + xIni]; }
-  Double_t binY[MU_BIN_2D_.at(var).second.size()];
-  for (uint i = 0; i < MU_BIN_2D_.at(var).second.size(); i++) { binY[i] = MU_BIN_2D_.at(var).second[i]; }
-  hist = TH2D("tmp","", (xbin-1), binX, (MU_BIN_2D_.at(var).second.size()-1), binY);
+  for (uint i = 0; i < xbin; i++) { binX[i] = MU_BIN_2D_.at(col).at(var).first[i + xIni]; }
+  Double_t binY[MU_BIN_2D_.at(col).at(var).second.size()];
+  for (uint i = 0; i < MU_BIN_2D_.at(col).at(var).second.size(); i++) { binY[i] = MU_BIN_2D_.at(col).at(var).second[i]; }
+  hist = TH2D("tmp","", (xbin-1), binX, (MU_BIN_2D_.at(col).at(var).second.size()-1), binY);
   for (int biny = 1; biny <= hist.GetNbinsY(); biny++) {
     for (int binx = 1; binx <= hist.GetNbinsX(); binx++) {
       const int effBinx = (binx + xIni);

@@ -195,7 +195,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const bool a
   //corrType["TnP_Stat_Trig"] = corrType_.at("TnP_Syst_Trig");
   corrType["TnP_Syst_Trig"] = corrType_.at("TnP_Syst_Trig");
   for (uint iEta = 1; iEta < etaTnP_.size(); iEta++) {
-    const std::string etaLbl = Form("%s%.0f_%s%.0f", (etaTnP_[iEta-1]<0.?"m":"p") , etaTnP_[iEta-1]*10. , (etaTnP_[iEta]<0.?"m":"p") , etaTnP_[iEta]*10.);
+    const std::string etaLbl = Form("%s%.0f_%s%.0f", (etaTnP_[iEta-1]<0.?"m":"p") , std::abs(etaTnP_[iEta-1])*10. , (etaTnP_[iEta]<0.?"m":"p") , std::abs(etaTnP_[iEta])*10.);
     corrType[Form("TnP_Stat_Trig_%s" , etaLbl.c_str())] = corrType_.at("TnP_Stat_Trig");
     //corrType[Form("TnP_Syst_Trig_%s" , etaLbl.c_str())] = corrType_.at("TnP_Syst_Trig");
   }
@@ -496,7 +496,7 @@ TnPVec_t getTnPScaleFactors(const double& pt, const double& eta, const CorrMap_t
       else if (cor.first.find("Trig_")!=std::string::npos) {
         for (uint iEta = 1; iEta < etaTnP_.size(); iEta++) {
           if (eta >= etaTnP_[iEta-1] && eta < etaTnP_[iEta]) {
-            const std::string etaLbl = Form("%s%.0f_%s%.0f", (etaTnP_[iEta-1]<0.?"m":"p") , etaTnP_[iEta-1]*10. , (etaTnP_[iEta]<0.?"m":"p") , etaTnP_[iEta]*10.);
+            const std::string etaLbl = Form("%s%.0f_%s%.0f", (etaTnP_[iEta-1]<0.?"m":"p") , std::abs(etaTnP_[iEta-1])*10. , (etaTnP_[iEta]<0.?"m":"p") , std::abs(etaTnP_[iEta])*10.);
             if      (cor.first==Form("TnP_Stat_Trig_%s" , etaLbl.c_str())) { sf_Trig = tnp_weight_trg_ppb( eta ,  i  ); }
             else if (cor.first==Form("TnP_Syst_Trig_%s" , etaLbl.c_str())) { sf_Trig = tnp_weight_trg_ppb( eta , -i  ); }
             break;

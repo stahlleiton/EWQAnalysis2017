@@ -68,16 +68,26 @@ void fitter(
   userInput.Flag["setLogScale"] = setLogScale;
   //
   if (workDirName.find("QCDTemplateCM")!=std::string::npos) {
-    userInput.Flag["applyHFCorr"]     = true;
-    userInput.Flag["applyTnPCorr"]    = true;
+    userInput.Flag["applyHFCorr"]     = false;
+    userInput.Flag["applyTnPCorr"]    = false;
     userInput.Flag["applyRecoilCorr"] = false;
     userInput.Par["RecoilCorrMethod"] = "";
     fitObj = 2;
     //
-    if (workDirName.find("WithMC")==std::string::npos) {
-      userInput.Flag.at("applyTnPCorr") = false;
-      userInput.Flag.at("applyHFCorr")  = false;
-    }    
+    if (workDirName.find("WithMC")!=std::string::npos) {
+      userInput.Flag.at("applyTnPCorr")    = true;
+      userInput.Flag.at("applyHFCorr")     = true;
+      userInput.Flag.at("applyRecoilCorr") = true;
+      userInput.Par["RecoilCorrMethod"] = "Scaling_OneGaussian";
+    }
+    //
+    if (workDirName.find("OnMC")!=std::string::npos) {
+      userInput.Flag.at("applyTnPCorr")    = true;
+      userInput.Flag.at("applyHFCorr")     = true;
+      userInput.Flag.at("applyRecoilCorr") = false;
+      userInput.Flag.at("fitData") = false;
+      userInput.Flag.at("fitMC")   = true;
+    }
   }
   else if (workDirName.find("NominalCM")!=std::string::npos) {
     userInput.Flag["applyHFCorr"]     = true;
@@ -96,7 +106,8 @@ void fitter(
     if (workDirName=="NominalCM_NoHFCorr"       ) { userInput.Flag.at("applyHFCorr")     = false; }
     if (workDirName=="NominalCM_NoTnPCorr"      ) { userInput.Flag.at("applyTnPCorr")    = false; }
     //
-    if (workDirName=="NominalCM_RecoilScaling"  ) { userInput.Par.at("RecoilCorrMethod") = "Scaling"; }
+    if (workDirName=="NominalCM_RecoilScaling"  ) { userInput.Par.at("RecoilCorrMethod") = "Scaling_OneGaussianDATA"; }
+    if (workDirName=="NominalCM_RecoilScalingOneGauss"  ) { userInput.Par.at("RecoilCorrMethod") = "Scaling_OneGaussian"; }
   }
   else if (workDirName.find("SystematicCM_")!=std::string::npos) {
     userInput.Flag["applyHFCorr"]     = true;
@@ -119,14 +130,18 @@ void fitter(
     else if (workDirName=="NominalCM_BinWidth1") { userInput.Var["MET"]["binWidth"] = 1.0; }
     else { userInput.Var["MET"]["binWidth"] = 2.0; }
     userInput.Par["extFitDir_MET"] = "";
+    userInput.Par["extInitFileDir_MET_W"] = "";
+    userInput.Par["extInitFileDir_MET_Z"] = "";
     if (workDirName.find("QCDTemplate")!=std::string::npos ||
         workDirName.find("SystematicCM_QCD")!=std::string::npos ||
         workDirName.find("METMax")!=std::string::npos
-        ) { userInput.Par["extInitFileDir_MET_QCD"] = ""; }
+        ) {
+      userInput.Par["extInitFileDir_MET_QCD"] = "";
+      bool useNominal = false; if (workDirName.find("MultiJet")==std::string::npos) { useNominal = true; }
+      if (useNominal) { userInput.Par["extInitFileDir_MET_W"] = ( (workDirName.find("CM")!=std::string::npos) ? Form("%s/Input/NominalCM/", CWD.c_str()) : Form("%s/Input/Nominal/", CWD.c_str()) ); }
+    }
     else if (workDirName.find("CM")!=std::string::npos    ) { userInput.Par["extInitFileDir_MET_QCD"] = Form("%s/Input/NominalCM/", CWD.c_str()); }
     else                                                    { userInput.Par["extInitFileDir_MET_QCD"] = Form("%s/Input/Nominal/", CWD.c_str());   }
-    userInput.Par["extInitFileDir_MET_W"] = "";
-    userInput.Par["extInitFileDir_MET_Z"] = "";
   }
   // Set all the Boolean Flags from the input settings
   //

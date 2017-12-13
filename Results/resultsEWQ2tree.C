@@ -39,7 +39,7 @@ bool resultsEWQ2tree(
   //
   // Define the output file info
   const std::string CWD = getcwd(NULL, 0);
-  const std::string outputDirPath = Form("%s/Tree/%s/%s/%s/%s", CWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), colTag.c_str());
+  const std::string outputDirPath = Form("%s/Tree/%s/%s/%s/W/%s", CWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), colTag.c_str());
   const std::string outputFileName = "tree_allvars.root";
   const std::string outputFilePath = Form("%s/%s", outputDirPath.c_str(), outputFileName.c_str());
   //
@@ -62,7 +62,7 @@ bool resultsEWQ2tree(
   //
   std::vector< std::string > inputFileNames;
   std::string preCWD = CWD; preCWD.erase(preCWD.find_last_of("/"), 10);
-  const std::string inputDirPath = Form("%s/Fitter/Output/%s/%s/%s/%s/result", preCWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), colTag.c_str());
+  const std::string inputDirPath = Form("%s/Fitter/Output/%s/%s/%s/W/%s/result", preCWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), colTag.c_str());
   if (!fileList(inputFileNames, inputDirPath)) { return false; };
   //
   // --------------------------------------------------------------------------------- //

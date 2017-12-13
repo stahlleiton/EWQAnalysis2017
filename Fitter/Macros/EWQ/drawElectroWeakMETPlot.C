@@ -92,17 +92,21 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
     else {
       double norm = ws.data(dsNameFit.c_str())->sumEntries();
       const std::map< std::string , int > colorMap = { {"W" , kYellow} , {"DY" , kGreen+2} , {"WToTau" , kRed+1} , {"QCD" , kAzure-9} , {"TTbar" , kOrange+1} };
+      const std::map< std::string , double > pdfMapOrder = { {"W" , 6} , {"QCD" , 5} , {"DY" , 4} , {"WToTau" , 3} , {"TTbar" , 2} };
       std::unique_ptr<TIterator> parIt = std::unique_ptr<TIterator>(pdfList.createIterator());
       std::unique_ptr<RooArgList> list = std::unique_ptr<RooArgList>((RooArgList*)pdfList.Clone());      
       if (list==NULL) { std::cout << "[ERROR] List of PDFs from " << pdfName << " is empty!" << std::endl; return false; }
       std::map< double , RooAbsPdf* , std::greater< double > > pdfMap;
+      std::map< std::string , double > pdfEvt;
       for (RooAbsPdf* it = (RooAbsPdf*)parIt->Next(); it!=NULL; it = (RooAbsPdf*)parIt->Next() ) {
         std::string obj = it->GetName(); obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find(cha));
         double events = 0.;
         if (ws.var(("N_"+obj+cha+chg+"_"+col).c_str())) { events = ws.var(("N_"+obj+cha+chg+"_"+col).c_str())->getValV(); }
         else if (ws.function(("N_"+obj+cha+chg+"_"+col).c_str())) { events = ws.function(("N_"+obj+cha+chg+"_"+col).c_str())->getValV(); }
         else { std::cout << "[ERROR] The variable " << ("N_"+obj+cha+chg+"_"+col) << " was not found in the workspace" << std::endl; return false; }
-        pdfMap[events] = it;
+        //pdfMap[events] = it;
+        pdfMap[pdfMapOrder.at(obj)] = it;
+        pdfEvt[obj] = events;
       }
       for (const auto& elem : pdfMap) {
         RooAbsPdf* it = elem.second;
@@ -116,7 +120,7 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
           legInfo["TEMP"][Form("plot_%s", name.c_str())] = formatCut(obj);
         }
         list->remove(*it);
-        norm -= elem.first;
+        norm -= pdfEvt.at(obj);
       }
       ws.data(dsName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::DataError(RooAbsData::SumW2), 
                                       RooFit::XErrorSize(0), RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
