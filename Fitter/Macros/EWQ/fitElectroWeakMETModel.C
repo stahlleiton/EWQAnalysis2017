@@ -152,8 +152,8 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
         else { newpars = std::unique_ptr<RooArgSet>(new RooArgSet(myws.allVars())); }
         found = found && isFitAlreadyFound(*newpars, Form("%sresult/%s.root", outDir.c_str(), ("FIT_"+fileName).c_str()), pdfName.c_str());
         if (found) {
-          std::cout << "[INFO] This fit was already done, so I'll just go to the next one." << std::endl;
-          return true;
+          std::cout << "[INFO] This fit for " << label << " was already done, so I'll just go to the next one." << std::endl;
+          continue;
         }
         // Fit the Datasets
         if (skipFit==false) {
@@ -167,6 +167,13 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
               auto tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), /*RooFit::Minos(!isWeighted),*/
                                                           RooFit::Range("METWindow"), RooFit::ExternalConstraints(*pdfConstrains), RooFit::NumCPU(numCores), RooFit::Save());
               fitResult.reset(tmp);
+              bool fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
+              if (fitFailed) {
+                tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Offset(kTRUE), RooFit::Strategy(2),
+                                                       RooFit::Range("METWindow"), RooFit::ExternalConstraints(*pdfConstrains), RooFit::NumCPU(numCores), RooFit::Save());
+                fitResult.reset(tmp);
+                fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
+              }
             }
             else {
               auto tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted),

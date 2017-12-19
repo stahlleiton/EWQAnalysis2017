@@ -22,7 +22,7 @@
 
 void extractInfo ( VarBinMap& inputVar , bool& useEtaCM , const std::string& workDirName , const std::string& colTag , const std::string& metTag ,
                    const std::string& dsTag , const std::string& thePoiName );
-void getResult   ( BinPentaMap& var , VarBinMap& inputVar , const bool&  useEtaCM , const std::string& workDirName , const std::string& effType , const std::string& accType );
+void getResult   ( BinPentaMap& var , VarBinMap& inputVar , const bool&  useEtaCM , const std::string& workDirName , const std::string& effType , const std::string& accType , const bool& doSyst );
 
 /////////////////////
 
@@ -41,12 +41,14 @@ void plotWAsym(
     { "Nominal"           , { nominalWorkDirName } },
     // SIGNAL
     { "BinWidth"          , { "NominalCM_BinWidth1" , "NominalCM_BinWidth3" } },
-    { "METRange"          , { "NominalCM_METMax200" } },
+    //{ "METRange"          , { "NominalCM_METMax200" } },
     // CORRECTION
-    { "Recoil_Scaling"    , { "NominalCM_RecoilScaling" } },
+    //{ "Recoil_Scaling"    , { "NominalCM_RecoilScaling" } },
+    { "Recoil_ScalingOneGaus"    , { "NominalCM_RecoilScalingOneGauss" } },
     // BACKGROUND: QCD
-    { "QCD_ConstrainIncl" , { "SystematicCM_QCD_Constrain_Inclusive" } },
-    { "QCD_FixedMean"     , { "SystematicCM_QCD_Fixed_Mean" } },
+    //{ "QCD_ConstrainIncl" , { "SystematicCM_QCD_Constrain_Inclusive" } },
+    { "QCD_ConstrainMean" , { "SystematicCM_QCD_Constrain_Mean" } },
+    //{ "QCD_FixedMean"     , { "SystematicCM_QCD_Fixed_Mean" } },
     { "QCD_MultiJet"      , { "SystematicCM_QCD_MultiJet" } },
     // BACKGROUND: ELECTROWEAK
     { "XSection_DrellYan" , { "SystematicCM_XSECTION_DY_DOWN"     , "SystematicCM_XSECTION_DY_UP"     } },
@@ -62,7 +64,6 @@ void plotWAsym(
     //{ "HF_NoCorr"         , { "NominalCM_NoHFCorr"      } },
     //{ "TnP_NoCorr"        , { "NominalCM_NoTnPCorr"     } },
     // NEED TO FIX
-    //{ "QCD_ConstrainMean" , { "SystematicCM_QCD_Constrain_Mean" } },
     // DONT USE
     //{ "QCD_ConstrainEta"  , { "SystematicCM_QCD_Constrain_Eta" } },
     //{ "QCD_FixedEta"      , { "SystematicCM_QCD_Fixed_Eta" } },
@@ -75,19 +76,22 @@ void plotWAsym(
   //
   // Initialize the Results var
   BinSextaMap var;
-  VarBinMap inputVar;
+  VarBinMap inputVarNom;
   //
   // Get the Results
   for (const auto& lbl : workDirNames) {
     if (!doSyst && lbl.first!="Nominal") continue;
     for (const auto& wkDir : lbl.second) {
+      std::cout << "[INFO] Adding results for : " << wkDir << std::endl;
+      VarBinMap inputVar;
       for (const auto& colTag : collVec) {
         extractInfo( inputVar , useEtaCM , wkDir , colTag , metTag , dsTag , thePoiNames );
       }
       BinPentaMap tmpVar;
-      getResult( tmpVar , inputVar , useEtaCM , wkDir , effType , accType );
+      getResult( tmpVar , inputVar , useEtaCM , wkDir , effType , accType , (lbl.first!="Nominal" ? false : doSyst) );
       //
       var[lbl.first].push_back(tmpVar);
+      if (lbl.first=="Nominal") { inputVarNom = inputVar; }
     }
   }
   if (var.count("Nominal")==0 || var.at("Nominal").size()==0) { std::cout << "[ERROR] Nominal results are missing" << std::endl; return; }
@@ -104,10 +108,10 @@ void plotWAsym(
   // Print the Raw Yield tables
   const std::string CWD = getcwd(NULL, 0);
   const std::string outDir = CWD + "/Output/" + nominalWorkDirName+"/" + metTag+"/" + dsTag;
-  if (!printYieldsTables(inputVar, outDir)) { return; }
+  if (!printYieldsTables(inputVarNom, outDir)) { return; }
   //
   // Print the Result tables
-  if (!printResultsTables(var, inputVar, outDir)) { return; }
+  if (!printResultsTables(var, inputVarNom, outDir)) { return; }
   //
   // --------------------------------------------------------------------------------- //
   //
@@ -133,7 +137,7 @@ void plotWAsym(
   drawGraph(graph, outDir, useEtaCM, accType, effType);
   //
   // Draw combined systematic graph
-  //if (doSyst) drawCombineSystematicGraph(graph, outDir, useEtaCM, accType, effType);
+  if (doSyst) drawCombineSystematicGraph(graph, outDir, useEtaCM, accType, effType);
 };
 
 
@@ -152,19 +156,20 @@ void extractInfo(
   //
   // Define the input file info
   const std::string CWD = getcwd(NULL, 0);
-  const std::string inputDirPath = Form("%s/Tree/%s/%s/%s/%s", CWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), colTag.c_str());
+  const std::string inputDirPath = Form("%s/Tree/%s/%s/%s/W/%s", CWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), colTag.c_str());
   const std::string inputFileName = "tree_allvars.root";
   const std::string inputFilePath = Form("%s/%s", inputDirPath.c_str(), inputFileName.c_str());
-  //
-  std::string preCWD = CWD; preCWD.erase(preCWD.find_last_of("/"), 10);
-  const std::string wsDirPath = Form("%s/Fitter/Output/%s/%s/%s/%s/result", preCWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), colTag.c_str());
-  if (existDir(wsDirPath)==false) { std::cout << "[WARNING] Workspace directory " << wsDirPath << " was not found, will skip it!" << std::endl; return; }
   //
   // Open the input file
   std::unique_ptr<TFile> inputFile;
   if (existFile(inputFilePath)) { inputFile.reset(new TFile(inputFilePath.c_str(), "READ")); }
   if (!inputFile || inputFile->IsOpen()==false || inputFile->IsZombie()==true) {
     std::cout << "[WARNING] The input file " << inputFilePath << " was not found, will create it!" << std::endl; if (inputFile) { inputFile->Close(); }
+    //
+    std::string preCWD = CWD; preCWD.erase(preCWD.find_last_of("/"), 10);
+    const std::string wsDirPath = Form("%s/Fitter/Output/%s/%s/%s/W/%s/result", preCWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), colTag.c_str());
+    if (existDir(wsDirPath)==false) { std::cout << "[WARNING] Workspace directory " << wsDirPath << " was not found, will skip it!" << std::endl; return; }
+    //
     if (!resultsEWQ2tree(workDirName, metTag, dsTag, colTag)) { return; };
     inputFile.reset(new TFile(inputFilePath.c_str(), "READ"));
     if (inputFile->IsOpen()==false || inputFile->IsZombie()==true) {
@@ -253,7 +258,8 @@ void getResult(
                const bool&  useEtaCM,
                const std::string& workDirName,
                const std::string& effType,
-               const std::string& accType
+               const std::string& accType,
+               const bool& doSyst
                )
 {
   //
@@ -275,34 +281,33 @@ void getResult(
     if (useCM) { effWorkDirName += "CM"; }
     const bool useHFCorr = ( (workDirName.find("TnPCorrOnly")==std::string::npos) && (workDirName.find("RecoilCorrOnly")==std::string::npos) && (workDirName.find("NoHFCorr")==std::string::npos) );
     if (useHFCorr) { effWorkDirName += "_WithHF"; }
-    const std::string effDirPath  = Form("%s/Efficiency/TnPEfficiency/%s", preCWD.c_str(), effWorkDirName.c_str());
+    const std::string effDirPath  = Form("%s/Efficiency/Output/%s", preCWD.c_str(), effWorkDirName.c_str());
     const std::string effFileName = "efficiencyTnP.root";
     const std::string effFilePath = Form("%s/%s", effDirPath.c_str(), effFileName.c_str());
     //
     // Extract the Acceptance and Efficiency
-    const bool redoEffVariations = true;
     const bool isNominal = ( (workDirName=="Nominal") || (workDirName=="NominalCM") );
-    if (!getAcceptanceAndEfficiency(eff, effFilePath, useEtaCM, redoEffVariations, isNominal)) { return; }
+    if (!getAcceptanceAndEfficiency(eff, effFilePath, useEtaCM, isNominal)) { return; }
     //
     // --------------------------------------------------------------------------------- //
     //
     // Proceed to correct the Raw Yields
     //
-    if (!correctRawYields(inputVar, eff, accType, effType)) { return; }
+    if (!correctRawYields(inputVar, eff, accType, effType, isNominal)) { return; }
   }
   //
   // --------------------------------------------------------------------------------- //
   //
   // Compute the Charge Asymmetry
   //
-  if (!computeChargeAsymmetry(var, inputVar)) { return; }
+  if (!computeChargeAsymmetry(var, inputVar, doSyst)) { return; }
   //
   // Compute the Forward-Backward ratio
   //
-  if (!computeForwardBackwardRatio(var, inputVar)) { return; }
+  if (!computeForwardBackwardRatio(var, inputVar, doSyst)) { return; }
   //
   // Compute the Cross-Section
   //
-  if (!computeCrossSection(var, inputVar)) { return; }
+  if (!computeCrossSection(var, inputVar, doSyst)) { return; }
   //
 };
