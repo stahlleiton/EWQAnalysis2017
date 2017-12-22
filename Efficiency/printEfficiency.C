@@ -74,11 +74,11 @@ const char*  sgn                 ( const double n ) { if (n >= 0.) { return "+";
 const std::vector< std::string > CHG_  = { "Plus" , "Minus" };
 
 
-void printEfficiency(const std::string workDirName = "NominalCM", const bool applyHFCorr = true)
+void printEfficiency(const std::string workDirName = "NominalCM", const uint applyHFCorr = 1)
 {
   // Change the working directory
   const std::string CWD = getcwd(NULL, 0);
-  const std::string mainDir = Form("%s/Output/%s/", CWD.c_str(), (workDirName+(applyHFCorr ? "_WithHF" : "")).c_str());
+  const std::string mainDir = Form("%s/Output/%s/", CWD.c_str(), (workDirName+((applyHFCorr==1) ? "_WithHF" : ((applyHFCorr==2) ? "_WithNTrack" : ""))).c_str());
   gSystem->mkdir(mainDir.c_str(), kTRUE);
   gSystem->ChangeDirectory(mainDir.c_str());
   //

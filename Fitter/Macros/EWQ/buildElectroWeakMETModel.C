@@ -80,7 +80,7 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StringDiMap_t
                 if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
                 //
                 // create the PDF
-                ws.factory(Form("RooGenericPdf::%s('TMath::Exp(-1.0*TMath::Sqrt((@0+@1)*@2*@2))*(TMath::Power(TMath::Abs(@0+@1),@3))', {%s, %s, %s, %s})", Form("pdfMET_%s", label.c_str()), "MET", 
+                ws.factory(Form("RooGenericPdf::%s('TMath::Exp(@2*TMath::Sqrt(@0+@1))*(TMath::Power(TMath::Abs(@0+@1),@3))', {%s, %s, %s, %s})", Form("pdfMET_%s", label.c_str()), "MET", 
                                 Form("x0_%s", label.c_str()),
                                 Form("Beta_%s", label.c_str()),
                                 Form("Alpha_%s", label.c_str())
@@ -242,7 +242,7 @@ bool histToPdf(RooWorkspace& ws, const string& pdfName, const string& dsName, co
   ws.import(*dataHist);
   ws.var(var.c_str())->setBins(int(range[0])); // Bug Fix
   std::unique_ptr<RooHistPdf> pdf = std::unique_ptr<RooHistPdf>(new RooHistPdf(pdfName.c_str(), pdfName.c_str(), *ws.var(var.c_str()), *((RooDataHist*)ws.data(dataName.c_str()))));
-  //std::unique_ptr<RooKeysPdf> pdf = std::unique_ptr<RooKeysPdf>(new RooKeysPdf(pdfName.c_str(), pdfName.c_str(), *ws.var("ctauErr"), *((RooDataSet*)ws.data(dataName.c_str())),RooKeysPdf::NoMirror, isPbPb?0.4:0.4));
+  //std::unique_ptr<RooKeysPdf> pdf = std::unique_ptr<RooKeysPdf>(new RooKeysPdf(pdfName.c_str(), pdfName.c_str(), *ws.var(var.c_str()), *((RooDataSet*)ws.data(dsName.c_str())), RooKeysPdf::NoMirror, 0.4));
   if (pdf==NULL) { std::cout << "[WARNING] RooHistPDF " << pdfName << " is NULL!" << std::endl; return false; }
   ws.import(*pdf);
   return true;
@@ -353,12 +353,12 @@ void setMETModelParameters(GlobalInfo& info)
           for (const auto v : varNames) {
             if (info.Par.count(v+"_"+objLabel)==0 || info.Par.at(v+"_"+objLabel)=="") {
               if (info.Par.count(v+"_"+objFoundLabel)==0 || info.Par.at(v+"_"+objFoundLabel)=="") {
-                if (v=="Beta"   ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   3.100,     0.000,   10.000); }
+                if (v=="Beta"   ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),  -3.100,   -20.000,    0.000); }
                 if (v=="Alpha"  ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   6.000,   -10.000,   30.000); }
-                if (v=="x0"     ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   3.000,   -10.000,   30.000); }
-                if (v=="Sigma0" ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),  15.300,   -10.000,  100.000); }
+                if (v=="x0"     ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   3.000,     0.000,   30.000); }
+                if (v=="Sigma0" ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),  14.800,   -10.000,  100.000); }
                 if (v=="Sigma1" ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   6.500,   -30.000,   50.000); }
-                if (v=="Sigma2" ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   0.600,   -50.000,   50.000); }
+                if (v=="Sigma2" ) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),   0.500,   -50.000,   50.000); }
               }
               else {
                 std::string content = info.Par.at(v+"_"+objFoundLabel); content = content.substr( content.find("[") );

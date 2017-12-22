@@ -100,9 +100,10 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
     RooRealVar metPhi   = RooRealVar ( "MET_Phi"   , "#slash{E}_{T} #phi"         ,   -9.0 ,            9.0 , ""      );
     RooRealVar muPhi    = RooRealVar ( "Muon_Phi"  , "#mu #phi"                   ,   -9.0 ,            9.0 , ""      );
     RooRealVar hiHF     = RooRealVar ( "hiHF"      , "Total E_{HF}"               ,   -1.0 ,       100000.0 , "GeV/c" );
+    RooRealVar nTracks  = RooRealVar ( "nTracks"   , "Number of Tracks"           ,   -1.0 ,   1000000000.0 , ""      );
     //
     RooArgSet  mcCols = RooArgSet(mcNGen, mcType, bosonPt, bosonPhi, refPt, refPhi);
-    mcCols.add(metPhi); mcCols.add(muPhi); mcCols.add(hiHF);
+    mcCols.add(metPhi); mcCols.add(muPhi); mcCols.add(hiHF); mcCols.add(nTracks);
     ///// MET Information
     RooRealVar metMag_RAW       = RooRealVar ( "MET_Mag_PF_RAW"        , "|#slash{E}_{T}|"     ,   -1.0 , 100000.0 , "GeV/c" );
     RooRealVar metPhi_RAW       = RooRealVar ( "MET_Phi_PF_RAW"        , "#slash{E}_{T} #phi"  ,   -9.0 ,      9.0 , ""      );
@@ -270,6 +271,7 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
         metPhi.setVal   ( MET.Phi()      );
         muPhi.setVal    ( muP4.Phi()     );
         hiHF.setVal     ( evtTree->hiHF());
+        nTracks.setVal  ( evtTree->hiNtracks());
       }
       //
       //// Fill the RooDataSets
@@ -580,7 +582,7 @@ void writeCorrectionDS(const RooWorkspace& ws, const std::string sampleTag, cons
 
 
 bool applyMCCorrection(RooWorkspace& ws, const RooWorkspace& corrWS, const std::string dDSName, const std::string& mcDSName, 
-                       const bool& applyTnPCorr, HFweight* HFCorr, RecoilCorrector& recoilCorr, const std::string& recoilMethod)
+                       const bool& applyTnPCorr, HFweight* HFCorr, const std::string& HFMethod, RecoilCorrector& recoilCorr, const std::string& recoilMethod)
 {
   //
   const bool applyHFCorr     = (HFCorr != NULL);
@@ -600,14 +602,14 @@ bool applyMCCorrection(RooWorkspace& ws, const RooWorkspace& corrWS, const std::
   RooRealVar mcRawMET = RooRealVar( "MET_RAW"     , "|#slash{E}_{T}|"          ,  -1.0 ,     100000.0 , "GeV/c"     );
   RooRealVar mcRawMT  = RooRealVar( "Muon_MT_RAW" , "W Transverse Mass"        ,  -1.0 ,     100000.0 , "GeV/c^{2}" );
   RooRealVar mcSFTnP  = RooRealVar( "SFTnP"       , "TagAndProbe Scale Factor" , -10.0 ,         10.0 , ""          );
-  RooRealVar mcWHF    = RooRealVar( "wHF"         , "HF Weight"                ,  -1.0 , 1000000000.0 , ""          );
+  RooRealVar mcWEA    = RooRealVar( "wEA"         , "Event Activity Weight"    ,  -1.0 , 1000000000.0 , ""          );
   RooRealVar weight   = RooRealVar( "Weight"      , "Weight"                   ,  -1.0 , 1000000000.0 , ""          );
   // Initialize the RooArgSets
   RooArgSet cols   = *dDS->get();
   cols.add(weight);
   RooArgSet mcCols = *mcDS->get();
   if (applyTnPCorr   ) { mcCols.add(mcSFTnP); }
-  if (applyHFCorr    ) { mcCols.add(mcWHF);   }
+  if (applyHFCorr    ) { mcCols.add(mcWEA);   }
   if (applyRecoilCorr) { mcCols.add(mcRawMET); mcCols.add(mcRawMT); }
   //
   // Initialize the new RooDataSets
@@ -645,17 +647,31 @@ bool applyMCCorrection(RooWorkspace& ws, const RooWorkspace& corrWS, const std::
       weight.setVal( weight.getVal() * mcSFTnP.getVal() );
     }
     //
-    // Apply HF Re-Weighting
+    // Apply Event Activity Re-Weighting
     //
     if (applyHFCorr) {
-      // Get the HF Energy
-      auto hiHF = (RooRealVar*)mcCols.find("hiHF");
-      if (hiHF==NULL) { std::cout << "[ERROR] applyMCCorrection: Variable HF was not found in " << dDSName << std::endl; return false; }
-      // Get the HF Weight
-      const double weightHF = HFCorr->weight(hiHF->getVal(), HFweight::HFside::both, false);
-      mcWHF.setVal( weightHF );
+      double weightEA = 1.0;
+      if (HFMethod=="HFBoth") {
+        // Get the HF Energy
+        auto hiHF = (RooRealVar*)mcCols.find("hiHF");
+        if (hiHF==NULL) { std::cout << "[ERROR] applyMCCorrection: Variable HF was not found in " << dDSName << std::endl; return false; }
+        // Get the Event Activity Weight
+        weightEA = HFCorr->weight(hiHF->getVal(), HFweight::HFside::both, false);
+        if (weightEA==0.) { std::cout << "[ERROR] Weight is zero for HF " << hiHF << std::endl; return false; }
+      }
+      else if (HFMethod=="NTracks") {
+        // Get the Number of Tracks
+        auto nTracks = (RooRealVar*)mcCols.find("nTracks");
+        if (nTracks==NULL) { std::cout << "[ERROR] applyMCCorrection: Variable nTracks was not found in " << dDSName << std::endl; return false; }
+        // Get the Event Activity Weight
+        const double nTrks = ( (nTracks->getVal() >=300.) ? 290. : nTracks->getVal() ); // The histograms are made up to 300.
+        weightEA = HFCorr->weight(nTrks, HFweight::HFside::track, false);
+        if (weightEA==0.) { std::cout << "[ERROR] Weight is zero for nTracks " << nTrks << std::endl; return false; }
+      }
+      else { std::cout << "[ERROR] Event Activity correction method " << HFMethod << " has not been defined!" << std::endl; return false; }
+      mcWEA.setVal( weightEA );
       // Set the TnP Scale Factor weight
-      weight.setVal( weight.getVal() * mcWHF.getVal() );
+      weight.setVal( weight.getVal() * mcWEA.getVal() );
     }
     //
     // Apply the MET Recoil corrections
@@ -744,7 +760,11 @@ bool correctMC(RooWorkspaceMap_t& Workspaces, const GlobalInfo& info)
   //
   // Define the HF Weight
   std::unique_ptr<HFweight> HFCorr;
-  if (applyHFCorr) { HFCorr = std::unique_ptr<HFweight>(new HFweight("/afs/cern.ch/work/e/echapon/public/DY_pA_2016/HFweight.root")); }
+  std::string HFMethod;
+  if (applyHFCorr) {
+    HFMethod = info.Par.at("HFCorrMethod");
+    HFCorr = std::unique_ptr<HFweight>(new HFweight("/afs/cern.ch/work/e/echapon/public/DY_pA_2016/HFweight.root"));
+  }
   //
   // Define the MET Recoil Corrector
   RecoilCorrector recoilCorr(1);
@@ -781,9 +801,9 @@ bool correctMC(RooWorkspaceMap_t& Workspaces, const GlobalInfo& info)
         else { recoilCorr.setInitialSetup(sample, false, false, true); }
       }
       // Apply the MC correction to positive muon dataset
-      if (!applyMCCorrection(myws, corrWS, ("dPl_"+sample), ("mcPl_"+sample), applyTnPCorr, HFCorr.get(), recoilCorr, recoilMethod)) { return false; }
+      if (!applyMCCorrection(myws, corrWS, ("dPl_"+sample), ("mcPl_"+sample), applyTnPCorr, HFCorr.get(), HFMethod, recoilCorr, recoilMethod)) { return false; }
       // Apply the MC correction to negative muon dataset
-      if (!applyMCCorrection(myws, corrWS, ("dMi_"+sample), ("mcMi_"+sample), applyTnPCorr, HFCorr.get(), recoilCorr, recoilMethod)) { return false; }
+      if (!applyMCCorrection(myws, corrWS, ("dMi_"+sample), ("mcMi_"+sample), applyTnPCorr, HFCorr.get(), HFMethod, recoilCorr, recoilMethod)) { return false; }
       // Save the corrections
       if (applyRecoilCorr && makeCorrFile) { writeCorrectionDS(myws, sample, recoilMethod, applyHFCorr); }
       // Store in the workspace the info regarding the corrections applied

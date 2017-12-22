@@ -79,7 +79,7 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
       double norm = ws.data(dsNameFit.c_str())->sumEntries();
       ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())),
                                       RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::NumCPU(32),
-                                      RooFit::LineColor(kBlack), RooFit::LineStyle(1), RooFit::Precision(1e-4)
+                                      RooFit::LineColor(kBlack), RooFit::LineStyle(1), RooFit::Precision(1e-5)
                                       );
       legInfo["PDF"][Form("plot_%s", pdfName.c_str())] = "Total Fit";
       frame["EXTRA"] = std::unique_ptr<RooPlot>((RooPlot*)frame.at("MAIN")->emptyClone("EXTRA"));
@@ -114,8 +114,8 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
         std::string obj = name; obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find(cha));
         if (norm > 0.0) {
           ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", name.c_str())), RooFit::Components(*list),
-                                          RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::NumCPU(32),
-                                          RooFit::FillStyle(1001), RooFit::FillColor(colorMap.at(obj)), RooFit::VLines(), RooFit::DrawOption("LF"), RooFit::LineColor(kBlack), RooFit::LineStyle(1)
+                                          RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::NumCPU(32), RooFit::Precision(1e-5),
+                                          RooFit::FillStyle(1001), RooFit::FillColor(colorMap.at(obj)), RooFit::VLines(), RooFit::DrawOption("F")
                                           );
           legInfo["TEMP"][Form("plot_%s", name.c_str())] = formatCut(obj);
         }
@@ -127,7 +127,7 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
       norm = ws.data(dsNameFit.c_str())->sumEntries();
       ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())),
                                       RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::NumCPU(32),
-                                      RooFit::LineColor(kBlack), RooFit::LineStyle(1), RooFit::Precision(1e-4)
+                                      RooFit::LineColor(kBlack), RooFit::LineStyle(1), RooFit::Precision(1e-5)
                                       );
       //
       frame["EXTRA"] = std::unique_ptr<RooPlot>((RooPlot*)frame.at("MAIN")->emptyClone("EXTRA"));
@@ -345,9 +345,9 @@ void printElectroWeakBinning(TPad& pad, const RooWorkspace& ws, const std::strin
     const std::string varName = it->GetName();
     double defaultMin = 0.0 , defaultMax = 100000.0;
     if (varName=="Muon_Eta") { defaultMin = -2.5; defaultMax = 2.5; }
-    if (varName=="Muon_Iso") { defaultMin = -0.000001; }
+    if (varName=="Muon_Iso") { defaultMin = 0.0; }
     if (ws.var(varName.c_str())) {
-      double minVal = ws.var(varName.c_str())->getMin();
+      double minVal = ( (ws.var(varName.c_str())->getMin() <= 0.0) ? 0.0 : ws.var(varName.c_str())->getMin() ) ;
       double maxVal = ws.var(varName.c_str())->getMax();
       string fVarName = varEWQLabel.at(varName);
       const bool ispPb = ( dsName.find("_pPb")!=std::string::npos || dsName.find("_PA")!=std::string::npos );
@@ -382,10 +382,20 @@ void printElectroWeakBinning(TPad& pad, const RooWorkspace& ws, const std::strin
 void printElectroWeakLegend(TPad& pad, TLegend& leg, const RooPlot& frame, const StringDiMap_t& legInfo)
 {
   pad.cd();
-  std::map< std::string , std::string > drawOption = { { "DATA" , "pe" } , { "PDF" , "l" } , { "TEMP" , "fl" } };
+  std::map< std::string , std::string > drawOption = { { "DATA" , "pe" } , { "PDF" , "l" } , { "TEMP" , "f" } };
+  const std::vector< std::string > pdfMapOrder = { "WToMu" , "QCD" , "DY" , "WToTau" , "TTbar" };
   for (const auto& map : legInfo) {
-    for (const auto& elem : map.second) {
-      if (frame.findObject(elem.first.c_str())) { leg.AddEntry(frame.findObject(elem.first.c_str()), elem.second.c_str(), drawOption[map.first].c_str()); }
+    if (map.first=="TEMP") {
+      for (const auto& pdfM : pdfMapOrder) {
+        std::pair< std::string , std::string > elem;
+        for (const auto& el : map.second) { if (el.first.find(pdfM)!=std::string::npos) { elem = std::make_pair( el.first , el.second ); break; } }
+        if (frame.findObject(elem.first.c_str())) { leg.AddEntry(frame.findObject(elem.first.c_str()), elem.second.c_str(), drawOption[map.first].c_str()); }
+      }
+    }
+    else {
+      for (const auto& elem : map.second) {
+        if (frame.findObject(elem.first.c_str())) { leg.AddEntry(frame.findObject(elem.first.c_str()), elem.second.c_str(), drawOption[map.first].c_str()); }
+      }
     }
   }
   leg.Draw("same");

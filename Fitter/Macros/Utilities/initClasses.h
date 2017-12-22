@@ -26,6 +26,7 @@
 #include "RooRealVar.h"
 #include "RooAbsPdf.h"
 #include "RooAddPdf.h"
+#include "RooKeysPdf.h"
 #include "RooHistPdf.h"
 #include "RooClassFactory.h"
 #include "RooFitResult.h"

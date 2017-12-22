@@ -119,7 +119,7 @@ const std::map< std::string , std::vector< std::pair< std::string , double > > >
 std::map< std::string , std::vector< std::string > > sampleType_;
 
 
-void correctEfficiency(const std::string workDirName = "NominalCM", const bool applyHFCorr = true)
+void correctEfficiency(const std::string workDirName = "NominalCM", const uint applyHFCorr = 1)
 {
   //
   // Initialize the Kinematic Bin info
@@ -130,7 +130,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const bool a
     };
     for (const auto& v : TMP) { MU_BIN["PA"][v.first] = v.second; MU_BIN["pPb"][v.first] = v.second; MU_BIN["Pbp"][v.first] = v.second; }
   }
-  else if ( (workDirName == "NominalCM") || (workDirName == "CutAndCountCM") ) {
+  else if ( (workDirName.find("NominalCM")!=std::string::npos) || (workDirName == "CutAndCountCM") ) {
     const BinMap_t  TMP_pPb = {
       { "EtaCM" , { -2.86 , -2.60 , -2.40 , -2.20 , -1.93 , -1.80 , -1.60 , -1.40 , -1.20 , -1.00 , -0.80 , -0.60 , -0.40 , -0.20 , 0.00 , 0.20 , 0.40 , 0.60 , 0.80 , 1.00 , 1.20 , 1.40 , 1.60 , 1.80, 1.93 } }
     };
@@ -152,7 +152,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const bool a
   }
   //
   // Define the working flags
-  bool useEtaCM = false;      if ( (workDirName == "NominalCM"  ) || (workDirName == "CutAndCountCM") ) { useEtaCM = true; }
+  bool useEtaCM = false;      if ( (workDirName.find("NominalCM")!=std::string::npos) || (workDirName == "CutAndCountCM") ) { useEtaCM = true; }
   bool isCutAndCount = false; if ( (workDirName == "CutAndCount") || (workDirName == "CutAndCountCM") ) { isCutAndCount = true; }
   //
   // Change the working directory
@@ -174,10 +174,8 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const bool a
   //
   corrType["NoCorr"] = 1;
   corrType["TnP_Nominal"] = 1;  
-  if (applyHFCorr) { corrType["HFCorr"] = 1; }
+  if (applyHFCorr>0) { corrType["HFCorr"] = 1; }
   //
-  //corrType["TnP_Stat_MuID"   ] = corrType_.at("TnP_Syst_MuID");
-  //corrType["TnP_Stat_Iso"    ] = corrType_.at("TnP_Syst_Iso");
   corrType["TnP_Syst_MuID"   ] = corrType_.at("TnP_Syst_MuID");
   corrType["TnP_Syst_Iso"    ] = corrType_.at("TnP_Syst_Iso");
   corrType["TnP_Syst_BinMuID"] = corrType_.at("TnP_Syst_BinMuID");
@@ -186,18 +184,12 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const bool a
     const std::string etaLbl = Form("p%.0f_p%.0f", absEtaTnP_[iEta-1]*10., absEtaTnP_[iEta]*10.);
     corrType[Form("TnP_Stat_MuID_%s"    , etaLbl.c_str())] = corrType_.at("TnP_Stat_MuID");
     corrType[Form("TnP_Stat_Iso_%s"     , etaLbl.c_str())] = corrType_.at("TnP_Stat_Iso");
-    //corrType[Form("TnP_Syst_MuID_%s"    , etaLbl.c_str())] = corrType_.at("TnP_Syst_MuID");
-    //corrType[Form("TnP_Syst_Iso_%s"     , etaLbl.c_str())] = corrType_.at("TnP_Syst_Iso");
-    //corrType[Form("TnP_Syst_BinMuID_%s" , etaLbl.c_str())] = corrType_.at("TnP_Syst_BinMuID");
-    //corrType[Form("TnP_Syst_BinIso_%s"  , etaLbl.c_str())] = corrType_.at("TnP_Syst_BinIso");
   }
   //
-  //corrType["TnP_Stat_Trig"] = corrType_.at("TnP_Syst_Trig");
   corrType["TnP_Syst_Trig"] = corrType_.at("TnP_Syst_Trig");
   for (uint iEta = 1; iEta < etaTnP_.size(); iEta++) {
     const std::string etaLbl = Form("%s%.0f_%s%.0f", (etaTnP_[iEta-1]<0.?"m":"p") , std::abs(etaTnP_[iEta-1])*10. , (etaTnP_[iEta]<0.?"m":"p") , std::abs(etaTnP_[iEta])*10.);
     corrType[Form("TnP_Stat_Trig_%s" , etaLbl.c_str())] = corrType_.at("TnP_Stat_Trig");
-    //corrType[Form("TnP_Syst_Trig_%s" , etaLbl.c_str())] = corrType_.at("TnP_Syst_Trig");
   }
   //
   bool doMCWeight = false;
@@ -205,7 +197,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const bool a
   //
   // Initialize the HF corrections
   std::unique_ptr<HFweight> corrHF;
-  if (applyHFCorr) { corrHF = std::unique_ptr<HFweight>(new HFweight("/afs/cern.ch/work/e/echapon/public/DY_pA_2016/HFweight.root")); }
+  if (applyHFCorr>0) { corrHF = std::unique_ptr<HFweight>(new HFweight("/afs/cern.ch/work/e/echapon/public/DY_pA_2016/HFweight.root")); }
   //
   // ------------------------------------------------------------------------------------------------------------------------
   //
@@ -287,10 +279,15 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const bool a
       // Get the Lumi re-weight for MC (global weight)
       const double lumi = ( (col=="pPb") ? PA::LUMI::Data_pPb : PA::LUMI::Data_Pbp );
       const double mcWeight = ( ( crossSection * lumi ) / muonTree.at(sample)->GetTreeEntries() );
+      //const double mcWeight = ( ( lumi ) / muonTree.at(sample)->GetTreeEntries() );
       // Set the global weight only in the first event (i.e. once per sample)
       if (jentry==0) { setGlobalWeight(h1D, mcWeight, sampleType, col); }
       // Define the event weight (set to 1.0 by default)
       double evtWeight = 1.0;
+      //
+      // Determine the HF Weight
+      if      (applyHFCorr==1) { evtWeight *= corrHF->weight(evtTree.at(sample)->hiHF()     , HFweight::HFside::both , false); }
+      else if (applyHFCorr==2) { evtWeight *= corrHF->weight(evtTree.at(sample)->hiNtracks(), HFweight::HFside::track, false); }
       //
       // Get the MC PDF Weights
       TnPVec_t wMC; if (doMCWeight) { wMC = getMCWeights(evtTree.at(sample), corrType); }
@@ -301,9 +298,6 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const bool a
       const bool passEvent  = PA::passEventFilter(metTree.at(sample));
       // Determine if the event pass the Drell-Yan veto
       const bool passDYVeto = PA::passDrellYanVeto(muonTree.at(sample));
-      //
-      // Determine the HF Weight
-      if (applyHFCorr) { evtWeight *= corrHF->weight(evtTree.at(sample)->hiHF(), HFweight::HFside::both, false); }
       //
       // Check Muon Conditions
       //
@@ -420,7 +414,10 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const bool a
   //
   // Store the Efficiencies
   //
-  const std::string outDir = mainDir + workDirName + (applyHFCorr ? "_WithHF" : "") +"/";
+  std::string outDir = mainDir + workDirName;
+  if      (applyHFCorr==1) { outDir += "_WithHF/";     }
+  else if (applyHFCorr==2) { outDir += "_WithNTrack/"; }
+  else { outDir += "/"; }
   gSystem->mkdir(outDir.c_str(), kTRUE);
   saveEff(outDir, eff1D, unc1D);
 };
