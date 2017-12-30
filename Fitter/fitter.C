@@ -72,6 +72,7 @@ void fitter(
     userInput.Flag["applyTnPCorr"]    = false;
     userInput.Flag["applyRecoilCorr"] = false;
     userInput.Par["RecoilCorrMethod"] = "";
+    userInput.Par["HFCorrMethod"]     = "HFBoth";
     fitObj = 2;
     //
     if (workDirName.find("WithMC")!=std::string::npos) {
@@ -93,7 +94,8 @@ void fitter(
     userInput.Flag["applyHFCorr"]     = true;
     userInput.Flag["applyTnPCorr"]    = true;
     userInput.Flag["applyRecoilCorr"] = true;
-    userInput.Par["RecoilCorrMethod"] = "Smearing";
+    userInput.Par["RecoilCorrMethod"] = "Scaling_OneGaussian";
+    userInput.Par["HFCorrMethod"]     = "HFBoth";
     fitObj = 1;
     //
     if (workDirName=="NominalCM_NoCorr"         ) { userInput.Flag.at("applyTnPCorr") = false; userInput.Flag.at("applyHFCorr")     = false; userInput.Flag.at("applyRecoilCorr") = false; }
@@ -105,15 +107,17 @@ void fitter(
     if (workDirName=="NominalCM_NoRecoilCorr"   ) { userInput.Flag.at("applyRecoilCorr") = false; }
     if (workDirName=="NominalCM_NoHFCorr"       ) { userInput.Flag.at("applyHFCorr")     = false; }
     if (workDirName=="NominalCM_NoTnPCorr"      ) { userInput.Flag.at("applyTnPCorr")    = false; }
+    if (workDirName=="NominalCM_NTrackCorr"     ) { userInput.Par.at("HFCorrMethod") = "NTracks"; }
     //
     if (workDirName=="NominalCM_RecoilScaling"  ) { userInput.Par.at("RecoilCorrMethod") = "Scaling_OneGaussianDATA"; }
-    if (workDirName=="NominalCM_RecoilScalingOneGauss"  ) { userInput.Par.at("RecoilCorrMethod") = "Scaling_OneGaussian"; }
+    if (workDirName=="NominalCM_RecoilSmearing" ) { userInput.Par.at("RecoilCorrMethod") = "Smearing"; }
   }
   else if (workDirName.find("SystematicCM_")!=std::string::npos) {
     userInput.Flag["applyHFCorr"]     = true;
     userInput.Flag["applyTnPCorr"]    = true;
     userInput.Flag["applyRecoilCorr"] = true;
-    userInput.Par["RecoilCorrMethod"] = "Smearing";
+    userInput.Par["RecoilCorrMethod"] = "Scaling_OneGaussian";
+    userInput.Par["HFCorrMethod"]     = "HFBoth";
     fitObj = 1;
   }
   else { std::cout << "[ERROR] Workdirname has not been defined!" << std::endl; return; }
@@ -123,7 +127,7 @@ void fitter(
   userInput.Par["extTreesFileDir"] = Form("%s/Input/", CWD.c_str());
   userInput.Par["extDSDir_DATA"]   = "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Dataset/";
   userInput.Par["extDSDir_MC"]     = "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Dataset/";
-  userInput.Par["RecoilPath"]      = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil/";
+  userInput.Par["RecoilPath"]      = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_save/";
   if (userInput.Par.at("Analysis").find("Nu")!=std::string::npos) {
     userInput.Var["MET"]["type"] = varType;
     if      (workDirName=="NominalCM_BinWidth3") { userInput.Var["MET"]["binWidth"] = 3.0; }
@@ -133,13 +137,13 @@ void fitter(
     userInput.Par["extInitFileDir_MET_W"] = "";
     userInput.Par["extInitFileDir_MET_Z"] = "";
     if (workDirName.find("QCDTemplate")!=std::string::npos ||
-        workDirName.find("SystematicCM_QCD")!=std::string::npos ||
-        workDirName.find("METMax")!=std::string::npos
+        workDirName.find("SystematicCM_QCD")!=std::string::npos
         ) {
       userInput.Par["extInitFileDir_MET_QCD"] = "";
       bool useNominal = false; if (workDirName.find("MultiJet")==std::string::npos) { useNominal = true; }
       if (useNominal) { userInput.Par["extInitFileDir_MET_W"] = ( (workDirName.find("CM")!=std::string::npos) ? Form("%s/Input/NominalCM/", CWD.c_str()) : Form("%s/Input/Nominal/", CWD.c_str()) ); }
     }
+    else if (workDirName.find("METMax")!=std::string::npos) { userInput.Par["extInitFileDir_MET_QCD"] = ""; }
     else if (workDirName.find("CM")!=std::string::npos    ) { userInput.Par["extInitFileDir_MET_QCD"] = Form("%s/Input/NominalCM/", CWD.c_str()); }
     else                                                    { userInput.Par["extInitFileDir_MET_QCD"] = Form("%s/Input/Nominal/", CWD.c_str());   }
   }
@@ -578,7 +582,7 @@ bool setParameters(const StringMap_t& row, GlobalInfo& info, GlobalInfo& userInf
             info.Par[col.first] = Form("%s[%.10f, %.10f]", col.first.c_str(), v.at(0), v.at(1));
           } 
           else { // For Constrained Fits
-            info.Par[col.first] = Form("%s[%.10f, %.10f, %.10f]", col.first.c_str(), v.at(0), (v.at(0)-20.*v.at(1)), (v.at(0)+20.*v.at(1)));
+            info.Par[col.first] = Form("%s[%.10f, %.10f, %.10f]", col.first.c_str(), v.at(0), (v.at(0)-10.*v.at(1)), (v.at(0)+10.*v.at(1)));
             info.Par["val"+col.first] = Form("%s[%.10f]", ("val"+col.first).c_str(), v.at(0));
             info.Par["sig"+col.first] = Form("%s[%.10f]", ("sig"+col.first).c_str(), v.at(1));
           }
