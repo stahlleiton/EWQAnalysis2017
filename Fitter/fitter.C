@@ -13,14 +13,14 @@ bool readFile          ( std::string FileName  , std::vector< std::vector< std::
 bool getInputFileNames ( const std::string& InputTrees, std::map< std::string, std::vector< std::vector< std::string > > >& InputFileCollection );
 bool setParameters     ( const StringMap_t& row , GlobalInfo& info , GlobalInfo& userInfo );
 bool addParameters     ( std::string InputFile , std::vector< GlobalInfo >& infoVector , GlobalInfo& userInfo );
-bool createDataSets    ( std::map< std::string, RooWorkspace >& Workspace , std::unique_ptr<TObjArray>& aDSTAG , GlobalInfo& userInput , const StringVectorMap_t& DIR );
+bool createDataSets    ( std::map< std::string, RooWorkspace >& Workspace , StringVector& aDSTAG , GlobalInfo& userInput , const StringVectorMap_t& DIR );
 
 void fitter(
             const std::string workDirName = "QCDTemplate",// Working directory
             const std::bitset<1> useExt   = 0,          // Use external: (bit 0 (1)) Input DataSets
             // Select the type of datasets to fit
             const std::bitset<2> fitData  = 1,          // Fit Sample: (bit 0 (1)) Data , (bit 1 (2)) MC
-            const std::bitset<3> fitColl  = 7,          // Fit System: (bit 0 (1)) pPb  , (bit 1 (2)) Pbp   , (bit 2 (4)) PA
+                  std::bitset<3> fitColl  = 7,          // Fit System: (bit 0 (1)) pPb  , (bit 1 (2)) Pbp   , (bit 2 (4)) PA
             const std::bitset<3> fitChg   = 3,          // Fit Charge: (bit 0 (1)) Plus , (bit 1 (2)) Minus , (bit 2 (4)) Inclusive
             // Select the type of objects to fit
                   std::bitset<3> fitObj   = 2,          // Fit Objects: (bit 0 (1)) W , (bit 1 (2)) QCD , (bit 2 (4)) Z
@@ -58,6 +58,8 @@ void fitter(
   if (dirp) { gSystem->FreeDirectory(dirp); gSystem->Exec(Form("rm -rf %s", (CWD+"/cpp/").c_str())); }
   //
   GlobalInfo userInput;
+  uint nVariations = 1;
+  bool saveAll = false;
   //
   // Set all the Parameters from the input settings
   //
@@ -82,13 +84,15 @@ void fitter(
       userInput.Par["RecoilCorrMethod"] = "Scaling_OneGaussian";
     }
     //
-    if (workDirName.find("OnMC")!=std::string::npos) {
+    else if (workDirName.find("OnMC")!=std::string::npos) {
       userInput.Flag.at("applyTnPCorr")    = true;
       userInput.Flag.at("applyHFCorr")     = true;
       userInput.Flag.at("applyRecoilCorr") = false;
       userInput.Flag.at("fitData") = false;
       userInput.Flag.at("fitMC")   = true;
     }
+    //
+    else { saveAll = true; }
   }
   else if (workDirName.find("NominalCM")!=std::string::npos) {
     userInput.Flag["applyHFCorr"]     = true;
@@ -97,6 +101,7 @@ void fitter(
     userInput.Par["RecoilCorrMethod"] = "Scaling_OneGaussian";
     userInput.Par["HFCorrMethod"]     = "HFBoth";
     fitObj = 1;
+    if (workDirName=="NominalCM") { saveAll = true; }
     //
     if (workDirName=="NominalCM_NoCorr"         ) { userInput.Flag.at("applyTnPCorr") = false; userInput.Flag.at("applyHFCorr")     = false; userInput.Flag.at("applyRecoilCorr") = false; }
     //
@@ -111,6 +116,14 @@ void fitter(
     //
     if (workDirName=="NominalCM_RecoilScaling"  ) { userInput.Par.at("RecoilCorrMethod") = "Scaling_OneGaussianDATA"; }
     if (workDirName=="NominalCM_RecoilSmearing" ) { userInput.Par.at("RecoilCorrMethod") = "Smearing"; }
+    //
+    if (workDirName.find("RecoilStatVar")!=std::string::npos) {
+      nVariations = 3;
+      userInput.Par["RecoilVarTyp"] = "";
+      if (workDirName.find(  "MC")!=std::string::npos) { userInput.Par.at("RecoilVarTyp") += "MC";   }
+      if (workDirName.find("DATA")!=std::string::npos) { userInput.Par.at("RecoilVarTyp") += "DATA"; }
+      fitColl = 4;
+    }
   }
   else if (workDirName.find("SystematicCM_")!=std::string::npos) {
     userInput.Flag["applyHFCorr"]     = true;
@@ -127,7 +140,7 @@ void fitter(
   userInput.Par["extTreesFileDir"] = Form("%s/Input/", CWD.c_str());
   userInput.Par["extDSDir_DATA"]   = "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Dataset/";
   userInput.Par["extDSDir_MC"]     = "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Dataset/";
-  userInput.Par["RecoilPath"]      = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_save/";
+  userInput.Par["RecoilPath"]      = "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_save/";
   if (userInput.Par.at("Analysis").find("Nu")!=std::string::npos) {
     userInput.Var["MET"]["type"] = varType;
     if      (workDirName=="NominalCM_BinWidth3") { userInput.Var["MET"]["binWidth"] = 3.0; }
@@ -276,7 +289,7 @@ void fitter(
     }
     infoMapVectors.push_back(infoMapVector);
   }
-
+  
   // -------------------------------------------------------------------------------
   // STEP 2: CREATE/LOAD THE ROODATASETS
   /*
@@ -284,12 +297,12 @@ void fitter(
     Output: Collection of RooDataSets splitted by tag name
   */
 
-  std::map< std::string, RooWorkspace > Workspace;
-  std::unique_ptr<TObjArray> aDSTAG;
-  if (!createDataSets(Workspace, aDSTAG, userInput, DIR)) { return; }
+  RooWorkspaceMap_t iniWorkspace;
+  StringVector aDSTAG;
+  if (!createDataSets(iniWorkspace, aDSTAG, userInput, DIR)) { return; }
 
   // Set the MET to the user choice
-  if (!setMET(Workspace, userInput.Par.at("METType"))) { return; }
+  if (!setMET(iniWorkspace, userInput.Par.at("METType"))) { return; }
 
   // -------------------------------------------------------------------------------
   // STEP 3: APPLY THE CORRECTIONS
@@ -299,81 +312,87 @@ void fitter(
   */
 
   // Reweight Lumi in MC
-  if (!reweightMCLumi(Workspace, userInput)) { return; }
-  // Apply MC corrections
-  if (!correctMC(Workspace, userInput)) { return; }
+  if (!reweightMCLumi(iniWorkspace, userInput)) { return; }
+  
+  for (uint iVar=0; iVar<nVariations; iVar++) {
+    if (nVariations>1) { std::cout << "[INFO] Processing variation " << (iVar+1) << std::endl; }
+    
+    // Apply MC corrections
+    RooWorkspaceMap_t Workspace;
+    GlobalInfo vUserInput(userInput);
+    if (workDirName.find("RecoilStatVar")!=std::string::npos) { vUserInput.Par["RecoilVarLbl"] = Form("%d", (iVar+1)); }
+    if (!correctMC(Workspace, iniWorkspace, vUserInput)) { return; }
 
-  // -------------------------------------------------------------------------------
-  // STEP 4: COMBINE THE ROODATASETS
-  /*
-    Input : Collection of RooWorkspaces containing the pPb and Pbp RooDataSets
-    Output: Collection of RooWorkspaces including the combined PA RooDataSets
-  */
+    // -------------------------------------------------------------------------------
+    // STEP 4: COMBINE THE ROODATASETS
+    /*
+      Input : Collection of RooWorkspaces containing the pPb and Pbp RooDataSets
+      Output: Collection of RooWorkspaces including the combined PA RooDataSets
+    */
 
-  if (userInput.Flag.at("fitPA")) {
-    // Determine the sample tags (sample name without the collision tag)
-    std::vector< std::string > sampleTags;
-    for (const auto& w : Workspace) {
-      std::string NAMETAG = w.first; NAMETAG.erase(NAMETAG.find_last_of("_"), 5);
-      if (std::find(sampleTags.begin(), sampleTags.end(), NAMETAG)==sampleTags.end()) { sampleTags.push_back(NAMETAG); }
-    }
-    // Loop over each sample tag
-    for (const auto& sample : sampleTags) {
-      if (!createPADataset(Workspace, sample)) { return; }
-      if (aDSTAG->FindObject((sample+"_pPb").c_str()) && !aDSTAG->FindObject((sample+"_PA").c_str())) aDSTAG->Add(new TObjString((sample+"_PA").c_str()));
-    }
-  }
-
-  // -------------------------------------------------------------------------------  
-  // STEP 5: FIT THE DATASETS
-  /*
-    Input : 
-              -> The cuts and initial parameters per kinematic bin
-	      -> The workspace with the full datasets included.
-    Output: 
-              -> Plots (png, pdf and root format) of each fit.
-	      -> The local workspace used for each fit.
-  */
-
-  TIter nextDSTAG(aDSTAG.get());
-  for(uint j = 0; j < infoMapVectors.size(); j++) {
-    const int index = ( DIR.at("output").size()>1 ? j+1 : j ); // First entry is always the main output directory
-    const std::string outputDir = DIR.at("output")[index];
-    //
-    nextDSTAG.Reset();
-    TObjString* soDSTAG(0x0);
-    while ( (soDSTAG = static_cast<TObjString*>(nextDSTAG.Next())) )
-      {
-        const TString DSTAG = (TString)(soDSTAG->GetString());
-        //
-        if (Workspace.count(DSTAG.Data())>0) {
-          //
-          for (const auto& infoMapVector : infoMapVectors[j]) {
-            const std::string col = infoMapVector.first;
-            if ( userInput.Flag.at(Form("fit%s", col.c_str())) && DSTAG.Contains(col.c_str()) ) {
-              //
-              for (const auto& infoVector : infoMapVector.second) {
-                //
-                if (!fitElectroWeakMETModel( Workspace, infoVector,
-                                             userInput, 
-                                             // Select the type of datasets to fit
-                                             outputDir,
-                                             DSTAG.Data()
-                                             )
-                    ) { return; }
-              }
-            }
-          }
-        } else {
-          std::cout << "[ERROR] The workspace for " << DSTAG.Data() << " was not found!" << std::endl; return;
-        }
+    if (vUserInput.Flag.at("fitPA")) {
+      // Determine the sample tags (sample name without the collision tag)
+      std::vector< std::string > sampleTags;
+      for (const auto& w : Workspace) {
+	std::string NAMETAG = w.first; NAMETAG.erase(NAMETAG.find_last_of("_"), 5);
+	if (std::find(sampleTags.begin(), sampleTags.end(), NAMETAG)==sampleTags.end()) { sampleTags.push_back(NAMETAG); }
       }
+      // Loop over each sample tag
+      for (const auto& sample : sampleTags) {
+	if (!createPADataset(Workspace, sample)) { return; }
+	if ((std::find(aDSTAG.begin(), aDSTAG.end(), (sample+"_pPb"))!=aDSTAG.end()) && (std::find(aDSTAG.begin(), aDSTAG.end(), (sample+"_PA"))==aDSTAG.end())) {
+	  aDSTAG.push_back(sample+"_PA");
+	}
+      }
+    }
+
+    // -------------------------------------------------------------------------------  
+    // STEP 5: FIT THE DATASETS
+    /*
+      Input : 
+      -> The cuts and initial parameters per kinematic bin
+      -> The workspace with the full datasets included.
+      Output: 
+      -> Plots (png, pdf and root format) of each fit.
+      -> The local workspace used for each fit.
+    */
+
+    for(uint j = 0; j < infoMapVectors.size(); j++) {
+      const int index = ( DIR.at("output").size()>1 ? j+1 : j ); // First entry is always the main output directory
+      std::string outputDir = DIR.at("output")[index];
+      if (vUserInput.Par.count("RecoilVarLbl")>0) { outputDir += Form("Variation_%s/", vUserInput.Par.at("RecoilVarLbl").c_str()); }
+      //
+      for (const auto& DSTAG : aDSTAG) {
+	//
+	if (Workspace.count(DSTAG)>0) {
+	  //
+	  for (const auto& infoMapVector : infoMapVectors[j]) {
+	    const std::string col = infoMapVector.first;
+	    if ( vUserInput.Flag.at(Form("fit%s", col.c_str())) && (DSTAG.find(col.c_str())!=std::string::npos) ) {
+	      //
+	      for (const auto& infoVector : infoMapVector.second) {
+		//
+		if (!fitElectroWeakMETModel( Workspace, infoVector,
+					     vUserInput, 
+					     // Select the type of datasets to fit
+					     outputDir,
+					     DSTAG,
+					     saveAll
+					     )
+		    ) { return; }
+	      }
+	    }
+	  }
+	} else {
+	  std::cout << "[ERROR] The workspace for " << DSTAG << " was not found!" << std::endl; return;
+	}
+      }
+    }
   }
-  aDSTAG->Delete();
 };
 
 
-bool createDataSets(std::map< std::string, RooWorkspace >& Workspace, std::unique_ptr<TObjArray>& aDSTAG, GlobalInfo& userInput, const StringVectorMap_t& DIR)
+bool createDataSets(std::map< std::string, RooWorkspace >& Workspace, StringVector& aDSTAG, GlobalInfo& userInput, const StringVectorMap_t& DIR)
 {
   //
   std::string InputTrees = DIR.at("input")[0] + "InputTrees.txt";
@@ -381,8 +400,7 @@ bool createDataSets(std::map< std::string, RooWorkspace >& Workspace, std::uniqu
   std::map< std::string, std::vector< std::vector< std::string > > > InputFileCollection;
   if(!getInputFileNames(InputTrees, InputFileCollection)){ return false; }
 
-  aDSTAG.reset(new TObjArray()); // Array to store the different tags in the list of trees
-  aDSTAG->SetOwner(true);
+  aDSTAG.clear(); // Array to store the different tags in the list of trees
   for (const auto& FileCollection : InputFileCollection) {
     // Get the file tag which has the following format: DSTAG_CHAN_COLL , i.e. DATA_MUON_Pbp
     string FILETAG = FileCollection.first;
@@ -435,7 +453,7 @@ bool createDataSets(std::map< std::string, RooWorkspace >& Workspace, std::uniqu
       }
       // Produce the output datasets
       if(!tree2DataSet(Workspace, FileInfo, userInput.Par.at("METType"), userInput.Par.at("Analysis"))){ return false; }
-      if (fitDS) { for (const auto& DSTAG : FileInfo.at("DSNames")) { if (!aDSTAG->FindObject(DSTAG.c_str())) aDSTAG->Add(new TObjString(DSTAG.c_str())); } }
+      if (fitDS) { for (const auto& DSTAG : FileInfo.at("DSNames")) { if (std::find(aDSTAG.begin(), aDSTAG.end(), DSTAG)==aDSTAG.end()) { aDSTAG.push_back(DSTAG); } } }
     }
   }
   if (Workspace.size()==0) {

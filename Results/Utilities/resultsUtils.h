@@ -1323,6 +1323,7 @@ std::string formatResultVarName(const std::string varName, const bool useEtaCM, 
     if (varName == "Charge_Asymmetry"      ) { label = "( N^{+} - N^{-} ) / ( N^{+} + N^{-} )"; }
     if (varName == "ForwardBackward_Ratio" ) { label = "R_{FB}"; }
     if (varName == "Cross_Section"         ) { label = Form("B %s/d%s (nb)", (useLATEX ? "\\times d\\sigma" : "#times d#sigma"), etaLbl.c_str()); }
+    if (varName == "N_WToMu"               ) { label = "Signal Yield"; }
   }
   return label;
 };
@@ -1605,26 +1606,28 @@ void drawGraph( GraphPentaMap& graphMap , const std::string& outDir , const bool
             // Format the graphs
             const bool incAcc = (accType!="");
             grVec.push_back(graph.at("Err_Tot"));
-            grVec.push_back(graph.at("Err_Syst"));
-            for (int j = 0; j < grVec.back().GetN(); j++) {
-              grVec.back().SetPointError(j, grVec.back().GetErrorXlow(j)*0.4, grVec.back().GetErrorXhigh(j)*0.4, grVec.back().GetErrorYlow(j), grVec.back().GetErrorYhigh(j));
-            }
             grVec.push_back(graph.at("Err_Stat"));
             for (int j = 0; j < grVec.back().GetN(); j++) {
               grVec.back().SetPointError(j, grVec.back().GetErrorXlow(j)*0.8, grVec.back().GetErrorXhigh(j)*0.8, grVec.back().GetErrorYlow(j), grVec.back().GetErrorYhigh(j));
             }
+            if (graph.count("Err_Syst")>0) {
+	      grVec.push_back(graph.at("Err_Syst"));
+	      for (int j = 0; j < grVec.back().GetN(); j++) {
+		grVec.back().SetPointError(j, grVec.back().GetErrorXlow(j)*0.4, grVec.back().GetErrorXhigh(j)*0.4, grVec.back().GetErrorYlow(j), grVec.back().GetErrorYhigh(j));
+	      }
+	    }
             for (auto& gr : grVec) { formatResultsGraph(gr, col, var, chg, useEtaCM, incAcc); }
             grVec[0].SetMarkerColor(kBlack);
-            grVec[1].SetFillColor(kOrange);
-            grVec[2].SetFillColor(kGreen+3);
+            grVec[1].SetFillColor(kGreen+3);
+	    if (graph.count("Err_Syst")>0) { grVec[2].SetFillColor(kOrange); }
             // Create Legend
             formatLegendEntry(*leg.AddEntry(&grVec[0], "Data", "pe"));
-            formatLegendEntry(*leg.AddEntry(&grVec[2], "Statistical Uncertainty", "f"));
-            formatLegendEntry(*leg.AddEntry(&grVec[1], "Systematic Uncertainty", "f"));
+            formatLegendEntry(*leg.AddEntry(&grVec[1], "Statistical Uncertainty", "f"));
+	    if (graph.count("Err_Syst")>0) { formatLegendEntry(*leg.AddEntry(&grVec[2], "Systematic Uncertainty", "f")); }
             // Draw the graphs
             grVec[0].Draw("ap");
-            grVec[2].Draw("same2");
             grVec[1].Draw("same2");
+            if (graph.count("Err_Syst")>0) { grVec[2].Draw("same2"); }
             grVec[0].Draw("samep");
             //
             xMin = grVec[0].GetXaxis()->GetXmin(); xMax = grVec[0].GetXaxis()->GetXmax();

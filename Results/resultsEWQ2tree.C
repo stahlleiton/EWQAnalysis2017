@@ -17,6 +17,7 @@
 #include "RooFormulaVar.h"
 #include "RooFitResult.h"
 #include "RooArgSet.h"
+#include "RooStringVar.h"
 // c++ headers
 #include <iostream>
 #include <string>
@@ -86,11 +87,12 @@ bool resultsEWQ2tree(
     if (ws == NULL) { std::cout << "[ERROR] File: " << inputFilePath << " does not have the workspace!" << std::endl; inputFile.Close(); return false; }
     //
     // Extract the information from the workspace
-    const std::string DSTAG = (ws->obj("DSTAG"))     ? ((TObjString*)ws->obj("DSTAG"))->GetString().Data()     : "";
-    const std::string CHA   = (ws->obj("channel"))   ? ((TObjString*)ws->obj("channel"))->GetString().Data()   : "";
-    const std::string COL   = (ws->obj("fitSystem")) ? ((TObjString*)ws->obj("fitSystem"))->GetString().Data() : "";
-    const std::string CHG   = (ws->obj("fitCharge")) ? ((TObjString*)ws->obj("fitCharge"))->GetString().Data() : "";
-    const std::string OBJ   = (ws->obj("fitObject")) ? ((TObjString*)ws->obj("fitObject"))->GetString().Data() : "";
+    const std::string DSTAG = (ws->obj("DSTAG")    ) ? ((RooStringVar*)ws->obj("DSTAG")    )->getVal() : "";
+    const std::string CHA   = (ws->obj("channel")  ) ? ((RooStringVar*)ws->obj("channel")  )->getVal() : "";
+    const std::string COL   = (ws->obj("fitSystem")) ? ((RooStringVar*)ws->obj("fitSystem"))->getVal() : "";
+    const std::string CHG   = (ws->obj("fitCharge")) ? ((RooStringVar*)ws->obj("fitCharge"))->getVal() : "";
+    const std::string OBJ   = (ws->obj("fitObject")) ? ((RooStringVar*)ws->obj("fitObject"))->getVal() : "";
+    const std::string MET   = (ws->obj("METType")  ) ? ((RooStringVar*)ws->obj("METType")  )->getVal() : "";
     // Check the information
     if (DSTAG.find(dsTag)==std::string::npos) { std::cout << "[ERROR] Workspace DSTAG " << DSTAG << " is not consistent with input dsTag " << dsTag << std::endl; inputFile.Close(); return false; }
     if (COL != colTag ) { std::cout << "[ERROR] Workspace COL " << COL << " is not consistent with input colTag " << colTag << std::endl; inputFile.Close(); return false; }
@@ -102,7 +104,7 @@ bool resultsEWQ2tree(
     info.Str.at("charge"    ) = CHG;
     info.Str.at("fitObject" ) = OBJ;
     info.Str.at("channel"   ) = CHA;
-    info.Str.at("metType"   ) = ( (ws->obj("METType")) ? ((TObjString*)ws->obj("METType"))->GetString().Data() : "" );
+    info.Str.at("metType"   ) = MET;
     //
     const std::string token  = ( CHG + "_" + COL );
     const std::string tag    = ( OBJ + CHA + token );
@@ -112,11 +114,11 @@ bool resultsEWQ2tree(
     const std::vector< std::string > objType = { "W" , "WToTau" , "DY" , "TTbar" , "QCD" };
     for (const auto& o : objType) {
       const std::string modelLabel = Form("Model_%s%s%s", o.c_str(), CHA.c_str(), token.c_str());
-      info.Str.at("Model_"+o) = ( (ws->obj(modelLabel.c_str())) ? ((TObjString*)ws->obj(modelLabel.c_str()))->GetString().Data() : "" );
+      info.Str.at("Model_"+o) = ( (ws->obj(modelLabel.c_str())) ? ((RooStringVar*)ws->obj(modelLabel.c_str()))->getVal() : "" );
     }
     //
     // Fill the Cut Information
-    info.Str.at("cutAndCount_W") = ( (ws->obj(Form("CutAndCount_%s", tag.c_str()))) ? ((TObjString*)ws->obj(Form("CutAndCount_%s", tag.c_str())))->GetString().Data() : "" );
+    info.Str.at("cutAndCount_W") = ( (ws->obj(Form("CutAndCount_%s", tag.c_str()))) ? ((RooStringVar*)ws->obj(Form("CutAndCount_%s", tag.c_str())))->getVal() : "" );
     //
     // Fill the Flag Information
     bool useEtaCM = false;
@@ -126,14 +128,13 @@ bool resultsEWQ2tree(
     // Fill the Dataset Variable Information
     RooAbsData* ds = (RooAbsData*) ws->data(Form("CutAndCount_%s", dsName.c_str()));
     if (ds == NULL) { ds = (RooAbsData*) ws->data(Form("%s", dsName.c_str())); }
-    if (ds == NULL) { std::cout << "[ERROR] The Dataset " << dsName << " was not found in the workspace" << std::endl; inputFile.Close(); return false; }
     for (auto& v : info.Var) {
       if (v.first.find("VAR_")==std::string::npos) continue;
       std::string varName = v.first; varName.erase(varName.find("VAR_"), 4);
       //
       RooRealVar* var  = (RooRealVar*) ws->var(varName.c_str());
       RooRealVar* mean = ( (var && ds) ? (RooRealVar*) ds->meanVar(*var) : NULL );
-      RooRealVar* rms  = ( (var && ds) ? (RooRealVar*) ds->rmsVar(*var) : NULL );
+      RooRealVar* rms  = ( (var && ds) ? (RooRealVar*) ds->rmsVar(*var)  : NULL );
       //
       if (v.second.count("Min")) { v.second.at("Min") = var  ? var->getMin()   : -1.0; }
       if (v.second.count("Max")) { v.second.at("Max") = var  ? var->getMax()   : -1.0; }
