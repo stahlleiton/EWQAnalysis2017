@@ -605,6 +605,77 @@ void getRange(std::vector<double>& range, const TH1D& hist, const int& nMaxBins)
   //
   return;
 };
+
+void updateMETParameterRange(RooWorkspace& myws)
+{
+  // Defualt range
+  myws.var("MET")->setRange("METWindow", myws.var("MET")->getMin(), myws.var("MET")->getMax());
+  //
+  const std::string DSTAG = (myws.obj("DSTAG"))     ? ((RooStringVar*)myws.obj("DSTAG")    )->getVal() : "";
+  const std::string chg   = (myws.obj("fitCharge")) ? ((RooStringVar*)myws.obj("fitCharge"))->getVal() : "";
+  const std::string dsName = ( "d" + chg + "_" + DSTAG );
+  double metMin , metMax;
+  metMin = myws.var("MET")->getMin(); metMax = myws.var("MET")->getMax();
+  //myws.data(dsName.c_str())->getRange(*myws.var("MET"), metMin, metMax); metMin -= 0.0001;  metMax += 0.0001;
+  const int nBins = std::min(int( std::round(((metMax - metMin)*double(myws.var("MET")->getBins()))/(myws.var("MET")->getMax() - myws.var("MET")->getMin())) ), 1000);
+  //
+  auto hTot = std::unique_ptr<TH1D>((TH1D*)myws.data(dsName.c_str())->createHistogram("TMP", *myws.var("MET"), RooFit::Binning(nBins, metMin, metMax)));
+  std::vector<double> rangeMET; getRange(rangeMET, *hTot, 10); // KEEP THIS NUMBER WITH 7, JUST KEEP IT LIKE THAT :D
+  metMin = std::floor(rangeMET[0]); metMax = std::ceil(rangeMET[1]);
+  if (metMin < myws.var("MET")->getMin()) { metMin = myws.var("MET")->getMin(); }
+  if (metMax > myws.var("MET")->getMax()) { metMax = myws.var("MET")->getMax(); }
+  // Lets force the min to be 0
+  metMin = 0.0;
+  //
+  const std::string metFitRange = Form("(%.6f <= MET && MET < %.6f)", metMin, metMax);
+  if (myws.data(dsName.c_str())->reduce(metFitRange.c_str())->numEntries() < myws.data(dsName.c_str())->numEntries()) {
+    myws.var("MET")->setRange("METWindow", metMin, metMax);
+    auto dataToFit = std::unique_ptr<RooDataSet>((RooDataSet*)(myws.data(dsName.c_str())->reduce(metFitRange.c_str())->Clone((dsName+"_FIT").c_str())));
+    myws.import(*dataToFit);
+    std::cout << Form("[INFO] MET range was updated to : %g <= MET < %g", metMin, metMax) << std::endl;
+  }
+  //
+  return;
+};
+
+bool createBinnedDataset(RooWorkspace& ws)
+{
+  //
+  const std::string var = "MET";
+  const std::string DSTAG = (ws.obj("DSTAG"))     ? ((RooStringVar*)ws.obj("DSTAG")    )->getVal() : "";
+  const std::string chg   = (ws.obj("fitCharge")) ? ((RooStringVar*)ws.obj("fitCharge"))->getVal() : "";
+  const std::string dsName = ( "d" + chg + "_" + DSTAG );
+  //
+  if (ws.data(dsName.c_str())==NULL) { std::cout << "[WARNING] DataSet " << dsName << " was not found!" << std::endl; return false; }
+  if (ws.data(dsName.c_str())->numEntries()<=10.0) { std::cout << "[WARNING] DataSet " << dsName << " has too few events!" << std::endl; return false; }
+  if (ws.var(var.c_str())==NULL) { std::cout << "[WARNING] Variable " << var << " was not found!" << std::endl; return false; }
+  //
+  const double min  = ws.var(var.c_str())->getMin();
+  const double max  = ws.var(var.c_str())->getMax();
+  const uint   nBin = ws.var(var.c_str())->getBins();
+  //
+  // Create the histogram
+  string histName = dsName;
+  histName.replace(histName.find("d"), std::string("d").length(), "h");
+  std::unique_ptr<TH1D> hist = std::unique_ptr<TH1D>((TH1D*)ws.data(dsName.c_str())->createHistogram(histName.c_str(), *ws.var(var.c_str()), RooFit::Binning(nBin, min, max)));
+  if (hist==NULL) { std::cout << "[WARNING] Histogram " << histName << " is NULL!" << std::endl; return false; }
+  // Cleaning the input histogram
+  // 1) Remove the Under and Overflow bins
+  hist->ClearUnderflowAndOverflow();
+  // 2) Set negative bin content to zero
+  for (int i=0; i<=hist->GetNbinsX(); i++) { if (hist->GetBinContent(i)<0.0) { hist->SetBinContent(i, 0.0); } }
+  // 2) Reduce the range of histogram and rebin it
+  //hist.reset((TH1D*)rebinhist(*hist, range[1], range[2]));
+  if (hist==NULL) { std::cout << "[WARNING] Cleaned Histogram of " << histName << " is NULL!" << std::endl; return false; }
+  string dataName = (dsName+"_FIT");
+  std::unique_ptr<RooDataHist> dataHist = std::unique_ptr<RooDataHist>(new RooDataHist(dataName.c_str(), "", *ws.var(var.c_str()), hist.get()));
+  if (dataHist==NULL) { std::cout << "[WARNING] DataHist used to create " << dsName << " failed!" << std::endl; return false; }
+  if (dataHist->sumEntries()==0) { std::cout << "[WARNING] DataHist used to create " << dsName << " is empty!" << std::endl; return false; }
+  if (std::abs(dataHist->sumEntries() - hist->GetSumOfWeights())>0.001) { std::cout << "[ERROR] DataHist used to create " << dsName << "  " << " is invalid!  " << std::endl; return false; }
+  ws.import(*dataHist);
+  ws.var(var.c_str())->setBins(nBin); // Bug Fix
+  return true;
+}
  
 
 #endif // #ifndef initClasses_h

@@ -374,8 +374,8 @@ void printElectroWeakBinning(TPad& pad, const RooWorkspace& ws, const std::strin
   }
   for (const auto& txt : text) { if (text[0]!=txt) { t.DrawLatex(xPos, yPos-dy, Form("%s", txt.c_str())); dy+=dYPos; } }
   //
-  const double outTot = ws.data(dsName.c_str())->numEntries();
-  const double outCut = ( (ws.data((dsName+"_FIT").c_str())!=NULL) ? ws.data((dsName+"_FIT").c_str())->numEntries() : outTot );
+  const double outTot = ws.data(dsName.c_str())->sumEntries();
+  const double outCut = ( (ws.data((dsName+"_FIT").c_str())!=NULL) ? ws.data((dsName+"_FIT").c_str())->sumEntries() : outTot );
   if (outCut != outTot) { t.DrawLatex(xPos, yPos-dy, Form("Loss: (%.4f%%) %.0f evts", ((outTot-outCut)*100.0/outTot), (outTot-outCut))); }
   //
   pad.Update();
