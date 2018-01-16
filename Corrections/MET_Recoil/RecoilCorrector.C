@@ -556,7 +556,11 @@ bool RecoilCorrector::applyScalingRecoilCorrection(
     double CDF_MC = -1.0;
     if (!computeRecoilCDF(CDF_MC, uVal_RAW, uPar_MC, useOneGaussian_MC)) { return false; }
     if ( (CDF_MC > 0.0) && (CDF_MC < 1.0) ) {
-      if (!computeRecoilInvCDF(uVal_CORR, CDF_MC, uPar_DATA, useOneGaussian_DATA)) { return false; }
+      if (!computeRecoilInvCDF(uVal_CORR, CDF_MC, uPar_DATA, useOneGaussian_DATA)) {
+        std::cout << "[WARNING] Using simplified case" << std::endl;
+        const double z_MC = ( uVal_RAW - uPar_MC.at("mean") ) / uPar_MC.at("sigma");
+        uVal_CORR = uPar_DATA.at("mean") + (z_MC * uPar_DATA.at("sigma"));
+      }
     }
     else {
       std::cout << "[ERROR] Can't compute inverse CDF since CDF_MC is " << CDF_MC << std::endl; return false;
