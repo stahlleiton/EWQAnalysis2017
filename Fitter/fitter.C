@@ -16,14 +16,16 @@ bool addParameters     ( std::string InputFile , std::vector< GlobalInfo >& info
 bool createDataSets    ( std::map< std::string, RooWorkspace >& Workspace , StringVector& aDSTAG , GlobalInfo& userInput , const StringVectorMap_t& DIR );
 
 void fitter(
-            const std::string workDirName = "QCDTemplate",// Working directory
+            const std::string workDirName = "NominalCM",// Working directory
             const std::bitset<1> useExt   = 0,          // Use external: (bit 0 (1)) Input DataSets
             // Select the type of datasets to fit
             const std::bitset<2> fitData  = 1,          // Fit Sample: (bit 0 (1)) Data , (bit 1 (2)) MC
                   std::bitset<3> fitColl  = 7,          // Fit System: (bit 0 (1)) pPb  , (bit 1 (2)) Pbp   , (bit 2 (4)) PA
             const std::bitset<3> fitChg   = 3,          // Fit Charge: (bit 0 (1)) Plus , (bit 1 (2)) Minus , (bit 2 (4)) Inclusive
             // Select the type of objects to fit
-                  std::bitset<3> fitObj   = 2,          // Fit Objects: (bit 0 (1)) W , (bit 1 (2)) QCD , (bit 2 (4)) Z
+                  std::bitset<3> fitObj   = 1,          // Fit Objects: (bit 0 (1)) W , (bit 1 (2)) QCD , (bit 2 (4)) Z
+            // Select the systematic options
+            const std::pair<int,int> varRng = {-1,-1},  // Range of vairiation: min, max
             // Select the fitting options
             const unsigned int   numCores = 32,         // Number of cores used for fitting
             const std::bitset<1> fitVar   = 1,          // Fit Variable: 1: MET
@@ -58,7 +60,8 @@ void fitter(
   if (dirp) { gSystem->FreeDirectory(dirp); gSystem->Exec(Form("rm -rf %s", (CWD+"/cpp/").c_str())); }
   //
   GlobalInfo userInput;
-  uint nVariations = 1;
+  uint startVariation = 0;
+  uint endVariation = 1;
   bool saveAll = false;
   //
   // Set all the Parameters from the input settings
@@ -100,8 +103,10 @@ void fitter(
     userInput.Flag["applyRecoilCorr"] = true;
     userInput.Par["RecoilCorrMethod"] = "Scaling_OneGaussian";
     userInput.Par["HFCorrMethod"]     = "HFBoth";
-    fitObj = 1;
-    if (workDirName=="NominalCM") { saveAll = true; }
+    //fitObj = 1;
+    if (workDirName=="NominalCM") { saveAll = true; } else { fitColl = 4; }
+    //
+    if (workDirName=="NominalCM_BinnedFit") { userInput.Flag["doBinnedFit"] = true; }
     //
     if (workDirName=="NominalCM_NoCorr"         ) { userInput.Flag.at("applyTnPCorr") = false; userInput.Flag.at("applyHFCorr")     = false; userInput.Flag.at("applyRecoilCorr") = false; }
     //
@@ -114,11 +119,16 @@ void fitter(
     if (workDirName=="NominalCM_NoTnPCorr"      ) { userInput.Flag.at("applyTnPCorr")    = false; }
     if (workDirName=="NominalCM_NTrackCorr"     ) { userInput.Par.at("HFCorrMethod") = "NTracks"; }
     //
-    if (workDirName=="NominalCM_RecoilScaling"  ) { userInput.Par.at("RecoilCorrMethod") = "Scaling_OneGaussianDATA"; }
+    if (workDirName=="NominalCM_RecoilScalingOneGaussDATA" ) { userInput.Par.at("RecoilCorrMethod") = "Scaling_OneGaussianDATA"; }
+    if (workDirName=="NominalCM_RecoilScalingOneGaussMC"   ) { userInput.Par.at("RecoilCorrMethod") = "Scaling_OneGaussianMC";   }
+    if (workDirName=="NominalCM_RecoilScaling"  ) { userInput.Par.at("RecoilCorrMethod") = "Scaling"; }
     if (workDirName=="NominalCM_RecoilSmearing" ) { userInput.Par.at("RecoilCorrMethod") = "Smearing"; }
     //
     if (workDirName.find("RecoilStatVar")!=std::string::npos) {
-      nVariations = 3;
+      startVariation = 0;
+      endVariation = 100;
+      if (varRng.first >=0) { startVariation = varRng.first;  }
+      if (varRng.second>=0) { endVariation   = varRng.second; }
       userInput.Par["RecoilVarTyp"] = "";
       if (workDirName.find(  "MC")!=std::string::npos) { userInput.Par.at("RecoilVarTyp") += "MC";   }
       if (workDirName.find("DATA")!=std::string::npos) { userInput.Par.at("RecoilVarTyp") += "DATA"; }
@@ -132,6 +142,7 @@ void fitter(
     userInput.Par["RecoilCorrMethod"] = "Scaling_OneGaussian";
     userInput.Par["HFCorrMethod"]     = "HFBoth";
     fitObj = 1;
+    fitColl = 4;
   }
   else { std::cout << "[ERROR] Workdirname has not been defined!" << std::endl; return; }
   //
@@ -140,7 +151,7 @@ void fitter(
   userInput.Par["extTreesFileDir"] = Form("%s/Input/", CWD.c_str());
   userInput.Par["extDSDir_DATA"]   = "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Dataset/";
   userInput.Par["extDSDir_MC"]     = "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Dataset/";
-  userInput.Par["RecoilPath"]      = "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_save/";
+  userInput.Par["RecoilPath"]      = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil/";
   if (userInput.Par.at("Analysis").find("Nu")!=std::string::npos) {
     userInput.Var["MET"]["type"] = varType;
     if      (workDirName=="NominalCM_BinWidth3") { userInput.Var["MET"]["binWidth"] = 3.0; }
@@ -314,13 +325,13 @@ void fitter(
   // Reweight Lumi in MC
   if (!reweightMCLumi(iniWorkspace, userInput)) { return; }
   
-  for (uint iVar=0; iVar<nVariations; iVar++) {
-    if (nVariations>1) { std::cout << "[INFO] Processing variation " << (iVar+1) << std::endl; }
+  for (uint iVar=startVariation; iVar<endVariation; iVar++) {
+    if ((endVariation-startVariation)>1) { std::cout << "[INFO] Processing variation " << (iVar+1) << std::endl; }
     
     // Apply MC corrections
     RooWorkspaceMap_t Workspace;
     GlobalInfo vUserInput(userInput);
-    if (workDirName.find("RecoilStatVar")!=std::string::npos) { vUserInput.Par["RecoilVarLbl"] = Form("%d", (iVar+1)); }
+    if (workDirName.find("RecoilStatVar")!=std::string::npos) { vUserInput.Par["RecoilVarLbl"] = Form("%d", iVar); }
     if (!correctMC(Workspace, iniWorkspace, vUserInput)) { return; }
 
     // -------------------------------------------------------------------------------

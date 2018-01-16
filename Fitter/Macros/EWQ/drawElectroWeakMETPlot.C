@@ -80,7 +80,7 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
       double norm = ws.data(dsNameFit.c_str())->sumEntries();
       ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())),
                                       RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::NumCPU(32),
-                                      RooFit::LineColor(kBlack), RooFit::LineStyle(1), RooFit::Precision(1e-5)
+                                      RooFit::LineColor(kBlack), RooFit::LineStyle(1), RooFit::Precision(1e-6)
                                       );
       legInfo["PDF"][Form("plot_%s", pdfName.c_str())] = "Total Fit";
       frame["EXTRA"] = std::unique_ptr<RooPlot>((RooPlot*)frame.at("MAIN")->emptyClone("EXTRA"));

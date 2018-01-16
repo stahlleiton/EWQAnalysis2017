@@ -36,30 +36,33 @@ void plotWAsym(
                const std::string effType = "TnP",
                const std::string accType = "",
                const std::vector< std::string > collVec = { "PA" /*, "pPb" , "Pbp"  */},
-               const bool doSyst = true
+               const bool doSyst = false
                )
 {
   //
   // Define the Systematic varations
   // Variation   Method: (0 or 4): Fully Uncorrelated , 1: Eta Correlated , 2: Charge Correlated , 3: Fully Correlated
-  const WSDirMap workDirNames = {
+  WSDirMap workDirNames = {
     { "Nominal" , {
 	{ "Nominal"  , { { nominalWorkDirName } , 0 } }
       }
     },
     // SIGNAL
     { "Signal" , {
-	{ "RooKeys"  , { { "NominalCM_RooKeys"   } , 3 } },
-	{ "METRange" , { { "NominalCM_METMax300" } , 3 } },
-	{ "BinWidth" , { { "NominalCM_BinWidth1" , "NominalCM_BinWidth3" } , 3 } },
+	//{ "RooKeys"  , { { "NominalCM_RooKeys"   } , 3 } },
+	{ "METRange" , { { "NominalCM_METMax300" } , 4 } },
+	{ "BinWidth" , { { "NominalCM_BinWidth1" , "NominalCM_BinWidth3" } , 4 } },
       }
     },
     // BACKGROUND: QCD
     { "QCD_Background" , {
-	{ "QCD_ConstrainMean" , { { "SystematicCM_QCD_Constrain_Mean" } , 3 } },
+	{ "QCD_ConstrainMean" , { { "SystematicCM_QCD_Constrain_Mean" } , 4 } },
+	{ "QCD_ConstrainMean_Sigma0" , { { "SystematicCM_QCD_Constrain_Mean_Sigma0" } , 4 } },
+	{ "QCD_ConstrainMean_Sigma1" , { { "SystematicCM_QCD_Constrain_Mean_Sigma1" } , 4 } },
+	{ "QCD_ConstrainMean_Sigma2" , { { "SystematicCM_QCD_Constrain_Mean_Sigma2" } , 4 } },
 	//{ "QCD_ConstrainFit"  , { { "SystematicCM_QCD_Constrain_Fit"  } , 3 } },
 	//{ "QCD_ConstrainEta"  , { { "SystematicCM_QCD_Constrain_Eta"  } , 3 } },
-	{ "QCD_MultiJet"      , { { "SystematicCM_QCD_MultiJet"       } , 3 } },
+	{ "QCD_MultiJet"      , { { "SystematicCM_QCD_MultiJet"       } , 4 } },
 	//{ "QCD_FixedFit"     , { { "SystematicCM_QCD_Fixed_Fit"      } , 3 } },
 	//{ "QCD_FixedMean"    , { { "SystematicCM_QCD_Fixed_Mean"     } , 3 } },
 	//{ "QCD_ConstrainRooKeys" , { { "SystematicCM_QCD_Constrain_Mean_RooKeys" } , 3 } },
@@ -78,16 +81,15 @@ void plotWAsym(
     },
     // CORRECTION
     { "Recoil_Correction" , {
-	{ "Recoil_Smearing" , { { "NominalCM_RecoilSmearing" } , 3 } },
-	{ "Recoil_Scaling"  , { { "NominalCM_RecoilScaling"  } , 3 } },
+	{ "Recoil_Smearing" , { { "NominalCM_RecoilSmearing" } , 4 } },
 	//{ "Recoil_ScalingOneGaus" , { { "NominalCM_RecoilScalingOneGauss" } , 3 } },
       }
     },
     // CORRECTION
     { "Event_Activity" , {
-	{ "HF_NTrackCorr"  , { { "NominalCM_NTrackCorr" } , 3 } },
+	{ "HF_NTrackCorr"  , { { "NominalCM_NTrackCorr" } , 4 } },
       }
-    },
+    }//,
     // LUMINOSITY
     //{ "Luminosity" ,
     //  {
@@ -95,17 +97,21 @@ void plotWAsym(
     //  }
     //},
     // OTHER STUFF
-    { "Other" , {
-	{ "Recoil_NoCorr" , { { "NominalCM_NoRecoilCorr" } , 3 } },
-	{ "NoCorr"        , { { "NominalCM_NoCorr"       } , 3 } },
-	{ "HF_Only"       , { { "NominalCM_HFCorrOnly"   } , 3 } },
-	{ "TnP_NoCorr"    , { { "NominalCM_NoTnPCorr"    } , 3 } },
+    //{ "Other" , {
+	//{ "Recoil_NoCorr" , { { "NominalCM_NoRecoilCorr" } , 3 } },
+	//{ "NoCorr"        , { { "NominalCM_NoCorr"       } , 3 } },
+	//{ "HF_Only"       , { { "NominalCM_HFCorrOnly"   } , 3 } },
+	//{ "TnP_NoCorr"    , { { "NominalCM_NoTnPCorr"    } , 3 } },
 	//{ "TnP_Only"    , { { "NominalCM_TnPCorrOnly"    } , 0 } },
 	//{ "Recoil_Only" , { { "NominalCM_RecoilCorrOnly" } , 0 } },
 	//{ "HF_NoCorr"   , { { "NominalCM_NoHFCorr"       } , 0 } },
-      }
-    }
+    //}
+    //}
   };
+  workDirNames.at("Recoil_Correction")["Recoil_StatVar_MC"] = std::make_pair(std::vector<std::string>(), 4);
+  for (uint i = 0; i < 100; i++) { workDirNames.at("Recoil_Correction").at("Recoil_StatVar_MC").first.push_back(Form("NominalCM_RecoilStatVar_MC/Variation_%d", i)); }
+  workDirNames.at("Recoil_Correction")["Recoil_StatVar_DATA"] = std::make_pair(std::vector<std::string>(), 4);
+  for (uint i = 0; i < 100; i++) { workDirNames.at("Recoil_Correction").at("Recoil_StatVar_DATA").first.push_back(Form("NominalCM_RecoilStatVar_DATA/Variation_%d", i)); }
   //
   const std::string metTag      = "METPF_RAW";
   const std::string dsTag       = "DATA";

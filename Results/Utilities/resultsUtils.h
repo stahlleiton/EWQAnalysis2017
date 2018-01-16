@@ -1554,10 +1554,11 @@ void formatResultsGraph(TGraphAsymmErrors& graph, const std::string& col, const 
   graph.GetYaxis()->SetTitleSize(0.050);
   if ( var == "Charge_Asymmetry" ) { graph.GetYaxis()->SetTitleSize(0.040); }
   graph.GetYaxis()->SetLabelSize(0.035);
-  if ( var == "Charge_Asymmetry"      ) { graph.GetYaxis()->SetRangeUser(  -0.2,   0.4); }
-  if ( var == "ForwardBackward_Ratio" ) { graph.GetYaxis()->SetRangeUser(   0.6,   1.5); }
-  if (incAcc){ if ( var == "Cross_Section" ) { graph.GetYaxis()->SetRangeUser( 0.0, 300.0); } }
-  else       { if ( var == "Cross_Section" ) { graph.GetYaxis()->SetRangeUser( 0.0, 250.0); } }
+  if ( var == "Charge_Asymmetry"      ) { graph.GetYaxis()->SetRangeUser(-0.2, 0.4); }
+  if ( var == "ForwardBackward_Ratio" ) { graph.GetYaxis()->SetRangeUser( 0.6, 1.5); }
+  if (incAcc){ if ( var == "Cross_Section" ) { graph.GetYaxis()->SetRangeUser(0.0, 300.0); } }
+  else       { if ( var == "Cross_Section" ) { graph.GetYaxis()->SetRangeUser(0.0, 250.0); } }
+  if ( var == "N_WToMu" ) { graph.GetYaxis()->SetRangeUser(0.0, 10000.); }
 };
 
 
@@ -2067,7 +2068,7 @@ void makeRawYieldsTable(std::ofstream& file, const VarBinMap& inputVar, const st
   createYieldTable(texTable, colVar, colTitle1, inputVar, col, chg);
   texTable.push_back("  }");
   texTable.push_back(Form("  \\caption{%s}",
-                          Form("Raw yields of %s and background processes, extracted from the nominal fits for each %s bin in the %s collision system. All analysis cuts are applied%s.",
+                          Form("Raw yields of %s and background processes, extracted from the nominal fits for each %s bin in the %s collision system. All analysis cuts are applied%s. All uncertainties shown are statistical only.",
                                (chg=="Pl" ? "\\WToMuNuPl" : "\\WToMuNuMi"),
                                (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
                                (col=="PA" ? "combined \\pPb and \\Pbp" : (col=="pPb" ? "\\pPb" : (col=="Pbp" ? "\\Pbp" : "????"))),
@@ -2197,7 +2198,7 @@ void createResultTable(std::vector< std::string >& texTable, const std::vector< 
       if (colEta[i]=="Inv") { bin = anabin<0>(-1.0*bin.etabin().high() , ( (bin.etabin().low() == 0.0) ? 0.0 : -1.0*bin.etabin().low() )); }
       const auto&    v = colVar[i];
       const auto&  chg = colChg[i];
-      if (resultVar.at(col).count(chg)>0 && resultVar.at(col).at(chg).count(v)>0) {
+      if (resultVar.at(col).count(chg)>0) {
 	std::string val;
 	if (v=="Muon_Eta") {
 	  const double min = b.first.etabin().low();
