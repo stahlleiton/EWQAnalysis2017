@@ -58,9 +58,7 @@ bool checkStatUnc(
   //
   // Define the output file info
   const std::string CWD = getcwd(NULL, 0);
-  const std::string outputDirPath  = Form("%s/Tree/%s/%s/%s/%s", CWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), colTag.c_str());
-  const std::string outputFileName = "tree_allvars.root";
-  const std::string outputFilePath = Form("%s/%s", outputDirPath.c_str(), outputFileName.c_str());
+  const std::string outputDir = CWD+"/MCStatStudy/" + workDirName+"/" + metTag+"/" + dsTag+"/" + colTag+"/";
   //
   // --------------------------------------------------------------------------------- //
   //
@@ -69,10 +67,8 @@ bool checkStatUnc(
   std::vector< std::string > inputFileNames;
   std::string preCWD  = CWD; preCWD.erase(preCWD.find_last_of("/"), 100);
   std::string pre2CWD = preCWD; pre2CWD.erase(pre2CWD.find_last_of("/"), 100);
-  const std::string inputDirPath = Form("%s/Fitter/Output/%s/%s/%s/%s/result", pre2CWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), colTag.c_str());
+  const std::string inputDirPath = Form("%s/Fitter/Output/%s/%s/%s/W/%s/result", pre2CWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), colTag.c_str());
   if (!fileList(inputFileNames, inputDirPath)) { return false; };
-  //
-  const std::string outputDir = CWD+"/MCStatStudy_TMP/" + workDirName+"/" + metTag+"/" + dsTag+"/" + colTag+"/";
   //
   // --------------------------------------------------------------------------------- //
   //
@@ -84,7 +80,7 @@ bool checkStatUnc(
   //
   for (const auto& inputFileName : inputFileNames) {
     //
-    std::cout << "Processing file: " << inputFileName << std::endl;
+    std::cout << "[INFO] Processing file: " << inputFileName << std::endl;
     //
     // Open input file
     const std::string inputFilePath = Form("%s/%s", inputDirPath.c_str(), inputFileName.c_str());
@@ -138,11 +134,11 @@ bool checkStatUnc(
     double etaMin = ws->var("Muon_Eta")->getMin(); if (useEtaCM) { etaMin = PA::EtaLABtoCM(etaMin, ispPb); }
     double etaMax = ws->var("Muon_Eta")->getMax(); if (useEtaCM) { etaMax = PA::EtaLABtoCM(etaMax, ispPb); }
     //
-    RooMCStudy mcstudy(pdf, var, RooFit::Binned(kFALSE), RooFit::Silence(), RooFit::Extended(), RooFit::FitOptions(RooFit::Save(), RooFit::PrintLevel(-1)));
+    RooMCStudy mcstudy(pdf, var, RooFit::Binned(kTRUE), RooFit::Silence(), RooFit::Extended(), RooFit::FitOptions(RooFit::Save(), RooFit::PrintLevel(-1)));
     //
     // ---------------------------------------------
     // Generate and fit 1000 samples of Poisson(nExpected) events
-    mcstudy.generateAndFit(1000, ds->sumEntries());
+    mcstudy.generateAndFit(10000, ds->sumEntries());
     //
     // ------------------------------------------------
     // Make plots of the distributions of Signal Yield, the error on Signal Yield and the pull of Signal Yield

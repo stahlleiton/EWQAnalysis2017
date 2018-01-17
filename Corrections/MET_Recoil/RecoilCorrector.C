@@ -153,7 +153,7 @@ void RecoilCorrector::evalRecoilFits(
                                      std::map< std::string , double >& uPar,
                                      const double& pT,
                                      const std::map< std::string , std::unique_ptr<TF1> >& uFit,
-                                     const bool corrMean
+                                     const bool setMeanToZero
                                      )
 {
   // Initialize output variables
@@ -164,6 +164,7 @@ void RecoilCorrector::evalRecoilFits(
   for (const auto& fit : uFit) {
     if (fit.first.find("mean")!=std::string::npos) {
       uPar[fit.first] = -1.0*fit.second->Eval(pT); // Mean values are defined with a negative in the functions
+      if (setMeanToZero) { uPar[fit.first] = 0.0; }
     }
     else { uPar[fit.first] = fit.second->Eval(pT); }
   }
@@ -178,40 +179,23 @@ void RecoilCorrector::evalRecoilFits(
     uPar["sigma"]  = uPar.at("sigma1");
   }    
   if (model==2) {
-    double f = -1;
+    double f = 99.;
     if      (uPar.at("sigma1") != uPar.at("sigma2")) { f = ( (uPar.at("sigma") - uPar.at("sigma2")) / (uPar.at("sigma1") - uPar.at("sigma2")) ); }
     else if (uPar.at("mean1")  != uPar.at("mean2") ) { f = ( (uPar.at("mean")  - uPar.at("mean2") ) / (uPar.at("mean1")  - uPar.at("mean2") ) ); }
     if (f > 1.0) { f = 1.0; } else if (f < 0.0) { f = 0.0; }
     uPar["f"] = f;
-    /*
-    uPar["mean"] = uPar.at("f")*uPar.at("mean1") + (1.0 - uPar.at("f"))*uPar.at("mean2");
-    double var1 = uPar.at("sigma1")*uPar.at("sigma1") + uPar.at("mean1")*uPar.at("mean1") - uPar.at("mean")*uPar.at("mean");
-    double var2 = uPar.at("sigma2")*uPar.at("sigma2") + uPar.at("mean2")*uPar.at("mean2") - uPar.at("mean")*uPar.at("mean");
-    uPar["sigmaG"] = TMath::Sqrt( uPar.at("f")*var1 + (1.0 - uPar.at("f"))*var2 );
-    uPar["sigma"] = uPar.at("f")*uPar.at("sigma1") + (1.0 - uPar.at("f"))*uPar.at("sigma2");
-    */
   }
   if (model==3) {
-    double f2 = -1;
+    double f2 = 99.;
     if      (uPar.at("sigma2") != uPar.at("sigma3")) { f2 = ( (uPar.at("sigma23") - uPar.at("sigma3")) / (uPar.at("sigma2") - uPar.at("sigma3")) ); }
     else if (uPar.at("mean2")  != uPar.at("mean3") ) { f2 = ( (uPar.at("mean23")  - uPar.at("mean3") ) / (uPar.at("mean2")  - uPar.at("mean3") ) ); }
     if (f2 > 1.0) { f2 = 1.0; } else if (f2 < 0.0) { f2 = 0.0; }
-    double f = -1;
+    double f = 99.;
     if      (uPar.at("sigma1") != uPar.at("sigma23")) { f = ( (uPar.at("sigma") - uPar.at("sigma23")) / (uPar.at("sigma1") - uPar.at("sigma23")) ); }
     else if (uPar.at("mean1")  != uPar.at("mean23") ) { f = ( (uPar.at("mean")  - uPar.at("mean23") ) / (uPar.at("mean1")  - uPar.at("mean23") ) ); }
     if (f > 1.0) { f = 1.0; } else if (f < 0.0) { f = 0.0; }
     uPar["f2"] = f2;
     uPar["f"]  = f;
-    /*
-    uPar["mean23"] = uPar.at("f2")*uPar.at("mean2") + (1.0 - uPar.at("f2"))*uPar.at("mean3");
-    uPar["mean"]   = uPar.at("f")*uPar.at("mean1")  + (1.0 - uPar.at("f"))*uPar.at("mean23");
-    uPar["sigma23"] = uPar.at("f2")*uPar.at("sigma2") + (1.0 - uPar.at("f2"))*uPar.at("sigma3");
-    double var1 = uPar.at("sigma1")*uPar.at("sigma1") + uPar.at("mean1")*uPar.at("mean1") - uPar.at("mean")*uPar.at("mean");
-    double var2 = uPar.at("sigma2")*uPar.at("sigma2") + uPar.at("mean2")*uPar.at("mean2") - uPar.at("mean")*uPar.at("mean");
-    double var3 = uPar.at("sigma3")*uPar.at("sigma3") + uPar.at("mean3")*uPar.at("mean3") - uPar.at("mean")*uPar.at("mean");
-    uPar["sigmaG"] = TMath::Sqrt( uPar.at("f")*var1 + (1.0 - uPar.at("f"))*( uPar.at("f2")*var2 + (1.0 - uPar.at("f2"))*var3 ) );
-    uPar["sigma"] = uPar.at("f")*uPar.at("sigma1") + (1.0 - uPar.at("f"))*uPar.at("sigma23");
-    */
   }
 };
 
@@ -436,9 +420,9 @@ void RecoilCorrector::computeMET(
   // Compute the MET vector based on the input Recoil components
   //
   // MET X Component
-  const double MET_X = ( -1.0 * reference_pT.Mod() * TMath::Cos( reference_pT.Phi() ) ) - ( u1Val * TMath::Cos( boson_pT.Phi() ) ) + ( u2Val * TMath::Sin( boson_pT.Phi() ) );
+  const double MET_X = ( -1.0 * reference_pT.Mod() * TMath::Cos( reference_pT.Phi() ) ) - ( u1Val * TMath::Cos( boson_pT.Phi() ) ) - ( u2Val * TMath::Sin( boson_pT.Phi() ) );
   // MET Y Component
-  const double MET_Y = ( -1.0 * reference_pT.Mod() * TMath::Sin( reference_pT.Phi() ) ) - ( u1Val * TMath::Sin( boson_pT.Phi() ) ) - ( u2Val * TMath::Cos( boson_pT.Phi() ) );
+  const double MET_Y = ( -1.0 * reference_pT.Mod() * TMath::Sin( reference_pT.Phi() ) ) - ( u1Val * TMath::Sin( boson_pT.Phi() ) ) + ( u2Val * TMath::Cos( boson_pT.Phi() ) );
   // MET Vector
   MET.Set(MET_X, MET_Y);
 };
@@ -454,7 +438,7 @@ void RecoilCorrector::computeRecoil(
                                     )
 {
   // Initialize output variables
-  u1Val = -9999.0; u1Val = -9999.0;
+  u1Val = -9999.0; u2Val = -9999.0;
   //
   // Compute Recoil components
   //
@@ -479,10 +463,12 @@ bool RecoilCorrector::computeRecoilCDF(
   //
   // Evaluate the model
   //
-  auto fcnCDF = std::unique_ptr<TF1>(getFunctionCDF(uPar, useOneGaussian));
+  const double nullCDF = 0.0;
+  auto fcnCDF = std::unique_ptr<TF1>(getFunctionCDF(uPar, nullCDF, useOneGaussian));
   if (fcnCDF==NULL) { return false; }
   CDF = fcnCDF->Eval(uVal);
   if ( (CDF < 0.0) || (CDF > 1.0) ) { std::cout << "[ERROR] Computed CDF (" << CDF << ") is out of range!" << std::endl; return false; }
+  if (CDF <= 1E-6) { CDF = 1E-6; } else if (CDF >= (1.0-1E-6)) { CDF = (1.0 - 1E-6); }
   //
   // Return back
   //
@@ -517,23 +503,20 @@ bool RecoilCorrector::computeRecoilInvCDF(
   }
   if (!useOneGaussian && model>1) {
     // Build CDF function
-    auto fcnCDF = std::unique_ptr<TF1>(getFunctionCDF(uPar, useOneGaussian, CDF));
+    auto fcnCDF = std::unique_ptr<TF1>(getFunctionCDF(uPar, CDF, useOneGaussian));
     if (fcnCDF==NULL) { return false; }
     // Initiliaze the RootFinder
     ROOT::Math::RootFinder rf(ROOT::Math::RootFinder::kGSL_STEFFENSON);
     // Assign the CDF function
     ROOT::Math::GradFunctor1D wf(*fcnCDF);
     // Use the 1 Gaussian inverse CDF as initial guess value
-    rf.SetFunction(wf, uVal);
+    if (!rf.SetFunction(wf, uVal)) { std::cout << "[ERROR] Initial value (" << uVal << ") is invalid" << std::endl; return false; }
     // Proceed to find the root value
     rf.Solve();
-    if (rf.Status() != 0) {
-      std::cout << "[WARNING] Computing the inverse CDF for model " << model << " failed with status " << rf.Status() << std::endl;
-      uVal = uPar.at("mean") + ROOT::Math::gaussian_quantile( CDF , uPar.at("sigma") );
-    }
-    else { double uVal = rf.Root(); }
+    if (rf.Status() != 0) { std::cout << "[ERROR] Computing the inverse CDF of " << CDF << " for model " << model << " failed with status " << rf.Status() << std::endl; return false; }
     // Check result
-    if (uVal <= -1000. || uVal >= 1000.) { std::cout << "[ERROR] The inverse CDF for model " << model << " was not found!" << std::endl; return false; }
+    uVal = rf.Root();
+    if (uVal <= -1000. || uVal >= 1000.) { std::cout << "[ERROR] The inverse CDF with uVal " << uVal << " and CDF " << CDF << " for model " << model << " was not found!" << std::endl; return false; }
   }
   //
   // Return back
@@ -573,12 +556,14 @@ bool RecoilCorrector::applyScalingRecoilCorrection(
     double CDF_MC = -1.0;
     if (!computeRecoilCDF(CDF_MC, uVal_RAW, uPar_MC, useOneGaussian_MC)) { return false; }
     if ( (CDF_MC > 0.0) && (CDF_MC < 1.0) ) {
-      if (!computeRecoilInvCDF(uVal_CORR, CDF_MC, uPar_DATA, useOneGaussian_DATA)) { return false; }
+      if (!computeRecoilInvCDF(uVal_CORR, CDF_MC, uPar_DATA, useOneGaussian_DATA)) {
+        std::cout << "[WARNING] Using simplified case" << std::endl;
+        const double z_MC = ( uVal_RAW - uPar_MC.at("mean") ) / uPar_MC.at("sigma");
+        uVal_CORR = uPar_DATA.at("mean") + (z_MC * uPar_DATA.at("sigma"));
+      }
     }
     else {
-      std::cout << "[WARNING] Can't compute inverse CDF since CDF_MC is " << CDF_MC << " , will go back to simple case!" << std::endl;
-      const double z_MC = ( uVal_RAW - uPar_MC.at("mean") ) / uPar_MC.at("sigma");
-      uVal_CORR = uPar_DATA.at("mean") + (z_MC * uPar_DATA.at("sigma"));
+      std::cout << "[ERROR] Can't compute inverse CDF since CDF_MC is " << CDF_MC << std::endl; return false;
     } 
   }
   //
@@ -609,15 +594,14 @@ bool RecoilCorrector::applySmearingRecoilCorrection(
   // Apply smearing method to correct the MC Recoil
   //
   // Compute the mean value ( u - u_MC + u_DATA )
-  double mean = ( uVal_RAW - uPar_MC.at("mean") + uPar_DATA.at("mean") );
+  const double mean = ( uVal_RAW - uPar_MC.at("mean") + uPar_DATA.at("mean") );
   // Compute the width  sqrt( u_DATA^2 - u_MC^2 ) 
   double sigma = ( TMath::Power(uPar_DATA.at("sigma"), 2.0) - TMath::Power(uPar_MC.at("sigma"), 2.0) );
   if (sigma<0.0) { std::cout << "[Warning] Variance in MC (" <<  uPar_MC.at("sigma") << ") is larger than in DATA (" << uPar_DATA.at("sigma") << ") !" << std::endl; }
   if (sigma<0.0) { std::cout << "[Info] Setting sigma for smearing algorithm to zero!" << std::endl; sigma = 0.0; }
-  sigma = TMath::Sqrt(sigma); // Take the square root of the variance to compute the gauusian width
+  sigma = TMath::Sqrt(sigma); // Take the square root of the variance to compute the gaussian width
   // Sample a random number based on a gaussian distribution
-  if (sigma==0) { uVal_CORR = mean; }
-  else { uVal_CORR = fRandom_->Gaus(mean, sigma); }
+  uVal_CORR = fRandom_->Gaus(mean, sigma);
   //
   // Return back
   //
@@ -664,7 +648,8 @@ bool RecoilCorrector::correctMCRecoil(
                                       const std::string& method,
                                       const bool useOneGaussian_MC,
                                       const bool useOneGaussian_DATA,
-                                      const bool corrMean
+                                      const bool corrMean,
+                                      const bool setMeanToZero
                                       )
 {
   // Initialize output variables
@@ -674,10 +659,10 @@ bool RecoilCorrector::correctMCRecoil(
   //
   // For MC
   std::map< std::string , double > uPar_MC;
-  evalRecoilFits(uPar_MC, pT, uFit_MC, corrMean);
+  evalRecoilFits(uPar_MC, pT, uFit_MC, setMeanToZero);
   // For DATA
   std::map< std::string , double > uPar_DATA;
-  evalRecoilFits(uPar_DATA, pT, uFit_DATA, corrMean);
+  evalRecoilFits(uPar_DATA, pT, uFit_DATA, setMeanToZero);
   //
   if (corrMean==false) { for(const auto& u : uPar_MC) { if (u.first.find("mean")!=std::string::npos) { uPar_DATA[u.first] = u.second; } } }
   //
@@ -715,13 +700,13 @@ bool RecoilCorrector::correctMET(
   //
   // For parallel recoil
   double u1_CORR;
-  if(!correctMCRecoil(u1_CORR, u1_RAW, boson_pT_.Mod(), u1Fits_MC_.at(METType_), u1Fits_DATA_.at(METType_), method, useOneGaussian_MC_, useOneGaussian_DATA_, corrMean_)) { return false; }
+  if(!correctMCRecoil(u1_CORR, u1_RAW, boson_pT_.Mod(), u1Fits_MC_.at(METType_), u1Fits_DATA_.at(METType_), method, useOneGaussian_MC_, useOneGaussian_DATA_, corrMean_, false)) { return false; }
   // For perpendicular recoil
   double u2_CORR;
-  if(!correctMCRecoil(u2_CORR, u2_RAW, boson_pT_.Mod(), u2Fits_MC_.at(METType_), u2Fits_DATA_.at(METType_), method, useOneGaussian_MC_, useOneGaussian_DATA_, corrMean_)) { return false; }
+  if(!correctMCRecoil(u2_CORR, u2_RAW, boson_pT_.Mod(), u2Fits_MC_.at(METType_), u2Fits_DATA_.at(METType_), method, useOneGaussian_MC_, useOneGaussian_DATA_, corrMean_,  true)) { return false; }
   //
   // Compute the MET based on the corrected recoil components
-  //  
+  //
   computeMET(MET_CORR, u1_CORR, u2_CORR, reference_pT_, boson_pT_);
   //
   // Return back

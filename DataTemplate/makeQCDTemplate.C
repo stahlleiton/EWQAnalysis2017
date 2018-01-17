@@ -39,6 +39,7 @@ using ContentMap_t = std::map< std::string , std::map< std::string , std::map< B
 using GraphMap_t   = std::map< std::string , std::map< std::string , std::map< Bin_t , std::unique_ptr<TGraphErrors> > > >;
 using FitMap_t     = std::map< std::string , std::map< std::string , std::map< Bin_t , std::unique_ptr<TF1> > > >;
 using FitMap2_t    = std::map< std::string , std::map< Bin_t , std::map< std::string , TF1* > > >;
+using FitExMap_t   = std::map< std::string , std::map< std::string , std::unique_ptr<TF1> > >;
 using BinMap_t     = std::map< std::string , std::vector< double > >;
 using BinMapMap_t  = std::map< std::string , BinMap_t >;
 
@@ -57,13 +58,14 @@ bool     computeMeanAndVariance ( FitMap_t& fitMap , const std::string& col , co
 void     formatFit   ( FitMap_t& fitMap );
 bool     fillExGraph ( const FitMap_t& fitMap , GraphMap_t& exGraphMap );
 void     formatExGraph ( GraphMap_t& exGraphMap , const std::string& col , const bool& useEtaCM , const BinMapMap_t& binMap );
-void     drawExGraph ( const std::string& outDir , GraphMap_t& exGraphMap , const bool& useEtaCM );
+bool     fitExGraph  ( const GraphMap_t& exGraphMap , FitExMap_t& fitExMap );
+void     drawExGraph ( const std::string& outDir , GraphMap_t& exGraphMap , const FitExMap_t& fitExMap , const bool& useEtaCM );
 void     getBinText  ( const Bin_t& bin , std::vector<std::string>& text , const int& chg=-1 , const bool& useEtaCM = true );
 void     getFitText  ( const TF1& fit, std::vector<std::string>& text );
 void     formatLegendEntry ( TLegendEntry& e );
 void     updateYAxisRange ( std::unique_ptr<TGraphErrors>& graph , const std::unique_ptr<TF1>& fit );
 double   roundVal    ( const double& v, const uint& n=3 ) { return ( floor(v * pow(10, n)) / pow(10, n) ); }
-bool     createInputFiles ( const std::string& dirPath , const FitMap_t& iniFitMap , const bool& useEtaCM , const BinMapMap_t& binMap );
+bool     createInputFiles ( const std::string& dirPath , const FitMap_t& iniFitMap , const FitExMap_t& iniFitExMap , const bool& useEtaCM , const BinMapMap_t& binMap );
 
 // Global 
 const std::vector< std::string > cutSelection = {
@@ -113,6 +115,9 @@ void makeQCDTemplate(
     GraphMap_t exGraphMap;
     if (!fillExGraph(fitMap, exGraphMap)) { return; }
     formatExGraph(exGraphMap, c, useEtaCM, MU_BIN_RANGE);
+    // Fit the extrapolated graphs
+    FitExMap_t fitExMap;
+    if (!fitExGraph(exGraphMap, fitExMap)) { return; }
     // Set the CMS style
     setTDRStyle();
     gStyle->SetOptStat(0);
@@ -122,16 +127,16 @@ void makeQCDTemplate(
     // Delete the graphs
     graphMap.clear();
     // Draw the extrapolated graphs
-    drawExGraph(outDir, exGraphMap, useEtaCM);
+    drawExGraph(outDir, exGraphMap, fitExMap, useEtaCM);
     // Delete the extrapolated graphs
     exGraphMap.clear();
     // Create new input files
-    const std::vector< std::string > binList = { "Inclusive" , "Mean" , "Eta" };
+    const std::vector< std::string > binList = { "Inclusive" , "Mean" , "Eta" , "Fit" };
     const std::vector< std::string > fitList = { "Constrain" , "Fixed" };
     for (const auto& useBin : binList) {
       for (const auto& fitType : fitList) {
         useBin_ = useBin; fitType_ = fitType;
-        createInputFiles((outDir+"InputFiles/"), fitMap, useEtaCM, MU_BIN_RANGE);
+        createInputFiles((outDir+"InputFiles/"), fitMap, fitExMap, useEtaCM, MU_BIN_RANGE);
       }
     }
     // Create the fits
@@ -403,7 +408,7 @@ void drawGraph(const std::string& outDir, GraphMap_t& graphMap, const FitMap_t& 
       for (auto& graph : lbl.second) {
         if (graph.second) {
           const std::unique_ptr<TF1>& f = fitMap.at(var.first).at(lbl.first).at(graph.first);
-          // Create Canvas
+          // Create Canvasf 
           std::unique_ptr<TCanvas> c(new TCanvas("c", "c", 1000, 1000)); c->cd();
           // Create Legend
           std::unique_ptr<TLegend> leg(new TLegend(xl1,yl1,xl2,yl2));
@@ -692,7 +697,42 @@ void formatExGraph(GraphMap_t& exGraphMap, const std::string& col, const bool& u
 };
 
 
-void drawExGraph(const std::string& outDir, GraphMap_t& exGraphMap, const bool& useEtaCM)
+bool fitExGraph(const GraphMap_t& exGraphMap, FitExMap_t& fitExMap)
+{
+  // Clean the input fit Map
+  fitExMap.clear();
+  // Fit the extrapolated graphs
+  for (const auto& var : exGraphMap) {
+    for (const auto& lbl : var.second) {
+      for (const auto& graph : lbl.second) {
+        std::string name = Form("fitEx_%s_%s",
+                                var.first.c_str(),
+                                lbl.first.c_str());
+        fitExMap[var.first][lbl.first] = std::unique_ptr<TF1>(new TF1(name.c_str(), "[0] + [1]*(x)", graph.second->GetXaxis()->GetXmin(), graph.second->GetXaxis()->GetXmax()));
+        if (fitExMap.at(var.first).at(lbl.first)==NULL) {
+          std::cout << "[ERROR] Element in fitExMap is NULL!" << std::endl; return false;
+        }
+        std::string v = std::get<0>(yAxis.at(var.first));
+        fitExMap.at(var.first).at(lbl.first)->SetParNames(Form("%s", v.c_str()), "s");
+        // Estimate the initial parameters of the fit
+        double x1=0.0, y1, x2=0.0, y2, ex1=0.0, ex2=0.0;
+        graph.second->GetPoint(0, x1, y1); ex1 = graph.second->GetErrorX(0);
+        graph.second->GetPoint((graph.second->GetN()-1), x2, y2); ex2 = graph.second->GetErrorX((graph.second->GetN()-1));
+        double m  = ((y2 - y1)/(x2 - x1));
+        double y0 = (y1 - m*(x1));
+        fitExMap.at(var.first).at(lbl.first)->SetParameters(y0, m);
+        fitExMap.at(var.first).at(lbl.first)->SetParLimits(0, -50., 50.);
+        fitExMap.at(var.first).at(lbl.first)->SetParLimits(1, -50., 50.);
+        // Fit the graph
+        graph.second->Fit(name.c_str(), "0MEQEX0");
+      }
+    }
+  }
+  return true;
+};
+
+
+void drawExGraph(const std::string& outDir, GraphMap_t& exGraphMap, const FitExMap_t& fitExMap,  const bool& useEtaCM)
 {
   // Make output directories
   makeDir(outDir+"Plot/Final/png/");
@@ -704,6 +744,7 @@ void drawExGraph(const std::string& outDir, GraphMap_t& exGraphMap, const bool& 
     for (auto& lbl : var.second) {
       for (auto& graph : lbl.second) {
         if (graph.second) {
+          const std::unique_ptr<TF1>& f = fitExMap.at(var.first).at(lbl.first);
           // Create Canvas
           std::unique_ptr<TCanvas> c(new TCanvas("c", "c", 1000, 1000)); c->cd();
           // Create Legend
@@ -719,6 +760,11 @@ void drawExGraph(const std::string& outDir, GraphMap_t& exGraphMap, const bool& 
           std::unique_ptr<TGraphErrors> tmp(new TGraphErrors(*graph.second)); tmp->Set(1);
           tmp->SetFillColor(kGreen+3); tmp->SetMarkerColor(kOrange);
           tmp->Draw("samep2");
+          //
+          if (f) {
+            f->SetLineColor(kGreen+2); f->SetLineWidth(2);
+            f->Draw("same");
+          }
           // Draw the text
           for (const auto& s: cutSelection) { tex->DrawLatex(0.20, 0.85-dy, s.c_str()); dy+=0.04; }; dy = 0.0;
           // Draw the text results
@@ -738,6 +784,11 @@ void drawExGraph(const std::string& outDir, GraphMap_t& exGraphMap, const bool& 
           //
           tmp->GetPoint(0, xDummy, val); err = tmp->GetErrorY(0);
           resultText.push_back(Form("Mean : %.5f#pm%.5f", val, err));
+          //
+          if (f) {
+            tmp->GetPoint(0, xDummy, val); err = tmp->GetErrorY(0);
+            resultText.push_back(Form("Fit : %.5f + %.5f #times #eta_{CM}", f->GetParameter(0),  f->GetParameter(1)));
+          }
           //
           for (const auto& s: resultText  ) { tex->DrawLatex(0.20, 0.70-dy, s.c_str()); dy+=0.04; }; dy = 0.0;
           // Draw the legend
@@ -762,7 +813,7 @@ void drawExGraph(const std::string& outDir, GraphMap_t& exGraphMap, const bool& 
 };
 
 
-bool createInputFiles(const std::string& dirPath , const FitMap_t& iniFitMap, const bool& useEtaCM, const BinMapMap_t& binMap)
+bool createInputFiles(const std::string& dirPath, const FitMap_t& iniFitMap, const FitExMap_t& iniFitExMap, const bool& useEtaCM, const BinMapMap_t& binMap)
 {
   // Define inputFile as a matrix where the row index are the bins and column index are the headers
   std::map< std::string , std::map< Bin_t , std::vector< std::string > > > inputFile;
@@ -843,6 +894,18 @@ bool createInputFiles(const std::string& dirPath , const FitMap_t& iniFitMap, co
         for (const auto& var : lbl.second.at(std::make_tuple(std::make_pair(etaMeanMin,etaMeanMin+0.06), std::make_pair(ptMin, ptMax)))) {
           const double val = var.second->GetParameter(0);
           const double err = var.second->GetParError(0);
+          header = Form("%s_QCDToMu%s_%s", var.first.c_str(), chg.c_str(), col.c_str());
+          if (fitType_=="Constrain") { inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f;%.5f]", val, err); }
+          if (fitType_=="Fixed"    ) { inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f]", val); }
+        }
+      }
+      else if (useBin_=="Fit") {
+        for (const auto& var : bin.second) {
+          const double eta = ((etaMax + etaMin)/2.0);
+          const double val = iniFitExMap.at(var.first).at(lbl.first)->Eval(eta);
+          const double errOffset = iniFitExMap.at(var.first).at(lbl.first)->GetParError(0);
+          const double errSlope  = iniFitExMap.at(var.first).at(lbl.first)->GetParError(1);
+          const double err = std::sqrt( std::pow(errOffset, 2.0) + std::pow(eta*errSlope, 2.0));
           header = Form("%s_QCDToMu%s_%s", var.first.c_str(), chg.c_str(), col.c_str());
           if (fitType_=="Constrain") { inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f;%.5f]", val, err); }
           if (fitType_=="Fixed"    ) { inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f]", val); }

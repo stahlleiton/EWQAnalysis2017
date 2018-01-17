@@ -13,7 +13,8 @@ class HFweight {
       enum HFside {
          both,
          plus,
-         minus
+         minus,
+         track
       };
       HFweight(const char* weightfile = "/afs/cern.ch/work/e/echapon/public/DY_pA_2016/HFweight.root");
       ~HFweight();
@@ -25,9 +26,11 @@ class HFweight {
       TH1F* h_hiHF_ratio;
       TH1F* h_hiHFplus_ratio;
       TH1F* h_hiHFminus_ratio;
+      TH1F* h_hiNtracks_ratio;
       TH1F* h_hiHF_PV1_ratio;
       TH1F* h_hiHFplus_PV1_ratio;
       TH1F* h_hiHFminus_PV1_ratio;
+      TH1F* h_hiNtracks_PV1_ratio;
 };
 
 HFweight::HFweight(const char* weightfile) {
@@ -42,9 +45,11 @@ HFweight::HFweight(const char* weightfile) {
    h_hiHF_ratio = (TH1F*) f->Get("h_hiHF_ratio");
    h_hiHFplus_ratio = (TH1F*) f->Get("h_hiHFplus_ratio");
    h_hiHFminus_ratio = (TH1F*) f->Get("h_hiHFminus_ratio");
+   h_hiNtracks_ratio = (TH1F*) f->Get("h_hiNtracks_ratio");
    h_hiHF_PV1_ratio = (TH1F*) f->Get("h_hiHF_PV1_ratio");
    h_hiHFplus_PV1_ratio = (TH1F*) f->Get("h_hiHFplus_PV1_ratio");
    h_hiHFminus_PV1_ratio = (TH1F*) f->Get("h_hiHFminus_PV1_ratio");
+   h_hiNtracks_PV1_ratio = (TH1F*) f->Get("h_hiNtracks_PV1_ratio");
 }
 
 HFweight::~HFweight() {
@@ -60,6 +65,7 @@ double HFweight::weight(double hiHF, HFweight::HFside side, bool isPV1) {
    if (side==both) hist = isPV1 ? h_hiHF_PV1_ratio : h_hiHF_ratio;
    else if (side==plus) hist = isPV1 ? h_hiHFplus_PV1_ratio : h_hiHFplus_ratio;
    else if (side==minus) hist = isPV1 ? h_hiHFminus_PV1_ratio : h_hiHFminus_ratio;
+   else if (side==track) hist = isPV1 ? h_hiNtracks_PV1_ratio : h_hiNtracks_ratio;
    else {
       cout << "Error, requesting unknown HF configuration!" << endl;
       return 1;

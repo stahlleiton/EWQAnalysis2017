@@ -10,7 +10,7 @@ void   updateMETParameterRange    ( RooWorkspace& myws );
 void   setMETGlobalParameterRange ( RooWorkspace& myws , const GlobalInfo& info );
 void   setEWQCutParameters  ( GlobalInfo& info );
 bool   setEWQModel          ( StringDiMap_t& model, GlobalInfo&  info );
-int    importDataset        ( RooWorkspace& myws  , const std::map<string, RooWorkspace>& inputWS , const GlobalInfo& info);
+int    importDataset        ( RooWorkspace& myws  , const std::map<string, RooWorkspace>& inputWS , const GlobalInfo& info, const std::string& chg );
 void   setMETFileName       ( string& fileName, string& outputDir, const string& DSTAG, const string& plotLabel, const GlobalInfo& info );
 
 
@@ -19,13 +19,14 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
                              const GlobalInfo& userInput,     // Contains information on initial Parameters, cut values, flags, ...
                              const std::string& outputDir,    // Path to output directory
                              // Select the type of datasets to fit
-                             const std::string& DSTAG//,                  // Specifies the name of the dataset to fit
+                             const std::string& DSTAG,        // Specifies the name of the dataset to fit
+			     const bool saveAll=true
                              // Select the fitting options
                              //string inputFitDir = ""        // Location of the fit results
                              )
 {
   // Set up the local workspace and the input information
-  RooWorkspace myws;
+  RooWorkspaceMap_t myws;
   GlobalInfo info(userInput);
   info.Copy(inputInfo, true); // Copy the user input information (avoid duplicating information in fitter)
 
@@ -80,13 +81,14 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
   }
 
   // Proceed to import the list of datasets
-  if ( !(myws.data(info.Par.at("dsName_Pl").c_str())) || !(myws.data(info.Par.at("dsName_Mi").c_str())) ) {
-    int importID = importDataset(myws, inputWorkspaces, info);
-    if (importID<0) { return false; }
-    else if (importID==0) { doFit = false; }
+  for (const auto& chg : info.StrV.at("fitCharge")) { 
+    if ( !(myws[chg].data(info.Par.at(Form("dsName_%s", chg.c_str())).c_str())) ) {
+      const int importID = importDataset(myws.at(chg), inputWorkspaces, info, chg);
+      if (importID<0) { return false; }
+      else if (importID==0) { doFit = false; }
+    }
+    info.Var["numEntries"][chg] = myws.at(chg).data(info.Par.at(Form("dsName_%s", chg.c_str())).c_str())->sumEntries(); if (info.Var.at("numEntries").at(chg)<=0) { doFit = false; }
   }
-  info.Var["numEntries"]["Pl"] = myws.data(info.Par.at("dsName_Pl").c_str())->sumEntries(); if (info.Var.at("numEntries").at("Pl")<=0) { doFit = false; }
-  info.Var["numEntries"]["Mi"] = myws.data(info.Par.at("dsName_Mi").c_str())->sumEntries(); if (info.Var.at("numEntries").at("Mi")<=0) { doFit = false; }
 
   // Store the number of MC ontries passing analysis cuts
   for (const auto& col : info.StrV.at("fitSystem")) {
@@ -94,9 +96,9 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
       for (const auto& obj : (info.Flag.at("incMCTemp_"+mainObj) ? info.StrV.at("template") : std::vector<std::string>({mainObj}))) {
         std::string dsLabel = "MC_" + obj + "_" + info.Par.at("channelDS") + "_" + col;
         for (const auto& chg : info.StrV.at("fitCharge")) {
-          if (myws.data(Form("d%s_%s", chg.c_str(), dsLabel.c_str()))) {
+          if (myws.at(chg).data(Form("d%s_%s", chg.c_str(), dsLabel.c_str()))) {
             std::string label = obj + info.Par.at("channel") + chg + "_" + col;
-            info.Var["recoMCEntries"][label] = myws.data(Form("d%s_%s", chg.c_str(), dsLabel.c_str()))->sumEntries();
+            info.Var["recoMCEntries"][label] = myws.at(chg).data(Form("d%s_%s", chg.c_str(), dsLabel.c_str()))->sumEntries();
           }
         }
       }
@@ -104,10 +106,10 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
   }
 
   // Set global parameters
-  setMETGlobalParameterRange(myws, info);
+  for (const auto& chg : info.StrV.at("fitCharge")) { setMETGlobalParameterRange(myws.at(chg), info); }
 
   // Build the Fit Model
-  if (!buildElectroWeakMETModel(myws, model, info))  { return false; }
+  for (const auto& chg : info.StrV.at("fitCharge")) { if (!buildElectroWeakMETModel(myws.at(chg), model, info, chg))  { return false; } }
 
   // Proceed to Fit and Save the results
   std::string cha = info.Par.at("channel");
@@ -115,17 +117,17 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
     for (const auto& chg : info.StrV.at("fitCharge")) {
       for (const auto& obj : info.StrV.at("fitObject")) {
         // Save the info in the workspace
-        TObjString tmp = TObjString();
-        if (myws.obj("DSTAG")) { ((TObjString*)myws.obj("DSTAG"))->SetString(DSTAG.c_str()); }
-        else { tmp.SetString(DSTAG.c_str()); myws.import(*((TObject*)&tmp), "DSTAG"); }
-        if (myws.obj("channel")) { ((TObjString*)myws.obj("channel"))->SetString(cha.c_str()); }
-        else { tmp.SetString(cha.c_str()); myws.import(*((TObject*)&tmp), "channel"); }
-        if (myws.obj("fitSystem")) { ((TObjString*)myws.obj("fitSystem"))->SetString(col.c_str()); }
-        else { tmp.SetString(col.c_str()); myws.import(*((TObject*)&tmp), "fitSystem"); }
-        if (myws.obj("fitCharge")) { ((TObjString*)myws.obj("fitCharge"))->SetString(chg.c_str()); }
-        else { tmp.SetString(chg.c_str()); myws.import(*((TObject*)&tmp), "fitCharge"); }
-        if (myws.obj("fitObject")) { ((TObjString*)myws.obj("fitObject"))->SetString(obj.c_str()); }
-        else { tmp.SetString(obj.c_str()); myws.import(*((TObject*)&tmp), "fitObject"); }
+        RooStringVar tmp = RooStringVar();
+        if (myws.at(chg).obj("DSTAG")) { ((RooStringVar*)myws.at(chg).obj("DSTAG"))->setVal(DSTAG.c_str()); }
+        else { tmp.setVal(DSTAG.c_str()); tmp.SetTitle("DSTAG"); myws.at(chg).import(*((TObject*)&tmp), tmp.GetTitle()); }
+        if (myws.at(chg).obj("channel")) { ((RooStringVar*)myws.at(chg).obj("channel"))->setVal(cha.c_str()); }
+        else { tmp.setVal(cha.c_str()); tmp.SetTitle("channel"); myws.at(chg).import(*((TObject*)&tmp), tmp.GetTitle()); }
+        if (myws.at(chg).obj("fitSystem")) { ((RooStringVar*)myws.at(chg).obj("fitSystem"))->setVal(col.c_str()); }
+        else { tmp.setVal(col.c_str()); tmp.SetTitle("fitSystem"); myws.at(chg).import(*((TObject*)&tmp), tmp.GetTitle()); }
+        if (myws.at(chg).obj("fitCharge")) { ((RooStringVar*)myws.at(chg).obj("fitCharge"))->setVal(chg.c_str()); }
+        else { tmp.setVal(chg.c_str()); tmp.SetTitle("fitCharge"); myws.at(chg).import(*((TObject*)&tmp), tmp.GetTitle()); }
+        if (myws.at(chg).obj("fitObject")) { ((RooStringVar*)myws.at(chg).obj("fitObject"))->setVal(obj.c_str()); }
+        else { tmp.setVal(obj.c_str()); tmp.SetTitle("fitObject"); myws.at(chg).import(*((TObject*)&tmp), tmp.GetTitle()); }
         // Total PDF Name
         const std::string label = obj + cha + chg + "_" + col;
         const std::string pdfName = ( "pdfMET_Tot" + label );
@@ -133,8 +135,8 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
         std::string modelN = info.Par.at("Model_"+label);
         modelN.erase(std::remove(modelN.begin(), modelN.end(), ' '), modelN.end());
         stringReplace( modelN, "[", "_" ); stringReplace( modelN, "]", "" ); stringReplace( modelN, "+", "_" ); stringReplace( modelN, ",", "" ); stringReplace( modelN, ";", "" );
-        if (myws.obj("modelName")) { ((TObjString*)myws.obj("modelName"))->SetString(modelN.c_str()); }
-        else { tmp.SetString(modelN.c_str()); myws.import(*((TObject*)&tmp), "modelName"); }
+        if (myws.at(chg).obj("modelName")) { ((RooStringVar*)myws.at(chg).obj("modelName"))->setVal(modelN.c_str()); }
+        else { tmp.setVal(modelN.c_str()); tmp.SetTitle("modelName"); myws.at(chg).import(*((TObject*)&tmp), tmp.GetTitle()); }
         const std::string plotLabel = label + "_Model_" + modelN;
         // Output File Name
         std::string fileName = "";
@@ -143,13 +145,14 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
         // Dataset Name
         const std::string dsName = ( "d" + chg + "_" + DSTAG );
         // Update the MET Fit Range
-        //updateMETParameterRange(myws); // DOES NOT WORK SO DONT USE
-        const std::string dsNameFit = ( (myws.data((dsName+"_FIT").c_str())!=NULL) ? (dsName+"_FIT") : dsName );
+        //updateMETParameterRange(myws.at(chg)); // DOES NOT WORK SO DONT USE
+	if (info.Flag.count("doBinnedFit")>0 && info.Flag.at("doBinnedFit")) { if (!createBinnedDataset(myws.at(chg))) { return false; } }
+        const std::string dsNameFit = ( (myws.at(chg).data((dsName+"_FIT").c_str())!=NULL) ? (dsName+"_FIT") : dsName );
         // check if we have already done this fit. If yes, do nothing and return true.
         bool found =  true; bool skipFit = false;
         std::unique_ptr<RooArgSet> newpars;
-        if (myws.pdf(pdfName.c_str())) { newpars = std::unique_ptr<RooArgSet>(myws.pdf(pdfName.c_str())->getParameters(*myws.data(dsName.c_str()))); }
-        else { newpars = std::unique_ptr<RooArgSet>(new RooArgSet(myws.allVars())); }
+        if (myws.at(chg).pdf(pdfName.c_str())) { newpars = std::unique_ptr<RooArgSet>(myws.at(chg).pdf(pdfName.c_str())->getParameters(*myws.at(chg).data(dsName.c_str()))); }
+        else { newpars = std::unique_ptr<RooArgSet>(new RooArgSet(myws.at(chg).allVars())); }
         found = found && isFitAlreadyFound(*newpars, Form("%sresult/%s.root", outDir.c_str(), ("FIT_"+fileName).c_str()), pdfName.c_str());
         if (found) {
           std::cout << "[INFO] This fit for " << label << " was already done, so I'll just go to the next one." << std::endl;
@@ -157,120 +160,87 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
         }
         // Fit the Datasets
         if (skipFit==false) {
-          if (myws.pdf(pdfName.c_str())) {
-            bool isWeighted = myws.data(dsNameFit.c_str())->isWeighted();
+          if (myws.at(chg).pdf(pdfName.c_str())) {
+            bool isWeighted = myws.at(chg).data(dsNameFit.c_str())->isWeighted();
+	    if (dsName.find("DATA")!=std::string::npos) { isWeighted = false; } // BUG FIX
             int numCores = info.Int.at("numCores");
-            RooArgList* pdfConstrains = (RooArgList*)myws.genobj(Form("pdfConstr%s", label.c_str()));
+            RooArgList* pdfConstrains = (RooArgList*)myws.at(chg).genobj(Form("pdfConstr%s", label.c_str()));
             std::unique_ptr<RooFitResult> fitResult;
+            bool fitFailed = false;
             if (pdfConstrains!=NULL && pdfConstrains->getSize()>0) {
               std::cout << "[INFO] Fitting with constrain PDFs" << std::endl;
-              auto tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), /*RooFit::Minos(!isWeighted),*/
-                                                          RooFit::Range("METWindow"), RooFit::ExternalConstraints(*pdfConstrains), RooFit::NumCPU(numCores), RooFit::Save());
-              fitResult.reset(tmp);
-              bool fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
+	      auto tmp = myws.at(chg).pdf(pdfName.c_str())->fitTo(*myws.at(chg).data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Strategy(2),
+								  RooFit::Range("METWindow"), RooFit::ExternalConstraints(*pdfConstrains), RooFit::NumCPU(numCores), RooFit::Save());
+	      fitResult.reset(tmp);
+	      bool fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
               if (fitFailed) {
-                tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Offset(kTRUE), RooFit::Strategy(2),
-                                                       RooFit::Range("METWindow"), RooFit::ExternalConstraints(*pdfConstrains), RooFit::NumCPU(numCores), RooFit::Save());
+                std::cout << std::endl; std::cout << "[INFO] Using Strategy 2 with Minuit2 and Minimizer" << std::endl; std::cout << std::endl;
+                tmp = myws.at(chg).pdf(pdfName.c_str())->fitTo(*myws.at(chg).data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted),
+							       RooFit::Minimizer("Minuit2","minimize"), RooFit::Strategy(2),
+							       RooFit::Range("METWindow"), RooFit::ExternalConstraints(*pdfConstrains), RooFit::NumCPU(numCores), RooFit::Save());
                 fitResult.reset(tmp);
                 fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
               }
-            }
+              if (fitFailed) {
+                std::cout << std::endl; std::cout << "[INFO] Using Strategy 2 with Minuit2 and Scan" << std::endl; std::cout << std::endl;
+                tmp = myws.at(chg).pdf(pdfName.c_str())->fitTo(*myws.at(chg).data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted),
+							       RooFit::Minimizer("Minuit2","scan"), RooFit::Strategy(2),
+							       RooFit::Range("METWindow"), RooFit::ExternalConstraints(*pdfConstrains), RooFit::NumCPU(numCores), RooFit::Save());
+                fitResult.reset(tmp);
+                fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
+              }
+	    }
             else {
-              auto tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted),
-                                                           RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
+              auto tmp = myws.at(chg).pdf(pdfName.c_str())->fitTo(*myws.at(chg).data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Strategy(2),
+								  RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
               fitResult.reset(tmp);
               bool fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
               if (fitFailed) {
-                tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Offset(kTRUE), RooFit::Strategy(2),
-                                                       RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
+                std::cout << std::endl; std::cout << "[INFO] Using Strategy 2 with Minuit2 and Minimizer" << std::endl; std::cout << std::endl;
+                tmp = myws.at(chg).pdf(pdfName.c_str())->fitTo(*myws.at(chg).data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted),
+							       RooFit::Minimizer("Minuit2","minimize"), RooFit::Strategy(2),
+							       RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
                 fitResult.reset(tmp);
                 fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
               }
               if (fitFailed) {
-                if (myws.var(("x0_"+label).c_str())) { myws.var(("x0_"+label).c_str())->setMin(0.0); }
-                tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Offset(kTRUE), RooFit::Strategy(2),
-                                                       RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
-                fitResult.reset(tmp);
-                fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
-              }
-              if (fitFailed) {
-                tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::InitialHesse(kTRUE),
-                                                       RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
-                fitResult.reset(tmp);
-                fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
-              }
-              if (fitFailed) {
-                tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Minimizer("Minuit2","migrad"),
-                                                       RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
-                fitResult.reset(tmp);
-                fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
-              }
-              if (fitFailed) {
-                tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Minimizer("Minuit","minimize"),
-                                                       RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
-                fitResult.reset(tmp);
-                fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
-              }
-              if (fitFailed) {
-                tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Minimizer("Minuit2","minimize"),
-                                                       RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
-                fitResult.reset(tmp);
-                fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
-              }
-              if (fitFailed) {
-                if (myws.var(("x0_"+label).c_str())) { myws.var(("x0_"+label).c_str())->setVal(4.0); }
-                tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Offset(kTRUE), RooFit::Strategy(2),
-                                                       RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
-                fitResult.reset(tmp);
-                fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
-              }
-              if (fitFailed) {
-                tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::InitialHesse(kTRUE),
-                                                       RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
-                fitResult.reset(tmp);
-                fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
-              }
-              if (fitFailed) {
-                tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Minimizer("Minuit2","migrad"),
-                                                       RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
-                fitResult.reset(tmp);
-                fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
-              }
-              if (fitFailed) {
-                if (myws.var(("Alpha_"+label).c_str())) { myws.var(("Alpha_"+label).c_str())->setVal(6.0); }
-                tmp = myws.pdf(pdfName.c_str())->fitTo(*myws.data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Offset(kTRUE), RooFit::Strategy(2),
-                                                       RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
+                std::cout << std::endl; std::cout << "[INFO] Using Strategy 2 with Minuit2 and Scan" << std::endl; std::cout << std::endl;
+                tmp = myws.at(chg).pdf(pdfName.c_str())->fitTo(*myws.at(chg).data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted),
+							       RooFit::Minimizer("Minuit2","scan"), RooFit::Strategy(2),
+							       RooFit::Range("METWindow"), RooFit::NumCPU(numCores), RooFit::Save());
                 fitResult.reset(tmp);
                 fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
               }
             }
             if (fitResult!=NULL) {
               fitResult->Print("v");
-              myws.import(*fitResult, Form("fitResult_%s", pdfName.c_str()));
+              fitResult->SetTitle(Form("fitResult_%s", pdfName.c_str()));
+	      myws.at(chg).import(*fitResult, fitResult->GetTitle());
             }
             else { std::cout << "[ERROR] Fit Result returned by the PDF is NULL!" << std::endl; return false; }
             for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) {
               if (fitResult->statusCodeHistory(iSt)!=0) {
                 std::cout << "[ERROR] Fit failed in " << fitResult->statusLabelHistory(iSt) << " with status " << fitResult->statusCodeHistory(iSt) << " !" << std::endl; return false;
               }
-            }
+            } 
           }
-          else if ( myws.obj(("CutAndCount_"+label).c_str()) ) {
+          else if ( myws.at(chg).obj(("CutAndCount_"+label).c_str()) ) {
             // cut and count
             cout << Form("[INFO] Using the CutAndCount Method with the following cut: %s", info.Par.at("Cut_"+label).c_str()) << std::endl;
-            std::unique_ptr<RooDataSet> ds = std::unique_ptr<RooDataSet>((RooDataSet*)myws.data(dsName.c_str())->reduce(RooFit::Cut(info.Par.at("Cut_"+label).c_str()), RooFit::Name(("CutAndCount_"+dsName).c_str())));
-            myws.var( ("N_"+label).c_str() )->setVal( ds->sumEntries() );
-            myws.var( ("N_"+label).c_str() )->setError( sqrt(ds->sumEntries()) );
-            myws.import(*ds);
-            cout << Form("[INFO] Number of events that passed the cut: %.1f", myws.var( ("N_"+label).c_str() )->getValV() ) << std::endl;
+            std::unique_ptr<RooDataSet> ds = std::unique_ptr<RooDataSet>((RooDataSet*)myws.at(chg).data(dsName.c_str())->reduce(RooFit::Cut(info.Par.at("Cut_"+label).c_str()),
+																RooFit::Name(("CutAndCount_"+dsName).c_str())));
+            myws.at(chg).var( ("N_"+label).c_str() )->setVal( ds->sumEntries() );
+            myws.at(chg).var( ("N_"+label).c_str() )->setError( sqrt(ds->sumEntries()) );
+            myws.at(chg).import(*ds);
+            cout << Form("[INFO] Number of events that passed the cut: %.1f", myws.at(chg).var( ("N_"+label).c_str() )->getValV() ) << std::endl;
           }
           else {
             std::cout << "[ERROR] The PDF " << pdfName << " was not found!" << std::endl; return false;
           }
-          if (!drawElectroWeakMETPlot(myws, ("PLOT_"+fileName), outDir, myws.var("MET")->getBins(), info.Flag.at("setLogScale"))) { return false; }
-          myws.saveSnapshot("fittedParameters",myws.allVars(),kTRUE);
+	  if (!drawElectroWeakMETPlot(myws.at(chg), ("PLOT_"+fileName), outDir, myws.at(chg).var("MET")->getBins(), info.Flag.at("setLogScale"), saveAll)) { return false; }
+          myws.at(chg).saveSnapshot("fittedParameters", myws.at(chg).allVars(), kTRUE);
           // Save the results
-          saveWorkSpace(myws, Form("%sresult/", outDir.c_str()), Form("%s.root", ("FIT_"+fileName).c_str()));
+          if (!saveWorkSpace(myws.at(chg), Form("%sresult/", outDir.c_str()), Form("%s.root", ("FIT_"+fileName).c_str()), saveAll)) { return false; }
         }
       }
     }
@@ -388,7 +358,7 @@ bool setEWQModel(StringDiMap_t& model, GlobalInfo&  info)
 };
 
 
-int importDataset(RooWorkspace& myws  , const std::map<string, RooWorkspace>& inputWS , const GlobalInfo& info)
+int importDataset(RooWorkspace& myws  , const std::map<string, RooWorkspace>& inputWS , const GlobalInfo& info, const std::string& chg)
 {
   // Define the selection string
   std::string cutDS = "";
@@ -413,7 +383,7 @@ int importDataset(RooWorkspace& myws  , const std::map<string, RooWorkspace>& in
     const std::string extLabel = dsType + "_" + label;
     std::cout << "[INFO] Importing local RooDataSet " << extLabel << std::endl;
     //
-    for (const auto& chg : info.StrV.at("fitCharge")) {
+    if (chg!="") {
       if (myws.data(Form("d%s_%s", chg.c_str(), label.c_str()))!=NULL) continue;
       if ( inputWS.count(label)==0 || !(inputWS.at(label).data(Form("d%s_%s", chg.c_str(), extLabel.c_str())))){ 
         std::cout << "[ERROR] The dataset " <<  Form("d%s_%s", chg.c_str(), extLabel.c_str()) << " was not found!" << std::endl;
@@ -468,39 +438,6 @@ int importDataset(RooWorkspace& myws  , const std::map<string, RooWorkspace>& in
 };
 
 
-void updateMETParameterRange(RooWorkspace& myws)
-{
-  // Defualt range
-  myws.var("MET")->setRange("METWindow", myws.var("MET")->getMin(), myws.var("MET")->getMax());
-  //
-  const std::string DSTAG = (myws.obj("DSTAG"))     ? ((TObjString*)myws.obj("DSTAG"))->GetString().Data()     : "";
-  const std::string chg   = (myws.obj("fitCharge")) ? ((TObjString*)myws.obj("fitCharge"))->GetString().Data() : "";
-  const std::string dsName = ( "d" + chg + "_" + DSTAG );
-  double metMin , metMax;
-  metMin = myws.var("MET")->getMin(); metMax = myws.var("MET")->getMax();
-  //myws.data(dsName.c_str())->getRange(*myws.var("MET"), metMin, metMax); metMin -= 0.0001;  metMax += 0.0001;
-  const int nBins = std::min(int( std::round(((metMax - metMin)*double(myws.var("MET")->getBins()))/(myws.var("MET")->getMax() - myws.var("MET")->getMin())) ), 1000);
-  //
-  auto hTot = std::unique_ptr<TH1D>((TH1D*)myws.data(dsName.c_str())->createHistogram("TMP", *myws.var("MET"), RooFit::Binning(nBins, metMin, metMax)));
-  std::vector<double> rangeMET; getRange(rangeMET, *hTot, 10); // KEEP THIS NUMBER WITH 7, JUST KEEP IT LIKE THAT :D
-  metMin = std::floor(rangeMET[0]); metMax = std::ceil(rangeMET[1]);
-  if (metMin < myws.var("MET")->getMin()) { metMin = myws.var("MET")->getMin(); }
-  if (metMax > myws.var("MET")->getMax()) { metMax = myws.var("MET")->getMax(); }
-  // Lets force the min to be 0
-  metMin = 0.0;
-  //
-  const std::string metFitRange = Form("(%.6f <= MET && MET < %.6f)", metMin, metMax);
-  if (myws.data(dsName.c_str())->reduce(metFitRange.c_str())->numEntries() < myws.data(dsName.c_str())->numEntries()) {
-    myws.var("MET")->setRange("METWindow", metMin, metMax);
-    auto dataToFit = std::unique_ptr<RooDataSet>((RooDataSet*)(myws.data(dsName.c_str())->reduce(metFitRange.c_str())->Clone((dsName+"_FIT").c_str())));
-    myws.import(*dataToFit);
-    std::cout << Form("[INFO] MET range was updated to : %g <= MET < %g", metMin, metMax) << std::endl;
-  }
-  //
-  return;
-};
-
-
 void setMETGlobalParameterRange(RooWorkspace& myws, const GlobalInfo& info)
 {
   myws.var("MET")->setRange("METWindow", info.Var.at("MET").at("Min"), info.Var.at("MET").at("Max"));
@@ -520,12 +457,13 @@ void setMETFileName(string& fileName, string& outputDir, const string& DSTAG, co
   const bool ispPb = ( info.Flag.at("fitpPb") || info.Flag.at("fitPA") );
   const double etaMin = ( info.Flag.at("useEtaCM") ? PA::EtaLABtoCM(info.Var.at("Muon_Eta").at("Min"), ispPb) : info.Var.at("Muon_Eta").at("Min") );
   const double etaMax = ( info.Flag.at("useEtaCM") ? PA::EtaLABtoCM(info.Var.at("Muon_Eta").at("Max"), ispPb) : info.Var.at("Muon_Eta").at("Max") );
+  const double isoMin = ( ( info.Var.at("Muon_Iso").at("Min") <= 0.0 ) ? 0.0 : info.Var.at("Muon_Iso").at("Min") );
   fileName = Form("%s_%s_%s_%s_%.0f_%.0f_MuIso_%.0f_%.0f", "MET", 
                   dsTag.c_str(),
                   plotLabel.c_str(),
                   ( info.Flag.at("useEtaCM") ? "MuEtaCM" : "MuEta" ),
                   (etaMin*100.0), (etaMax*100.0),
-                  (info.Var.at("Muon_Iso").at("Min")*100.0), (info.Var.at("Muon_Iso").at("Max")*100.0)
+                  (isoMin*100.0), (info.Var.at("Muon_Iso").at("Max")*100.0)
                   );
   return;
 };

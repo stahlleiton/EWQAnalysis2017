@@ -15,7 +15,6 @@
 #include "TF1.h"
 #include "TLine.h"
 #include "TPad.h"
-#include "TObjString.h"
 
 #include "RooWorkspace.h"
 #include "RooDataSet.h"
@@ -26,6 +25,8 @@
 #include "RooRealVar.h"
 #include "RooAbsPdf.h"
 #include "RooAddPdf.h"
+#include "RooStringVar.h"
+#include "RooKeysPdf.h"
 #include "RooHistPdf.h"
 #include "RooClassFactory.h"
 #include "RooFitResult.h"
@@ -64,7 +65,7 @@ typedef std::map< std::string , std::map< std::string , std::map< std::string , 
 typedef std::map< std::string , std::map< std::string , std::vector< int > > >  IntVecMapMap_t;
 
 // MET Model
-enum class METModel 
+enum class METModel
 {
     InvalidModel,
     CutAndCount,
@@ -149,7 +150,7 @@ typedef struct GlobalInfo {
     this->Copy(ref.StrV, keep);
     this->Copy(ref.Flag, keep);
   }
-  bool operator == (const DoubleMapMap_t &ref) const 
+  bool operator == (const DoubleMapMap_t &ref) const
   {
     if (ref.size() != this->Var.size()) return false;
     for (const auto& var : this->Var) {
@@ -159,7 +160,7 @@ typedef struct GlobalInfo {
     }
     return true;
   }
-  bool operator == (const StringMap_t &ref) const 
+  bool operator == (const StringMap_t &ref) const
   {
     if (ref.size() != this->Par.size()) return false;
     for (const auto& par : this->Par) {
@@ -168,7 +169,7 @@ typedef struct GlobalInfo {
     }
     return true;
   }
-  bool operator == (const IntMap_t &ref) const 
+  bool operator == (const IntMap_t &ref) const
   {
     if (ref.size() != this->Int.size()) return false;
     for (const auto& i : this->Int) {
@@ -177,7 +178,7 @@ typedef struct GlobalInfo {
     }
     return true;
   }
-  bool operator == (const StringVectorMap_t &ref) const 
+  bool operator == (const StringVectorMap_t &ref) const
   {
     if (ref.size() != this->StrV.size()) return false;
     for (const auto& i : this->StrV) {
@@ -186,7 +187,7 @@ typedef struct GlobalInfo {
     }
     return true;
   }
-  bool operator == (const BoolMap_t &ref) const 
+  bool operator == (const BoolMap_t &ref) const
   {
     if (ref.size() != this->Flag.size()) return false;
     for (const auto& flag : this->Flag) {
@@ -200,7 +201,7 @@ typedef struct GlobalInfo {
   bool operator != ( const IntMap_t           &ref ) const { if (*this == ref) { return false; } return true; }
   bool operator != ( const StringVectorMap_t  &ref ) const { if (*this == ref) { return false; } return true; }
   bool operator != ( const BoolMap_t          &ref ) const { if (*this == ref) { return false; } return true; }
-  bool operator == ( const GlobalInfo         &ref) const 
+  bool operator == ( const GlobalInfo         &ref) const
   {
     if ( *this != ref.Var  ) return false;
     if ( *this != ref.Par  ) return false;
@@ -214,7 +215,7 @@ typedef struct GlobalInfo {
 
 bool splitString(std::string input, std::string delimiter, std::vector< std::string >& output)
 {
-  // remove spaces from input string 
+  // remove spaces from input string
   input.erase(std::remove(input.begin(), input.end(), ' '), input.end());
   // proceed to parse input string
   while(input!="") {
@@ -226,9 +227,10 @@ bool splitString(std::string input, std::string delimiter, std::vector< std::str
   return true;
 };
 
+
 void setFixedVarsToContantVars(RooWorkspace& ws)
 {
-  RooArgSet listVar = ws.allVars();
+  auto listVar = ws.allVars();
   std::unique_ptr<TIterator> parIt = std::unique_ptr<TIterator>(listVar.createIterator());
   for (RooRealVar* it = (RooRealVar*)parIt->Next(); it!=NULL; it = (RooRealVar*)parIt->Next() ) {
     if ( it->getMin()==it->getMax() && !it->isConstant() ) {
@@ -238,22 +240,88 @@ void setFixedVarsToContantVars(RooWorkspace& ws)
   }
 };
 
-bool saveWorkSpace(const RooWorkspace& ws, const string& outputDir, const string& fileName)
+
+void copyWorkspace(RooWorkspace& outWS, const RooWorkspace& inWS, const std::string smp="All", const bool addVar=true, const bool addSnap=false)
+{
+  //
+  RooMsgService::instance().setGlobalKillBelow(RooFit::WARNING);
+  // Copy all category variables
+  if (inWS.allCats().getSize()>0 && addVar) {
+    auto listCat = inWS.allCats();
+    std::unique_ptr<TIterator> catIt = std::unique_ptr<TIterator>(listCat.createIterator());
+    for (RooCategory* it = (RooCategory*)catIt->Next(); it!=NULL; it = (RooCategory*)catIt->Next() ) { if (!outWS.cat(it->GetName())) { outWS.import(*it); } }
+  }
+  // Copy all category functions
+  if (inWS.allCatFunctions().getSize()>0 && addVar) {
+    auto listFnc = inWS.allCatFunctions();
+    std::unique_ptr<TIterator> fncIt = std::unique_ptr<TIterator>(listFnc.createIterator());
+    for (RooCategory* it = (RooCategory*)fncIt->Next(); it!=NULL; it = (RooCategory*)fncIt->Next() ) { if (!outWS.catfunc(it->GetName())) { outWS.import(*it); } }
+  }
+  // Copy all variables
+  if (inWS.allVars().getSize()>0 && addVar) {
+    auto listVar = inWS.allVars();
+    std::unique_ptr<TIterator> parIt = std::unique_ptr<TIterator>(listVar.createIterator());
+    for (RooRealVar* it = (RooRealVar*)parIt->Next(); it!=NULL; it = (RooRealVar*)parIt->Next() ) { if (!outWS.var(it->GetName())) { outWS.import(*it); } }
+  }
+  // Copy all functions
+  if (inWS.allFunctions().getSize()>0 && addVar) {
+    auto listFnc = inWS.allFunctions();
+    std::unique_ptr<TIterator> fncIt = std::unique_ptr<TIterator>(listFnc.createIterator());
+    for (RooRealVar* it = (RooRealVar*)fncIt->Next(); it!=NULL; it = (RooRealVar*)fncIt->Next() ) { if (!outWS.function(it->GetName())) { outWS.import(*it); } }
+  }
+  // Copy all PDFs
+  if (inWS.allPdfs().getSize()>0) {
+    auto listPdf = inWS.allPdfs();
+    std::unique_ptr<TIterator> pdfIt = std::unique_ptr<TIterator>(listPdf.createIterator());
+    for (RooAbsPdf* it = (RooAbsPdf*)pdfIt->Next(); it!=NULL; it = (RooAbsPdf*)pdfIt->Next() ) { if (!outWS.pdf(it->GetName())) { outWS.import(*it, RooFit::RecycleConflictNodes()); } }
+  }
+  // Copy all Datasets
+  if (inWS.allData().size()>0 && smp!="") {
+    auto listData = inWS.allData();
+    for (const auto& it : listData) { if (!outWS.data(it->GetName()) && (smp=="All" || std::string(it->GetName()).find(smp)!=std::string::npos)) { outWS.import(*it); } }
+  }
+  // Copy all Embedded Datasets
+  if (inWS.allEmbeddedData().size()>0 && smp!="") {
+    auto listData = inWS.allEmbeddedData();
+    for (const auto& it : listData) { if (!outWS.embeddedData(it->GetName()) && (smp=="All" || std::string(it->GetName()).find(smp)!=std::string::npos)) { outWS.import(*it, RooFit::Embedded(1)); } }
+  }
+  // Copy all Generic Objects
+  if (inWS.allGenericObjects().size()>0) {
+    auto listObj = inWS.allGenericObjects();
+    for (const auto& it : listObj) { if (!outWS.genobj(it->GetTitle())) { outWS.import(*it, it->GetTitle()); } }
+  }
+  // Copy all snapshots variables
+  if (addSnap) {
+    std::vector<std::string> snapNames = { "initialParameters", "fittedParameters" };
+    for (const auto& snapName : snapNames) {
+      const auto& snap = inWS.getSnapshot(snapName.c_str());
+      if (snap) { outWS.saveSnapshot(snapName.c_str(), *snap, kTRUE); }
+    }
+  }
+};
+
+
+bool saveWorkSpace(const RooWorkspace& ws, const string& outputDir, const string& fileName, const bool saveAll=true)
 {
   // Save the workspace
   gSystem->mkdir(outputDir.c_str(), kTRUE);
-  std::cout << (outputDir+fileName) << std::endl;
   std::unique_ptr<TFile> file = std::unique_ptr<TFile>(new TFile((outputDir+fileName).c_str(), "RECREATE"));
   if (!file) {
     file->Close();
-    std::cout << "[ERROR] Output root file with fit results could not be created!" << std::endl; return false; 
+    std::cout << "[ERROR] Output root file with fit results could not be created!" << std::endl; return false;
   } else {
-    file->cd();    
-    ws.Write("workspace"); 
+    file->cd();
+    if (saveAll) { ws.Write("workspace"); }
+    else {
+      RooWorkspace tmpWS;
+      copyWorkspace(tmpWS, ws, "", true, true);
+      tmpWS.Write("workspace");
+    }      
     file->Write(); file->Close();
   }
   return true;
 };
+
 
 bool compareSnapshots(const RooArgSet& pars1, const RooArgSet& pars2) {
   std::unique_ptr<TIterator> parIt = std::unique_ptr<TIterator>(pars1.createIterator());
@@ -269,7 +337,8 @@ bool compareSnapshots(const RooArgSet& pars1, const RooArgSet& pars2) {
   return true;
 };
 
-bool isFitAlreadyFound(const RooArgSet& newpars, const string& fileName, const string& pdfName) 
+
+bool isFitAlreadyFound(const RooArgSet& newpars, const string& fileName, const string& pdfName)
 {
   std::cout << "[INFO] Checking if fit was already done!" << std::endl;
   if (gSystem->AccessPathName(fileName.c_str())) {
@@ -295,6 +364,7 @@ bool isFitAlreadyFound(const RooArgSet& newpars, const string& fileName, const s
   return result;
 };
 
+
 void stringReplace(std::string& txt, const std::string& from, const std::string& to)
 {
   std::string::size_type n = 0;
@@ -304,6 +374,7 @@ void stringReplace(std::string& txt, const std::string& from, const std::string&
       n += to.size();
     }
 };
+
 
 std::string formatCut(const std::string& cut, const StringMap_t& map = StringMap_t())
 {
@@ -409,7 +480,7 @@ bool makePullHist(RooHist& pHist, const RooPlot& frame, const std::string histna
     double x, dataVal, exl, exh, eyl, eyh;
     getPoint(*rData, i, x, dataVal, exl, exh, eyl, eyh);
     // Only calculate pull for bins inside curve range
-    if (x<xstart || x>xstop) continue ;
+    if (x<xstart || x>xstop) continue;
     // Get Fit Value
     double fitVal = 0.0;
     if (useAverage) { fitVal = rFit->average(x-exl, x+exh); }
@@ -451,7 +522,7 @@ bool makeRatioHist(RooHist& rHist, const RooPlot& frame, const std::string histn
     double x, dataVal, exl, exh, eyl, eyh;
     getPoint(*rData, i, x, dataVal, exl, exh, eyl, eyh);
     // Only calculate pull for bins inside curve range
-    if (x<xstart || x>xstop) continue ;
+    if (x<xstart || x>xstop) continue;
     // Get Fit Value
     double fitVal = 0.0;
     if (useAverage) { fitVal = rFit->average(x-exl, x+exh); }
@@ -535,5 +606,76 @@ void getRange(std::vector<double>& range, const TH1D& hist, const int& nMaxBins)
   return;
 };
 
+void updateMETParameterRange(RooWorkspace& myws)
+{
+  // Defualt range
+  myws.var("MET")->setRange("METWindow", myws.var("MET")->getMin(), myws.var("MET")->getMax());
+  //
+  const std::string DSTAG = (myws.obj("DSTAG"))     ? ((RooStringVar*)myws.obj("DSTAG")    )->getVal() : "";
+  const std::string chg   = (myws.obj("fitCharge")) ? ((RooStringVar*)myws.obj("fitCharge"))->getVal() : "";
+  const std::string dsName = ( "d" + chg + "_" + DSTAG );
+  double metMin , metMax;
+  metMin = myws.var("MET")->getMin(); metMax = myws.var("MET")->getMax();
+  //myws.data(dsName.c_str())->getRange(*myws.var("MET"), metMin, metMax); metMin -= 0.0001;  metMax += 0.0001;
+  const int nBins = std::min(int( std::round(((metMax - metMin)*double(myws.var("MET")->getBins()))/(myws.var("MET")->getMax() - myws.var("MET")->getMin())) ), 1000);
+  //
+  auto hTot = std::unique_ptr<TH1D>((TH1D*)myws.data(dsName.c_str())->createHistogram("TMP", *myws.var("MET"), RooFit::Binning(nBins, metMin, metMax)));
+  std::vector<double> rangeMET; getRange(rangeMET, *hTot, 10); // KEEP THIS NUMBER WITH 7, JUST KEEP IT LIKE THAT :D
+  metMin = std::floor(rangeMET[0]); metMax = std::ceil(rangeMET[1]);
+  if (metMin < myws.var("MET")->getMin()) { metMin = myws.var("MET")->getMin(); }
+  if (metMax > myws.var("MET")->getMax()) { metMax = myws.var("MET")->getMax(); }
+  // Lets force the min to be 0
+  metMin = 0.0;
+  //
+  const std::string metFitRange = Form("(%.6f <= MET && MET < %.6f)", metMin, metMax);
+  if (myws.data(dsName.c_str())->reduce(metFitRange.c_str())->numEntries() < myws.data(dsName.c_str())->numEntries()) {
+    myws.var("MET")->setRange("METWindow", metMin, metMax);
+    auto dataToFit = std::unique_ptr<RooDataSet>((RooDataSet*)(myws.data(dsName.c_str())->reduce(metFitRange.c_str())->Clone((dsName+"_FIT").c_str())));
+    myws.import(*dataToFit);
+    std::cout << Form("[INFO] MET range was updated to : %g <= MET < %g", metMin, metMax) << std::endl;
+  }
+  //
+  return;
+};
+
+bool createBinnedDataset(RooWorkspace& ws)
+{
+  //
+  const std::string var = "MET";
+  const std::string DSTAG = (ws.obj("DSTAG"))     ? ((RooStringVar*)ws.obj("DSTAG")    )->getVal() : "";
+  const std::string chg   = (ws.obj("fitCharge")) ? ((RooStringVar*)ws.obj("fitCharge"))->getVal() : "";
+  const std::string dsName = ( "d" + chg + "_" + DSTAG );
+  //
+  if (ws.data(dsName.c_str())==NULL) { std::cout << "[WARNING] DataSet " << dsName << " was not found!" << std::endl; return false; }
+  if (ws.data(dsName.c_str())->numEntries()<=10.0) { std::cout << "[WARNING] DataSet " << dsName << " has too few events!" << std::endl; return false; }
+  if (ws.var(var.c_str())==NULL) { std::cout << "[WARNING] Variable " << var << " was not found!" << std::endl; return false; }
+  //
+  const double min  = ws.var(var.c_str())->getMin();
+  const double max  = ws.var(var.c_str())->getMax();
+  const uint   nBin = ws.var(var.c_str())->getBins();
+  //
+  // Create the histogram
+  string histName = dsName;
+  histName.replace(histName.find("d"), std::string("d").length(), "h");
+  std::unique_ptr<TH1D> hist = std::unique_ptr<TH1D>((TH1D*)ws.data(dsName.c_str())->createHistogram(histName.c_str(), *ws.var(var.c_str()), RooFit::Binning(nBin, min, max)));
+  if (hist==NULL) { std::cout << "[WARNING] Histogram " << histName << " is NULL!" << std::endl; return false; }
+  // Cleaning the input histogram
+  // 1) Remove the Under and Overflow bins
+  hist->ClearUnderflowAndOverflow();
+  // 2) Set negative bin content to zero
+  for (int i=0; i<=hist->GetNbinsX(); i++) { if (hist->GetBinContent(i)<0.0) { hist->SetBinContent(i, 0.0); } }
+  // 2) Reduce the range of histogram and rebin it
+  //hist.reset((TH1D*)rebinhist(*hist, range[1], range[2]));
+  if (hist==NULL) { std::cout << "[WARNING] Cleaned Histogram of " << histName << " is NULL!" << std::endl; return false; }
+  string dataName = (dsName+"_FIT");
+  std::unique_ptr<RooDataHist> dataHist = std::unique_ptr<RooDataHist>(new RooDataHist(dataName.c_str(), "", *ws.var(var.c_str()), hist.get()));
+  if (dataHist==NULL) { std::cout << "[WARNING] DataHist used to create " << dsName << " failed!" << std::endl; return false; }
+  if (dataHist->sumEntries()==0) { std::cout << "[WARNING] DataHist used to create " << dsName << " is empty!" << std::endl; return false; }
+  if (std::abs(dataHist->sumEntries() - hist->GetSumOfWeights())>0.001) { std::cout << "[ERROR] DataHist used to create " << dsName << "  " << " is invalid!  " << std::endl; return false; }
+  ws.import(*dataHist);
+  ws.var(var.c_str())->setBins(nBin); // Bug Fix
+  return true;
+}
+ 
 
 #endif // #ifndef initClasses_h

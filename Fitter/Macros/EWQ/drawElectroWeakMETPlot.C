@@ -17,18 +17,19 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
                              const std::string& fileName,
                              const std::string& outputDir,
                              const int& nBins,
-                             const bool& yLogScale
+                             const bool& yLogScale,
+			     const bool saveAll = true
                              )
 {
   //
   // set the CMS style
   setTDRStyle();
   //
-  const std::string DSTAG = (ws.obj("DSTAG"))     ? ((TObjString*)ws.obj("DSTAG"))->GetString().Data()     : "";
-  const std::string cha   = (ws.obj("channel"))   ? ((TObjString*)ws.obj("channel"))->GetString().Data()   : "";
-  const std::string col   = (ws.obj("fitSystem")) ? ((TObjString*)ws.obj("fitSystem"))->GetString().Data() : "";
-  const std::string chg   = (ws.obj("fitCharge")) ? ((TObjString*)ws.obj("fitCharge"))->GetString().Data() : "";
-  const std::string obj   = (ws.obj("fitObject")) ? ((TObjString*)ws.obj("fitObject"))->GetString().Data() : "";
+  const std::string DSTAG = (ws.obj("DSTAG")    ) ? ((RooStringVar*)ws.obj("DSTAG")    )->getVal() : "";
+  const std::string cha   = (ws.obj("channel")  ) ? ((RooStringVar*)ws.obj("channel")  )->getVal() : "";
+  const std::string col   = (ws.obj("fitSystem")) ? ((RooStringVar*)ws.obj("fitSystem"))->getVal() : "";
+  const std::string chg   = (ws.obj("fitCharge")) ? ((RooStringVar*)ws.obj("fitCharge"))->getVal() : "";
+  const std::string obj   = (ws.obj("fitObject")) ? ((RooStringVar*)ws.obj("fitObject"))->getVal() : "";
   //
   const std::string tag = ( obj + cha + chg + "_" + col );
   const std::string dsName = ( "d" + chg + "_" + DSTAG );
@@ -79,7 +80,7 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
       double norm = ws.data(dsNameFit.c_str())->sumEntries();
       ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())),
                                       RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::NumCPU(32),
-                                      RooFit::LineColor(kBlack), RooFit::LineStyle(1), RooFit::Precision(1e-4)
+                                      RooFit::LineColor(kBlack), RooFit::LineStyle(1), RooFit::Precision(1e-6)
                                       );
       legInfo["PDF"][Form("plot_%s", pdfName.c_str())] = "Total Fit";
       frame["EXTRA"] = std::unique_ptr<RooPlot>((RooPlot*)frame.at("MAIN")->emptyClone("EXTRA"));
@@ -114,8 +115,8 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
         std::string obj = name; obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find(cha));
         if (norm > 0.0) {
           ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", name.c_str())), RooFit::Components(*list),
-                                          RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::NumCPU(32),
-                                          RooFit::FillStyle(1001), RooFit::FillColor(colorMap.at(obj)), RooFit::VLines(), RooFit::DrawOption("LF"), RooFit::LineColor(kBlack), RooFit::LineStyle(1)
+                                          RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::NumCPU(32), RooFit::Precision(1e-5),
+                                          RooFit::FillStyle(1001), RooFit::FillColor(colorMap.at(obj)), RooFit::VLines(), RooFit::DrawOption("F")
                                           );
           legInfo["TEMP"][Form("plot_%s", name.c_str())] = formatCut(obj);
         }
@@ -127,7 +128,7 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
       norm = ws.data(dsNameFit.c_str())->sumEntries();
       ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())),
                                       RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::NumCPU(32),
-                                      RooFit::LineColor(kBlack), RooFit::LineStyle(1), RooFit::Precision(1e-4)
+                                      RooFit::LineColor(kBlack), RooFit::LineStyle(1), RooFit::Precision(1e-5)
                                       );
       //
       frame["EXTRA"] = std::unique_ptr<RooPlot>((RooPlot*)frame.at("MAIN")->emptyClone("EXTRA"));
@@ -224,7 +225,7 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   printElectroWeakMETParameters(*pad.at("MAIN"), ws, pdfName, drawMode);
   std::vector< std::string > text = { process };
   if (ws.obj(("CutAndCount_"+tag).c_str())) {
-    text.push_back( formatCut( ((TObjString*)ws.obj(("CutAndCount_"+tag).c_str()))->GetString().Data(), varEWQLabel ) );
+    text.push_back( formatCut( ((RooStringVar*)ws.obj(("CutAndCount_"+tag).c_str()))->getVal(), varEWQLabel ) );
   }
   //
   printElectroWeakBinning(*pad.at("MAIN"), ws, dsName, text, drawMode);
@@ -234,18 +235,21 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   if (drawMode>0) { dy *= (1./0.8); leg.SetTextSize(0.03*(1./0.8)); }
   printElectroWeakLegend(*pad.at("MAIN"), leg, *frame.at("MAIN"), legInfo);
   //
-  ws.import(*frame.at("MAIN"), Form("frame_Tot%s", tag.c_str()));
+  frame.at("MAIN")->SetTitle(Form("frame_Tot%s", tag.c_str()));
+  ws.import(*frame.at("MAIN"), frame.at("MAIN")->GetTitle());
   //
   pad.at("MAIN")->SetLogy(setLogScale);
   pad.at("MAIN")->Update();
   //
   // Save the plot in different formats
-  gSystem->mkdir(Form("%splot/root/", outputDir.c_str()), kTRUE);
-  cFig->SaveAs(Form("%splot/root/%s.root", outputDir.c_str(), fileName.c_str()));
-  gSystem->mkdir(Form("%splot/png/", outputDir.c_str()), kTRUE);
-  cFig->SaveAs(Form("%splot/png/%s.png", outputDir.c_str(), fileName.c_str()));
+  if (saveAll) {
+    gSystem->mkdir(Form("%splot/root/", outputDir.c_str()), kTRUE);
+    cFig->SaveAs(Form("%splot/root/%s.root", outputDir.c_str(), fileName.c_str()));
+  }
   gSystem->mkdir(Form("%splot/pdf/", outputDir.c_str()), kTRUE);
   cFig->SaveAs(Form("%splot/pdf/%s.pdf", outputDir.c_str(), fileName.c_str()));
+  gSystem->mkdir(Form("%splot/png/", outputDir.c_str()), kTRUE);
+  cFig->SaveAs(Form("%splot/png/%s.png", outputDir.c_str(), fileName.c_str()));
   //
   cFig->Clear();
   cFig->Close();
@@ -345,9 +349,9 @@ void printElectroWeakBinning(TPad& pad, const RooWorkspace& ws, const std::strin
     const std::string varName = it->GetName();
     double defaultMin = 0.0 , defaultMax = 100000.0;
     if (varName=="Muon_Eta") { defaultMin = -2.5; defaultMax = 2.5; }
-    if (varName=="Muon_Iso") { defaultMin = -0.000001; }
+    if (varName=="Muon_Iso") { defaultMin = 0.0; }
     if (ws.var(varName.c_str())) {
-      double minVal = ws.var(varName.c_str())->getMin();
+      double minVal = ( (ws.var(varName.c_str())->getMin() <= 0.0) ? 0.0 : ws.var(varName.c_str())->getMin() ) ;
       double maxVal = ws.var(varName.c_str())->getMax();
       string fVarName = varEWQLabel.at(varName);
       const bool ispPb = ( dsName.find("_pPb")!=std::string::npos || dsName.find("_PA")!=std::string::npos );
@@ -370,8 +374,8 @@ void printElectroWeakBinning(TPad& pad, const RooWorkspace& ws, const std::strin
   }
   for (const auto& txt : text) { if (text[0]!=txt) { t.DrawLatex(xPos, yPos-dy, Form("%s", txt.c_str())); dy+=dYPos; } }
   //
-  const double outTot = ws.data(dsName.c_str())->numEntries();
-  const double outCut = ( (ws.data((dsName+"_FIT").c_str())!=NULL) ? ws.data((dsName+"_FIT").c_str())->numEntries() : outTot );
+  const double outTot = ws.data(dsName.c_str())->sumEntries();
+  const double outCut = ( (ws.data((dsName+"_FIT").c_str())!=NULL) ? ws.data((dsName+"_FIT").c_str())->sumEntries() : outTot );
   if (outCut != outTot) { t.DrawLatex(xPos, yPos-dy, Form("Loss: (%.4f%%) %.0f evts", ((outTot-outCut)*100.0/outTot), (outTot-outCut))); }
   //
   pad.Update();
@@ -382,10 +386,20 @@ void printElectroWeakBinning(TPad& pad, const RooWorkspace& ws, const std::strin
 void printElectroWeakLegend(TPad& pad, TLegend& leg, const RooPlot& frame, const StringDiMap_t& legInfo)
 {
   pad.cd();
-  std::map< std::string , std::string > drawOption = { { "DATA" , "pe" } , { "PDF" , "l" } , { "TEMP" , "fl" } };
+  std::map< std::string , std::string > drawOption = { { "DATA" , "pe" } , { "PDF" , "l" } , { "TEMP" , "f" } };
+  const std::vector< std::string > pdfMapOrder = { "WToMu" , "QCD" , "DY" , "WToTau" , "TTbar" };
   for (const auto& map : legInfo) {
-    for (const auto& elem : map.second) {
-      if (frame.findObject(elem.first.c_str())) { leg.AddEntry(frame.findObject(elem.first.c_str()), elem.second.c_str(), drawOption[map.first].c_str()); }
+    if (map.first=="TEMP") {
+      for (const auto& pdfM : pdfMapOrder) {
+        std::pair< std::string , std::string > elem;
+        for (const auto& el : map.second) { if (el.first.find(pdfM)!=std::string::npos) { elem = std::make_pair( el.first , el.second ); break; } }
+        if (frame.findObject(elem.first.c_str())) { leg.AddEntry(frame.findObject(elem.first.c_str()), elem.second.c_str(), drawOption[map.first].c_str()); }
+      }
+    }
+    else {
+      for (const auto& elem : map.second) {
+        if (frame.findObject(elem.first.c_str())) { leg.AddEntry(frame.findObject(elem.first.c_str()), elem.second.c_str(), drawOption[map.first].c_str()); }
+      }
     }
   }
   leg.Draw("same");

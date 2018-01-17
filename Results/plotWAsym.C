@@ -15,6 +15,9 @@
 #include <string>
 
 
+// ------------------ TYPE -------------------------------
+typedef std::map< std::string , std::map< std::string , std::pair< std::vector< std::string > , uint > > > WSDirMap;
+
 
 /////////////////////
 // OTHER FUNCTIONS //
@@ -22,7 +25,8 @@
 
 void extractInfo ( VarBinMap& inputVar , bool& useEtaCM , const std::string& workDirName , const std::string& colTag , const std::string& metTag ,
                    const std::string& dsTag , const std::string& thePoiName );
-void getResult   ( BinPentaMap& var , VarBinMap& inputVar , const bool&  useEtaCM , const std::string& workDirName , const std::string& effType , const std::string& accType , const bool& doSyst );
+void getResult   ( BinPentaMap& var , VarBinMap& inputVar , const bool&  useEtaCM , const std::string& workDirName , const std::string& effType , const std::string& accType ,
+		   const bool doSyst = true , const VarBinMap nomVar = {} , const uint systCorr = 0 );
 
 /////////////////////
 
@@ -31,43 +35,83 @@ void plotWAsym(
                const std::string nominalWorkDirName = "NominalCM",
                const std::string effType = "TnP",
                const std::string accType = "",
-               const std::vector< std::string > collVec = { "PA" , "pPb" , "Pbp" },
-               const bool doSyst = true
+               const std::vector< std::string > collVec = { "PA" /*, "pPb" , "Pbp"  */},
+               const bool doSyst = false
                )
 {
   //
   // Define the Systematic varations
-  std::map< std::string , std::vector< std::string > > workDirNames = {
-    { "Nominal"           , { nominalWorkDirName } },
+  // Variation   Method: (0 or 4): Fully Uncorrelated , 1: Eta Correlated , 2: Charge Correlated , 3: Fully Correlated
+  WSDirMap workDirNames = {
+    { "Nominal" , {
+	{ "Nominal"  , { { nominalWorkDirName } , 0 } }
+      }
+    },
     // SIGNAL
-    { "BinWidth"          , { "NominalCM_BinWidth1" , "NominalCM_BinWidth3" } },
-    //{ "METRange"          , { "NominalCM_METMax200" } },
-    // CORRECTION
-    //{ "Recoil_Scaling"    , { "NominalCM_RecoilScaling" } },
-    { "Recoil_ScalingOneGaus"    , { "NominalCM_RecoilScalingOneGauss" } },
+    { "Signal" , {
+	//{ "RooKeys"  , { { "NominalCM_RooKeys"   } , 3 } },
+	{ "METRange" , { { "NominalCM_METMax300" } , 4 } },
+	{ "BinWidth" , { { "NominalCM_BinWidth1" , "NominalCM_BinWidth3" } , 4 } },
+      }
+    },
     // BACKGROUND: QCD
-    //{ "QCD_ConstrainIncl" , { "SystematicCM_QCD_Constrain_Inclusive" } },
-    { "QCD_ConstrainMean" , { "SystematicCM_QCD_Constrain_Mean" } },
-    //{ "QCD_FixedMean"     , { "SystematicCM_QCD_Fixed_Mean" } },
-    { "QCD_MultiJet"      , { "SystematicCM_QCD_MultiJet" } },
+    { "QCD_Background" , {
+	{ "QCD_ConstrainMean" , { { "SystematicCM_QCD_Constrain_Mean" } , 4 } },
+	{ "QCD_ConstrainMean_Sigma0" , { { "SystematicCM_QCD_Constrain_Mean_Sigma0" } , 4 } },
+	{ "QCD_ConstrainMean_Sigma1" , { { "SystematicCM_QCD_Constrain_Mean_Sigma1" } , 4 } },
+	{ "QCD_ConstrainMean_Sigma2" , { { "SystematicCM_QCD_Constrain_Mean_Sigma2" } , 4 } },
+	//{ "QCD_ConstrainFit"  , { { "SystematicCM_QCD_Constrain_Fit"  } , 3 } },
+	//{ "QCD_ConstrainEta"  , { { "SystematicCM_QCD_Constrain_Eta"  } , 3 } },
+	{ "QCD_MultiJet"      , { { "SystematicCM_QCD_MultiJet"       } , 4 } },
+	//{ "QCD_FixedFit"     , { { "SystematicCM_QCD_Fixed_Fit"      } , 3 } },
+	//{ "QCD_FixedMean"    , { { "SystematicCM_QCD_Fixed_Mean"     } , 3 } },
+	//{ "QCD_ConstrainRooKeys" , { { "SystematicCM_QCD_Constrain_Mean_RooKeys" } , 3 } },
+	//{ "QCD_ConstrainIncl"  , { { "SystematicCM_QCD_Constrain_Inclusive"    } , 3 } },
+	// DONT USE
+	//{ "QCD_ConstrainEta" , { { "SystematicCM_QCD_Constrain_Eta"  } , 3 } },
+	//{ "QCD_FixedEta"     , { { "SystematicCM_QCD_Fixed_Eta"      } , 3 } },
+      }
+    },
     // BACKGROUND: ELECTROWEAK
-    { "XSection_DrellYan" , { "SystematicCM_XSECTION_DY_DOWN"     , "SystematicCM_XSECTION_DY_UP"     } },
-    { "XSection_WToTau"   , { "SystematicCM_XSECTION_WToTau_DOWN" , "SystematicCM_XSECTION_WToTau_UP" } },
-    { "XSection_TTbar"    , { "SystematicCM_XSECTION_TTbar_DOWN"  , "SystematicCM_XSECTION_TTbar_UP"  } },
-    // LUMINOSITY
-    //{ "Luminosity"        , { "SystematicCM_LUMI_DOWN"            , "SystematicCM_LUMI_UP"            } },
+    { "EWK_Background" , {
+	{ "XSection_DrellYan" , { { "SystematicCM_XSECTION_DY_DOWN"     , "SystematicCM_XSECTION_DY_UP"     } , 3 } },
+	{ "XSection_WToTau"   , { { "SystematicCM_XSECTION_WToTau_DOWN" , "SystematicCM_XSECTION_WToTau_UP" } , 3 } },
+	{ "XSection_TTbar"    , { { "SystematicCM_XSECTION_TTbar_DOWN"  , "SystematicCM_XSECTION_TTbar_UP"  } , 3 } },
+      }
+    },
     // CORRECTION
-    //{ "Recoil_NoCorr"     , { "NominalCM_NoRecoilCorr"  } },
-    //{ "Recoil_Only"       , { "NominalCM_RecoilCorrOnly"  } },
-    //{ "HF_Only"           , { "NominalCM_HFCorrOnly"  } },
-    //{ "TnP_Only"          , { "NominalCM_TnPCorrOnly"   } },
-    //{ "HF_NoCorr"         , { "NominalCM_NoHFCorr"      } },
-    //{ "TnP_NoCorr"        , { "NominalCM_NoTnPCorr"     } },
-    // NEED TO FIX
-    // DONT USE
-    //{ "QCD_ConstrainEta"  , { "SystematicCM_QCD_Constrain_Eta" } },
-    //{ "QCD_FixedEta"      , { "SystematicCM_QCD_Fixed_Eta" } },
+    { "Recoil_Correction" , {
+	{ "Recoil_Smearing" , { { "NominalCM_RecoilSmearing" } , 4 } },
+	//{ "Recoil_ScalingOneGaus" , { { "NominalCM_RecoilScalingOneGauss" } , 3 } },
+      }
+    },
+    // CORRECTION
+    { "Event_Activity" , {
+	{ "HF_NTrackCorr"  , { { "NominalCM_NTrackCorr" } , 4 } },
+      }
+    }//,
+    // LUMINOSITY
+    //{ "Luminosity" ,
+    //  {
+	//{ "Luminosity" , { { "SystematicCM_LUMI_DOWN" , "SystematicCM_LUMI_UP" } , 3 } }
+    //  }
+    //},
+    // OTHER STUFF
+    //{ "Other" , {
+	//{ "Recoil_NoCorr" , { { "NominalCM_NoRecoilCorr" } , 3 } },
+	//{ "NoCorr"        , { { "NominalCM_NoCorr"       } , 3 } },
+	//{ "HF_Only"       , { { "NominalCM_HFCorrOnly"   } , 3 } },
+	//{ "TnP_NoCorr"    , { { "NominalCM_NoTnPCorr"    } , 3 } },
+	//{ "TnP_Only"    , { { "NominalCM_TnPCorrOnly"    } , 0 } },
+	//{ "Recoil_Only" , { { "NominalCM_RecoilCorrOnly" } , 0 } },
+	//{ "HF_NoCorr"   , { { "NominalCM_NoHFCorr"       } , 0 } },
+    //}
+    //}
   };
+  workDirNames.at("Recoil_Correction")["Recoil_StatVar_MC"] = std::make_pair(std::vector<std::string>(), 4);
+  for (uint i = 0; i < 100; i++) { workDirNames.at("Recoil_Correction").at("Recoil_StatVar_MC").first.push_back(Form("NominalCM_RecoilStatVar_MC/Variation_%d", i)); }
+  workDirNames.at("Recoil_Correction")["Recoil_StatVar_DATA"] = std::make_pair(std::vector<std::string>(), 4);
+  for (uint i = 0; i < 100; i++) { workDirNames.at("Recoil_Correction").at("Recoil_StatVar_DATA").first.push_back(Form("NominalCM_RecoilStatVar_DATA/Variation_%d", i)); }
   //
   const std::string metTag      = "METPF_RAW";
   const std::string dsTag       = "DATA";
@@ -76,32 +120,16 @@ void plotWAsym(
   //
   // Initialize the Results var
   BinSextaMap var;
-  VarBinMap inputVarNom;
   //
-  // Get the Results
-  for (const auto& lbl : workDirNames) {
-    if (!doSyst && lbl.first!="Nominal") continue;
-    for (const auto& wkDir : lbl.second) {
-      std::cout << "[INFO] Adding results for : " << wkDir << std::endl;
-      VarBinMap inputVar;
-      for (const auto& colTag : collVec) {
-        extractInfo( inputVar , useEtaCM , wkDir , colTag , metTag , dsTag , thePoiNames );
-      }
-      BinPentaMap tmpVar;
-      getResult( tmpVar , inputVar , useEtaCM , wkDir , effType , accType , (lbl.first!="Nominal" ? false : doSyst) );
-      //
-      var[lbl.first].push_back(tmpVar);
-      if (lbl.first=="Nominal") { inputVarNom = inputVar; }
-    }
+  // Get the Nominal Result
+  VarBinMap inputVarNom;
+  if (workDirNames.count("Nominal")>0) {
+    const auto& wkDir = workDirNames.at("Nominal").at("Nominal").first[0];
+    std::cout << "[INFO] Adding results for : " << wkDir << std::endl;
+    for (const auto& colTag : collVec) { extractInfo( inputVarNom , useEtaCM , wkDir , colTag , metTag , dsTag , thePoiNames ); }
+    getResult( var["Nominal"] , inputVarNom , useEtaCM , wkDir , effType , accType , doSyst );
   }
-  if (var.count("Nominal")==0 || var.at("Nominal").size()==0) { std::cout << "[ERROR] Nominal results are missing" << std::endl; return; }
-  if (doSyst) {
-    BinPentaMap tmpVar;
-    for (const auto& c : var.at("Nominal")[0]) { for (const auto& ch : c.second) { for (const auto& v : ch.second) { for (const auto& b : v.second.at("Val")) {
-            tmpVar[c.first][ch.first][v.first]["Val"][b.first] = b.second + std::max( v.second.at("Err_Syst_Low").at(b.first) , v.second.at("Err_Syst_High").at(b.first) );
-          } } } }
-    var["Efficiency"].push_back(tmpVar);
-  }
+  if (var.count("Nominal")==0) { std::cout << "[ERROR] Nominal results are missing" << std::endl; return; }
   //
   // --------------------------------------------------------------------------------- //
   //
@@ -111,33 +139,64 @@ void plotWAsym(
   if (!printYieldsTables(inputVarNom, outDir)) { return; }
   //
   // Print the Result tables
-  if (!printResultsTables(var, inputVarNom, outDir)) { return; }
+  if (!printResultsTables(var.at("Nominal"), inputVarNom, outDir)) { return; }
   //
   // --------------------------------------------------------------------------------- //
   //
-  // Initialize the Output Graphs
+  // Get the Systematic Results
+  BinSeptaMapVec systVar;
+  if (doSyst) {
+    // Add all systematic uncertainty
+    for (const auto& cat : workDirNames) {
+      if (cat.first=="Nominal") continue;
+      for (const auto& lbl : cat.second) {
+	const auto& corrType = lbl.second.second;
+	for (const auto& wkDir : lbl.second.first) {
+	  std::cout << "[INFO] Adding results for : " << wkDir << std::endl;
+	  VarBinMap inputVar;
+	  for (const auto& colTag : collVec) { extractInfo( inputVar , useEtaCM , wkDir , colTag , metTag , dsTag , thePoiNames ); }
+	  BinPentaMap tmpVar;
+	  getResult( tmpVar , inputVar , useEtaCM , wkDir , effType , accType , true , inputVarNom , corrType);
+	  systVar[cat.first][lbl.first].push_back(tmpVar);
+	}
+      }
+    }
+    // Add efficiency systematic uncertainty
+    BinPentaMap tmpVar;
+    for (const auto& c : var.at("Nominal")) { for (const auto& ch : c.second) { for (const auto& v : ch.second) { for (const auto& t : v.second) { for (const auto& b : t.second) {
+	      if (t.first=="Val" || t.first.find("Err_Syst_")!=std::string::npos) { tmpVar[c.first][ch.first][v.first][t.first][b.first] = b.second; }
+	    } } } } }
+    systVar["Efficiency"]["Efficiency"].push_back(tmpVar);
+    //
+    // Compute all systematic uncertainties
+    computeSystematic(var, systVar);
+    //
+    // --------------------------------------------------------------------------------- //
+    if (doSyst) {
+      // Print systematic Tables
+      if (!printSystematicTables(var.at("Nominal"), outDir , useEtaCM)) { return; }
+      if (!printFullSystematicTable(var, outDir, useEtaCM)) { return; }
+    }
+  }
+  //
+  // Create the main plots
   GraphPentaMap graph;
   iniResultsGraph(graph, var);
-  //
-  // --------------------------------------------------------------------------------- //
-  //
-  // Fill the Output Graphs
-  //
   if (!fillResultsGraph(graph, var)) { return; }
-  //
-  // --------------------------------------------------------------------------------- //
-  //
-  // Print systematic Tables
-  if (!printSystematicTables(graph, outDir , useEtaCM)) { return; }
-  if (!printFullSystematicTable(graph, outDir, useEtaCM)) { return; }
-  //
-  // --------------------------------------------------------------------------------- //
-  //
-  // Draw the Output Graphs
   drawGraph(graph, outDir, useEtaCM, accType, effType);
   //
-  // Draw combined systematic graph
-  if (doSyst) drawCombineSystematicGraph(graph, outDir, useEtaCM, accType, effType);
+  // Create the systematic plots
+  if (doSyst) {
+    GraphPentaMap systGraph;
+    for (const auto& sVar : systVar) { iniResultsGraph(systGraph, sVar.second); }
+    for (const auto& sVar : systVar) { if (!fillResultsGraph(systGraph, sVar.second)) { return; } }
+    drawGraph(systGraph, outDir, useEtaCM, accType, effType);
+    drawCombineSystematicGraph(graph, outDir, useEtaCM, accType, effType);
+  }
+  //
+  // Create the plots with predictions
+  drawGraphWithTheory(graph, outDir, useEtaCM, accType, effType);
+  //
 };
 
 
@@ -259,9 +318,13 @@ void getResult(
                const std::string& workDirName,
                const std::string& effType,
                const std::string& accType,
-               const bool& doSyst
+               const bool      doSyst,
+               const VarBinMap nomVar,
+	       const uint      systCorr
                )
 {
+  //
+  const bool isNominal = ( (workDirName=="Nominal") || (workDirName=="NominalCM") );
   //
   // --------------------------------------------------------------------------------- //
   //
@@ -279,14 +342,16 @@ void getResult(
     if (workDirName.find("CutAndCount")!=std::string::npos) { effWorkDirName = "CutAndCount"; }
     else { effWorkDirName = "Nominal"; }
     if (useCM) { effWorkDirName += "CM"; }
-    const bool useHFCorr = ( (workDirName.find("TnPCorrOnly")==std::string::npos) && (workDirName.find("RecoilCorrOnly")==std::string::npos) && (workDirName.find("NoHFCorr")==std::string::npos) );
-    if (useHFCorr) { effWorkDirName += "_WithHF"; }
+    uint useHFCorr = 1;
+    if ( (workDirName.find("TnPCorrOnly")!=std::string::npos) || (workDirName.find("RecoilCorrOnly")!=std::string::npos) || (workDirName.find("NoHFCorr")!=std::string::npos) ) { useHFCorr = 0; }
+    if (workDirName.find("NTrackCorr")!=std::string::npos) { useHFCorr = 2; }
+    if      (useHFCorr==1) { effWorkDirName += "_WithHF";     }
+    else if (useHFCorr==2) { effWorkDirName += "_WithNTrack"; }
     const std::string effDirPath  = Form("%s/Efficiency/Output/%s", preCWD.c_str(), effWorkDirName.c_str());
     const std::string effFileName = "efficiencyTnP.root";
     const std::string effFilePath = Form("%s/%s", effDirPath.c_str(), effFileName.c_str());
     //
     // Extract the Acceptance and Efficiency
-    const bool isNominal = ( (workDirName=="Nominal") || (workDirName=="NominalCM") );
     if (!getAcceptanceAndEfficiency(eff, effFilePath, useEtaCM, isNominal)) { return; }
     //
     // --------------------------------------------------------------------------------- //
@@ -300,14 +365,14 @@ void getResult(
   //
   // Compute the Charge Asymmetry
   //
-  if (!computeChargeAsymmetry(var, inputVar, doSyst)) { return; }
+  if (!computeChargeAsymmetry(var, inputVar, doSyst, nomVar, systCorr)) { return; }
   //
   // Compute the Forward-Backward ratio
   //
-  if (!computeForwardBackwardRatio(var, inputVar, doSyst)) { return; }
+  if (!computeForwardBackwardRatio(var, inputVar, doSyst, nomVar, systCorr)) { return; }
   //
   // Compute the Cross-Section
   //
-  if (!computeCrossSection(var, inputVar, doSyst)) { return; }
+  if (!computeCrossSection(var, inputVar, doSyst, nomVar, systCorr)) { return; }
   //
 };

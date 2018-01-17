@@ -53,7 +53,7 @@ class RecoilCorrector
   // Protected Functions
   //
   bool  getRecoilFits       ( const std::string& fileName , std::map< std::string , std::unique_ptr<TF1> >& u1Fit , std::map< std::string , std::unique_ptr<TF1> >& u2Fit );
-  void  evalRecoilFits      ( std::map< std::string , double >& uPar , const double& pT , const std::map< std::string , std::unique_ptr<TF1> >& uFit , const bool corrMean = true );
+  void  evalRecoilFits      ( std::map< std::string , double >& uPar , const double& pT , const std::map< std::string , std::unique_ptr<TF1> >& uFit , const bool setMeanToZero = false );
   int   findModel           ( const std::map< std::string , double >& uPar );
   TF1*  getFunctionCDF      ( const std::map< std::string , double >& uPar , const double& CDF , const bool useOneGaussian = false );
   //
@@ -69,7 +69,7 @@ class RecoilCorrector
   bool  correctMCRecoil     ( double& uVal_CORR , const double& uVal_RAW , const std::map< std::string , double >& uPar_MC , const std::map< std::string , double >& uPar_DATA , 
                               const std::string& method , const bool useOneGaussian_MC = false , const bool useOneGaussian_DATA = false );
   bool  correctMCRecoil     ( double& uVal_CORR , const double& uVal_RAW , const double& pT , const std::map< std::string , std::unique_ptr<TF1> >& uFit_MC , const std::map< std::string , std::unique_ptr<TF1> >& uFit_DATA , 
-                              const std::string& method , const bool useOneGaussian_MC = false , const bool useOneGaussian_DATA = false , const bool corrMean = true );
+                              const std::string& method , const bool useOneGaussian_MC = false , const bool useOneGaussian_DATA = false , const bool corrMean = true , const bool setMeanToZero = false );
 
 
   //

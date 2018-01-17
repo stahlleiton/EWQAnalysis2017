@@ -74,11 +74,11 @@ const char*  sgn                 ( const double n ) { if (n >= 0.) { return "+";
 const std::vector< std::string > CHG_  = { "Plus" , "Minus" };
 
 
-void printEfficiency(const std::string workDirName = "NominalCM", const bool applyHFCorr = true)
+void printEfficiency(const std::string workDirName = "NominalCM", const uint applyHFCorr = 1)
 {
   // Change the working directory
   const std::string CWD = getcwd(NULL, 0);
-  const std::string mainDir = Form("%s/Output/%s/", CWD.c_str(), (workDirName+(applyHFCorr ? "_WithHF" : "")).c_str());
+  const std::string mainDir = Form("%s/Output/%s/", CWD.c_str(), (workDirName+((applyHFCorr==1) ? "_WithHF" : ((applyHFCorr==2) ? "_WithNTrack" : ""))).c_str());
   gSystem->mkdir(mainDir.c_str(), kTRUE);
   gSystem->ChangeDirectory(mainDir.c_str());
   //
@@ -678,7 +678,7 @@ void makeCorrEff1DTable(std::ofstream& file, const EffMap_t& iEffMap, const Unc1
   const std::vector< std::string > colChg = { "" , "Minus" , "Plus" };
   const std::vector< std::string > colCor = { "" , "TnP_Nominal" , "TnP_Nominal" };
   const std::vector< std::string > colTyp = { "VAR" , "Total" , "Total" };
-  std::vector< std::string >    colTitle1 = { "$\\eta_{LAB}$ Range" , "$\\PW^{-}\\to\\mu^{-}$ Corrected Efficiency" , "$\\PW^{+}\\to\\mu^{+}$ Corrected Efficiency" };
+  std::vector< std::string >    colTitle1 = { "$\\eta_{LAB}$ Range" , "$\\mu^{-}$ Corrected Eff." , "$\\mu^{+}$ Corrected Eff." };
   if (useEtaCM) { colTitle1[0] = "$\\eta_{CM}$ Range"; }
   //
   texTable.push_back("\\begin{table}[h!]");
@@ -687,10 +687,10 @@ void makeCorrEff1DTable(std::ofstream& file, const EffMap_t& iEffMap, const Unc1
   createEff1DTable(texTable, colTyp, colCor, colTitle1, colChg, effMap, uncMap, col);
   //texTable.push_back("  }");
   texTable.push_back(Form("  \\caption{%s}",
-                          Form("Muon corrected efficiency as a function of the generated %s, derived from the $\\PW \\to \\mu+\\nu_{\\mu}$ %s \\POWHEG samples separated in negative and positive charged muons. %sGenerated muons are require to match reconstructed muons passing all analysis cuts. The muon efficiency has been corrected by applying the Tag and Probe scale factors event by event. The label \"tnp\" represent the TnP total uncertainty.",
+                          Form("Muon corrected efficiency as a function of the generated %s, derived from the $\\WToMuNu$ %s \\POWHEG samples separated in negative and positive charged muons. %sGenerated muons are required to be matched to reconstructed muons passing all analysis cuts. The muon efficiency has been corrected by applying the Tag and Probe scale factors event by event. The label \"tnp\" represent the TnP total uncertainty.",
                                (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
                                col.c_str(),
-                               ( (col=="PA") ? "The \\pPb and \\Pbp MC samples are combined as described in \\sect{sec:CombiningBeamDirection}. " : "")
+                               ( (col=="PA") ? " The \\pPb and \\Pbp MC samples are combined as described in \\sect{sec:CombiningBeamDirection}. " : "")
                                )
                           )
                      );
@@ -722,20 +722,20 @@ void makeMCEff1DTable(std::ofstream& file, const EffMap_t& iEffMap, const Unc1DM
   const std::vector< std::string > colChg = (isHFReweight ? std::vector< std::string >({ "" , "Minus" , "Minus" , "Plus" , "Plus" }) : std::vector< std::string >({ "" , "Minus" , "Plus" }));
   const std::vector< std::string > colCor = (isHFReweight ? std::vector< std::string >({ "" , "NoCorr" , "HFCorr" , "NoCorr" , "HFCorr" }) : std::vector< std::string >({ "" , "NoCorr" , "NoCorr" }));
   const std::vector< std::string > colTyp = (isHFReweight ? std::vector< std::string >({ "VAR" , "Total" , "Total" , "Total" , "Total" }) : std::vector< std::string >({ "VAR" , "Total" , "Total" }));
-  std::vector< std::string >    colTitle1 = (isHFReweight ? std::vector< std::string >({ "$\\eta_{LAB}$ Range" , "$\\PW^{-}\\to\\mu^{-}$ Truth Efficiency" , "$\\PW^{-}\\to\\mu^{-}$ Reweighted Efficiency" , "$\\PW^{+}\\to\\mu^{+}$ Truth Efficiency" , "$\\PW^{+}\\to\\mu^{+}$ Reweighted Efficiency" }) : std::vector< std::string >({ "$\\eta_{LAB}$ Range" , "$\\PW^{-}\\to\\mu^{-}$ Truth Efficiency" , "$\\PW^{+}\\to\\mu^{+}$ Truth Efficiency" }));
+  std::vector< std::string >    colTitle1 = (isHFReweight ? std::vector< std::string >({ "$\\eta_{LAB}$ Range" , "$\\mu^{-}$ Truth Eff." , "$\\mu^{-}$ Reweighted Eff." , "$\\mu^{+}$ Truth Eff." , "$\\mu^{+}$ Reweighted Eff." }) : std::vector< std::string >({ "$\\eta_{LAB}$ Range" , "$\\mu^{-}$ Truth Eff." , "$\\mu^{+}$ Truth Eff." }));
 if (useEtaCM) { colTitle1[0] = "$\\eta_{CM}$ Range"; }
   //
   texTable.push_back("\\begin{table}[h!]");
   texTable.push_back("  \\centering");
-  //texTable.push_back("  \\resizebox{\\textwidth}{!}{");
+  if (colChg.size()>3) { texTable.push_back("  \\resizebox{\\textwidth}{!}{"); }
   createEff1DTable(texTable, colTyp, colCor, colTitle1, colChg, effMap, uncMap, col);
-  //texTable.push_back("  }");
+  if (colChg.size()>3) { texTable.push_back("  }"); }
   texTable.push_back(Form("  \\caption{%s}",
-                          Form("Muon truth efficiency as a function of the generated %s, derived from the $\\PW \\to \\mu+\\nu_{\\mu}$ %s \\POWHEG samples separated in negative and positive charged muons. %sGenerated muons are require to match reconstructed muons passing all analysis cuts.%s Results corresponds to \\eq{eq:MCTruthEfficiency}",
+                          Form("Muon truth efficiency as a function of the generated %s, derived from the $\\WToMuNu$ %s \\POWHEG samples separated in negative and positive charged muons. %sGenerated muons are required to be matched to reconstructed muons passing all analysis cuts.%s Results corresponds to \\eq{eq:MCTruthEfficiency}",
                                (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
                                col.c_str(),
                                ( (col=="PA") ? "The \\pPb and \\Pbp MC samples are combined as described in \\sect{sec:CombiningBeamDirection}. " : ""),
-                               (isHFReweight ? "The event activity of the MC samples have been re-weighted." : "")
+                               (isHFReweight ? " The event activity of the MC samples has been re-weighted." : "")
                                )
                           )
                      );
@@ -769,7 +769,7 @@ void createUnc1DTable(std::vector< std::string >& texTable, const std::vector< s
   //
   const auto& nomUnc = uncMap.at(col).at("Plus").at("Total").at("TnP_Stat");
   //
-  for (int iBin = 0; iBin < nomUnc.GetNrows(); iBin++) {
+  for (int iBin = 1; iBin <= nomUnc.GetNrows(); iBin++) {
     tmp = ("    ");
     for (uint i = 0; i < nCol; i++) {
       const auto&  typ = colTyp[i];
@@ -791,24 +791,24 @@ void createUnc1DTable(std::vector< std::string >& texTable, const std::vector< s
         if (uncMap.at(col).at(chg).at(typ).count(cor+"_p21_p24")>0) {
           for (const auto& cr : uncMap.at(col).at(chg).at(typ)) {
             if (cr.first.find(cor+"_")!=std::string::npos) {
-              tnpErr += std::pow( cr.second[iBin] , 2.0 );
+              tnpErr += std::pow( cr.second[iBin-1] , 2.0 );
             }
           }
           tnpErr = std::sqrt( tnpErr );
         }
         else {
-          tnpErr = uncMap.at(col).at(chg).at(typ).at(cor)[iBin];
+          tnpErr = uncMap.at(col).at(chg).at(typ).at(cor)[iBin-1];
         }
         val = Form("%.4f", tnpErr );
       }
       else if (typ=="Total") {
-        const auto& tnpErr = uncMap.at(col).at(chg).at(typ).at(cor)[iBin];
+        const auto& tnpErr = uncMap.at(col).at(chg).at(typ).at(cor)[iBin-1];
         val = Form("%.4f", tnpErr );
       }
       else {
         const auto& nomEff = effMap.at(col).at("Plus").at("Total").at("NoCorr")[0];
-        const double min = nomEff.GetTotalHistogram()->GetXaxis()->GetBinLowEdge(iBin+1);
-        const double max = nomEff.GetTotalHistogram()->GetXaxis()->GetBinUpEdge(iBin+1);
+        const double min = nomEff.GetTotalHistogram()->GetXaxis()->GetBinLowEdge(iBin);
+        const double max = nomEff.GetTotalHistogram()->GetXaxis()->GetBinUpEdge(iBin);
         val = Form("%s%.2f , %s%.2f", sgn(min), min, sgn(max) , max);
       }
       tmp += val;
@@ -853,7 +853,7 @@ void makeTnPUnc1DTable(std::ofstream& file, const EffMap_t& iEffMap, const Unc1D
   texTable.push_back(Form("  \\caption{%s}",
                           Form("Systematic uncertainties corresponding to the muon efficiency corrections derived applying the Tag and Probe scale factors event by event. Each source  for each source  The errors are shown as a function of the generated %s, derived from the %s %s \\POWHEG samples separated in negative and positive charged muons. %sGenerated muons are require to match reconstructed muons passing all analysis cuts.",
                                (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
-                               (chg=="Plus" ? "$\\PW^{+} \\to \\mu^{+}+\\nu_{\\mu}$" : "$\\PW^{-} \\to \\mu^{-}+\\nu_{\\mu}$"),
+                               (chg=="Plus" ? "$\\WToMuNuPl$" : "$\\WToMuNuMi$"),
                                col.c_str(),
                                ( (col=="PA") ? "The \\pPb and \\Pbp MC samples are combined as described in \\sect{sec:CombiningBeamDirection}. " : "")
                                )
@@ -878,13 +878,13 @@ void makeTnPUnc1DTable(std::ofstream& file, const EffMap_t& iEffMap, const Unc1D
   //
   texTable.push_back("\\begin{table}[h!]");
   texTable.push_back("  \\centering");
-  texTable.push_back("  \\resizebox{\\textwidth}{!}{");
+  //texTable.push_back("  \\resizebox{\\textwidth}{!}{");
   createUnc1DTable(texTable, colTyp, colCor, colTitle1, colChg, effMap, uncMap, col);
-  texTable.push_back("  }");
+  //texTable.push_back("  }");
   texTable.push_back(Form("  \\caption{%s}",
-                          Form("Statistic uncertainties corresponding to the muon efficiency corrections derived applying the Tag and Probe scale factors event by event. Each source  for each source  The errors are shown as a function of the generated %s, derived from the %s %s \\POWHEG samples separated in negative and positive charged muons. %sGenerated muons are require to match reconstructed muons passing all analysis cuts.",
+                          Form("Statistical uncertainties corresponding to the muon efficiency corrections derived by applying the Tag and Probe scale factors event by event. Each source  for each source  The errors are shown as a function of the generated %s, derived from the %s %s \\POWHEG samples separated in negative and positive charged muons. %sGenerated muons are require to match reconstructed muons passing all analysis cuts.",
                                (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
-                               (chg=="Plus" ? "$\\PW^{+} \\to \\mu^{+}+\\nu_{\\mu}$" : "$\\PW^{-} \\to \\mu^{-}+\\nu_{\\mu}$"),
+                               (chg=="Plus" ? "$\\WToMuNuPl$" : "$\\WToMuNuMi$"),
                                col.c_str(),
                                ( (col=="PA") ? "The \\pPb and \\Pbp MC samples are combined as described in \\sect{sec:CombiningBeamDirection}. " : "")
                                )
