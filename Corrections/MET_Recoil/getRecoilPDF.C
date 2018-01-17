@@ -44,9 +44,15 @@ std::string formatText(const std::string& text);
 void makeHTML(const std::string outDir,
               const std::map< std::string , std::unique_ptr<TGraphAsymmErrors> >& u1Graph,
               const std::map< std::string , std::unique_ptr<TGraphAsymmErrors> >& u2Graph,
-              const std::string uparName, const std::string uprpName);
+              const std::string uparName, const std::string uprpName,
+              const int sysIdx);
 
 inline bool fileExist (const std::string& name);
+
+// copy maps and randomise graphs
+std::map< std::string , std::unique_ptr<TGraphAsymmErrors> > copyGraphMap(const std::map< std::string , std::unique_ptr<TGraphAsymmErrors> >& uGraph, const bool randomise = false);
+
+void randGraph(TGraphAsymmErrors& graph);
 
 //--------------------------------------------------------------------------------------------------
 // perform fit of recoil component
@@ -69,6 +75,7 @@ void getRecoilPDF(
                   const bool isData = false,
                   uint pfumodel = 2, // u1 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian)
                   const bool applyHFCorr = true, // Only used for MC, in data it is ignored
+                  const bool computeSyst = false, // If true computes the 100 random variations of each pT point and perform the fits
                   const std::vector< std::string > metType = { "PF_RAW" /*, "PF_Type1" , "PF_NoHF_RAW" , "PF_NoHF_Type1" */},
                   const std::vector< std::string > COLL    = { "PA" /*, "Pbp" , "pPb" */}
                   )
@@ -108,7 +115,7 @@ void getRecoilPDF(
       //
       // Define directories and file names
       const std::string inputDir  = mainDir + dsLabel + "/" + ("MET_"+met) + "/" + col + "/" + (isData?"":(applyHFCorr?"HFCorr/":"noHFCorr/")) + pfu12model.c_str() + "/Fits/";
-      const std::string outputDir = mainDir + dsLabel + "/" + ("MET_"+met) + "/" + col + "/" + (isData?"":(applyHFCorr?"HFCorr/":"noHFCorr/")) + pfu12model.c_str() + "/Results/";
+      const std::string outputDir = mainDir + dsLabel + "/" + ("MET_"+met) + "/" + col + "/" + (isData?"":(applyHFCorr?"HFCorr/":"noHFCorr/")) + pfu12model.c_str() + (computeSyst?"/Systematics/":"/Results/");
       gSystem->mkdir(outputDir.c_str(), true);
       const std::string fileName  = "plots_RecoilPDF_" + met + "_" + col + ".root";
       //
@@ -132,34 +139,60 @@ void getRecoilPDF(
         if (name.find("PFu2")!=std::string::npos) { u2Graph[name.substr(name.find("u2")+2)].reset(gr); }
       }
       //
-      // Fit the Recoil graphs
+      int nFits = 0; // If 0 then fit nominal
+      if (computeSyst) nFits = 99; // In this case compute 100 variations and fit them
       //
-      // For u1 component
-      std::map< std::string , std::unique_ptr<TF1> > u1Fit;
-      std::map< std::string , TFitResultPtr > u1FitRes;
-      if (!( performFit(u1Fit, u1FitRes, *c, u1Graph, u1FcnInfo.at(dsLabel).at(met).at("PA"), uparName, met, col, outputDir) )) { return; }
-      // For u2 component
-      std::map< std::string , std::unique_ptr<TF1> > u2Fit;
-      std::map< std::string , TFitResultPtr > u2FitRes;
-      if (!( performFit(u2Fit, u2FitRes, *c, u2Graph, u2FcnInfo.at(dsLabel).at(met).at("PA"), uprpName, met, col, outputDir) )) { return; }
-      //
-      // Save the fit results
-      //
-      const std::string outfname = (outputDir + Form("fits_RecoilPDF_%s_%s.root", met.c_str(), col.c_str()));
-      auto outfile = std::unique_ptr<TFile>(new TFile(outfname.c_str(), "RECREATE"));
-      for (const auto& graph  : u1Graph ) { if (graph.second ) graph.second->Write();  }
-      for (const auto& graph  : u2Graph ) { if (graph.second ) graph.second->Write();  }
-      for (const auto& fit    : u1Fit   ) { if (fit.second   ) fit.second->Write();    }
-      for (const auto& fit    : u2Fit   ) { if (fit.second   ) fit.second->Write();    }
-      for (const auto& fitres : u1FitRes) { if (fitres.second) fitres.second->Write(); }
-      for (const auto& fitres : u2FitRes) { if (fitres.second) fitres.second->Write(); }
-      outfile->Close();
-      // Make Website with plots
-      const std::string htmlDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col + "/" + (isData?"":(applyHFCorr?"HFCorr/":"noHFCorr/")) + pfu12model.c_str();
-      makeHTML(htmlDir, u1Graph, u2Graph, uparName, uprpName);
-      cout << "  <> Output saved in " << outputDir << endl;
-      // Clean up
-      file->Close();
+      for (int i = 0 ; i <= nFits ; i++)
+      {
+        std::string outputDir_rnd = outputDir;
+        //
+        // Randomise graphs
+        std::map< std::string , std::unique_ptr<TGraphAsymmErrors> > u1Graph_rnd;
+        std::map< std::string , std::unique_ptr<TGraphAsymmErrors> > u2Graph_rnd;
+        
+        if (computeSyst)
+        {
+          outputDir_rnd += Form("Sys_%d/",i);
+          gSystem->mkdir(outputDir_rnd.c_str(), true);
+          
+          u1Graph_rnd = copyGraphMap(u1Graph,true);
+          u2Graph_rnd = copyGraphMap(u2Graph,true);
+        }
+        else
+        {
+          u1Graph_rnd = copyGraphMap(u1Graph);
+          u2Graph_rnd = copyGraphMap(u2Graph);
+        }
+        //
+        // Fit the Recoil graphs
+        //
+        // For u1 component
+        std::map< std::string , std::unique_ptr<TF1> > u1Fit;
+        std::map< std::string , TFitResultPtr > u1FitRes;
+        if (!( performFit(u1Fit, u1FitRes, *c, u1Graph_rnd, u1FcnInfo.at(dsLabel).at(met).at("PA"), uparName, met, col, outputDir_rnd) )) { return; }
+        // For u2 component
+        std::map< std::string , std::unique_ptr<TF1> > u2Fit;
+        std::map< std::string , TFitResultPtr > u2FitRes;
+        if (!( performFit(u2Fit, u2FitRes, *c, u2Graph_rnd, u2FcnInfo.at(dsLabel).at(met).at("PA"), uprpName, met, col, outputDir_rnd) )) { return; }
+        //
+        // Save the fit results
+        //
+        const std::string outfname = (outputDir_rnd + Form("fits_RecoilPDF_%s_%s.root", met.c_str(), col.c_str()));
+        auto outfile = std::unique_ptr<TFile>(new TFile(outfname.c_str(), "RECREATE"));
+        for (const auto& graph  : u1Graph_rnd ) { if (graph.second ) graph.second->Write();  }
+        for (const auto& graph  : u2Graph_rnd ) { if (graph.second ) graph.second->Write();  }
+        for (const auto& fit    : u1Fit   ) { if (fit.second   ) fit.second->Write();    }
+        for (const auto& fit    : u2Fit   ) { if (fit.second   ) fit.second->Write();    }
+        for (const auto& fitres : u1FitRes) { if (fitres.second) fitres.second->Write(); }
+        for (const auto& fitres : u2FitRes) { if (fitres.second) fitres.second->Write(); }
+        outfile->Close();
+        // Make Website with plots
+        const std::string htmlDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col + "/" + (isData?"":(applyHFCorr?"HFCorr/":"noHFCorr/")) + pfu12model.c_str() + (computeSyst?"/Systematics":"");
+        makeHTML(htmlDir, u1Graph_rnd, u2Graph_rnd, uparName, uprpName,(computeSyst?i:-1));
+        cout << "  <> Output saved in " << outputDir_rnd << endl;
+        // Clean up
+        file->Close();
+      }
     }
   }
   c->Close();
@@ -371,13 +404,15 @@ void makeHTML(
               const std::map< std::string , std::unique_ptr<TGraphAsymmErrors> >& u1Graph,
               const std::map< std::string , std::unique_ptr<TGraphAsymmErrors> >& u2Graph,
               const std::string uparName   = "u1",
-              const std::string uprpName   = "u2"
+              const std::string uprpName   = "u2",
+              const int sysIdx             = -1
               )
 {
-
+  const bool computeSyst = ((sysIdx>-1)?true:false);
+  
   ofstream htmlfile;
   std::string htmlfname;
-  htmlfname = Form("%s/plots.html", outDir.c_str());
+  htmlfname = Form("%s/plots%s.html", outDir.c_str(),(computeSyst?Form("_Sys_%d",sysIdx):""));
   std::cout << "[INFO] Proceed to create HLTM file: " << htmlfname << std::endl;
   htmlfile.open(htmlfname);
   if (!htmlfile.is_open()) { std::cout << "[ERROR] Was not able to create file: " << htmlfname << std::endl; return; }
@@ -391,8 +426,8 @@ void makeHTML(
   uint counter = 0;
   for (const auto& gr : u1Graph) {
     if (counter%5 == 0) { htmlfile << "<tr>" << endl; }
-    if (fileExist(outDir+"/Results/"+uparName+"/png/fitPF"+uparName+gr.first+".png")) {
-      htmlfile << "<td width=\"20%\"><a target=\"_blank\" href=\"Results/" << uparName << "/png/fitPF" << uparName << gr.first << ".png\"><img src=\"Results/" << uparName << "/png/fitPF" << uparName << gr.first << ".png\" alt=\"Results/" << uparName << "/png/fitPF" << uparName << gr.first << ".png\" width=\"100%\"></a></td>" << endl;
+    if (fileExist(outDir+(computeSyst?Form("/Sys_%d/",sysIdx):"/Results/")+uparName+"/png/fitPF"+uparName+gr.first+".png")) {
+      htmlfile << "<td width=\"20%\"><a target=\"_blank\"" << " " << (computeSyst?Form("href=\"Sys_%d/",sysIdx):"href=\"Results/") << uparName << "/png/fitPF" << uparName << gr.first << ".png\"><img" << " " << (computeSyst?Form("src=\"Sys_%d/",sysIdx):"src=\"Results/") << uparName << "/png/fitPF" << uparName << gr.first << ".png\"" << " " << (computeSyst?Form("alt=\"Sys_%d/",sysIdx):"alt=\"Results/") << uparName << "/png/fitPF" << uparName << gr.first << ".png\" width=\"100%\"></a></td>" << endl;
     }
     else {
       htmlfile << "<td width=\"20%\"><a target=\"_blank\" href=\"Fits/" << uparName << "/png/pf" << uparName << gr.first << ".png\"><img src=\"Fits/" << uparName << "/png/pf" << uparName << gr.first << ".png\" alt=\"Fits/" << uparName << "/png/pf" << uparName << gr.first << ".png\" width=\"100%\"></a></td>" << endl;
@@ -418,8 +453,8 @@ void makeHTML(
   counter = 0;
   for (const auto& gr : u2Graph) {
     if (counter%5 == 0) { htmlfile << "<tr>" << endl; }
-    if (fileExist(outDir+"/Results/"+uprpName+"/png/fitPF"+uprpName+gr.first+".png")) {
-      htmlfile << "<td width=\"20%\"><a target=\"_blank\" href=\"Results/" << uprpName << "/png/fitPF" << uprpName << gr.first << ".png\"><img src=\"Results/" << uprpName << "/png/fitPF" << uprpName << gr.first << ".png\" alt=\"Results/" << uprpName << "/png/fitPF" << uprpName << gr.first << ".png\" width=\"100%\"></a></td>" << endl;
+    if (fileExist(outDir+(computeSyst?Form("/Sys_%d/",sysIdx):"/Results/")+uprpName+"/png/fitPF"+uprpName+gr.first+".png")) {
+      htmlfile << "<td width=\"20%\"><a target=\"_blank\"" << " " << (computeSyst?Form("href=\"Sys_%d/",sysIdx):"href=\"Results/") << uprpName << "/png/fitPF" << uprpName << gr.first << ".png\"><img" << " " << (computeSyst?Form("src=\"Sys_%d/",sysIdx):"src=\"Results/") << uprpName << "/png/fitPF" << uprpName << gr.first << ".png\"" << " " << (computeSyst?Form("alt=\"Sys_%d/",sysIdx):"alt=\"Results/") << uprpName << "/png/fitPF" << uprpName << gr.first << ".png\" width=\"100%\"></a></td>" << endl;
     }
     else {
       htmlfile << "<td width=\"20%\"><a target=\"_blank\" href=\"Fits/" << uprpName << "/png/pf" << uprpName << gr.first << ".png\"><img src=\"Fits/" << uprpName << "/png/pf" << uprpName << gr.first << ".png\" alt=\"Fits/" << uprpName << "/png/pf" << uprpName << gr.first << ".png\" width=\"100%\"></a></td>" << endl;
@@ -486,3 +521,42 @@ inline bool fileExist (const std::string& name) {
   struct stat buffer;   
   return (stat (name.c_str(), &buffer) == 0); 
 };
+
+
+std::map< std::string , std::unique_ptr<TGraphAsymmErrors> > copyGraphMap(const std::map< std::string , std::unique_ptr<TGraphAsymmErrors> >& uGraph, const bool randomise)
+{
+  std::map< std::string , std::unique_ptr<TGraphAsymmErrors> > newMap;
+  
+  for (auto& graph : uGraph) {
+    std::string varName = graph.first;
+    TGraphAsymmErrors* gr = new TGraphAsymmErrors(*graph.second);
+    
+    if (randomise && (varName.find("sigma")!=std::string::npos)) randGraph(*gr);
+      
+    newMap[varName].reset(gr);
+  }
+  
+  return newMap;
+}
+
+void randGraph(TGraphAsymmErrors& graph)
+{
+  Int_t nBins = graph.GetN();
+  
+  for (Int_t i=0; i<nBins ; i++)
+  {
+    Double_t x,y;
+    graph.GetPoint(i,x,y);
+    
+    Double_t sigma = max(graph.GetErrorYhigh(i),graph.GetErrorYlow(i));
+    
+    TF1* fRand = new TF1("fRand","TMath::Gaus(x,[0],[1],1)",y-6.*sigma,y+6.*sigma); // Function to randomise yields in each bin
+    fRand->SetNpx(10000);
+    fRand->SetParameter(0,y);
+    fRand->SetParameter(1,sigma);
+    
+    graph.SetPoint(i,x,fRand->GetRandom());
+    
+    delete fRand;
+  }
+}

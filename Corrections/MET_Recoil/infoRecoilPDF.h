@@ -41,7 +41,7 @@ const std::map< std::string , std::map< std::string , std::map< std::string , st
       { "PF_RAW" , {
           { "PA" , {
               { "mean1"  , { u1MeanFcnExp  , { -1.5 , 0.8 , 0.1 , 0.5 } , { -10. , -6.0 , -6.0 , -10.0 } , { 10. , 6.0 , 6.0 , 10.0 } } },
-              { "sigma1" , { u12SigmaFcnExpPP , { 10.0 , 1.0 , 1.0 } , { 0.0 , -10.0 , -5.0 } , { 50.0 , 10.0 , 5.0 } } },
+              { "sigma1" , { u12SigmaFcnExpPP , { 10.0 , 1.0 , 1.0 } , { 0.0 , -10.0 , -10.0 } , { 50.0 , 10.0 , 10.0 } } },
 //              { "sigma1" , { u1SigmaFcnExpV1 , { 10.0 , 1.0 , 0.0 } , { 0.0 , -10.0 , -10.0 } , { 50.0 , 10.0 , 10.0 } } }
             }
           }
@@ -82,7 +82,7 @@ const std::map< std::string , std::map< std::string , std::map< std::string , st
       { "PF_RAW" , {
           { "PA" , {
               { "mean1"  , { u1MeanFcnExp  , { -1.5 , 0.8 , 0.1 , 0.5 } , { -10. , -6.0 , -6.0 , -10.0 } , { 10. , 6.0 , 6.0 , 10.0 } } },
-              { "sigma1" , { u12SigmaFcnExpPP , { 10.0 , 1.0 , 1.0 } , { 0.0 , -10.0 , -5.0 } , { 50.0 , 10.0 , 5.0 } } },
+              { "sigma1" , { u12SigmaFcnExpPP , { 10.0 , 1.0 , 1.0 } , { 0.0 , -10.0 , -10.0 } , { 50.0 , 10.0 , 10.0 } } },
 //              { "sigma1" , { u1SigmaFcnExpV1 , { 8.0 , 0.3 , 1.0 } , { 0.0 , -3.0 , -10.0 } , { 50.0 , 3.0 , 10.0 } } }
             }
           }
@@ -147,7 +147,7 @@ std::map< std::string , std::map< std::string , std::map< std::string , std::map
       { "PF_RAW" , {
           { "PA" , {
               { "mean1"  , { u2MeanFcnExp  , { 0.0 } , { -5.0 } , { 5.0 } } },
-              { "sigma1" , { u12SigmaFcnExpPP , { 10.0 , 1.0 , 1.0 } , { 0.0 , -10.0 , -5.0 } , { 50.0 , 10.0 , 5.0 } } },
+              { "sigma1" , { u12SigmaFcnExpPP , { 10.0 , 1.0 , 1.0 } , { 0.0 , -10.0 , -10.0 } , { 50.0 , 10.0 , 10.0 } } },
 //              { "sigma1" , { u1SigmaFcnExpV1 , { 10.0 , 1.0 , 0.0 } , { 0.0 , -10.0 , -10.0 } , { 50. , 10. , 10.0 } } },
 //                { "sigma1" , { u2SigmaFcnExpV1 , { 10.0 , 1.0 } , { 0.0 , -10.0 } , { 50. , 10. } } },
 //              { "sigma1" , { u2SigmaFcnExp , { 10.0 , 0.0 , 0.02 , 0.0 } , { 0.0 , -100.0 , -100.0 , -100.0 } , { 50. , 100.0 , 100.0, 100.0 } } },
@@ -194,7 +194,7 @@ std::map< std::string , std::map< std::string , std::map< std::string , std::map
       { "PF_RAW" , {
           { "PA" , {
               { "mean1"  , { u2MeanFcnExp  , { 0.0 } , { -5.0 } , { 5.0 } } },
-              { "sigma1" , { u12SigmaFcnExpPP , { 10.0 , 1.0 , 1.0 } , { 0.0 , -10.0 , -5.0 } , { 50.0 , 10.0 , 5.0 } } },
+              { "sigma1" , { u12SigmaFcnExpPP , { 10.0 , 1.0 , 1.0 } , { 0.0 , -10.0 , -10.0 } , { 50.0 , 10.0 ,10.0 } } },
 //              { "sigma1" , { u2SigmaFcnExpV1 , { 10.0 , 1.0 } , { 0.0 , -10.0 } , { 50. , 10. } } },
 //              { "sigma1" , { u1SigmaFcnExpV1 , { 10.0 , 1.0 , 0.0 } , { 0.0 , -10.0 , -10.0 } , { 50. , 10. , 10.0 } } },
 //              { "sigma1" , { u2SigmaFcnExp , { 10.0 , 0.0 , 0.02 , 0.0  } , { -1.0 , -15.0 , -10.0 , -200.0  } , { 50. , 20.0 , 10.0, 200.0 } } },
