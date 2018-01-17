@@ -341,6 +341,7 @@ bool performFit(
     uConfInt.at(graph.first)->SetStats(kFALSE);
     uConfInt.at(graph.first)->SetFillColor(kYellow);
     uConfInt.at(graph.first)->SetFillStyle(3225);
+    uConfInt.at(graph.first)->SetMarkerSize(0);
     //  Fit Function
     uFit.at(graph.first)->SetLineColor(kRed);
     uFit.at(graph.first)->SetLineWidth(2);
@@ -348,7 +349,7 @@ bool performFit(
     // Define the plotting pads
     TPad *pad1  = new TPad("pad1", "", 0, 0.23, 1, 1);
     TPad *pad2  = new TPad("pad2", "", 0, 0, 1, 0.228);
-    auto  pline = std::unique_ptr<TLine>(new TLine(0.0, 0.0,  200.0, 0.0));
+    auto  pline = std::unique_ptr<TLine>(new TLine(0.0, 0.0,  135.0, 0.0));
     pline->SetLineColor(kBlue); pline->SetLineWidth(3); pline->SetLineStyle(2);
     // Format the pads
     c.cd();
