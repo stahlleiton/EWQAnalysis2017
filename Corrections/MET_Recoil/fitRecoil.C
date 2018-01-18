@@ -86,10 +86,10 @@ bool performFit(
 
 void fitRecoil(
                const bool isData = false,
-               uint pfumodel = 2, // u1/2 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian)
+               uint pfumodel = 2, // u1/2 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian, 4 => Breit-Wigner plus Gaussian)
                const bool applyHFCorr = false, // Only used for MC, in data it is ignored
-               const std::vector< std::string > metType = { "PF_RAW" , "PF_Type1" , "PF_NoHF_RAW", "PF_NoHF_Type1" },
-               const std::vector< std::string > COLL    = { "PA" , "Pbp" , "pPb" },
+               const std::vector< std::string > metType = { "PF_RAW"/* , "PF_Type1" , "PF_NoHF_RAW", "PF_NoHF_Type1" */},
+               const std::vector< std::string > COLL    = { "PA"/* , "Pbp" , "pPb" */},
                const bool remakeDS = false
                )
 {
@@ -97,7 +97,7 @@ void fitRecoil(
   const std::string uparName   = "u1";
   const std::string uprpName   = "u2";
   //
-  if (pfumodel>3 || pfumodel<1){
+  if (pfumodel>4 || pfumodel<1){
     std::cout << "[ERROR] The supported models are: 1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian" << std::endl;
     return;
   }
@@ -120,8 +120,8 @@ void fitRecoil(
   
   std::vector< std::string > fileName;
   std::string dsLabel;
-  uint pfu1model = pfumodel; // u1 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian)
-  uint pfu2model = pfumodel; // u2 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian)
+  uint pfu1model = pfumodel; // u1 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian, 4 => Breit-Wigner plus Gaussian)
+  uint pfu2model = pfumodel; // u2 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian, 4 => Breit-Wigner plus Gaussian)
   if (isData) {
     fileName.push_back("/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20171003.root");
     dsLabel = "DATA";
@@ -430,7 +430,7 @@ void fitRecoil(
     for (const auto& col : COLL) {
       std::cout << "[INFO] Working with MET " << met << " and coll: " << col  << std::endl;
       // Create output directories
-      const std::string outputDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col +"/" + (!isData?(applyHFCorr?"HFCorr/":"noHFCorr/"):"") + (pfu1model==1?"singleGauss/":(pfu1model==2?"doubleGauss/":"tripleGauss/"));
+      const std::string outputDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col +"/" + (!isData?(applyHFCorr?"HFCorr/":"noHFCorr/"):"") + (pfu1model==1?"singleGauss/":(pfu1model==2?"doubleGauss/":(pfu1model==3?"doubleGauss/":"BWGauss/")));
       if (!existDir(outputDir)) { makeDir(outputDir); }
       // Do fits on u1
       std::cout << "[INFO] Proceed to perform the fit for u1" << std::endl;
@@ -472,7 +472,7 @@ void fitRecoil(
   for (const auto& met : metType) {
     for (const auto& col : COLL) {
       // Create output directories
-      const std::string outputDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col +"/" + (!isData?(applyHFCorr?"HFCorr/":"noHFCorr/"):"")+ (pfu1model==1?"singleGauss/":(pfu1model==2?"doubleGauss/":"tripleGauss/")) +"Fits/";
+      const std::string outputDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col +"/" + (!isData?(applyHFCorr?"HFCorr/":"noHFCorr/"):"")+ (pfu1model==1?"singleGauss/":(pfu1model==2?"doubleGauss/":(pfu1model==3?"doubleGauss/":"BWGauss/"))) +"Fits/";
       gSystem->mkdir(TString(outputDir + uparName + "/" + "png/"), true);
       gSystem->mkdir(TString(outputDir + uparName + "/" + "pdf/"), true);
       gSystem->mkdir(TString(outputDir + uparName + "/" + "root/"), true);
@@ -595,7 +595,7 @@ void fitRecoil(
       for (const auto& graph : u2Graph) { if (graph.second) graph.second->Write(); }
       outfile->Close();
 
-      const std::string htmlDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col + "/" + (!isData?(applyHFCorr?"HFCorr/":"noHFCorr/"):"") + (pfu1model==1?"singleGauss":(pfu1model==2?"doubleGauss":"tripleGauss"));
+      const std::string htmlDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col + "/" + (!isData?(applyHFCorr?"HFCorr/":"noHFCorr/"):"") + (pfu1model==1?"singleGauss/":(pfu1model==2?"doubleGauss/":(pfu1model==3?"doubleGauss/":"BWGauss/")));
       makeHTML(htmlDir, u1Graph, u2Graph, uparName, uprpName, nbins);
   
       cout << "  <> Output saved in " << outputDir << endl;
@@ -629,7 +629,7 @@ bool performFit(
   if (hv.size()==0) { std::cout << "[ERROR] hv vector is empty"; return false; }
   //if (hv[0]->GetEntries()==0) { std::cout << "[ERROR] hv[0] has zero entries"; return false; }
   if ((ptBins.size()-1)!=hv.size()) { std::cout << "[ERROR] hv and ptBins don't have the same number of entries"; return false; }
-  if (model>3 || model<1) { std::cout << "[ERROR] Wrong input model!"; return false; }
+  if (model>4 || model<1) { std::cout << "[ERROR] Wrong input model!"; return false; }
   if (ws.var(uName.c_str())==NULL) {  std::cout << "[ERROR] Recoil parameter was not found in the workspace!"; return false; }
   //
   // Create output directories
@@ -648,7 +648,7 @@ bool performFit(
     ws.factory( Form("rsigma2[%.6f, %.6f, %.6f]" , isData?2.0:0.55, isData?0.1:-0.5, isData?5.0:1.0) );
     ws.factory( "RooFormulaVar::sigma2( '@0*@1' , {sigma1, rsigma2})" );
   }
-  if (model>=3) {
+  if (model==3) {
     ws.factory( Form("rsigma3[%.6f, %.6f, %.6f]" , 2.0, 0.1, 5.0) );
     ws.factory( "RooFormulaVar::sigma3( '@0*@1' , {sigma2, rsigma3})" );
   }
@@ -660,45 +660,49 @@ bool performFit(
     if (isData || uName=="u2") ws.var("dmean2")->setConstant(true);
     ws.factory( "RooFormulaVar::mean2( '@0 + @1*@2' , {mean1, sigma1, dmean2})" );
   }
-  if (model>=3) {
+  if (model==3) {
     ws.factory( Form("dmean3[%.6f, %.6f, %.6f]", 0.0, -0.25, 0.4) );
     ws.var("dmean3")->setConstant(true);
     ws.factory( "RooFormulaVar::mean3( '@0 + @1*@2' , {mean2, sigma2, dmean3})" );
   }
   //
   // Fractions
-  if (model>=2) { ws.factory( Form("frac[%.6f, %.6f, %.6f]" , isData?0.70:0.45, 0.0, 1.0) ); ws.var("frac")->setConstant(true); }
-  if (model>=3) { ws.factory( Form("frac2[%.6f, %.6f, %.6f]", 0.70, 0.0, 1.0) ); ws.var("frac2")->setConstant(true);}
+  if (model==2) { ws.factory( Form("frac[%.6f, %.6f, %.6f]" , isData?0.70:0.45, 0.0, 1.0) ); ws.var("frac")->setConstant(true); }
+  if (model==3) { ws.factory( Form("frac2[%.6f, %.6f, %.6f]", 0.70, 0.0, 1.0) ); ws.var("frac2")->setConstant(true);}
+  if (model==4) { ws.factory( Form("frac[%.6f, %.6f, %.6f]" , isData?0.75:0.85, 0.0, 1.0) ); ws.var("frac")->setConstant(true); }
+
   //
   // Signal Model Functions
   ws.factory( Form("nsig[%.6f, %.6f, %.6f]" , hv[0]->Integral(), 0., 2.0*(hv[0]->Integral())) );
   if (model>=1) { ws.factory( Form("Gaussian::gauss1(%s, mean1, sigma1)", uName.c_str()) ); }
-  if (model>=2) { ws.factory( Form("Gaussian::gauss2(%s, mean2, sigma2)", uName.c_str()) ); }
-  if (model>=3) { ws.factory( Form("Gaussian::gauss3(%s, mean3, sigma3)", uName.c_str()) ); }
+  if (model==2) { ws.factory( Form("Gaussian::gauss2(%s, mean2, sigma2)", uName.c_str()) ); }
+  if (model==3) { ws.factory( Form("Gaussian::gauss3(%s, mean3, sigma3)", uName.c_str()) ); }
+  if (model==4) { ws.factory( Form("RooBreitWigner::BW(%s, mean2, sigma2)", uName.c_str()) ); }
   //
   // Signal Model using recursive sum
   if (model==1) { ws.factory( "SUM::sig( gauss1 )" ); }
   if (model==2) { ws.factory( "RSUM::sig( frac*gauss1 , gauss2 )" ); }
   if (model==3) { ws.factory( "RSUM::sig( frac*gauss1 , frac2*gauss2 , gauss3 )" ); }
+  if (model==4) { ws.factory( "RSUM::sig( frac*gauss1 , BW )" ); }
   //
   // Define formula for overall mean (mean)
-  if (model==2) { ws.factory( "RooFormulaVar::mean(   '((@0)*@1 + (1.0-@0)*@2)' , {frac , mean1, mean2 } )" ); }
+  if (model==2 || model==4) { ws.factory( "RooFormulaVar::mean(   '((@0)*@1 + (1.0-@0)*@2)' , {frac , mean1, mean2 } )" ); }
   if (model==3) { ws.factory( "RooFormulaVar::mean23( '((@0)*@1 + (1.0-@0)*@2)' , {frac2, mean2, mean3 } )" ); }
   if (model==3) { ws.factory( "RooFormulaVar::mean(   '((@0)*@1 + (1.0-@0)*@2)' , {frac , mean1, mean23} )" ); }
   //
   // Define formula for overall width (sigma)
   //
   //    Average sigma
-  if (model==2) { ws.factory( "RooFormulaVar::sigma(   '((@0)*@1 + (1.0-@0)*@2)' , {frac , sigma1, sigma2 } )" ); }
+  if (model==2 || model==4) { ws.factory( "RooFormulaVar::sigma(   '((@0)*@1 + (1.0-@0)*@2)' , {frac , sigma1, sigma2 } )" ); }
   if (model==3) { ws.factory( "RooFormulaVar::sigma23( '((@0)*@1 + (1.0-@0)*@2)' , {frac2, sigma2, sigma3 } )" ); }
   if (model==3) { ws.factory( "RooFormulaVar::sigma(   '((@0)*@1 + (1.0-@0)*@2)' , {frac , sigma1, sigma23} )" ); }
   //
   //    Approximate sigma
   if (model>=2) { ws.factory( "RooFormulaVar::varR1( '@0*@0 + @1*@1 - @2*@2' , {sigma1, mean1, mean} )" ); }
   if (model>=2) { ws.factory( "RooFormulaVar::varR2( '@0*@0 + @1*@1 - @2*@2' , {sigma2, mean2, mean} )" ); }
-  if (model>=3) { ws.factory( "RooFormulaVar::varR3( '@0*@0 + @1*@1 - @2*@2' , {sigma3, mean3, mean} )" ); }
-  if (model>=3) { ws.factory( "RooFormulaVar::varR23( '( (@0)*@1 + (1.0-@0)*@2 )' , {frac2, varR2, varR3} )" ); }
-  if (model==2) { ws.factory( "RooFormulaVar::sigmaG( 'TMath::Sqrt( (@0)*@1 + (1.0-@0)*@2 )' , {frac, varR1, varR2} )" ); }
+  if (model==3) { ws.factory( "RooFormulaVar::varR3( '@0*@0 + @1*@1 - @2*@2' , {sigma3, mean3, mean} )" ); }
+  if (model==3) { ws.factory( "RooFormulaVar::varR23( '( (@0)*@1 + (1.0-@0)*@2 )' , {frac2, varR2, varR3} )" ); }
+  if (model==2 || model==4) { ws.factory( "RooFormulaVar::sigmaG( 'TMath::Sqrt( (@0)*@1 + (1.0-@0)*@2 )' , {frac, varR1, varR2} )" ); }
   if (model==3) { ws.factory( "RooFormulaVar::sigmaG( 'TMath::Sqrt( (@0)*@1 + (1.0-@0)*@2 )' , {frac, varR1, varR23} )" ); }
   //
   // Construct Fit Model
@@ -769,7 +773,7 @@ bool performFit(
     }
     if (ws.var("rsigma2")) { ws.var("rsigma2")->setVal(isData?2.0:0.60); }
     if (ws.var("rsigma3")) { ws.var("rsigma3")->setVal(2.0); }
-    if (!isData && uName=="u1" && ( ptBins[ibin]>89.9)) {ws.var("frac")->setVal(0.70); }
+    if (!isData && uName=="u1" && ( ptBins[ibin]>89.9) && model!=4) {ws.var("frac")->setVal(0.70); }
     //
     // Perform fit
     //
@@ -820,10 +824,12 @@ bool performFit(
     //                        RooFit::Normalization(dataset->sumEntries(), RooAbsReal::NumEvent), RooFit::Range("FitWindow"), RooFit::NormRange("FitWindow"));
     if(model>=2) ws.pdf("model")->plotOn(frame.get(), RooFit::Normalization(dataset->sumEntries(), RooAbsReal::NumEvent), RooFit::Range("FitWindow"), RooFit::NormRange("FitWindow"), 
                                          RooFit::Components("gauss1"), RooFit::LineStyle(kDashed), RooFit::LineColor(kRed));
-    if(model>=2) ws.pdf("model")->plotOn(frame.get(), RooFit::Normalization(dataset->sumEntries(), RooAbsReal::NumEvent), RooFit::Range("FitWindow"), RooFit::NormRange("FitWindow"),
+    if(model==2) ws.pdf("model")->plotOn(frame.get(), RooFit::Normalization(dataset->sumEntries(), RooAbsReal::NumEvent), RooFit::Range("FitWindow"), RooFit::NormRange("FitWindow"),
                                          RooFit::Components("gauss2"), RooFit::LineStyle(kDashed), RooFit::LineColor(kCyan+2));
-    if(model>=3) ws.pdf("model")->plotOn(frame.get(), RooFit::Normalization(dataset->sumEntries(), RooAbsReal::NumEvent), RooFit::Range("FitWindow"), RooFit::NormRange("FitWindow"),
+    if(model==3) ws.pdf("model")->plotOn(frame.get(), RooFit::Normalization(dataset->sumEntries(), RooAbsReal::NumEvent), RooFit::Range("FitWindow"), RooFit::NormRange("FitWindow"),
                                          RooFit::Components("gauss3"), RooFit::LineStyle(kDashed), RooFit::LineColor(kGreen+2));
+    if(model==4) ws.pdf("model")->plotOn(frame.get(), RooFit::Normalization(dataset->sumEntries(), RooAbsReal::NumEvent), RooFit::Range("FitWindow"), RooFit::NormRange("FitWindow"),
+                                         RooFit::Components("BW"), RooFit::LineStyle(kDashed), RooFit::LineColor(kGreen+2));
     ws.pdf("model")->plotOn(frame.get(), RooFit::Normalization(dataset->sumEntries(), RooAbsReal::NumEvent), RooFit::Range("FitWindow"), RooFit::NormRange("FitWindow"), RooFit::LineColor(kBlue));
     //
     // Extract the goodness of fit using Chi2
@@ -855,6 +861,7 @@ bool performFit(
     if (model==1) { tb = std::unique_ptr<TPaveText>(new TPaveText(0.17,0.65,0.45,0.85,"NDC")); }
     if (model==2) { tb = std::unique_ptr<TPaveText>(new TPaveText(0.17,0.50,0.45,0.85,"NDC")); }
     if (model==3) { tb = std::unique_ptr<TPaveText>(new TPaveText(0.17,0.35,0.45,0.85,"NDC")); }
+    if (model==4) { tb = std::unique_ptr<TPaveText>(new TPaveText(0.17,0.20,0.45,0.85,"NDC")); }
     tb->SetTextColor(kBlack);
     tb->SetFillStyle(0);
     tb->SetBorderSize(0);

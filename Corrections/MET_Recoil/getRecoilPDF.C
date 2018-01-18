@@ -73,7 +73,7 @@ bool performFit(
 
 void getRecoilPDF(
                   const bool isData = false,
-                  uint pfumodel = 2, // u1 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian)
+                  uint pfumodel = 2, // u1 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian, 4 => Breit-Wigner plus Gaussian)
                   const bool applyHFCorr = true, // Only used for MC, in data it is ignored
                   const bool computeSyst = false, // If true computes the 100 random variations of each pT point and perform the fits
                   const std::vector< std::string > metType = { "PF_RAW" /*, "PF_Type1" , "PF_NoHF_RAW" , "PF_NoHF_Type1" */},
@@ -85,13 +85,14 @@ void getRecoilPDF(
   const std::string uprpName = "u2";
   //
   std::string pfu12model = "singleGauss"; // Same model for u1 and u2 is used as set in fitRecoil.C
-  if (pfumodel>3 || pfumodel<1){
-    std::cout << "[ERROR] The supported models are: 1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian" << std::endl;
+  if (pfumodel>4 || pfumodel<1){
+    std::cout << "[ERROR] The supported models are: 1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian, 4 => Breit-Wigner plus Gaussian" << std::endl;
     return;
   }
   if (pfumodel>1){
-    if (pfumodel>2) pfu12model = "tripleGauss";
-    else pfu12model = "doubleGauss";
+    if (pfumodel==2) pfu12model = "doubleGauss";
+    else if (pfumodel==3) pfu12model = "tripleGauss";
+    else pfu12model = "BWGauss";
   }
   //
   // Change the working directory
