@@ -22,8 +22,8 @@ const std::string u12SigmaFcnExpPP = "(TMath::Sqrt([0]^{2} + [1]^{2}*TMath::Powe
 const std::string u12SigmaFcnTxtPP = "(#sqrt{s_{0}^{2} + s_{1}^{2}*q_{t}^{#alpha}})";
 const std::vector< std::string > u12SigmaFcnParPP = { "s_{0}" , "s_{1}" , "#alpha" };
 
-const std::string u12SigmaFcnExpPol2 = "([0]*[0] + [1]*x + [2]*x*x )";
-const std::string u12SigmaFcnTxtPol2 = "s_{0}^{2} + s_{1}*q_{T} + s_{2}*q_{T}^{2}";
+const std::string u12SigmaFcnExpPol2 = "([0] + [1]*x + [2]*x*x )";
+const std::string u12SigmaFcnTxtPol2 = "s_{0} + s_{1}*q_{T} + s_{2}*q_{T}^{2}";
 const std::vector< std::string > u12SigmaFcnParPol2 = { "#sigma_{0}" , "s_{1}" , "s_{2}"  };
 
 const std::string u1MeanFcnExp = "( [0] + ([1] * x) ) * ( 1.0 + TMath::Erf( [2] * TMath::Power( x , [3] ) ) )";
@@ -42,6 +42,7 @@ const std::map< std::string , std::map< std::string , std::map< std::string , st
           { "PA" , {
               { "mean1"  , { u1MeanFcnExp  , { -1.5 , 0.8 , 0.1 , 0.5 } , { -10. , -6.0 , -6.0 , -10.0 } , { 10. , 6.0 , 6.0 , 10.0 } } },
               { "sigma1" , { u12SigmaFcnExpPP , { 10.0 , 1.0 , 1.0 } , { 0.0 , -10.0 , -10.0 } , { 50.0 , 10.0 , 10.0 } } },
+//              { "mean1" , { u12SigmaFcnExpPol2 , { 0.0 , 1.0 , 1.0 } , { -10.0 , -10.0 , -10.0 } , { 10.0 , 10.0 , 10.0 } } },
 //              { "sigma1" , { u12SigmaFcnExpPol2 , { 10.0 , 1.0 , 1.0 } , { 0.0 , -10.0 , -10.0 } , { 50.0 , 10.0 , 10.0 } } },
             }
           }
@@ -83,6 +84,7 @@ const std::map< std::string , std::map< std::string , std::map< std::string , st
           { "PA" , {
               { "mean1"  , { u1MeanFcnExp  , { -1.5 , 0.8 , 0.1 , 0.5 } , { -10. , -6.0 , -6.0 , -10.0 } , { 10. , 6.0 , 6.0 , 10.0 } } },
               { "sigma1" , { u12SigmaFcnExpPP , { 10.0 , 1.0 , 1.0 } , { 0.0 , -10.0 , -10.0 } , { 50.0 , 10.0 , 10.0 } } },
+//              { "mean1" , { u12SigmaFcnExpPol2 , { 0.0 , 1.0 , 1.0 } , { -10.0 , -10.0 , -10.0 } , { 10.0 , 10.0 , 10.0 } } },
 //              { "sigma1" , { u12SigmaFcnExpPol2 , { 10.0 , 1.0 , 1.0 } , { 0.0 , -10.0 , -10.0 } , { 50.0 , 10.0 , 10.0 } } },
             }
           }
@@ -128,6 +130,10 @@ const std::string u2MeanFcnExp  = "( [0] )";
 const std::string u2MeanFcnTxt = "c_{0}";
 const std::vector< std::string > u2MeanFcnPar = { "c_{0}" };
 
+const std::string u2SigmaFcnExpPol1 = "([0] + [1]*x )";
+const std::string u2SigmaFcnTxtPol1 = "s_{0} + s_{1}*q_{T}";
+const std::vector< std::string > u2SigmaFcnParPol1 = { "#sigma_{0}" , "s_{1}"  };
+
 const std::string u2SigmaFcnExpV1 = "( TMath::Sqrt( [0]*[0] + [1]*x ) )";
 const std::string u2SigmaFcnTxtV1 = "#sqrt{s_{0}^{2} + s_{1}*q_{T}}";
 const std::vector< std::string > u2SigmaFcnParV1 = { "#sigma_{0}" , "s_{1}" };
@@ -148,6 +154,7 @@ std::map< std::string , std::map< std::string , std::map< std::string , std::map
           { "PA" , {
               { "mean1"  , { u2MeanFcnExp  , { 0.0 } , { -5.0 } , { 5.0 } } },
               { "sigma1" , { u12SigmaFcnExpPP , { 10.0 , 1.0 , 1.0 } , { 0.0 , -10.0 , -10.0 } , { 50.0 , 10.0 , 10.0 } } },
+//              { "mean1" , { u2SigmaFcnExpPol1 , { 0.0 , 1.0 } , { -10.0 , -10.0 } , { 10.0 , 10.0 } } },
 //              { "sigma1" , { u12SigmaFcnExpPol2 , { 10.0 , 1.0 , 1.0 } , { 0.0 , -10.0 , -10.0 } , { 50.0 , 10.0 , 10.0 } } },
 //              { "sigma1" , { u1SigmaFcnExpV1 , { 10.0 , 1.0 , 0.0 } , { 0.0 , -10.0 , -10.0 } , { 50. , 10. , 10.0 } } },
 //                { "sigma1" , { u2SigmaFcnExpV1 , { 10.0 , 1.0 } , { 0.0 , -10.0 } , { 50. , 10. } } },
@@ -196,6 +203,7 @@ std::map< std::string , std::map< std::string , std::map< std::string , std::map
           { "PA" , {
               { "mean1"  , { u2MeanFcnExp  , { 0.0 } , { -5.0 } , { 5.0 } } },
               { "sigma1" , { u12SigmaFcnExpPP , { 10.0 , 1.0 , 1.0 } , { 0.0 , -10.0 , -10.0 } , { 50.0 , 10.0 ,10.0 } } },
+//              { "mean1" , { u2SigmaFcnExpPol1 , { 0.0 , 1.0 } , { -10.0 , -10.0 } , { 10.0 , 10.0 } } },
 //              { "sigma1" , { u12SigmaFcnExpPol2 , { 10.0 , 1.0 , 1.0 } , { 0.0 , -10.0 , -10.0 } , { 50.0 , 10.0 , 10.0 } } },
 //              { "sigma1" , { u2SigmaFcnExpV1 , { 10.0 , 1.0 } , { 0.0 , -10.0 } , { 50. , 10. } } },
 //              { "sigma1" , { u1SigmaFcnExpV1 , { 10.0 , 1.0 , 0.0 } , { 0.0 , -10.0 , -10.0 } , { 50. , 10. , 10.0 } } },
@@ -254,7 +262,8 @@ const std::map< std::string , std::vector< std::string > > FcnParName = {
   { u2MeanFcnExpV2  , u2MeanFcnParV2  },
   { u2SigmaFcnExp , u2SigmaFcnPar },
   { u12SigmaFcnExpPP , u12SigmaFcnParPP },
-  { u12SigmaFcnExpPol2 , u12SigmaFcnParPol2 }
+  { u12SigmaFcnExpPol2 , u12SigmaFcnParPol2 },
+  { u2SigmaFcnExpPol1 , u2SigmaFcnParPol1 }
 };
 
 const std::map< std::string , std::string > FcnExpText = {
@@ -265,5 +274,6 @@ const std::map< std::string , std::string > FcnExpText = {
   { u2MeanFcnExpV2  , u2MeanFcnTxtV2  },
   { u2SigmaFcnExp , u2SigmaFcnTxt },
   { u12SigmaFcnExpPP , u12SigmaFcnTxtPP },
-  { u12SigmaFcnExpPol2 , u12SigmaFcnTxtPol2 }
+  { u12SigmaFcnExpPol2 , u12SigmaFcnTxtPol2 },
+  { u2SigmaFcnExpPol1 , u2SigmaFcnTxtPol1 }
 };
