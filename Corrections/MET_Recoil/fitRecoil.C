@@ -72,6 +72,7 @@ bool performFit(
                 const std::vector< std::unique_ptr<TH1D> >& hv,
                 const std::vector< double >& ptBins,
                 const std::string uName,
+                const std::string rapRange,
                 const uint model,
                 const std::string dsName,
                 const std::string col,
@@ -88,6 +89,7 @@ void fitRecoil(
                const bool isData = false,
                uint pfumodel = 2, // u1/2 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian, 4 => Breit-Wigner plus Gaussian)
                const bool applyHFCorr = false, // Only used for MC, in data it is ignored
+               const std::string yRange = "full", // Z rapidity (full => [-2.4,2.4], mid => [-1.6,1.6], fwd => |y| < 1.6)
                const std::vector< std::string > metType = { "PF_RAW"/* , "PF_Type1" , "PF_NoHF_RAW", "PF_NoHF_Type1" */},
                const std::vector< std::string > COLL    = { "PA"/* , "Pbp" , "pPb" */},
                const bool remakeDS = false
@@ -99,6 +101,11 @@ void fitRecoil(
   //
   if (pfumodel>4 || pfumodel<1){
     std::cout << "[ERROR] The supported models are: 1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian" << std::endl;
+    return;
+  }
+  //
+  if (yRange!="full" && yRange!="mid" && yRange!="fwd"){
+    std::cout << "[ERROR] The supported Z rapidity ranges are: full => [-2.4,2.4], mid => [-1.6,1.6], fwd => |y| < 1.6" << std::endl;
     return;
   }
   //
@@ -137,7 +144,17 @@ void fitRecoil(
   }
  
   // Define Boson pT Binning
-  const std::vector< double > ptBins = { 0., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12., 13., 14., 15., 16., 17., 19., 21., 23., 25., 27., 30., 35., 40., 45., 50, 60., 70., 90., 140.};//, 200. };
+  std::vector< double > ptBins;
+  std::string rapRange;
+  if (yRange=="full") {
+    ptBins = { 0., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12., 13., 14., 15., 16., 17., 19., 21., 23., 25., 27., 30., 35., 40., 45., 50, 60., 70., 90., 140.};
+    rapRange = "[-2.4,2.4]";
+  }
+  else {
+    ptBins = { 0., 3., 5., 7., 9., 11., 13., 15., 17., 21., 25., 30., 40., 50, 70., 140.};
+    if (yRange=="mid") rapRange = "[-1.6,1.6]";
+    if (yRange=="fwd") rapRange = "< 1.6";
+  }
   const uint nbins = (ptBins.size()-1);
 
   // Define the Boson Kinematic Cuts
@@ -339,6 +356,8 @@ void fitRecoil(
           // Get the momentum of the dimuon
           const TLorentzVector dilep = lep1 + lep2;
           if(dilep.M() < MASS_LOW || dilep.M() > MASS_HIGH) continue; // Require to be within the Z mass window
+          if(yRange=="mid" && (dilep.Rapidity()<-1.6 || dilep.Rapidity()>1.6)) continue; // Require dimuon to be within the defined rapidity window
+          if(yRange=="fwd" && abs(dilep.Rapidity())<1.6) continue; // Require dimuon to be within the defined rapidity window
           if(lep1.Pt()        < PT_CUT  || lep2.Pt()        < PT_CUT)  continue;
           if(fabs(lep1.Eta()) > ETA_CUT || fabs(lep2.Eta()) > ETA_CUT) continue;
           //
@@ -439,6 +458,7 @@ void fitRecoil(
                  hPFu1v.at(met).at(col),
                  ptBins,
                  uparName,
+                 rapRange,
                  pfu1model,
                  Form("dPF%s_%s", uparName.c_str(), dsLabel.c_str()),
                  col,
@@ -454,6 +474,7 @@ void fitRecoil(
                  hPFu2v.at(met).at(col),
                  ptBins,
                  uprpName,
+                 rapRange,
                  pfu2model,
                  Form("dPF%s_%s", uprpName.c_str(), dsLabel.c_str()),
                  col,
@@ -525,6 +546,12 @@ void fitRecoil(
         int lumiId = 0;
         if (isData ) { if (col=="pPb") { lumiId = 109; } else if (col=="Pbp") { lumiId = 110; } else if (col=="PA") { lumiId = 111; } }
         if (!isData) { if (col=="pPb") { lumiId = 112; } else if (col=="Pbp") { lumiId = 113; } else if (col=="PA") { lumiId = 114; } }
+        std::unique_ptr<TPaveText> tb = std::unique_ptr<TPaveText>(new TPaveText(0.17,0.65,0.45,0.85,"NDC"));
+        tb->SetTextColor(kBlack);
+        tb->SetFillStyle(0);
+        tb->SetBorderSize(0);
+        tb->AddText(Form("y %s%s",((rapRange.find("<")!=std::string::npos)?"":"#in "),rapRange.c_str()));
+        tb->Draw("same");
         CMS_lumi(c.get(), lumiId, 33, "");
         c->SaveAs( (outputDir + uparName + "/" + "png/"  + Form("pf%s%s.png" , uparName.c_str(), var.first.c_str())).c_str() );
         c->SaveAs( (outputDir + uparName + "/" + "pdf/"  + Form("pf%s%s.pdf" , uparName.c_str(), var.first.c_str())).c_str() );
@@ -578,6 +605,12 @@ void fitRecoil(
         if (isData ) { if (col=="pPb") { lumiId = 109; } else if (col=="Pbp") { lumiId = 110; } else if (col=="PA") { lumiId = 111; } }
         if (!isData) { if (col=="pPb") { lumiId = 112; } else if (col=="Pbp") { lumiId = 113; } else if (col=="PA") { lumiId = 114; } }
         CMS_lumi(c.get(), lumiId, 33, "");
+        std::unique_ptr<TPaveText> tb = std::unique_ptr<TPaveText>(new TPaveText(0.17,0.65,0.45,0.85,"NDC"));
+        tb->SetTextColor(kBlack);
+        tb->SetFillStyle(0);
+        tb->SetBorderSize(0);
+        tb->AddText(Form("y %s%s",((rapRange.find("<")!=std::string::npos)?"":"#in "),rapRange.c_str()));
+        tb->Draw("same");
         c->SaveAs( (outputDir + uprpName + "/" + "png/"  + Form("pf%s%s.png" , uprpName.c_str(), var.first.c_str())).c_str() );
         c->SaveAs( (outputDir + uprpName + "/" + "pdf/"  + Form("pf%s%s.pdf" , uprpName.c_str(), var.first.c_str())).c_str() );
         c->SaveAs( (outputDir + uprpName + "/" + "root/" + Form("pf%s%s.root", uprpName.c_str(), var.first.c_str())).c_str() );
@@ -614,6 +647,7 @@ bool performFit(
                 const vector< std::unique_ptr<TH1D> >& hv,
                 const std::vector< double >& ptBins,
                 const std::string uName,
+                const std::string rapRange,
                 const uint model,
                 const std::string dsName,
                 const std::string col,
@@ -845,7 +879,7 @@ bool performFit(
     std::string pname = "";
     const std::string xlabel   = Form("PF %c_{%c} [GeV]", uName[0], uName[1]);
     const std::string ylabel   = Form("Events / %.1f GeV/c", hv[ibin]->GetBinWidth(1));
-    const std::string binlabel = Form("%.0f < q_{T} < %.0f", ptBins[ibin], ptBins[ibin+1]);
+    const std::string binlabel = Form("%.0f < q_{T} < %.0f ; y %s%s", ptBins[ibin], ptBins[ibin+1],((rapRange.find("<")!=std::string::npos)?"":"#in ") ,rapRange.c_str());
     const std::string nsigtext = Form("N_{evts} = %.0f #pm %.0f", ws.var("nsig")->getVal(), ws.var("nsig")->getError());
     std::map< std::string , std::string > varText;
     for (const auto& var : varArr) {
