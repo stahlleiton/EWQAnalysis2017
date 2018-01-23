@@ -16,9 +16,9 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
                              // Select the type of datasets to fit
                              const std::string& fileName,
                              const std::string& outputDir,
-                             const int& nBins,
                              const bool& yLogScale,
-			     const bool saveAll = true
+			     const bool saveAll = true,
+                             const double maxRng = -1.0
                              )
 {
   //
@@ -37,7 +37,14 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   const std::string pdfName = Form("pdfMET_Tot%s", tag.c_str());
   const bool paperStyle = false;
   const bool setLogScale = yLogScale;
-  const std::vector< double > range = { ws.var("MET")->getMin(), ws.var("MET")->getMax() };
+  //
+  // Create the Range for Plotting
+  const double binWidth = ws.var("MET")->getBinWidth(0);
+  const double minRange = ws.var("MET")->getMin();
+  const double maxRange = ( (maxRng>0.0) ? maxRng : ws.var("MET")->getMax() );
+  const int    nBins    = int(std::round((maxRange - minRange)/binWidth));
+  ws.var("MET")->setRange("METWindowPlot", minRange, maxRange);
+  ws.var("MET")->setBins(nBins, "METWindowPlot");
   //
   if (ws.data(dsName.c_str())==NULL) { std::cout << "[ERROR] Dataset " << dsName << " was not found!" << std::endl; return false; }
   //
@@ -63,14 +70,16 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   std::map< std::string , TPad* > pad; // Unique Pointer does produce Segmentation Fault, so don't use it
   //
   // Create the main plot of the fit
-  frame["MAIN"] = std::unique_ptr<RooPlot>(ws.var("MET")->frame( RooFit::Bins(nBins), RooFit::Range(range[0], range[1]) ));
+  frame["MAIN"] = std::unique_ptr<RooPlot>(ws.var("MET")->frame( RooFit::Range("METWindowPlot") ));
   if (ws.data(("CutAndCount_"+dsName).c_str())) {
-    ws.data(("CutAndCount_"+dsName).c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::DataError(RooAbsData::SumW2), 
-                                                     RooFit::XErrorSize(0), RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
+    ws.data(("CutAndCount_"+dsName).c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::Binning("METWindowPlot"),
+                                                     RooFit::DataError(RooAbsData::SumW2), RooFit::XErrorSize(0),
+                                                     RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
   }
   else {
-    ws.data(dsName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::DataError(RooAbsData::SumW2), 
-                                    RooFit::XErrorSize(0), RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
+    ws.data(dsName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::Binning("METWindowPlot"),
+                                    RooFit::DataError(RooAbsData::SumW2), RooFit::XErrorSize(0),
+                                    RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
   }
   legInfo["DATA"][Form("plot_Tot%s", dsName.c_str())] = ( isMC ? "Simulation" : "Data" );
   //
@@ -78,9 +87,9 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
     RooArgList pdfList = ((RooAddPdf*)ws.pdf(pdfName.c_str()))->pdfList();
     if (pdfList.getSize()==1) {
       double norm = ws.data(dsNameFit.c_str())->sumEntries();
-      ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())),
-                                      RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::NumCPU(32),
-                                      RooFit::LineColor(kBlack), RooFit::LineStyle(1), RooFit::Precision(1e-6)
+      ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())), RooFit::Range("METWindowPlot"), RooFit::NormRange("METWindowPlot"),
+                                      RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-7),
+                                      RooFit::LineColor(kBlack), RooFit::LineStyle(1)
                                       );
       legInfo["PDF"][Form("plot_%s", pdfName.c_str())] = "Total Fit";
       frame["EXTRA"] = std::unique_ptr<RooPlot>((RooPlot*)frame.at("MAIN")->emptyClone("EXTRA"));
@@ -114,8 +123,8 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
         const std::string name = it->GetName();
         std::string obj = name; obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find(cha));
         if (norm > 0.0) {
-          ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", name.c_str())), RooFit::Components(*list),
-                                          RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::NumCPU(32), RooFit::Precision(1e-5),
+          ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", name.c_str())), RooFit::Components(*list), RooFit::Range("METWindowPlot"), RooFit::NormRange("METWindowPlot"),
+                                          RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-6),
                                           RooFit::FillStyle(1001), RooFit::FillColor(colorMap.at(obj)), RooFit::VLines(), RooFit::DrawOption("F")
                                           );
           legInfo["TEMP"][Form("plot_%s", name.c_str())] = formatCut(obj);
@@ -123,12 +132,15 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
         list->remove(*it);
         norm -= pdfEvt.at(obj);
       }
-      ws.data(dsName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::DataError(RooAbsData::SumW2), 
-                                      RooFit::XErrorSize(0), RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
+      //
+      ws.data(dsName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::Binning("METWindowPlot"),
+                                      RooFit::DataError(RooAbsData::SumW2), RooFit::XErrorSize(0),
+                                      RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
+      //
       norm = ws.data(dsNameFit.c_str())->sumEntries();
-      ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())),
-                                      RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::NumCPU(32),
-                                      RooFit::LineColor(kBlack), RooFit::LineStyle(1), RooFit::Precision(1e-5)
+      ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())), RooFit::Range("METWindowPlot"), RooFit::NormRange("METWindowPlot"),
+                                      RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-7),
+                                      RooFit::LineColor(kBlack), RooFit::LineStyle(1)
                                       );
       //
       frame["EXTRA"] = std::unique_ptr<RooPlot>((RooPlot*)frame.at("MAIN")->emptyClone("EXTRA"));

@@ -10,6 +10,8 @@
 #include "../Utilities/HiMuonTree.h"
 // ROOT Headers
 #include "TLorentzVector.h"
+#include "TH1.h"
+#include "TGraphAsymmErrors.h"
 // c++ headers
 #include <sys/stat.h>
 #include <dirent.h>
@@ -34,13 +36,13 @@ bool existDir(const std::string& dir)
 
 bool existFile(const std::string& file)
 {
-  struct stat buffer;   
+  struct stat buffer;
   return (stat (file.c_str(), &buffer) == 0);
 };
 
 void makeDir(const std::string& dir)
 {
-  if (existDir(dir.c_str())==false){ 
+  if (existDir(dir.c_str())==false){
     std::cout << "[INFO] DataSet directory: " << dir << " doesn't exist, will create it!" << std::endl;  
     gSystem->mkdir(dir.c_str(), kTRUE);
   }
@@ -60,7 +62,38 @@ bool isEqual( const double inVal1 , const double inVal2 , const uint nDecimals )
   double val1 = inVal1; roundValue(val1, nDecimals);
   double val2 = inVal2; roundValue(val2, nDecimals);
   if (val1==val2) return true;
-  return false;  
+  return false;
+};
+
+TH1D graphToHist( const TGraphAsymmErrors& gr )
+{
+  const uint nBin = gr.GetN();
+  double bins[nBin+1];
+  for (uint iBin = 0; iBin <= nBin; iBin++) {
+    double edge;
+    if (iBin < nBin) {
+      double x, y; gr.GetPoint(iBin, x, y);
+      double ex = gr.GetErrorXlow(iBin);
+      edge = x - ex;
+    }
+    else {
+      double x, y; gr.GetPoint((nBin-1), x, y);
+      double ex = gr.GetErrorXhigh(nBin-1);
+      edge = x + ex;
+    }
+    bins[iBin] = edge;
+  }
+  TH1D h(gr.GetName(), gr.GetTitle(), nBin, bins);
+  for (uint iBin = 0; iBin < nBin; iBin++) {
+    double x, y; gr.GetPoint(iBin, x, y);
+    double ey = gr.GetErrorY(iBin);
+    h.SetBinContent(iBin+1, y);
+    h.SetBinError(iBin+1, ey);
+  }
+  gr.TAttLine::Copy(h);
+  gr.TAttFill::Copy(h);
+  gr.TAttMarker::Copy(h);
+  return h;
 };
 
 auto TIME_START_ = std::chrono::high_resolution_clock::now();

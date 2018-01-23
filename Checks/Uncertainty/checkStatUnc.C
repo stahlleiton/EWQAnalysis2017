@@ -25,6 +25,7 @@
 #include "RooPlot.h"
 #include "RooFitResult.h"
 #include "RooMCStudy.h"
+#include "RooStringVar.h"
 // c++ headers
 #include <dirent.h>
 #include <iostream>
@@ -95,11 +96,11 @@ bool checkStatUnc(
     if (ws == NULL) { std::cout << "[ERROR] File: " << inputFilePath << " does not have the workspace!" << std::endl; inputFile.Close(); return false; }
     //
     // Extract the information from the workspace
-    const std::string DSTAG = (ws->obj("DSTAG"))     ? ((TObjString*)ws->obj("DSTAG"))->GetString().Data()     : "";
-    const std::string CHA   = (ws->obj("channel"))   ? ((TObjString*)ws->obj("channel"))->GetString().Data()   : "";
-    const std::string COL   = (ws->obj("fitSystem")) ? ((TObjString*)ws->obj("fitSystem"))->GetString().Data() : "";
-    const std::string CHG   = (ws->obj("fitCharge")) ? ((TObjString*)ws->obj("fitCharge"))->GetString().Data() : "";
-    const std::string OBJ   = (ws->obj("fitObject")) ? ((TObjString*)ws->obj("fitObject"))->GetString().Data() : "";
+    const std::string DSTAG = (ws->obj("DSTAG")    ) ? ((RooStringVar*)ws->obj("DSTAG")    )->getVal() : "";
+    const std::string CHA   = (ws->obj("channel")  ) ? ((RooStringVar*)ws->obj("channel")  )->getVal() : "";
+    const std::string COL   = (ws->obj("fitSystem")) ? ((RooStringVar*)ws->obj("fitSystem"))->getVal() : "";
+    const std::string CHG   = (ws->obj("fitCharge")) ? ((RooStringVar*)ws->obj("fitCharge"))->getVal() : "";
+    const std::string OBJ   = (ws->obj("fitObject")) ? ((RooStringVar*)ws->obj("fitObject"))->getVal() : "";
     // Check the information
     if (DSTAG.find(dsTag)==std::string::npos) { std::cout << "[ERROR] Workspace DSTAG " << DSTAG << " is not consistent with input dsTag " << dsTag << std::endl; inputFile.Close(); return false; }
     if (COL != colTag ) { std::cout << "[ERROR] Workspace COL " << COL << " is not consistent with input colTag " << colTag << std::endl; inputFile.Close(); return false; }

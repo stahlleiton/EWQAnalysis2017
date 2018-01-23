@@ -108,6 +108,9 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
   // Set global parameters
   for (const auto& chg : info.StrV.at("fitCharge")) { setMETGlobalParameterRange(myws.at(chg), info); }
 
+  // Update the MET Fit Range
+  for (const auto& chg : info.StrV.at("fitCharge")) { updateMETParameterRange(myws.at(chg), info, chg, DSTAG, -1.); }
+
   // Build the Fit Model
   for (const auto& chg : info.StrV.at("fitCharge")) { if (!buildElectroWeakMETModel(myws.at(chg), model, info, chg))  { return false; } }
 
@@ -144,9 +147,9 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
         setMETFileName(fileName, outDir, DSTAG, plotLabel, info);
         // Dataset Name
         const std::string dsName = ( "d" + chg + "_" + DSTAG );
-        // Update the MET Fit Range
-        //updateMETParameterRange(myws.at(chg)); // DOES NOT WORK SO DONT USE
+        // Check if the user wants to do binned fits and proceed to bin the data
 	if (info.Flag.count("doBinnedFit")>0 && info.Flag.at("doBinnedFit")) { if (!createBinnedDataset(myws.at(chg))) { return false; } }
+        // Set the name of the dataset to fit
         const std::string dsNameFit = ( (myws.at(chg).data((dsName+"_FIT").c_str())!=NULL) ? (dsName+"_FIT") : dsName );
         // check if we have already done this fit. If yes, do nothing and return true.
         bool found =  true; bool skipFit = false;
@@ -237,7 +240,7 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
           else {
             std::cout << "[ERROR] The PDF " << pdfName << " was not found!" << std::endl; return false;
           }
-	  if (!drawElectroWeakMETPlot(myws.at(chg), ("PLOT_"+fileName), outDir, myws.at(chg).var("MET")->getBins(), info.Flag.at("setLogScale"), saveAll)) { return false; }
+	  if (!drawElectroWeakMETPlot(myws.at(chg), ("PLOT_"+fileName), outDir, info.Flag.at("setLogScale"), saveAll, 150.)) { return false; }
           myws.at(chg).saveSnapshot("fittedParameters", myws.at(chg).allVars(), kTRUE);
           // Save the results
           if (!saveWorkSpace(myws.at(chg), Form("%sresult/", outDir.c_str()), Form("%s.root", ("FIT_"+fileName).c_str()), saveAll)) { return false; }
@@ -252,7 +255,7 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
 void setEWQCutParameters(GlobalInfo& info)
 {
   // Define the MET range
-  if (info.Var.at("MET").at("Max")==100000.0) { info.Var.at("MET").at("Max") = 150.0; }
+  if (info.Var.at("MET").at("Max")==100000.0) { info.Var.at("MET").at("Max") = 1000.0; }
   // Define the range for the Muon related parameters
   if (info.Flag.at("doMuon")) {
     // Define the Muon PT range
@@ -441,7 +444,8 @@ int importDataset(RooWorkspace& myws  , const std::map<string, RooWorkspace>& in
 void setMETGlobalParameterRange(RooWorkspace& myws, const GlobalInfo& info)
 {
   myws.var("MET")->setRange("METWindow", info.Var.at("MET").at("Min"), info.Var.at("MET").at("Max"));
-  const int nBins = min(int( round((info.Var.at("MET").at("Max") - info.Var.at("MET").at("Min"))/info.Var.at("MET").at("binWidth")) ), 1000);
+  const int nBins = std::min(int( std::round((info.Var.at("MET").at("Max") - info.Var.at("MET").at("Min"))/info.Var.at("MET").at("binWidth")) ), 2000);
+  myws.var("MET")->setBins(nBins, "METWindow");
   myws.var("MET")->setBins(nBins);
   return;
 };

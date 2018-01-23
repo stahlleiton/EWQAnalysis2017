@@ -244,6 +244,7 @@ void setFixedVarsToContantVars(RooWorkspace& ws)
 void copyWorkspace(RooWorkspace& outWS, const RooWorkspace& inWS, const std::string smp="All", const bool addVar=true, const bool addSnap=false)
 {
   //
+  const auto level = RooMsgService::instance().globalKillBelow();
   RooMsgService::instance().setGlobalKillBelow(RooFit::WARNING);
   // Copy all category variables
   if (inWS.allCats().getSize()>0 && addVar) {
@@ -298,6 +299,8 @@ void copyWorkspace(RooWorkspace& outWS, const RooWorkspace& inWS, const std::str
       if (snap) { outWS.saveSnapshot(snapName.c_str(), *snap, kTRUE); }
     }
   }
+  // Return the RooMessenger Level
+  RooMsgService::instance().setGlobalKillBelow(level);
 };
 
 
@@ -606,32 +609,43 @@ void getRange(std::vector<double>& range, const TH1D& hist, const int& nMaxBins)
   return;
 };
 
-void updateMETParameterRange(RooWorkspace& myws)
+void updateMETParameterRange(RooWorkspace& myws, GlobalInfo&  info, const std::string& chg, const std::string& DSTAG, const double maxRange = -1.0)
 {
-  // Defualt range
-  myws.var("MET")->setRange("METWindow", myws.var("MET")->getMin(), myws.var("MET")->getMax());
+  // Check if maxRange is the same as current range, otherwise return
+  if (maxRange==myws.var("MET")->getMax()) { return; }
   //
-  const std::string DSTAG = (myws.obj("DSTAG"))     ? ((RooStringVar*)myws.obj("DSTAG")    )->getVal() : "";
-  const std::string chg   = (myws.obj("fitCharge")) ? ((RooStringVar*)myws.obj("fitCharge"))->getVal() : "";
   const std::string dsName = ( "d" + chg + "_" + DSTAG );
+  //
   double metMin , metMax;
   metMin = myws.var("MET")->getMin(); metMax = myws.var("MET")->getMax();
-  //myws.data(dsName.c_str())->getRange(*myws.var("MET"), metMin, metMax); metMin -= 0.0001;  metMax += 0.0001;
-  const int nBins = std::min(int( std::round(((metMax - metMin)*double(myws.var("MET")->getBins()))/(myws.var("MET")->getMax() - myws.var("MET")->getMin())) ), 1000);
+  if (maxRange > 0.0) { metMax = maxRange; }
+  else {
+    myws.data(dsName.c_str())->getRange(*myws.var("MET"), metMin, metMax);
+    metMin = 0.0; metMax = std::max( (10.*std::ceil(metMax/10.)) , 165. );
+  }
+  const std::string metFitRange = Form("(%g <= MET && MET < %g)", metMin, metMax);
   //
-  auto hTot = std::unique_ptr<TH1D>((TH1D*)myws.data(dsName.c_str())->createHistogram("TMP", *myws.var("MET"), RooFit::Binning(nBins, metMin, metMax)));
-  std::vector<double> rangeMET; getRange(rangeMET, *hTot, 10); // KEEP THIS NUMBER WITH 7, JUST KEEP IT LIKE THAT :D
-  metMin = std::floor(rangeMET[0]); metMax = std::ceil(rangeMET[1]);
-  if (metMin < myws.var("MET")->getMin()) { metMin = myws.var("MET")->getMin(); }
-  if (metMax > myws.var("MET")->getMax()) { metMax = myws.var("MET")->getMax(); }
-  // Lets force the min to be 0
-  metMin = 0.0;
-  //
-  const std::string metFitRange = Form("(%.6f <= MET && MET < %.6f)", metMin, metMax);
-  if (myws.data(dsName.c_str())->reduce(metFitRange.c_str())->numEntries() < myws.data(dsName.c_str())->numEntries()) {
+  if (myws.data(dsName.c_str())->reduce(metFitRange.c_str())->numEntries() <= myws.data(dsName.c_str())->numEntries()) {
+    const int nBins = int( (metMax - metMin)/myws.var("MET")->getBinWidth(0) );
     myws.var("MET")->setRange("METWindow", metMin, metMax);
+    myws.var("MET")->setBins(nBins, "METWindow");
+    //
     auto dataToFit = std::unique_ptr<RooDataSet>((RooDataSet*)(myws.data(dsName.c_str())->reduce(metFitRange.c_str())->Clone((dsName+"_FIT").c_str())));
     myws.import(*dataToFit);
+    info.Var.at("numEntries").at(chg) = myws.data((dsName+"_FIT").c_str())->sumEntries();
+    //
+    for (const auto& col : info.StrV.at("fitSystem")) {
+      for (const auto& mainObj : info.StrV.at("fitObject")) {
+        for (const auto& obj : (info.Flag.at("incMCTemp_"+mainObj) ? info.StrV.at("template") : std::vector<std::string>({mainObj}))) {
+          std::string dsLabel = "MC_" + obj + "_" + info.Par.at("channelDS") + "_" + col;
+          if (myws.data(Form("d%s_%s", chg.c_str(), dsLabel.c_str()))) {
+            std::string label = obj + info.Par.at("channel") + chg + "_" + col;
+            info.Var.at("recoMCEntries").at(label) = myws.data(Form("d%s_%s", chg.c_str(), dsLabel.c_str()))->reduce(metFitRange.c_str())->sumEntries();
+          }
+        }
+      }
+    }
+    //
     std::cout << Form("[INFO] MET range was updated to : %g <= MET < %g", metMin, metMax) << std::endl;
   }
   //

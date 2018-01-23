@@ -4,7 +4,7 @@
 #include "../Utilities/initClasses.h"
 
 void setMETModelParameters ( GlobalInfo& info, const std::string& chg );
-TH1* rebinhist             ( const TH1& hist, double xmin, double xmax );
+TH1* rebinhist             ( const TH1& hist, double xmin, double xmax, const std::string type="Old" );
 bool histToPdf             ( RooWorkspace& ws, const string& pdfName, const string& dsName, const std::string& var, const std::vector< double >& range );
 bool addMETModel           ( RooWorkspace& ws, const std::string& decay, const StringDiMap_t& models, const GlobalInfo& info, const std::string& chg );
 
@@ -143,9 +143,12 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StringDiMap_t
 	      }                
 	      // create the Template
 	      std::string dsName = ( "d" + chg + "_" + "MC_" + model.first + "_" + info.Par.at("channelDS") + "_" + col );
-	      int nBins = min(int( round((info.Var.at("MET").at("Max") -  info.Var.at("MET").at("Min"))/info.Var.at("MET").at("binWidth")) ), 1000);
-	      const std::vector< double > range = { double(nBins) , info.Var.at("MET").at("Min") , info.Var.at("MET").at("Max") };
-	      bool proceed = histToPdf(ws, Form("pdfMET_%s", label.c_str()), dsName, "MET", range);
+	      const std::vector< double > range = { double(ws.var("MET")->getBins("METWindow")) , ws.var("MET")->getMin("METWindow") , ws.var("MET")->getMax("METWindow") };
+	      const bool proceed = histToPdf(ws, Form("pdfMET_%s", label.c_str()), dsName, "MET", range);
+              if (proceed && (std::abs(info.Var.at("recoMCEntries").at(label)-ws.data(Form("dhMET_%s", label.c_str()))->sumEntries())>0.5)) {
+                std::cout << "[WARNING] The number of events in " << Form("dhMET_%s", label.c_str()) << " changed from (" << info.Var.at("recoMCEntries").at(label) << ") to (" <<
+                  ws.data(Form("dhMET_%s", label.c_str()))->sumEntries() << ")" << std::endl;
+              }
 	      //
 	      if (proceed) {
 		// create the variables for this model
@@ -216,7 +219,7 @@ bool histToPdf(RooWorkspace& ws, const string& pdfName, const string& dsName, co
   std::cout << Form("[INFO] Implementing %s Template", pdfName.c_str()) << std::endl;
   //
   if (ws.data(dsName.c_str())==NULL) { std::cout << "[WARNING] DataSet " << dsName << " was not found!" << std::endl; return false; }
-  if (ws.data(dsName.c_str())->numEntries()<=10.0) { std::cout << "[WARNING] DataSet " << dsName << " has too few events!" << std::endl; return false; }
+  if (ws.data(dsName.c_str())->numEntries()<=2.0) { std::cout << "[WARNING] DataSet " << dsName << " has too few events!" << std::endl; return false; }
   if (ws.var(var.c_str())==NULL) { std::cout << "[WARNING] Variable " << var << " was not found!" << std::endl; return false; }
   // Create the histogram
   string histName = pdfName;
@@ -246,7 +249,7 @@ bool histToPdf(RooWorkspace& ws, const string& pdfName, const string& dsName, co
   return true;
 };
 
-TH1* rebinhist(const TH1& hist, double xmin, double xmax)
+TH1* rebinhist(const TH1& hist, double xmin, double xmax, const std::string type)
 {
   std::unique_ptr<TH1> hcopy = std::unique_ptr<TH1>((TH1*) hist.Clone("hcopy"));
   // range of the new hist
@@ -256,7 +259,7 @@ TH1* rebinhist(const TH1& hist, double xmin, double xmax)
   if (imax<=1) imax=hcopy->GetNbinsX();
   vector<double> newbins;
   newbins.push_back(hcopy->GetBinLowEdge(imin));
-  for (int i=imin; i<=imax; i++) {    
+  for (int i=imin; i<=imax; i++) {
     if (hcopy->GetBinContent(i)>0.0) {
       newbins.push_back(hcopy->GetBinLowEdge(i)+hcopy->GetBinWidth(i));
     } else {
@@ -264,17 +267,24 @@ TH1* rebinhist(const TH1& hist, double xmin, double xmax)
       for (i++; i<=imax; i++) {
         if (hcopy->GetBinContent(i)>0.0) {
           newbins.push_back(hcopy->GetBinLowEdge(i)+hcopy->GetBinWidth(i));
-          hcopy->SetBinContent(i,hcopy->GetBinContent(i)/nrebin);
+          const double newval = (hcopy->GetBinContent(i)/nrebin);
+          hcopy->SetBinContent(i, newval);
+          if (type=="New") { for (int j=1; j<nrebin; j++) { hcopy->SetBinContent(i-j, newval); } }
           break;
         }
         nrebin++;
       }
     }
   }
-  if (xmin < newbins[1]) newbins[0] = xmin;
-  if (xmax > newbins[newbins.size()-2]) newbins[newbins.size()-1] = xmax;
-  TH1 *ans = hcopy->Rebin(newbins.size()-1,"hnew",newbins.data());
-  return ans;
+  if (type=="Old") {
+    if (xmin < newbins[1]) newbins[0] = xmin;
+    if (xmax > newbins[newbins.size()-1]) { newbins.push_back(xmax); }
+    return hcopy->Rebin(newbins.size()-1, "hnew", newbins.data());
+  }
+  if (type=="New") {
+    return (TH1*)hcopy->Clone("hnew");
+  }
+  return NULL;
 };
 
 void setMETModelParameters(GlobalInfo& info, const std::string& chg)
@@ -282,7 +292,7 @@ void setMETModelParameters(GlobalInfo& info, const std::string& chg)
   std::cout << "[INFO] Initializing MET Model parameters based on user input!" << std::endl;
   std::string cha = info.Par.at("channel");
   for (const auto& col : info.StrV.at("fitSystem")) {
-    double numEntries = info.Var.at("numEntries").at(chg);
+    const double numEntries = info.Var.at("numEntries").at(chg);
     for (const auto& mainObj : info.StrV.at("fitObject")) {
       for (const auto& obj : (info.Flag.at("incMCTemp_"+mainObj) ? info.StrV.at("template") : std::vector<std::string>({mainObj}))) {
 	const std::string mainCha  = cha , mainChg  = chg , mainCol  = col;
