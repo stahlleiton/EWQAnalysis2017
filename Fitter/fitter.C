@@ -29,7 +29,6 @@ void fitter(
             // Select the fitting options
             const unsigned int   numCores = 32,         // Number of cores used for fitting
             const std::bitset<1> fitVar   = 1,          // Fit Variable: 1: MET
-            const uint           varType  = 0,          // Type of MET to Fit: (0) PF Raw, (1) PF Type1, (2) NoHF Raw, (3) NoHF Type 1
             const std::string    Analysis = "WToMuNu",  // Type of Analysis
             // Select the drawing options
             const bool setLogScale  = true              // Draw plot with log scale
@@ -143,15 +142,50 @@ void fitter(
     fitObj = 1;
     fitColl = 4;
   }
+  else if (workDirName.find("METcomparison")!=std::string::npos) {
+    userInput.Flag["applyHFCorr"]     = false;
+    userInput.Flag["applyTnPCorr"]    = true;
+    userInput.Flag["applyRecoilCorr"] = false;
+    userInput.Par["RecoilCorrMethod"] = "";
+    fitObj = 4;
+  }
+  else if (workDirName.find("HFrewStudy")!=std::string::npos) {
+    userInput.Flag["applyHFCorr"]     = true;
+    userInput.Flag["applyTnPCorr"]    = true;
+    userInput.Flag["applyRecoilCorr"] = false;
+    userInput.Par["RecoilCorrMethod"] = "";
+    fitObj = 4;
+  }
+  else if (workDirName.find("RecoilStudy_Smearing")!=std::string::npos) {
+    userInput.Flag["applyHFCorr"]     = true;
+    userInput.Flag["applyTnPCorr"]    = true;
+    userInput.Flag["applyRecoilCorr"] = true;
+    userInput.Par["RecoilCorrMethod"] = "Smearing";
+    fitObj = 4;
+  }
+  else if (workDirName.find("RecoilStudy_ScalingGeneral")!=std::string::npos) {
+    userInput.Flag["applyHFCorr"]     = true;
+    userInput.Flag["applyTnPCorr"]    = true;
+    userInput.Flag["applyRecoilCorr"] = true;
+    userInput.Par["RecoilCorrMethod"] = "Scaling_OneGaussianDATA";
+    fitObj = 4;
+  }
+  else if (workDirName.find("RecoilStudy_ScalingGauss")!=std::string::npos) {
+    userInput.Flag["applyHFCorr"]     = true;
+    userInput.Flag["applyTnPCorr"]    = true;
+    userInput.Flag["applyRecoilCorr"] = true;
+    userInput.Par["RecoilCorrMethod"] = "Scaling_OneGaussian";
+    fitObj = 4;
+  }
   else { std::cout << "[ERROR] Workdirname has not been defined!" << std::endl; return; }
   //
   //
   // Store more information for fitting
   userInput.Par["extTreesFileDir"] = Form("%s/Input/", CWD.c_str());
-  userInput.Par["extDSDir_DATA"]   = "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Dataset/";
-  userInput.Par["extDSDir_MC"]     = "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Dataset/";
-  userInput.Par["RecoilPath"]      = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_nom_sysStat/";
-  if (workDirName=="NominalCM_RecoilSystPtFunc") { userInput.Par.at("RecoilPath") = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_sysPtFunc/"; }
+  userInput.Par["extDSDir_DATA"]   = "/grid_mnt/vol__vol_U__u/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/DataSet/";
+  userInput.Par["extDSDir_MC"]     = "/grid_mnt/vol__vol_U__u/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/DataSet/";
+  userInput.Par["RecoilPath"]      = "/grid_mnt/vol__vol_U__u/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_nom_sysStat/";
+  if (workDirName=="NominalCM_RecoilSystPtFunc" ) { userInput.Par.at("RecoilPath") = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_sysPtFunc/";  }
   if (workDirName=="NominalCM_RecoilSystBWGauss") { userInput.Par.at("RecoilPath") = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_sysBWGauss/"; }
   if (userInput.Par.at("Analysis").find("Nu")!=std::string::npos) {
     userInput.Var["MET"]["type"] = varType;
