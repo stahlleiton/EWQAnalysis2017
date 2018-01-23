@@ -130,14 +130,17 @@ void fitRecoil(
   uint pfu1model = pfumodel; // u1 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian, 4 => Breit-Wigner plus Gaussian)
   uint pfu2model = pfumodel; // u2 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian, 4 => Breit-Wigner plus Gaussian)
   if (isData) {
-    fileName.push_back("/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20171003.root");
+//    fileName.push_back("/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20171003.root");
+    fileName.push_back("/home/llr/cms/blanco/Analysis/WAnalysis/DATASETS/DATA/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20171003.root");
     dsLabel = "DATA";
 //    pfu1model = 1;
     //pfu2model = 1;
   }
   else {
-    fileName.push_back("/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official/POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_pPb_8160GeV_20171003.root");
-    fileName.push_back("/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official/POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_Pbp_8160GeV_20171003.root");
+//    fileName.push_back("/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official/POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_pPb_8160GeV_20171003.root");
+//    fileName.push_back("/store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official/POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_Pbp_8160GeV_20171003.root");
+    fileName.push_back("/home/llr/cms/blanco/Analysis/WAnalysis/DATASETS/MC/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_pPb_8160GeV_20171003.root");
+    fileName.push_back("/home/llr/cms/blanco/Analysis/WAnalysis/DATASETS/MC/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_Pbp_8160GeV_20171003.root");
     dsLabel = "MC_DYToMuMu_POWHEG";
 //    pfu1model = 2;
     //pfu2model = 2;
@@ -151,7 +154,7 @@ void fitRecoil(
     rapRange = "[-2.4,2.4]";
   }
   else {
-    ptBins = { 0., 3., 5., 7., 9., 11., 13., 15., 17., 21., 25., 30., 40., 50, 70., 140.};
+    ptBins = { 0., 3., 5., 7., 9., 12., 15., 20., 30., 40., 60., 140.};
     if (yRange=="mid") rapRange = "[-1.6,1.6]";
     if (yRange=="fwd") rapRange = "< 1.6";
   }

@@ -243,6 +243,14 @@ bool performFit(
     for (uint i=0; i<fcn.par.size(); i++) { uFit.at(graph.first)->SetParameter(i, fcn.par[i]); }
     for (uint i=0; i<fcn.par.size(); i++) { uFit.at(graph.first)->SetParName(i, FcnParName.at(fcn.exp)[i].c_str()); }
     for (uint i=0; i<fcn.min.size(); i++) { uFit.at(graph.first)->SetParLimits(i, fcn.min[i], fcn.max[i]); }
+//    for (uint i=0; i<fcn.par.size(); i++) { // Uncomment for y-syst Data fits
+//      if ( (graph.first.find("sigma")!=std::string::npos) && (uName=="u1") &&  (outputDir.find("DATA")!=std::string::npos)) { // Uncomment for y-syst (mid and fwd) Data fit
+//        uFit.at(graph.first)->FixParameter(uFit.at(graph.first)->GetParNumber("#alpha"), 1.54);
+//      }
+//      if ( (graph.first.find("sigma")!=std::string::npos) && (uName=="u2") &&  (outputDir.find("DATA")!=std::string::npos)) { // Uncomment for y-syst (fwd only) Data fit
+//        uFit.at(graph.first)->FixParameter(uFit.at(graph.first)->GetParNumber("#alpha"), 1.34);
+//      }
+    }
     graph.second->Fit(uFit.at(graph.first)->GetName(), "QMRN0W");
     uFitRes[graph.first] = graph.second->Fit(uFit.at(graph.first)->GetName(), "QMRN0SE");
     uFitRes.at(graph.first)->SetName(Form("fitresPF%s%s", uName.c_str(), graph.first.c_str()));
