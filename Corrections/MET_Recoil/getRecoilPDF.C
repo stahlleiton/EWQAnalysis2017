@@ -76,7 +76,7 @@ void getRecoilPDF(
                   uint pfumodel = 2, // u1 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian, 4 => Breit-Wigner plus Gaussian)
                   const bool applyHFCorr = true, // Only used for MC, in data it is ignored
                   const bool computeSyst = false, // If true computes the 100 random variations of each pT point and perform the fits
-                  const std::vector< std::string > metType = { "PF_RAW" /*, "PF_Type1" , "PF_NoHF_RAW" , "PF_NoHF_Type1" */},
+                  const std::vector< std::string > metType = { "PF_RAW"/*,"PF_RAW_JetEnDown","PF_RAW_JetEnUp","PF_RAW_JetResDown","PF_RAW_JetResUp","PF_RAW_MuonEnDown","PF_RAW_MuonEnUp", "PF_Type1" , "PF_NoHF_RAW" , "PF_NoHF_Type1" */},
                   const std::vector< std::string > COLL    = { "PA" /*, "Pbp" , "pPb" */}
                   )
 {
@@ -169,10 +169,10 @@ void getRecoilPDF(
         //
         // For u1 component
         std::map< std::string , std::unique_ptr<TF1> > u1Fit;
-        std::map< std::string , TFitResultPtr > u1FitRes;
+        std::map< std::string , TFitResultPtr > u1FitRes; std::cout << "Hola1" << std::endl;
         if (!( performFit(u1Fit, u1FitRes, *c, u1Graph_rnd, u1FcnInfo.at(dsLabel).at(met).at("PA"), uparName, met, col, outputDir_rnd) )) { return; }
         // For u2 component
-        std::map< std::string , std::unique_ptr<TF1> > u2Fit;
+        std::map< std::string , std::unique_ptr<TF1> > u2Fit;std::cout << "Hola2" << std::endl;
         std::map< std::string , TFitResultPtr > u2FitRes;
         if (!( performFit(u2Fit, u2FitRes, *c, u2Graph_rnd, u2FcnInfo.at(dsLabel).at(met).at("PA"), uprpName, met, col, outputDir_rnd) )) { return; }
         //

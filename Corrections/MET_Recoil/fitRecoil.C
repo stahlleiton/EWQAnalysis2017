@@ -90,7 +90,7 @@ void fitRecoil(
                uint pfumodel = 2, // u1/2 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian, 4 => Breit-Wigner plus Gaussian)
                const bool applyHFCorr = false, // Only used for MC, in data it is ignored
                const std::string yRange = "full", // Z rapidity (full => [-2.4,2.4], mid => [-1.6,1.6], fwd => |y| < 1.6)
-               const std::vector< std::string > metType = { "PF_RAW"/* , "PF_Type1" , "PF_NoHF_RAW", "PF_NoHF_Type1" */},
+               const std::vector< std::string > metType = { "PF_RAW"/*,"PF_RAW_JetEnDown","PF_RAW_JetEnUp","PF_RAW_JetResDown","PF_RAW_JetResUp","PF_RAW_MuonEnDown","PF_RAW_MuonEnUp" , "PF_Type1" , "PF_NoHF_RAW", "PF_NoHF_Type1" */},
                const std::vector< std::string > COLL    = { "PA"/* , "Pbp" , "pPb" */},
                const bool remakeDS = false
                )
@@ -383,6 +383,12 @@ void fitRecoil(
             if (met=="PF_Type1"     ) met2D = metTree->Type1_MET_NoShift_Mom();
             if (met=="PF_NoHF_RAW"  ) met2D = metNoHFTree->PF_MET_NoShift_Mom();
             if (met=="PF_NoHF_Type1") met2D = metNoHFTree->Type1_MET_NoShift_Mom();
+            if (met=="PF_RAW_JetEnDown") met2D = metTree->PF_MET_JetEnDown_Mom();
+            if (met=="PF_RAW_JetEnUp") met2D = metTree->PF_MET_JetEnUp_Mom();
+            if (met=="PF_RAW_JetResDown") met2D = metTree->PF_MET_JetResDown_Mom();
+            if (met=="PF_RAW_JetResUp") met2D = metTree->PF_MET_JetResUp_Mom();
+            if (met=="PF_RAW_MuonEnDown") met2D = metTree->PF_MET_MuonEnDown_Mom();
+            if (met=="PF_RAW_MuonEnUp") met2D = metTree->PF_MET_MuonEnUp_Mom();
             //
             // Compute Recoil
             TVector2 U = -1.*(dilep2D + met2D); // Recoil Vector
