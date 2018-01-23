@@ -247,10 +247,10 @@ bool performFit(
 //      if ( (graph.first.find("sigma")!=std::string::npos) && (uName=="u1") &&  (outputDir.find("DATA")!=std::string::npos)) { // Uncomment for y-syst (mid and fwd) Data fit
 //        uFit.at(graph.first)->FixParameter(uFit.at(graph.first)->GetParNumber("#alpha"), 1.54);
 //      }
-//      if ( (graph.first.find("sigma")!=std::string::npos) && (uName=="u2") &&  (outputDir.find("DATA")!=std::string::npos)) { // Uncomment for y-syst (fwd only) Data fit
+//      if ( (graph.first.find("sigma")!=std::string::npos) && (uName=="u2") &&  (outputDir.find("DATA")!=std::string::npos)) { // Uncomment for y-syst (fwd only       ) Data fit
 //        uFit.at(graph.first)->FixParameter(uFit.at(graph.first)->GetParNumber("#alpha"), 1.34);
 //      }
-    }
+//    }
     graph.second->Fit(uFit.at(graph.first)->GetName(), "QMRN0W");
     uFitRes[graph.first] = graph.second->Fit(uFit.at(graph.first)->GetName(), "QMRN0SE");
     uFitRes.at(graph.first)->SetName(Form("fitresPF%s%s", uName.c_str(), graph.first.c_str()));
