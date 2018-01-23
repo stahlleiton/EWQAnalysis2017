@@ -49,6 +49,7 @@ const std::vector< std::string > FILTERS_ = {
   "globalTightHalo2016Filter",
   "goodVertices",
   "badMuons"
+  "ZVeto"
 };
 const std::vector< std::string > FTYPE_ = { "ONLY" , "WithPA" };
 //

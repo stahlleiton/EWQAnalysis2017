@@ -34,7 +34,7 @@ void fitter(
             const bool setLogScale  = true              // Draw plot with log scale
             )
 {
-  //  RooMsgService::instance().setGlobalKillBelow(RooFit::WARNING);
+  //
   // -------------------------------------------------------------------------------
   // STEP 0: INITIALIZE THE FITTER WORK ENVIROMENT
   // The work enviroment is divided as follows:
@@ -131,7 +131,6 @@ void fitter(
       userInput.Par["RecoilVarTyp"] = "";
       if (workDirName.find(  "MC")!=std::string::npos) { userInput.Par.at("RecoilVarTyp") += "MC";   }
       if (workDirName.find("DATA")!=std::string::npos) { userInput.Par.at("RecoilVarTyp") += "DATA"; }
-      fitColl = 4;
     }
   }
   else if (workDirName.find("SystematicCM_")!=std::string::npos) {
@@ -185,7 +184,9 @@ void fitter(
   userInput.Par["extTreesFileDir"] = Form("%s/Input/", CWD.c_str());
   userInput.Par["extDSDir_DATA"]   = "/grid_mnt/vol__vol_U__u/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/DataSet/";
   userInput.Par["extDSDir_MC"]     = "/grid_mnt/vol__vol_U__u/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/DataSet/";
-  userInput.Par["RecoilPath"]      = "/grid_mnt/vol__vol_U__u/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil/";
+  userInput.Par["RecoilPath"]      = "/grid_mnt/vol__vol_U__u/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_nom_sysStat/";
+  if (workDirName=="NominalCM_RecoilSystPtFunc" ) { userInput.Par.at("RecoilPath") = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_sysPtFunc/";  }
+  if (workDirName=="NominalCM_RecoilSystBWGauss") { userInput.Par.at("RecoilPath") = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_sysBWGauss/"; }
   if (userInput.Par.at("Analysis").find("Nu")!=std::string::npos) {
     userInput.Var["MET"]["type"] = varType;
     if      (workDirName=="NominalCM_BinWidth3") { userInput.Var["MET"]["binWidth"] = 3.0; }

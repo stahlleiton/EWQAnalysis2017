@@ -84,6 +84,7 @@ void A1m(GraphMap& graph)
   };
   //
   graph["CT14"] = TGraphAsymmErrors(10,ha1p_elqrsmci_pdf_fx3013,ha1p_elqrsmci_pdf_fy3013,ha1p_elqrsmci_pdf_felx3013,ha1p_elqrsmci_pdf_fehx3013,ha1p_elqrsmci_pdf_fely3013,ha1p_elqrsmci_pdf_fehy3013);
+  graph.at("CT14").SetName("CT14"); graph.at("CT14").SetTitle("CT14");
   //
   // EPPS16
   Double_t ha1p_iysxysdv_pdf_fx3014[10] = {
@@ -160,6 +161,7 @@ void A1m(GraphMap& graph)
   };
   //
   graph["EPPS16"] = TGraphAsymmErrors(10,ha1p_iysxysdv_pdf_fx3014,ha1p_iysxysdv_pdf_fy3014,ha1p_iysxysdv_pdf_felx3014,ha1p_iysxysdv_pdf_fehx3014,ha1p_iysxysdv_pdf_fely3014,ha1p_iysxysdv_pdf_fehy3014);
+  graph.at("EPPS16").SetName("EPPS16"); graph.at("EPPS16").SetTitle("EPPS16");
   //
 };
 
@@ -242,6 +244,7 @@ void A1p(GraphMap& graph)
   };
   //
   graph["CT14"] = TGraphAsymmErrors(10,ha1p_hxfldkre_pdf_fx3010,ha1p_hxfldkre_pdf_fy3010,ha1p_hxfldkre_pdf_felx3010,ha1p_hxfldkre_pdf_fehx3010,ha1p_hxfldkre_pdf_fely3010,ha1p_hxfldkre_pdf_fehy3010);
+  graph.at("CT14").SetName("CT14"); graph.at("CT14").SetTitle("CT14");
   //
   // EPPS16   
   Double_t ha1p_reigzujm_pdf_fx3011[10] = {
@@ -317,6 +320,7 @@ void A1p(GraphMap& graph)
     0.1119827
   };
   graph["EPPS16"] = TGraphAsymmErrors(10,ha1p_reigzujm_pdf_fx3011,ha1p_reigzujm_pdf_fy3011,ha1p_reigzujm_pdf_felx3011,ha1p_reigzujm_pdf_fehx3011,ha1p_reigzujm_pdf_fely3011,ha1p_reigzujm_pdf_fehy3011);
+  graph.at("EPPS16").SetName("EPPS16"); graph.at("EPPS16").SetTitle("EPPS16");
   //
 };
 
@@ -399,6 +403,7 @@ void A3(GraphMap& graph)
   };
   //
   graph["CT14"] = TGraphAsymmErrors(10,ha1p_pomsdbid_pdf_fx3016,ha1p_pomsdbid_pdf_fy3016,ha1p_pomsdbid_pdf_felx3016,ha1p_pomsdbid_pdf_fehx3016,ha1p_pomsdbid_pdf_fely3016,ha1p_pomsdbid_pdf_fehy3016);
+  graph.at("CT14").SetName("CT14"); graph.at("CT14").SetTitle("CT14");
   //
   // EPPS16
   Double_t ha1p_sfyrbzpk_pdf_fx3017[10] = {
@@ -475,6 +480,7 @@ void A3(GraphMap& graph)
   };
   //
   graph["EPPS16"] = TGraphAsymmErrors(10,ha1p_sfyrbzpk_pdf_fx3017,ha1p_sfyrbzpk_pdf_fy3017,ha1p_sfyrbzpk_pdf_felx3017,ha1p_sfyrbzpk_pdf_fehx3017,ha1p_sfyrbzpk_pdf_fely3017,ha1p_sfyrbzpk_pdf_fehy3017);
+  graph.at("EPPS16").SetName("EPPS16"); graph.at("EPPS16").SetTitle("EPPS16");
   //
 };
 
@@ -647,6 +653,7 @@ void chasym(GraphMap& graph)
   };
   //
   graph["CT14"] = TGraphAsymmErrors(25,hasym_bqsqscsc_pdf_fx3007,hasym_bqsqscsc_pdf_fy3007,hasym_bqsqscsc_pdf_felx3007,hasym_bqsqscsc_pdf_fehx3007,hasym_bqsqscsc_pdf_fely3007,hasym_bqsqscsc_pdf_fehy3007);
+  graph.at("CT14").SetName("CT14"); graph.at("CT14").SetTitle("CT14");
   //
   // EPPS16
   Double_t hasym_zjnghkjm_pdf_fx3008[25] = {
@@ -813,6 +820,7 @@ void chasym(GraphMap& graph)
   };
   //
   graph["EPPS16"] = TGraphAsymmErrors(25,hasym_zjnghkjm_pdf_fx3008,hasym_zjnghkjm_pdf_fy3008,hasym_zjnghkjm_pdf_felx3008,hasym_zjnghkjm_pdf_fehx3008,hasym_zjnghkjm_pdf_fely3008,hasym_zjnghkjm_pdf_fehy3008);
+  graph.at("EPPS16").SetName("EPPS16"); graph.at("EPPS16").SetTitle("EPPS16");
   //
 };
 
@@ -985,7 +993,7 @@ void Wm(GraphMap& graph)
   };
   //
   graph["CT14"] = TGraphAsymmErrors(25,hrebin_ottriune_pdf_fx3004,hrebin_ottriune_pdf_fy3004,hrebin_ottriune_pdf_felx3004,hrebin_ottriune_pdf_fehx3004,hrebin_ottriune_pdf_fely3004,hrebin_ottriune_pdf_fehy3004);
-  graph["CT14"].SetName("hrebin_ottriune_pdf");
+  graph.at("CT14").SetName("CT14"); graph.at("CT14").SetTitle("CT14");
   //
   // EPPS16
   Double_t hrebin_komixkgq_pdf_fx3005[25] = {
@@ -1152,6 +1160,7 @@ void Wm(GraphMap& graph)
   };
   //
   graph["EPPS16"] = TGraphAsymmErrors(25,hrebin_komixkgq_pdf_fx3005,hrebin_komixkgq_pdf_fy3005,hrebin_komixkgq_pdf_felx3005,hrebin_komixkgq_pdf_fehx3005,hrebin_komixkgq_pdf_fely3005,hrebin_komixkgq_pdf_fehy3005);
+  graph.at("EPPS16").SetName("EPPS16"); graph.at("EPPS16").SetTitle("EPPS16");
   //
 };
 
@@ -1324,6 +1333,7 @@ void Wp(GraphMap& graph)
   };
   //
   graph["CT14"] = TGraphAsymmErrors(25,hrebin_zehygmyt_pdf_fx3001,hrebin_zehygmyt_pdf_fy3001,hrebin_zehygmyt_pdf_felx3001,hrebin_zehygmyt_pdf_fehx3001,hrebin_zehygmyt_pdf_fely3001,hrebin_zehygmyt_pdf_fehy3001);
+  graph.at("CT14").SetName("CT14"); graph.at("CT14").SetTitle("CT14");
   //
   // EPPS16
   Double_t hrebin_rpvwkpgu_pdf_fx3002[25] = {
@@ -1490,5 +1500,6 @@ void Wp(GraphMap& graph)
   };
   //
   graph["EPPS16"] = TGraphAsymmErrors(25,hrebin_rpvwkpgu_pdf_fx3002,hrebin_rpvwkpgu_pdf_fy3002,hrebin_rpvwkpgu_pdf_felx3002,hrebin_rpvwkpgu_pdf_fehx3002,hrebin_rpvwkpgu_pdf_fely3002,hrebin_rpvwkpgu_pdf_fehy3002);
+  graph.at("EPPS16").SetName("EPPS16"); graph.at("EPPS16").SetTitle("EPPS16");
   //
 };

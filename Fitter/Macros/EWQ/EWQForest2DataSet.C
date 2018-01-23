@@ -777,18 +777,22 @@ bool correctMC(RooWorkspaceMap_t& Workspaces, const RooWorkspaceMap_t& iniWorksp
     const std::string met = info.Par.at("METType");
     const std::string recoilPath = info.Par.at("RecoilPath");
     const std::string col = "PA";
+    std::string fnc_MC   = "doubleGauss" , fnc_DATA = "doubleGauss";
+    if (recoilPath.find("BWGauss")!=std::string::npos) { fnc_MC   = "BWGauss" , fnc_DATA = "BWGauss"; }
     const std::string HFCorrLbl = (applyHFCorr ? "HFCorr" : "noHFCorr");
-    std::string fileName_MC   = Form("%sMC_DYToMuMu_POWHEG/MET_%s/%s/%s/doubleGauss/Results/fits_RecoilPDF_%s_%s.root", recoilPath.c_str(), met.c_str(), col.c_str(), HFCorrLbl.c_str(), met.c_str(), col.c_str());
-    std::string fileName_DATA = Form("%sDATA/MET_%s/%s/doubleGauss/Results/fits_RecoilPDF_%s_%s.root", recoilPath.c_str(), met.c_str(), col.c_str(), met.c_str(), col.c_str());
+    std::string fileName_MC   = Form("%sMC_DYToMuMu_POWHEG/MET_%s/%s/%s/%s/Results/fits_RecoilPDF_%s_%s.root", recoilPath.c_str(), met.c_str(), col.c_str(), HFCorrLbl.c_str(), fnc_MC.c_str(), met.c_str(), col.c_str());
+    std::string fileName_DATA = Form("%sDATA/MET_%s/%s/%s/Results/fits_RecoilPDF_%s_%s.root", recoilPath.c_str(), met.c_str(), col.c_str(), fnc_DATA.c_str(), met.c_str(), col.c_str());
     //
     const std::string recoilVarTyp = (info.Par.count("RecoilVarTyp")>0 ? info.Par.at("RecoilVarTyp") : "");
     const std::string recoilVarLbl = (info.Par.count("RecoilVarLbl")>0 ? info.Par.at("RecoilVarLbl") : "");
     if (recoilVarTyp!="" && recoilVarLbl!="") { ignoreCorrDS = true; }
     if (recoilVarTyp.find("MC"  )!=std::string::npos) {
-      fileName_MC = Form("%sMC_DYToMuMu_POWHEG/MET_%s/%s/%s/doubleGauss/Systematics/Sys_%s/fits_RecoilPDF_%s_%s.root", recoilPath.c_str(), met.c_str(), col.c_str(), HFCorrLbl.c_str(), recoilVarLbl.c_str(), met.c_str(), col.c_str());
+      fileName_MC = Form("%sMC_DYToMuMu_POWHEG/MET_%s/%s/%s/%s/Systematics/Sys_%s/fits_RecoilPDF_%s_%s.root", recoilPath.c_str(), met.c_str(), col.c_str(), HFCorrLbl.c_str(),
+                         fnc_MC.c_str(), recoilVarLbl.c_str(), met.c_str(), col.c_str());
     }
     if (recoilVarTyp.find("DATA")!=std::string::npos) {
-      fileName_DATA = Form("%sDATA/MET_%s/%s/doubleGauss/Systematics/Sys_%s/fits_RecoilPDF_%s_%s.root", recoilPath.c_str(), met.c_str(), col.c_str(), recoilVarLbl.c_str(), met.c_str(), col.c_str());
+      fileName_DATA = Form("%sDATA/MET_%s/%s/%s/Systematics/Sys_%s/fits_RecoilPDF_%s_%s.root", recoilPath.c_str(), met.c_str(), col.c_str(),
+                           fnc_DATA.c_str(), recoilVarLbl.c_str(), met.c_str(), col.c_str());
     }
     //
     if (!recoilCorr.setInputFiles(met, fileName_MC, fileName_DATA)) { return false; }
