@@ -387,7 +387,8 @@ int importDataset(RooWorkspace& myws  , const std::map<string, RooWorkspace>& in
     std::cout << "[INFO] Importing local RooDataSet " << extLabel << std::endl;
     //
     if (chg!="") {
-      if (myws.data(Form("d%s_%s", chg.c_str(), label.c_str()))!=NULL) continue;
+      const std::string dsName = Form("d%s_%s", chg.c_str(), label.c_str());
+      if (myws.data(dsName.c_str())!=NULL) continue;
       if ( inputWS.count(label)==0 || !(inputWS.at(label).data(Form("d%s_%s", chg.c_str(), extLabel.c_str())))){ 
         std::cout << "[ERROR] The dataset " <<  Form("d%s_%s", chg.c_str(), extLabel.c_str()) << " was not found!" << std::endl;
         return -1;
@@ -400,17 +401,17 @@ int importDataset(RooWorkspace& myws  , const std::map<string, RooWorkspace>& in
         else { std::cout << "[ERROR] No events from dataset " <<  Form("d%s_%s", chg.c_str(), extLabel.c_str()) << " passed the kinematic cuts!" << std::endl; return -1; }
       }
       else {
-        data->SetName(Form("d%s_%s", chg.c_str(), label.c_str()));
+        data->SetName(dsName.c_str());
         myws.import(*data);
       }
-      std::cout << "[INFO] " << Form("%.0f", data->sumEntries()) << " weighted entries imported from local RooDataSet " << Form("d%s_%s", chg.c_str(), label.c_str()) << std::endl;
+      std::cout << "[INFO] " << Form("%.0f", data->sumEntries()) << " weighted entries imported from local RooDataSet " << dsName << std::endl;
       //
       const std::vector< std::string > strLabels = { "METType" , "CorrectionApplied" , "RecoilMethod" };
       for (const auto& strL : strLabels) { if (inputWS.at(label).obj(strL.c_str()) && !myws.obj(strL.c_str())) { myws.import(*inputWS.at(label).obj(strL.c_str()), strL.c_str()); } }
       //
       // Set the range of each global parameter in the local roodataset
-      if (myws.data(Form("d%s_%s", chg.c_str(), label.c_str()))!=NULL) {
-        const RooArgSet* row = myws.data(Form("d%s_%s", chg.c_str(), label.c_str()))->get();
+      if (myws.data(dsName.c_str())!=NULL) {
+        const RooArgSet* row = myws.data(dsName.c_str())->get();
         for (const auto& var : info.Var) {
           if ( (var.first!="Event_Type") && row->find(Form("%s", var.first.c_str())) ) {
             ((RooRealVar*)row->find(Form("%s", var.first.c_str())))->setMin(var.second.at("Min"));

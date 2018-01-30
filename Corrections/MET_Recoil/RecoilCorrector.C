@@ -276,8 +276,48 @@ bool RecoilCorrector::getPtFromTree(
   //
   // Determine the reference and the boson pT vectors
   //
+  // Case: DrellYan -> Tau -> Muon or VV-> X -> Muon
+  if ( (sample.find("MC_DYToTau")!=std::string::npos) || (sample.find("MC_ZZ")!=std::string::npos) ||
+       (sample.find("MC_WZ")!=std::string::npos) || (sample.find("MC_WW")!=std::string::npos) ) {
+    // Find the number of RECO muons matched to GEN muons from DY->Tau boson decay
+    std::vector< uint > idx;
+    const int& iGenMu = muonTree->PF_Muon_Gen_Idx()[muonIdx];
+    if ( iGenMu > -1 ) {
+      if (sample.find("MC_DYToTau")!=std::string::npos) {
+        const auto& mom = muonTree->findMuonMother(iGenMu, 23, 2);
+        if (mom.pdg == 23) { idx = { muonIdx , uint(iGenMu) , mom.idx }; }
+        else {
+          const auto& mom = muonTree->findMuonMother(iGenMu, 22, 2);
+          if (mom.pdg == 22) { idx = { muonIdx , uint(iGenMu) , mom.idx }; }
+        }
+      }
+      else if (sample.find("MC_WZ")!=std::string::npos) {
+        const auto& mom = muonTree->findMuonMother(iGenMu, 24, 2);
+        if (mom.pdg == 24) { idx = { muonIdx , uint(iGenMu) , mom.idx }; }
+        else {
+          const auto& mom = muonTree->findMuonMother(iGenMu, 23, 2);
+          if (mom.pdg == 23) { idx = { muonIdx , uint(iGenMu) , mom.idx }; }
+        }
+      }
+      else if (sample.find("MC_ZZ")!=std::string::npos) {
+        const auto& mom = muonTree->findMuonMother(iGenMu, 23, 2);
+        if (mom.pdg == 23) { idx = { muonIdx , uint(iGenMu) , mom.idx }; }
+      }
+      else if (sample.find("MC_WW")!=std::string::npos) {
+        const auto& mom = muonTree->findMuonMother(iGenMu, 24, 2);
+        if (mom.pdg == 24) { idx = { muonIdx , uint(iGenMu) , mom.idx }; }
+      }
+    }
+    if ( idx.size() == 0 ) { std::cout << "[ERROR] Found in " << sample << " 0 RECO muons matched to GEN muon from decay!" << std::endl; return false; }
+    // Found 1 RECO muon from the decay
+    // Reference is RECO Muon pT
+    reference_pT.SetMagPhi( muonTree->PF_Muon_Mom()[idx[0]].Pt() , muonTree->PF_Muon_Mom()[idx[0]].Phi() );
+    // Boson pT is the GEN boson pT (mother of muon)
+    boson_pT.SetMagPhi( muonTree->Gen_Particle_Mom()[idx[2]].Pt() , muonTree->Gen_Particle_Mom()[idx[2]].Phi() );
+  }
+  //
   // Case: DrellYan -> Muon + Muon
-  if (sample.find("MC_DY")!=std::string::npos) {
+  else if (sample.find("MC_DY")!=std::string::npos) {
     // Find the number of RECO muons matched to GEN muons from Z/gamma boson decay
     std::vector< std::vector< uint > > idx;
     // Get the mom of the leading muon

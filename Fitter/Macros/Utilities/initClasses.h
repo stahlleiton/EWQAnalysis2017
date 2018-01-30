@@ -459,7 +459,7 @@ bool rooPlotToTH1(TH1D& hData, TH1D& hFit, const RooPlot& frame, const bool useA
     hData.SetBinContent((i+1), dataVal);
     hData.SetBinError((i+1), std::sqrt((eyl*eyl + eyh*eyh)/2.0));
     hFit.SetBinContent((i+1), fitVal);
-    hFit.SetBinError((i+1), std::sqrt(fitVal));
+    hFit.SetBinError((i+1), 0.0);
   }
   return true;
 };
@@ -621,7 +621,7 @@ void updateMETParameterRange(RooWorkspace& myws, GlobalInfo&  info, const std::s
   if (maxRange > 0.0) { metMax = maxRange; }
   else {
     myws.data(dsName.c_str())->getRange(*myws.var("MET"), metMin, metMax);
-    metMin = 0.0; metMax = std::max( (10.*std::ceil(metMax/10.)) , 165. );
+    metMin = info.Var.at("MET").at("Min"); metMax = std::max( (10.*std::ceil(metMax/10.)) , 168. );
   }
   const std::string metFitRange = Form("(%g <= MET && MET < %g)", metMin, metMax);
   //

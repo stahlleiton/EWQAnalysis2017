@@ -203,9 +203,8 @@ bool addMETModel(RooWorkspace& ws, const std::string& decay, const StringDiMap_t
       }
       if (pdfList.getSize()>0) {
 	std::string pdfName = ( "pdfMET_Tot" + mainLabel );
-	RooAbsPdf *themodel = new RooAddPdf(pdfName.c_str(), pdfName.c_str(), pdfList);
-	ws.import(*themodel);
-	if (themodel) { delete themodel; }
+        auto themodel = std::unique_ptr<RooAddPdf>(new RooAddPdf(pdfName.c_str(), pdfName.c_str(), pdfList));
+        ws.import(*themodel);
       }
     }
   }
@@ -239,7 +238,9 @@ bool histToPdf(RooWorkspace& ws, const string& pdfName, const string& dsName, co
   std::unique_ptr<RooDataHist> dataHist = std::unique_ptr<RooDataHist>(new RooDataHist(dataName.c_str(), "", *ws.var(var.c_str()), hist.get()));
   if (dataHist==NULL) { std::cout << "[WARNING] DataHist used to create " << pdfName << " failed!" << std::endl; return false; } 
   if (dataHist->sumEntries()==0) { std::cout << "[WARNING] DataHist used to create " << pdfName << " is empty!" << std::endl; return false; } 
-  if (std::abs(dataHist->sumEntries() - hist->GetSumOfWeights())>0.001) { std::cout << "[ERROR] DataHist used to create " << pdfName << "  " << " is invalid!  " << std::endl; return false; }
+  if (std::abs(dataHist->sumEntries() - hist->GetSumOfWeights())>0.001) {
+    std::cout << "[ERROR] DataHist (" << dataHist->sumEntries() << ")  used to create histogram (" << hist->GetSumOfWeights() << ") for PDF " << pdfName << "  " << " is invalid!  " << std::endl; return false;
+  }
   ws.import(*dataHist);
   ws.var(var.c_str())->setBins(int(range[0])); // Bug Fix
   std::unique_ptr<RooHistPdf> pdf = std::unique_ptr<RooHistPdf>(new RooHistPdf(pdfName.c_str(), pdfName.c_str(), *ws.var(var.c_str()), *((RooDataHist*)ws.data(dataName.c_str()))));

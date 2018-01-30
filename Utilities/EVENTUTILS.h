@@ -196,19 +196,24 @@ namespace PYQUEN {
 //
 namespace POWHEG {
   std::map< std::string , std::map< std::string , double > > XSec = {
-    { "WToMuNu_Plus"       , { { "pPb" , 1213.38 }  , { "Pbp" , 1214.06 } } },
-    { "WToMuNu_Minus"      , { { "pPb" , 1082.24 }  , { "Pbp" , 1083.37 } } },
-    { "DYToMuMu_M_30_Inf"  , { { "pPb" , 266.28  }  , { "Pbp" , 266.28  } } },
-    { "DYToMuMu_M_10_30"   , { { "pPb" , 1182.24 }  , { "Pbp" , 1168.03 } } },
-    { "WToTauNu_Plus"      , { { "pPb" , 1146.30 }  , { "Pbp" , 1147.44 } } },
-    { "WToTauNu_Minus"     , { { "pPb" , 1026.32 }  , { "Pbp" , 1019.40 } } },
-    { "TTall"              , { { "pPb" , 48.68   }  , { "Pbp" , 48.68   } } }
+    { "WToMuNu_Plus"        , { { "pPb" , 1213.38 }  , { "Pbp" , 1214.06 } } },
+    { "WToMuNu_Minus"       , { { "pPb" , 1082.24 }  , { "Pbp" , 1083.37 } } },
+    { "DYToMuMu_M_30_Inf"   , { { "pPb" , 266.28  }  , { "Pbp" , 266.28  } } },
+    { "DYToMuMu_M_10_30"    , { { "pPb" , 1182.24 }  , { "Pbp" , 1168.03 } } },
+    { "WToTauNu_Plus"       , { { "pPb" , 1146.30 }  , { "Pbp" , 1147.44 } } },
+    { "WToTauNu_Minus"      , { { "pPb" , 1026.32 }  , { "Pbp" , 1019.40 } } },
+    { "TTall"               , { { "pPb" , 48.68   }  , { "Pbp" , 48.68   } } },
+    { "DYToTauTau_M_30_Inf" , { { "pPb" , 259.42  }  , { "Pbp" , 259.42  } } },
+    { "DYToTauTau_M_10_30"  , { { "pPb" , 1143.74 }  , { "Pbp" , 1143.74 } } }
   };
 };
 //
 namespace PYTHIA {
   std::map< std::string , std::map< std::string , double > > XSec = {  
-    { "QCDToMu"  , { { "pPb" , (28919.33 * 0.78998) }  , { "Pbp" , 28927.43 * 0.81767 } } } // pPb: 3.67970e+05 * 3.77844e-4 * 208. 48.68  Pbp: 3.67966e+05 * 3.77954e-4 * 208.
+    { "QCDToMu"  , { { "pPb" , (28919.33 * 0.78998) }  , { "Pbp" , 28927.43 * 0.81767 } } }, // pPb: 3.67970e+05 * 3.77844e-4 * 208. 48.68  Pbp: 3.67966e+05 * 3.77954e-4 * 208.
+    { "WWall"    , { { "pPb" , 12.83 } , { "Pbp" , 12.83 } } },
+    { "WZall"    , { { "pPb" , 4.63  } , { "Pbp" , 4.63  } } },
+    { "ZZall"    , { { "pPb" , 2.09  } , { "Pbp" , 2.09  } } }
   };
 };  
 //
@@ -224,96 +229,126 @@ namespace PA {
   {
     Invalid = 0,
       // For Pythia8
-      PYTHIA_QCDToMu_pPb           =  10,
-      PYTHIA_QCDToMu_Pbp           = -10,
+      PYTHIA_QCDToMu_pPb             =  10,
+      PYTHIA_QCDToMu_Pbp             = -10,
+      PYTHIA_WWall_pPb               =  11,
+      PYTHIA_WWall_Pbp               = -11,
+      PYTHIA_WZall_pPb               =  12,
+      PYTHIA_WZall_Pbp               = -12,
+      PYTHIA_ZZall_pPb               =  13,
+      PYTHIA_ZZall_Pbp               = -13,
       // For Pyquen
-      PYQUEN_WToMuNu_pPb           =  20,
-      PYQUEN_WToMuNu_Pbp           = -20,
-      PYQUEN_DYToMuMu_M_30_Inf_pPb =  21,
-      PYQUEN_DYToMuMu_M_30_Inf_Pbp = -21,
-      PYQUEN_WToTauNu_pPb          =  22,
-      PYQUEN_WToTauNu_Pbp          = -22,
-      PYQUEN_TTall_pPb             =  23,
-      PYQUEN_TTall_Pbp             = -23,
+      PYQUEN_WToMuNu_pPb             =  20,
+      PYQUEN_WToMuNu_Pbp             = -20,
+      PYQUEN_DYToMuMu_M_30_Inf_pPb   =  21,
+      PYQUEN_DYToMuMu_M_30_Inf_Pbp   = -21,
+      PYQUEN_WToTauNu_pPb            =  22,
+      PYQUEN_WToTauNu_Pbp            = -22,
+      PYQUEN_TTall_pPb               =  23,
+      PYQUEN_TTall_Pbp               = -23,
       // For Powheg
-      POWHEG_WToMuNu_Plus_pPb      =  30,
-      POWHEG_WToMuNu_Plus_Pbp      = -30,
-      POWHEG_WToMuNu_Minus_pPb     =  31,
-      POWHEG_WToMuNu_Minus_Pbp     = -31,
-      POWHEG_DYToMuMu_M_30_Inf_pPb =  32,
-      POWHEG_DYToMuMu_M_30_Inf_Pbp = -32,
-      POWHEG_DYToMuMu_M_10_30_pPb  =  33,
-      POWHEG_DYToMuMu_M_10_30_Pbp  = -33,
-      POWHEG_WToTauNu_Plus_pPb     =  34,
-      POWHEG_WToTauNu_Plus_Pbp     = -34,
-      POWHEG_WToTauNu_Minus_pPb    =  35,
-      POWHEG_WToTauNu_Minus_Pbp    = -35,
-      POWHEG_TTall_pPb             =  36,
-      POWHEG_TTall_Pbp             = -36
+      POWHEG_WToMuNu_Plus_pPb        =  30,
+      POWHEG_WToMuNu_Plus_Pbp        = -30,
+      POWHEG_WToMuNu_Minus_pPb       =  31,
+      POWHEG_WToMuNu_Minus_Pbp       = -31,
+      POWHEG_DYToMuMu_M_30_Inf_pPb   =  32,
+      POWHEG_DYToMuMu_M_30_Inf_Pbp   = -32,
+      POWHEG_DYToMuMu_M_10_30_pPb    =  33,
+      POWHEG_DYToMuMu_M_10_30_Pbp    = -33,
+      POWHEG_WToTauNu_Plus_pPb       =  34,
+      POWHEG_WToTauNu_Plus_Pbp       = -34,
+      POWHEG_WToTauNu_Minus_pPb      =  35,
+      POWHEG_WToTauNu_Minus_Pbp      = -35,
+      POWHEG_TTall_pPb               =  36,
+      POWHEG_TTall_Pbp               = -36,
+      POWHEG_DYToTauTau_M_30_Inf_pPb =  37,
+      POWHEG_DYToTauTau_M_30_Inf_Pbp = -37,
+      POWHEG_DYToTauTau_M_10_30_pPb  =  38,
+      POWHEG_DYToTauTau_M_10_30_Pbp  = -38
       };
   //
   // This Dictionary is used to assign a unique tag to each MC sample
   const std::map< std::string , int > MCTypeDictionary = {
-    { "Invalid"                      , int(MCType::Invalid)},
+    { "Invalid"                        , int(MCType::Invalid)},
     // For Pythia8
-    { "PYTHIA_QCDToMu_pPb"           , int(MCType::PYTHIA_QCDToMu_pPb)},
-    { "PYTHIA_QCDToMu_Pbp"           , int(MCType::PYTHIA_QCDToMu_Pbp)},
+    { "PYTHIA_QCDToMu_pPb"             , int(MCType::PYTHIA_QCDToMu_pPb)},
+    { "PYTHIA_QCDToMu_Pbp"             , int(MCType::PYTHIA_QCDToMu_Pbp)},
+    { "PYTHIA_WWall_pPb"               , int(MCType::PYTHIA_WWall_pPb)},
+    { "PYTHIA_WWall_Pbp"               , int(MCType::PYTHIA_WWall_Pbp)},
+    { "PYTHIA_WZall_pPb"               , int(MCType::PYTHIA_WZall_pPb)},
+    { "PYTHIA_WZall_Pbp"               , int(MCType::PYTHIA_WZall_Pbp)},
+    { "PYTHIA_ZZall_pPb"               , int(MCType::PYTHIA_ZZall_pPb)},
+    { "PYTHIA_ZZall_Pbp"               , int(MCType::PYTHIA_ZZall_Pbp)},
     // For Pyquen
-    { "PYQUEN_WToMuNu_pPb"           , int(MCType::PYQUEN_WToMuNu_pPb)},
-    { "PYQUEN_WToMuNu_Pbp"           , int(MCType::PYQUEN_WToMuNu_Pbp)},
-    { "PYQUEN_DYToMuMu_M_30_Inf_pPb" , int(MCType::PYQUEN_DYToMuMu_M_30_Inf_pPb)},
-    { "PYQUEN_DYToMuMu_M_30_Inf_Pbp" , int(MCType::PYQUEN_DYToMuMu_M_30_Inf_Pbp)},
-    { "PYQUEN_WToTauNu_pPb"          , int(MCType::PYQUEN_WToTauNu_pPb)},
-    { "PYQUEN_WToTauNu_Pbp"          , int(MCType::PYQUEN_WToTauNu_Pbp)},
-    { "PYQUEN_TTall_pPb"             , int(MCType::PYQUEN_TTall_pPb)},
-    { "PYQUEN_TTall_Pbp"             , int(MCType::PYQUEN_TTall_Pbp)},
+    { "PYQUEN_WToMuNu_pPb"             , int(MCType::PYQUEN_WToMuNu_pPb)},
+    { "PYQUEN_WToMuNu_Pbp"             , int(MCType::PYQUEN_WToMuNu_Pbp)},
+    { "PYQUEN_DYToMuMu_M_30_Inf_pPb"   , int(MCType::PYQUEN_DYToMuMu_M_30_Inf_pPb)},
+    { "PYQUEN_DYToMuMu_M_30_Inf_Pbp"   , int(MCType::PYQUEN_DYToMuMu_M_30_Inf_Pbp)},
+    { "PYQUEN_WToTauNu_pPb"            , int(MCType::PYQUEN_WToTauNu_pPb)},
+    { "PYQUEN_WToTauNu_Pbp"            , int(MCType::PYQUEN_WToTauNu_Pbp)},
+    { "PYQUEN_TTall_pPb"               , int(MCType::PYQUEN_TTall_pPb)},
+    { "PYQUEN_TTall_Pbp"               , int(MCType::PYQUEN_TTall_Pbp)},
     // For Powheg
-    { "POWHEG_WToMuNu_Plus_pPb"      , int(MCType::POWHEG_WToMuNu_Plus_pPb)},
-    { "POWHEG_WToMuNu_Plus_Pbp"      , int(MCType::POWHEG_WToMuNu_Plus_Pbp)},
-    { "POWHEG_WToMuNu_Minus_pPb"     , int(MCType::POWHEG_WToMuNu_Minus_pPb)},
-    { "POWHEG_WToMuNu_Minus_Pbp"     , int(MCType::POWHEG_WToMuNu_Minus_Pbp)},
-    { "POWHEG_DYToMuMu_M_30_Inf_pPb" , int(MCType::POWHEG_DYToMuMu_M_30_Inf_pPb)},
-    { "POWHEG_DYToMuMu_M_30_Inf_Pbp" , int(MCType::POWHEG_DYToMuMu_M_30_Inf_Pbp)},
-    { "POWHEG_DYToMuMu_M_10_30_pPb"  , int(MCType::POWHEG_DYToMuMu_M_10_30_pPb)},
-    { "POWHEG_DYToMuMu_M_10_30_Pbp"  , int(MCType::POWHEG_DYToMuMu_M_10_30_Pbp)},
-    { "POWHEG_WToTauNu_Plus_pPb"     , int(MCType::POWHEG_WToTauNu_Plus_pPb)},
-    { "POWHEG_WToTauNu_Plus_Pbp"     , int(MCType::POWHEG_WToTauNu_Plus_Pbp)},
-    { "POWHEG_WToTauNu_Minus_pPb"    , int(MCType::POWHEG_WToTauNu_Minus_pPb)},
-    { "POWHEG_WToTauNu_Minus_Pbp"    , int(MCType::POWHEG_WToTauNu_Minus_Pbp)},
-    { "POWHEG_TTall_pPb"             , int(MCType::POWHEG_TTall_pPb)},
-    { "POWHEG_TTall_Pbp"             , int(MCType::POWHEG_TTall_Pbp)}
+    { "POWHEG_WToMuNu_Plus_pPb"        , int(MCType::POWHEG_WToMuNu_Plus_pPb)},
+    { "POWHEG_WToMuNu_Plus_Pbp"        , int(MCType::POWHEG_WToMuNu_Plus_Pbp)},
+    { "POWHEG_WToMuNu_Minus_pPb"       , int(MCType::POWHEG_WToMuNu_Minus_pPb)},
+    { "POWHEG_WToMuNu_Minus_Pbp"       , int(MCType::POWHEG_WToMuNu_Minus_Pbp)},
+    { "POWHEG_DYToMuMu_M_30_Inf_pPb"   , int(MCType::POWHEG_DYToMuMu_M_30_Inf_pPb)},
+    { "POWHEG_DYToMuMu_M_30_Inf_Pbp"   , int(MCType::POWHEG_DYToMuMu_M_30_Inf_Pbp)},
+    { "POWHEG_DYToMuMu_M_10_30_pPb"    , int(MCType::POWHEG_DYToMuMu_M_10_30_pPb)},
+    { "POWHEG_DYToMuMu_M_10_30_Pbp"    , int(MCType::POWHEG_DYToMuMu_M_10_30_Pbp)},
+    { "POWHEG_WToTauNu_Plus_pPb"       , int(MCType::POWHEG_WToTauNu_Plus_pPb)},
+    { "POWHEG_WToTauNu_Plus_Pbp"       , int(MCType::POWHEG_WToTauNu_Plus_Pbp)},
+    { "POWHEG_WToTauNu_Minus_pPb"      , int(MCType::POWHEG_WToTauNu_Minus_pPb)},
+    { "POWHEG_WToTauNu_Minus_Pbp"      , int(MCType::POWHEG_WToTauNu_Minus_Pbp)},
+    { "POWHEG_TTall_pPb"               , int(MCType::POWHEG_TTall_pPb)},
+    { "POWHEG_TTall_Pbp"               , int(MCType::POWHEG_TTall_Pbp)},
+    { "POWHEG_DYToTauTau_M_30_Inf_pPb" , int(MCType::POWHEG_DYToTauTau_M_30_Inf_pPb)},
+    { "POWHEG_DYToTauTau_M_30_Inf_Pbp" , int(MCType::POWHEG_DYToTauTau_M_30_Inf_Pbp)},
+    { "POWHEG_DYToTauTau_M_10_30_pPb"  , int(MCType::POWHEG_DYToTauTau_M_10_30_pPb)},
+    { "POWHEG_DYToTauTau_M_10_30_Pbp"  , int(MCType::POWHEG_DYToTauTau_M_10_30_Pbp)}
   };
   //
   // This Dictionary is used to determine the cross-section used for each MC sample (based on their ID)
   const std::map< int , std::string > MCXSectionDictionary = {
-    { int(MCType::Invalid)                      , "Invalid"},
+    { int(MCType::Invalid)                        , "Invalid"},
     // For Pythia8
-    { int(MCType::PYTHIA_QCDToMu_pPb)           , "PYTHIA_QCDToMu_pPb"},
-    { int(MCType::PYTHIA_QCDToMu_Pbp)           , "PYTHIA_QCDToMu_Pbp"},
+    { int(MCType::PYTHIA_QCDToMu_pPb)             , "PYTHIA_QCDToMu_pPb"},
+    { int(MCType::PYTHIA_QCDToMu_Pbp)             , "PYTHIA_QCDToMu_Pbp"},
+    { int(MCType::PYTHIA_WWall_pPb)               , "PYTHIA_WWall_pPb"},
+    { int(MCType::PYTHIA_WWall_Pbp)               , "PYTHIA_WWall_Pbp"},
+    { int(MCType::PYTHIA_WZall_pPb)               , "PYTHIA_WZall_pPb"},
+    { int(MCType::PYTHIA_WZall_Pbp)               , "PYTHIA_WZall_Pbp"},
+    { int(MCType::PYTHIA_ZZall_pPb)               , "PYTHIA_ZZall_pPb"},
+    { int(MCType::PYTHIA_ZZall_Pbp)               , "PYTHIA_ZZall_Pbp"},
     // For Pyquen
-    { int(MCType::PYQUEN_WToMuNu_pPb)           , "PYQUEN_WToMuNu_pPb"},
-    { int(MCType::PYQUEN_WToMuNu_Pbp)           , "PYQUEN_WToMuNu_Pbp"},
-    { int(MCType::PYQUEN_DYToMuMu_M_30_Inf_pPb) , "PYQUEN_DYToMuMu_M_30_Inf_pPb"},
-    { int(MCType::PYQUEN_DYToMuMu_M_30_Inf_Pbp) , "PYQUEN_DYToMuMu_M_30_Inf_Pbp"},
-    { int(MCType::PYQUEN_WToTauNu_pPb)          , "PYQUEN_WToTauNu_pPb"},
-    { int(MCType::PYQUEN_WToTauNu_Pbp)          , "PYQUEN_WToTauNu_Pbp"},
-    { int(MCType::PYQUEN_TTall_pPb)             , "PYQUEN_TTall_pPb"},
-    { int(MCType::PYQUEN_TTall_Pbp)             , "PYQUEN_TTall_Pbp"},
+    { int(MCType::PYQUEN_WToMuNu_pPb)             , "PYQUEN_WToMuNu_pPb"},
+    { int(MCType::PYQUEN_WToMuNu_Pbp)             , "PYQUEN_WToMuNu_Pbp"},
+    { int(MCType::PYQUEN_DYToMuMu_M_30_Inf_pPb)   , "PYQUEN_DYToMuMu_M_30_Inf_pPb"},
+    { int(MCType::PYQUEN_DYToMuMu_M_30_Inf_Pbp)   , "PYQUEN_DYToMuMu_M_30_Inf_Pbp"},
+    { int(MCType::PYQUEN_WToTauNu_pPb)            , "PYQUEN_WToTauNu_pPb"},
+    { int(MCType::PYQUEN_WToTauNu_Pbp)            , "PYQUEN_WToTauNu_Pbp"},
+    { int(MCType::PYQUEN_TTall_pPb)               , "PYQUEN_TTall_pPb"},
+    { int(MCType::PYQUEN_TTall_Pbp)               , "PYQUEN_TTall_Pbp"},
     // For Powheg
-    { int(MCType::POWHEG_WToMuNu_Plus_pPb)      , "POWHEG_WToMuNu_Plus_pPb"},
-    { int(MCType::POWHEG_WToMuNu_Plus_Pbp)      , "POWHEG_WToMuNu_Plus_Pbp"},
-    { int(MCType::POWHEG_WToMuNu_Minus_pPb)     , "POWHEG_WToMuNu_Minus_pPb"},
-    { int(MCType::POWHEG_WToMuNu_Minus_Pbp)     , "POWHEG_WToMuNu_Minus_Pbp"},
-    { int(MCType::POWHEG_DYToMuMu_M_30_Inf_pPb) , "POWHEG_DYToMuMu_M_30_Inf_pPb"},
-    { int(MCType::POWHEG_DYToMuMu_M_30_Inf_Pbp) , "POWHEG_DYToMuMu_M_30_Inf_Pbp"},
-    { int(MCType::POWHEG_DYToMuMu_M_10_30_pPb)  , "POWHEG_DYToMuMu_M_10_30_pPb"},
-    { int(MCType::POWHEG_DYToMuMu_M_10_30_Pbp)  , "POWHEG_DYToMuMu_M_10_30_Pbp"},
-    { int(MCType::POWHEG_WToTauNu_Plus_pPb)     , "POWHEG_WToTauNu_Plus_pPb"},
-    { int(MCType::POWHEG_WToTauNu_Plus_Pbp)     , "POWHEG_WToTauNu_Plus_Pbp"},
-    { int(MCType::POWHEG_WToTauNu_Minus_pPb)    , "POWHEG_WToTauNu_Minus_pPb"},
-    { int(MCType::POWHEG_WToTauNu_Minus_Pbp)    , "POWHEG_WToTauNu_Minus_Pbp"},
-    { int(MCType::POWHEG_TTall_pPb)             , "EXTERN_TTall_pPb"},
-    { int(MCType::POWHEG_TTall_Pbp)             , "EXTERN_TTall_Pbp"}
+    { int(MCType::POWHEG_WToMuNu_Plus_pPb)        , "POWHEG_WToMuNu_Plus_pPb"},
+    { int(MCType::POWHEG_WToMuNu_Plus_Pbp)        , "POWHEG_WToMuNu_Plus_Pbp"},
+    { int(MCType::POWHEG_WToMuNu_Minus_pPb)       , "POWHEG_WToMuNu_Minus_pPb"},
+    { int(MCType::POWHEG_WToMuNu_Minus_Pbp)       , "POWHEG_WToMuNu_Minus_Pbp"},
+    { int(MCType::POWHEG_DYToMuMu_M_30_Inf_pPb)   , "POWHEG_DYToMuMu_M_30_Inf_pPb"},
+    { int(MCType::POWHEG_DYToMuMu_M_30_Inf_Pbp)   , "POWHEG_DYToMuMu_M_30_Inf_Pbp"},
+    { int(MCType::POWHEG_DYToMuMu_M_10_30_pPb)    , "POWHEG_DYToMuMu_M_10_30_pPb"},
+    { int(MCType::POWHEG_DYToMuMu_M_10_30_Pbp)    , "POWHEG_DYToMuMu_M_10_30_Pbp"},
+    { int(MCType::POWHEG_WToTauNu_Plus_pPb)       , "POWHEG_WToTauNu_Plus_pPb"},
+    { int(MCType::POWHEG_WToTauNu_Plus_Pbp)       , "POWHEG_WToTauNu_Plus_Pbp"},
+    { int(MCType::POWHEG_WToTauNu_Minus_pPb)      , "POWHEG_WToTauNu_Minus_pPb"},
+    { int(MCType::POWHEG_WToTauNu_Minus_Pbp)      , "POWHEG_WToTauNu_Minus_Pbp"},
+    { int(MCType::POWHEG_TTall_pPb)               , "EXTERN_TTall_pPb"},
+    { int(MCType::POWHEG_TTall_Pbp)               , "EXTERN_TTall_Pbp"},
+    { int(MCType::POWHEG_DYToTauTau_M_30_Inf_pPb) , "POWHEG_DYToTauTau_M_30_Inf_pPb"},
+    { int(MCType::POWHEG_DYToTauTau_M_30_Inf_Pbp) , "POWHEG_DYToTauTau_M_30_Inf_Pbp"},
+    { int(MCType::POWHEG_DYToTauTau_M_10_30_pPb)  , "POWHEG_DYToTauTau_M_10_30_pPb"},
+    { int(MCType::POWHEG_DYToTauTau_M_10_30_Pbp)  , "POWHEG_DYToTauTau_M_10_30_Pbp"}
   };
   //
   std::string getMCXSecName(const int& MCTypeID)
@@ -390,18 +425,23 @@ namespace PA {
   bool checkGenMuon(const ushort& iGenMu, const std::string& sample, const std::unique_ptr<HiMuonTree>& muonTree)
   {
     if (
-        (sample.find("MC_TT")     == std::string::npos) && (sample.find("MC_DY")  == std::string::npos) &&
+        (sample.find("MC_TT")     == std::string::npos) && (sample.find("MC_DY")  == std::string::npos) && (sample.find("MC_DYToTau") == std::string::npos) &&
+        (sample.find("MC_ZZ")     == std::string::npos) && (sample.find("MC_WW")  == std::string::npos) && (sample.find("MC_WZ") == std::string::npos) &&
         (sample.find("MC_Z")      == std::string::npos) && (sample.find("MC_W")   == std::string::npos) &&
         (sample.find("MC_WToTau") == std::string::npos) && (sample.find("MC_QCD") == std::string::npos)
         )
       { std::cout << "[ERROR] GEN sample " << sample << " has an INVALID NAME!" << std::endl; return false; }
     if (
-        ( (sample.find("MC_TT")    !=std::string::npos) && (muonTree->findMuonMother(iGenMu,  6, 2).pdg==6  || muonTree->findMuonMother(iGenMu, 24, 1).pdg==24) ) || // t -> W -> Muon + Neutrino
-        ( (sample.find("MC_DY")    !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 23, 1).pdg==23 || muonTree->findMuonMother(iGenMu, 22, 1).pdg==22) ) || // Z/gamma* -> Muon + Muon
-        ( (sample.find("MC_Z")     !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 23, 1).pdg==23) ) || // Z -> Muon + Muon
-        ( (sample.find("MC_W")     !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 24, 1).pdg==24) ) || // W -> Muon + Neutrino
-        ( (sample.find("MC_WToTau")!=std::string::npos) && (muonTree->findMuonMother(iGenMu, 24, 2).pdg==24) ) || // W -> Tau -> Muon + Neutrinos
-        ( (sample.find("MC_QCD")   !=std::string::npos) && (muonTree->MuonMother(iGenMu).pdg!=13) ) // QCD -> Muon (at least has one mother)
+        ( (sample.find("MC_TT")     !=std::string::npos) && (muonTree->findMuonMother(iGenMu,  6, 2).pdg==6  || muonTree->findMuonMother(iGenMu, 24, 1).pdg==24) ) || // t -> W -> Muon + Neutrino
+        ( (sample.find("MC_DY")     !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 23, 1).pdg==23 || muonTree->findMuonMother(iGenMu, 22, 1).pdg==22) ) || // Z/gamma* -> Muon + Muon
+        ( (sample.find("MC_DYToTau")!=std::string::npos) && (muonTree->findMuonMother(iGenMu, 23, 2).pdg==23 || muonTree->findMuonMother(iGenMu, 22, 2).pdg==22) ) || // Z/gamma* -> Tau -> Muon + Muon
+        ( (sample.find("MC_Z")      !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 23, 1).pdg==23) ) || // Z -> Muon + Muon
+        ( (sample.find("MC_ZZ")     !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 23, 2).pdg==23) ) || // Z -> X -> Muon
+        ( (sample.find("MC_WZ")     !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 23, 2).pdg==23 || muonTree->findMuonMother(iGenMu, 24, 2).pdg==24) ) || // Z -> X -> Muon or W -> X -> Muon
+        ( (sample.find("MC_W")      !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 24, 1).pdg==24) ) || // W -> Muon + Neutrino
+        ( (sample.find("MC_WW")     !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 24, 2).pdg==24) ) || // W -> X -> Muon
+        ( (sample.find("MC_WToTau") !=std::string::npos) && (muonTree->findMuonMother(iGenMu, 24, 2).pdg==24) ) || // W -> Tau -> Muon + Neutrinos
+        ( (sample.find("MC_QCD")    !=std::string::npos) && (muonTree->MuonMother(iGenMu).pdg!=13) ) // QCD -> Muon (at least has one mother)
         ) {
       return true;
     }

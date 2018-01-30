@@ -111,7 +111,7 @@ bool resultsEWQ2tree(
     const std::string dsName = ( "d" + CHG + "_" + DSTAG );
     //
     // Fill the Model Information
-    const std::vector< std::string > objType = { "W" , "WToTau" , "DY" , "TTbar" , "QCD" };
+    const std::vector< std::string > objType = { "W" , "WToTau" , "DY" , "DYToTau" , "TTbar" , "WW" , "WZ" , "ZZ" , "QCD" };
     for (const auto& o : objType) {
       const std::string modelLabel = Form("Model_%s%s%s", o.c_str(), CHA.c_str(), token.c_str());
       info.Str.at("Model_"+o) = ( (ws->obj(modelLabel.c_str())) ? ((RooStringVar*)ws->obj(modelLabel.c_str()))->getVal() : "" );
@@ -159,8 +159,8 @@ bool resultsEWQ2tree(
         if (p.second.count("Val")  ) { p.second.at("Val")   = poi ? poi->getVal()    : -1.0; }
         if (p.second.count("ErrLo")) { p.second.at("ErrLo") = poi ? getErrorLo(*poi) : -1.0; }
         if (p.second.count("ErrHi")) { p.second.at("ErrHi") = poi ? getErrorHi(*poi) : -1.0; }
-        if (p.second.count("parIni_Val")) { p.second.at("parIni_Val") = poi_parIni ? poi_parIni->getMin() : -1.0; }
-        if (p.second.count("parIni_Err")) { p.second.at("parIni_Err") = poi_parIni ? poi_parIni->getMax() : -1.0; }
+        if (p.second.count("parIni_Val")) { p.second.at("parIni_Val") = poi_parIni ? poi_parIni->getVal()   : -1.0; }
+        if (p.second.count("parIni_Err")) { p.second.at("parIni_Err") = poi_parIni ? poi_parIni->getError() : -1.0; }
       }
       //
       else if (ws->function(poiName.c_str())!=NULL) {
@@ -190,7 +190,7 @@ bool resultsEWQ2tree(
         }
       }
       else if (v.first=="N_DS_Entries") {
-        if (v.second.count("Val")) { v.second.at("Val") = ds ? ds->sumEntries() : -1.0; }
+        if (v.second.count("Val")) { v.second.at("Val") = ds ? ds->sumEntries() : info.Var.at("POI_N_WToMu").at("parIni_Val"); }
       }
       else if (v.first=="N_FIT_Entries") {
         const std::string pdfName = ( "pdfMET_Tot" + tag );
@@ -201,7 +201,7 @@ bool resultsEWQ2tree(
       else if (v.first=="TEST_FIT") {
         RooRealVar* chi2 = (RooRealVar*) ws->var("chi2_MET");
         RooRealVar* ndof = (RooRealVar*) ws->var("ndof_MET");
-        if (v.second.count("Val")) { v.second.at("Val") = (chi2 && ndof) ? (chi2->getVal() / ndof->getVal()) : -1.0; }
+        if (v.second.count("Val")) { v.second.at("Val") = (chi2 && ndof) ? TMath::Prob(chi2->getVal(),ndof->getVal()) : -1.0; }
         if (v.second.count("Chi2")) { v.second.at("Chi2") = chi2 ? chi2->getVal() : -1.0; }
         if (v.second.count("NDoF")) { v.second.at("NDoF") = ndof ? ndof->getVal() : -1.0; }
       }

@@ -47,13 +47,14 @@ TString lumi_pp2015  = "pp 28.5 pb^{-1}";
 TString lumi_pp2015_alt  = "28.5 pb^{-1}";
 TString lumi_pPb2016  = "pPb [285952-286504]";
 TString lumi_Pbp2016  = "Pbp [285410-285951]";
-TString lumi_PA2016  = "PA [285410-286504]";
+TString lumi_PA2016  = "pA [285410-286504]";
 TString lumi_pPbMC2016  = "pPb Simulation";
 TString lumi_PbpMC2016  = "Pbp Simulation";
-TString lumi_PAMC2016  = "PA Simulation";
+TString lumi_PAMC2016  = "pA Simulation";
 TString lumi_pPb2016_alt  = "pPb 110.8 nb^{-1}";
 TString lumi_Pbp2016_alt  = "Pbp 62.6 nb^{-1}";
-TString lumi_PA2016_alt  = "PA 173.4 nb^{-1}";
+TString lumi_PA2016_alt  = "pA 173.4 nb^{-1}";
+TString lumi_PA2016_alt2  = "pPb 173.4 nb^{-1}";
 
 bool drawLogo      = false;
 

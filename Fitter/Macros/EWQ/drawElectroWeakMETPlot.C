@@ -56,11 +56,16 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   // Format Object name
   std::string process = "";
   char chgL = ' '; if (chg=="Pl") { chgL = '+'; } else if (chg=="Mi") { chgL = '-'; }
-  if      (obj=="WToTau") { process = Form("W^{%c}#rightarrow#tau^{%c}", chgL, chgL); } else if (obj=="W") { process = Form("W^{%c}", chgL);; }
-  else if (obj=="DY"    ) { process = "Z/#gamma*"; }
-  else if (obj=="Z"     ) { process = "Z"; }
-  else if (obj=="QCD"   ) { process = "QCD";      }
-  else if (obj=="TTbar" ) { process = "t#bar{t}"; }
+  if      (obj=="WToTau" ) { process = Form("W^{%c}#rightarrow#tau^{%c}", chgL, chgL); }
+  else if (obj=="DYToTau") { process = Form("Z/#gamma*#rightarrow#tau^{%c}", chgL); }
+  else if (obj=="W"      ) { process = Form("W^{%c}" , chgL); }
+  else if (obj=="WZ"     ) { process = Form("W^{%c}Z", chgL); }
+  else if (obj=="WW"     ) { process = "W^{+}W^{-}"; }
+  else if (obj=="DY"     ) { process = "Z/#gamma*";  }
+  else if (obj=="Z"      ) { process = "Z";          }
+  else if (obj=="ZZ"     ) { process = "ZZ";         }
+  else if (obj=="QCD"    ) { process = "QCD";        }
+  else if (obj=="TTbar"  ) { process = "t#bar{t}";   }
   if (cha=="ToMu") { process += Form("#rightarrow#mu^{%c}+x", chgL); }
   process = Form("#font[62]{#scale[1.1]{%s}}", process.c_str());
   //
@@ -86,7 +91,7 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   if (ws.pdf(pdfName.c_str())) {
     RooArgList pdfList = ((RooAddPdf*)ws.pdf(pdfName.c_str()))->pdfList();
     if (pdfList.getSize()==1) {
-      double norm = ws.data(dsNameFit.c_str())->sumEntries();
+      const double norm = ((RooAddPdf*)ws.pdf(pdfName.c_str()))->expectedEvents(RooArgSet(*ws.var("MET")));
       ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())), RooFit::Range("METWindowPlot"), RooFit::NormRange("METWindowPlot"),
                                       RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-7),
                                       RooFit::LineColor(kBlack), RooFit::LineStyle(1)
@@ -100,21 +105,21 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
       drawMode = 1;
     }
     else {
-      double norm = ws.data(dsNameFit.c_str())->sumEntries();
-      const std::map< std::string , int > colorMap = { {"W" , kYellow} , {"DY" , kGreen+2} , {"WToTau" , kRed+1} , {"QCD" , kAzure-9} , {"TTbar" , kOrange+1} };
-      const std::map< std::string , double > pdfMapOrder = { {"W" , 6} , {"QCD" , 5} , {"DY" , 4} , {"WToTau" , 3} , {"TTbar" , 2} };
-      std::unique_ptr<TIterator> parIt = std::unique_ptr<TIterator>(pdfList.createIterator());
-      std::unique_ptr<RooArgList> list = std::unique_ptr<RooArgList>((RooArgList*)pdfList.Clone());      
+      double norm = ((RooAddPdf*)ws.pdf(pdfName.c_str()))->expectedEvents(RooArgSet(*ws.var("MET")));
+      const std::map< std::string , int > colorMap = { {"W" , kYellow} , {"DY" , kGreen+2} , {"WToTau" , kRed+1} , {"QCD" , kAzure-9} , {"TTbar" , kOrange+1} ,
+                                                       {"DYToTau" , kBlue+2} , {"WW" , kMagenta+1} };
+      const std::map< std::string , double > pdfMapOrder = { {"W" , 9} , {"QCD" , 8} , {"DY" , 7} , {"WToTau" , 6} , {"DYToTau" , 5} , {"TTbar" , 4} , {"WW" , 3} };
+      std::unique_ptr<TIterator> pdfIt = std::unique_ptr<TIterator>(pdfList.createIterator());
+      std::unique_ptr<RooArgList> list = std::unique_ptr<RooArgList>((RooArgList*)pdfList.Clone());
       if (list==NULL) { std::cout << "[ERROR] List of PDFs from " << pdfName << " is empty!" << std::endl; return false; }
       std::map< double , RooAbsPdf* , std::greater< double > > pdfMap;
       std::map< std::string , double > pdfEvt;
-      for (RooAbsPdf* it = (RooAbsPdf*)parIt->Next(); it!=NULL; it = (RooAbsPdf*)parIt->Next() ) {
+      for (RooAbsPdf* it = (RooAbsPdf*)pdfIt->Next(); it!=NULL; it = (RooAbsPdf*)pdfIt->Next() ) {
         std::string obj = it->GetName(); obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find(cha));
         double events = 0.;
         if (ws.var(("N_"+obj+cha+chg+"_"+col).c_str())) { events = ws.var(("N_"+obj+cha+chg+"_"+col).c_str())->getValV(); }
         else if (ws.function(("N_"+obj+cha+chg+"_"+col).c_str())) { events = ws.function(("N_"+obj+cha+chg+"_"+col).c_str())->getValV(); }
         else { std::cout << "[ERROR] The variable " << ("N_"+obj+cha+chg+"_"+col) << " was not found in the workspace" << std::endl; return false; }
-        //pdfMap[events] = it;
         pdfMap[pdfMapOrder.at(obj)] = it;
         pdfEvt[obj] = events;
       }
@@ -123,10 +128,21 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
         const std::string name = it->GetName();
         std::string obj = name; obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find(cha));
         if (norm > 0.0) {
-          ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", name.c_str())), RooFit::Components(*list), RooFit::Range("METWindowPlot"), RooFit::NormRange("METWindowPlot"),
-                                          RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-6),
-                                          RooFit::FillStyle(1001), RooFit::FillColor(colorMap.at(obj)), RooFit::VLines(), RooFit::DrawOption("F")
-                                          );
+          RooArgList coef; RooArgList pdfs;
+          std::unique_ptr<TIterator> tmpIt = std::unique_ptr<TIterator>(list->createIterator());
+          for (RooAbsPdf* it = (RooAbsPdf*)tmpIt->Next(); it!=NULL; it = (RooAbsPdf*)tmpIt->Next() ) {
+            std::string obj = it->GetName(); obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find(cha));
+            const std::string name = ("N_"+obj+cha+chg+"_"+col);
+            pdfs.add(*it);
+            if (ws.var(name.c_str())) { coef.add(*ws.var(name.c_str())); }
+            else if (ws.function(name.c_str())) { coef.add(*ws.function(name.c_str())); }
+          }
+          const std::string pdfPlotName = Form("pdfPlot_%s", name.c_str());
+          auto& pf = RooAddPdf(pdfPlotName.c_str(), pdfPlotName.c_str(), pdfs, coef); ws.import(pf);
+          ws.pdf(pdfPlotName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", name.c_str())), RooFit::Range("METWindowPlot"), RooFit::NormRange("METWindowPlot"),
+                                              RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-6),
+                                              RooFit::FillStyle(1001), RooFit::FillColor(colorMap.at(obj)), RooFit::VLines(), RooFit::DrawOption("F")
+                                              );
           legInfo["TEMP"][Form("plot_%s", name.c_str())] = formatCut(obj);
         }
         list->remove(*it);
@@ -254,10 +270,8 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   pad.at("MAIN")->Update();
   //
   // Save the plot in different formats
-  if (saveAll) {
-    gSystem->mkdir(Form("%splot/root/", outputDir.c_str()), kTRUE);
-    cFig->SaveAs(Form("%splot/root/%s.root", outputDir.c_str(), fileName.c_str()));
-  }
+  gSystem->mkdir(Form("%splot/root/", outputDir.c_str()), kTRUE);
+  cFig->SaveAs(Form("%splot/root/%s.root", outputDir.c_str(), fileName.c_str()));
   gSystem->mkdir(Form("%splot/pdf/", outputDir.c_str()), kTRUE);
   cFig->SaveAs(Form("%splot/pdf/%s.pdf", outputDir.c_str(), fileName.c_str()));
   gSystem->mkdir(Form("%splot/png/", outputDir.c_str()), kTRUE);
@@ -302,7 +316,9 @@ void parseVarName(const std::string& name, std::string& label)
   else if (s1=="XSection"){ s1="#sigma"; } else if (s1=="AccXEff"){ s1="#alphax#epsilon"; }
   // Format Object name
   std::string chg = ""; if (s2.find("Pl")!=std::string::npos) { chg = "+"; } else if (s2.find("Mi")!=std::string::npos) { chg = "-"; }
-  if (s2.find("WToTau")!=std::string::npos) { s2 = "W#rightarrow#tau"; } else if (s2.find("W")!=std::string::npos) { s2 = "W#rightarrow#mu"; }
+  if (s2.find("WToTau")!=std::string::npos) { s2 = "W#rightarrow#tau"; } else if (s2.find("WW")!=std::string::npos) { s2 = "WW"; }
+  else if (s2.find("WZ")!=std::string::npos) { s2 = "WZ"; } else if (s2.find("W")!=std::string::npos) { s2 = "W#rightarrow#mu"; }
+  else if (s2.find("DYToTau")!=std::string::npos) { s2 = "Z/#gamma*#rightarrow#tau"; }
   else if (s2.find("DY")!=std::string::npos) { s2 = "Z/#gamma*"; } else if (s2.find("Z")!=std::string::npos) { s2 = "Z"; }
   else if (s2.find("QCD")!=std::string::npos) { s2 = "QCD"; } else if (s2.find("TTbar")!=std::string::npos) { s2 = "t#bar{t}"; }
   s2 = ( s2 + chg );
@@ -399,7 +415,7 @@ void printElectroWeakLegend(TPad& pad, TLegend& leg, const RooPlot& frame, const
 {
   pad.cd();
   std::map< std::string , std::string > drawOption = { { "DATA" , "pe" } , { "PDF" , "l" } , { "TEMP" , "f" } };
-  const std::vector< std::string > pdfMapOrder = { "WToMu" , "QCD" , "DY" , "WToTau" , "TTbar" };
+  const std::vector< std::string > pdfMapOrder = { "WToMu" , "QCD" , "DY" , "WToTau" , "DYToTau" , "TTbar" };
   for (const auto& map : legInfo) {
     if (map.first=="TEMP") {
       for (const auto& pdfM : pdfMapOrder) {

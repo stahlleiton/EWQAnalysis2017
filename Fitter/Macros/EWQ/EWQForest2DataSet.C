@@ -517,7 +517,7 @@ bool reweightMCLumi(RooWorkspaceMap_t& Workspaces, GlobalInfo& info)
       // Apply the Lumi re-weighting to positive muon dataset
       if (!applyLumiWeight(myws, info, ("dPl_"+sample), ("mcPl_"+sample), true)) { return false; }
       // Apply the Lumi re-weighting to negative muon dataset
-      const bool printXSec = (sample.find("MC_W")!=std::string::npos);
+      const bool printXSec = (sample.find("MC_W_")!=std::string::npos);
       if (!applyLumiWeight(myws, info, ("dMi_"+sample), ("mcMi_"+sample), printXSec)) { return false; }
     }
   }
@@ -777,7 +777,7 @@ bool correctMC(RooWorkspaceMap_t& Workspaces, const RooWorkspaceMap_t& iniWorksp
     const std::string met = info.Par.at("METType");
     const std::string recoilPath = info.Par.at("RecoilPath");
     const std::string col = "PA";
-    std::string fnc_MC   = "doubleGauss" , fnc_DATA = "doubleGauss";
+    std::string fnc_MC = "doubleGauss" , fnc_DATA = "doubleGauss";
     if (recoilPath.find("BWGauss")!=std::string::npos) { fnc_MC   = "BWGauss" , fnc_DATA = "BWGauss"; }
     const std::string HFCorrLbl = (applyHFCorr ? "HFCorr" : "noHFCorr");
     std::string fileName_MC   = Form("%sMC_DYToMuMu_POWHEG/MET_%s/%s/%s/%s/Results/fits_RecoilPDF_%s_%s.root", recoilPath.c_str(), met.c_str(), col.c_str(), HFCorrLbl.c_str(), fnc_MC.c_str(), met.c_str(), col.c_str());

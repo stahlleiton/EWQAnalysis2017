@@ -29,6 +29,7 @@ void fitter(
             // Select the fitting options
             const unsigned int   numCores = 32,         // Number of cores used for fitting
             const std::bitset<1> fitVar   = 1,          // Fit Variable: 1: MET
+            const uint           varType  = 0,          // Type of MET to Fit: (0) PF Raw, (1) PF Type1, (2) NoHF Raw, (3) NoHF Type 1
             const std::string    Analysis = "WToMuNu",  // Type of Analysis
             // Select the drawing options
             const bool setLogScale  = true              // Draw plot with log scale
@@ -227,7 +228,7 @@ void fitter(
   if (userInput.Par.at("Analysis").find("W")!=std::string::npos) {
     userInput.StrV["charge"] = std::vector<std::string>({"Plus","Minus","ChgInc"});
     userInput.StrV["object"] = std::vector<std::string>({"W", "QCD", "Z"});
-    userInput.StrV["template"] = std::vector<std::string>({"W","QCD","DY","WToTau","TTbar"});
+    userInput.StrV["template"] = std::vector<std::string>({"W","QCD","DY","WToTau","TTbar","DYToTau","WW","WZ","ZZ"});
   }
   //
   for (uint i=0; i<userInput.StrV.at("charge").size(); i++) { userInput.Flag["fit"+userInput.StrV.at("charge")[i]] = fitChg[i]; }
