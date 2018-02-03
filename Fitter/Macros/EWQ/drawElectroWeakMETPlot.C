@@ -138,7 +138,7 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
             else if (ws.function(name.c_str())) { coef.add(*ws.function(name.c_str())); }
           }
           const std::string pdfPlotName = Form("pdfPlot_%s", name.c_str());
-          auto& pf = RooAddPdf(pdfPlotName.c_str(), pdfPlotName.c_str(), pdfs, coef); ws.import(pf);
+          auto pf = RooAddPdf(pdfPlotName.c_str(), pdfPlotName.c_str(), pdfs, coef); ws.import(pf);
           ws.pdf(pdfPlotName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", name.c_str())), RooFit::Range("METWindowPlot"), RooFit::NormRange("METWindowPlot"),
                                               RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-6),
                                               RooFit::FillStyle(1001), RooFit::FillColor(colorMap.at(obj)), RooFit::VLines(), RooFit::DrawOption("F")
@@ -446,8 +446,8 @@ void setRange(RooPlot& frame, const RooWorkspace& ws, const std::string& varName
   Double_t Yup(0.),Ydown(0.);
   if(setLogScale)
   {
-    Yup = YMax*pow((YMax/0.1), 0.55);
-    Ydown = 0.01;
+    Yup = YMax*pow((YMax), 0.55);
+    Ydown = 1.0;
   }
   else
   {
@@ -499,9 +499,9 @@ bool printChi2(TPad& pad, RooWorkspace& ws, const RooPlot& frame, const string& 
   }
   const int ndof = (nFullBins - nFitPar);
   std::cout << "[INFO] Using Standard method gives Chi2/NDoF " << chi2 << " / " << ndof << std::endl;
-  //double chi2T = 0.; int ndofT = 0 , igood = -1;
-  //hData.Chi2TestX(&hFit, chi2T, ndofT, igood, "UW");
-  //std::cout << "[INFO] Using TH1 method gives Chi2/NDoF " << chi2T << " / " << ndofT << std::endl;
+  double chi2T = 0.; int ndofT = 0 , igood = -1;
+  hData.Chi2TestX(&hFit, chi2T, ndofT, igood, "UW");
+  std::cout << "[INFO] Using TH1 method gives Chi2/NDoF " << chi2T << " / " << ndofT << std::endl;
   //
   TLatex t = TLatex(); t.SetNDC(); t.SetTextSize(0.12);
   t.DrawLatex(0.76, 0.85, Form("#chi^{2}/ndof = %.0f / %d ", chi2, ndof));

@@ -95,15 +95,10 @@ const CorrMap_t corrType_ = {
   { "TnP_Syst_Trig"    , 2   },
   { "TnP_Syst_Iso"     , 2   },
   { "TnP_Syst_BinMuID" , 1   },
-  { "TnP_Syst_BinIso"  , 1   }
-  /*,
-  { "MC_Syst_SCALE"    , 8   },
-  { "MC_Syst_CT14"     , 58  },
-  { "MC_Syst_NNLO"     , 1   },
-  { "MC_Syst_CT10"     , 1   },
-  { "MC_Syst_MMHT"     , 1   },
-  { "MC_Syst_EPPS16"   , 40  }
-  */
+  { "TnP_Syst_BinIso"  , 1   },
+  { "MC_Syst_PDF"      , 96  }, // EPPS16 + CT14
+  { "MC_Syst_Scale"    , 6   }, // Renormalization + Factorization scale variations [0.5 , 2.0]
+  { "MC_Syst_Alpha"    , 2   }  // CT14 Alpha_s variations
 };
 std::vector< double > absEtaTnP_ = { 0.0 , 1.2 , 2.1 , 2.4 };
 std::vector< double > etaTnP_    = { -2.4 , -2.1 , -1.6 , -1.2 , -0.9 , -0.6 , -0.3 , 0.0 , 0.3 , 0.6 , 0.9 , 1.2 , 1.6 , 2.1 , 2.4 };
@@ -182,8 +177,8 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const uint a
   corrType["TnP_Syst_BinIso" ] = corrType_.at("TnP_Syst_BinIso");
   for (uint iEta = 1; iEta < absEtaTnP_.size(); iEta++) {
     const std::string etaLbl = Form("p%.0f_p%.0f", absEtaTnP_[iEta-1]*10., absEtaTnP_[iEta]*10.);
-    corrType[Form("TnP_Stat_MuID_%s"    , etaLbl.c_str())] = corrType_.at("TnP_Stat_MuID");
-    corrType[Form("TnP_Stat_Iso_%s"     , etaLbl.c_str())] = corrType_.at("TnP_Stat_Iso");
+    corrType[Form("TnP_Stat_MuID_%s" , etaLbl.c_str())] = corrType_.at("TnP_Stat_MuID");
+    corrType[Form("TnP_Stat_Iso_%s"  , etaLbl.c_str())] = corrType_.at("TnP_Stat_Iso");
   }
   //
   corrType["TnP_Syst_Trig"] = corrType_.at("TnP_Syst_Trig");
@@ -193,7 +188,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const uint a
   }
   //
   bool doMCWeight = false;
-  for (const auto& cor : corrType_) { if (cor.first.find("MC_")!=std::string::npos) { corrType[cor.first] = corrType.at(cor.first); doMCWeight = true; } }
+  for (const auto& cor : corrType_) { if (cor.first.find("MC_")!=std::string::npos) { corrType[cor.first] = cor.second; doMCWeight = true; } }
   //
   // Initialize the HF corrections
   std::unique_ptr<HFweight> corrHF;
@@ -331,7 +326,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const uint a
         bool passTrigger        = false;
         bool passIsolation      = false;
         // Initialize the Tag-And-Probe scale factos
-       TnPVec_t sfTnP = {};
+        TnPVec_t sfTnP = {};
         //
         // Check that the generated muon is within the analysis kinematic range
         if (isGoodGenMuon) {
@@ -345,7 +340,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const uint a
             const double mu_PF_Pt  = muonTree.at(sample)->PF_Muon_Mom()[iPFMu].Pt();
             const double mu_PF_Eta = muonTree.at(sample)->PF_Muon_Mom()[iPFMu].Eta();
             // Determine the Tag-And-Probe scale factos
-            sfTnP = getTnPScaleFactors(mu_PF_Pt,  mu_PF_Eta, corrType);
+            sfTnP = getTnPScaleFactors(mu_PF_Pt, mu_PF_Eta, corrType);
             //
             const short iRecoMu = muonTree.at(sample)->PF_Muon_Reco_Idx()[iPFMu];
             if (iRecoMu < 0) { std::cout << "[ERROR] Reco idx is negative" << std::endl; return; }
@@ -427,22 +422,31 @@ TnPVec_t getMCWeights(const std::unique_ptr<HiEvtTree>& evtTree, const CorrMap_t
 {
   TnPVec_t wMC;
   for (const auto& cor : corrType) {
+    if (cor.first.find("MC_")==std::string::npos) continue;
     //
     wMC[cor.first].clear();
     //
     int    idx  = -1;
     double w_MC =  1.0;
     //
-    if      (cor.first=="MC_Syst_SCALE"  ) { idx = 1;   }
-    else if (cor.first=="MC_Syst_CT14"   ) { idx = 112; }
-    else if (cor.first=="MC_Syst_NNLO"   ) { idx = 227; }
-    else if (cor.first=="MC_Syst_CT10"   ) { idx = 170; }
-    else if (cor.first=="MC_Syst_MMHT"   ) { idx = 171; }
-    else if (cor.first=="MC_Syst_EPPS16" ) { idx = 285; }
-    //
     for (uint i = 0; i < cor.second; i++) {
-      //
-      if (idx >= 0) { w_MC = evtTree->ttbar_w()[idx+i]; }
+      if (cor.first=="MC_Syst_PDF") {
+        if      (i < 40) { w_MC = evtTree->ttbar_w()[285 + i]; } // EPPS16 VARIATIONS
+        else if (i < 96) { w_MC = evtTree->ttbar_w()[ 72 + i]; } // CT14 VARIATIONS
+      }
+      else if (cor.first=="MC_Syst_Scale") {
+        // Renormalization+Factorization scale variations
+        if      (i<4) { w_MC = evtTree->ttbar_w()[1 + i]; } // 1, 2, 3, 4
+        else if (i<5) { w_MC = evtTree->ttbar_w()[2 + i]; } // 6
+        else if (i<6) { w_MC = evtTree->ttbar_w()[3 + i]; } // 8
+      }
+      else if (cor.first=="MC_Syst_Alpha") {
+        // CT14 alpha variations (0.117 - 0.119)
+        w_MC = evtTree->ttbar_w()[168 + i];
+      }
+      else {
+        std::cout << "[ERROR] The MC variation " << cor.first << " has not been defined" << std::endl;
+      }
       //
       wMC.at(cor.first).push_back( w_MC );
     }
@@ -513,31 +517,67 @@ TnPVec_t getTnPScaleFactors(const double& pt, const double& eta, const CorrMap_t
 
 bool getMCUncertainties(Unc1DVec_t& unc, const EffVec_t& eff)
 {
-  if (eff.count("TnP_Nominal") == 0) { return true; }
+  std::string label = "";
+  if      (eff.count("TnP_Nominal")>0) { label = "TnP_Nominal"; }
+  else if (eff.count("HFCorr"     )>0) { label = "HFCorr";      }
+  else if (eff.count("NoCorr"     )>0) { label = "NoCorr";      }
+  else { return true; }
   // Compute individual uncertainties
-  const TEfficiency& nom = eff.at("TnP_Nominal")[0];
+  const TEfficiency& nom = eff.at(label)[0];
   const uint nBin = nom.GetCopyTotalHisto()->GetNbinsX();
   for (const auto& co : eff) {
     if (co.first.find("MC_")==std::string::npos) continue;
     unc[co.first].ResizeTo(nBin);
     for (uint iBin = 1; iBin <= nBin; iBin++) {
       double uncVal = 0.0;
-      if (co.second.size() > 2) {
-        double sum = 0.0;
-        for(uint i = 0; i < co.second.size(); i++) {
-          const double diff = ( co.second[i].GetEfficiency(iBin) - nom.GetEfficiency(iBin) );
-          sum += ( diff * diff );
+      if (co.first=="MC_Syst_PDF") {
+        // Central Value
+        const double ctVal = nom.GetEfficiency(iBin);
+        // Variations (Use the offical EPPS16 approach)
+        double errLo = 0.0 , errHi = 0.0;
+        for(uint i = 0; i < (co.second.size()/2); i++) {
+          const double miVal = co.second[(2*i)+0].GetEfficiency(iBin);
+          const double plVal = co.second[(2*i)+1].GetEfficiency(iBin);
+          errLo += std::pow( std::min( std::min( (plVal - ctVal) , (miVal - ctVal) ) , 0.0 ) , 2.0 );
+          errHi += std::pow( std::max( std::max( (plVal - ctVal) , (miVal - ctVal) ) , 0.0 ) , 2.0 );
         }
-        uncVal = std::sqrt( sum / co.second.size() );
+        // Convert from 90% CL to 68% CL
+        const double convFactor = TMath::ErfcInverse((1.-0.68))/TMath::ErfcInverse((1.-0.90));
+        errLo = ( convFactor * std::sqrt( errLo ) );
+        errHi = ( convFactor * std::sqrt( errHi ) );
+        //
+        uncVal = std::max( errLo , errHi );
       }
-      else if (co.second.size() == 2) {
-        uncVal = std::max(std::abs(co.second[0].GetEfficiency(iBin) - nom.GetEfficiency(iBin)) , std::abs(co.second[1].GetEfficiency(iBin) - nom.GetEfficiency(iBin)));
+      else if (co.first=="MC_Syst_Scale") {
+        // Central Value
+        const double ctVal = nom.GetEfficiency(iBin);
+        // Variations (Use the envelope approach)
+        double errLo = 0.0 , errHi = 0.0;
+        for(uint i = 0; i < co.second.size(); i++) {
+          const double vrVal = co.second[i].GetEfficiency(iBin);
+          errLo = std::min( std::min( (vrVal - ctVal) , errLo ) , 0.0 );
+          errHi = std::max( std::max( (vrVal - ctVal) , errHi ) , 0.0 );
+        }
+        // We consider the scale uncertainty to be 68% CL, so no need to rescale
+        errLo = std::abs( errLo );
+        errHi = std::abs( errHi );
+        //
+        uncVal = std::max( errLo , errHi );
       }
-      else if (co.second.size() == 1) {
-        uncVal = std::abs(co.second[0].GetEfficiency(iBin) - nom.GetEfficiency(iBin));
+      else if (co.first=="MC_Syst_Alpha") {
+        if (co.second.size()>2) { std::cout << "[ERROR] Number of variations (" << co.second.size() << ") for MC_Syst_Alpha is larger than 2" << std::endl; return false; }
+        // Variations (Use the PDF4LHC15 approach)
+        const double miVal = co.second[0].GetEfficiency(iBin);
+        const double plVal = co.second[1].GetEfficiency(iBin);
+        double err = ( ( plVal - miVal ) / 2.0 );
+        // Convert from deltaAlpha_s = 0.002 to 0.0015 (68% CL)
+        const double convFactor = (0.0015/0.0020);
+        err = ( convFactor * std::abs( err ) );
+        //
+        uncVal = err;
       }
       else {
-        std::cout << "[ERROR] Number of variations " << co.second.size() << " is wrong!" << std::endl; return false;
+        std::cout << "[ERROR] MC systematic variation " << co.first << " has not been defined!" << std::endl; return false;
       }
       unc.at(co.first)[iBin-1] = uncVal;
     }
@@ -671,7 +711,7 @@ void initEff1D(TH1DMap_t& h, const BinMapMap_t& binMap, const CorrMap_t& corrTyp
         for (const auto& chg : CHG_) {
           for (const auto& type : effType) {
             for (const auto& cor : corrType) {
-              if (type=="Acceptance" && (cor.first!="NoCorr" && cor.first!="HFCorr")) continue;
+              if (type=="Acceptance" && (cor.first.find("TnP_")!=std::string::npos)) continue;
               for (uint i = 0; i < cor.second; i++) {
                 h[bins.first][sample][col][chg][type][cor.first].push_back( std::make_tuple(TH1D() , TH1D() , 1.0) );
                 std::get<0>(h.at(bins.first).at(sample).at(col).at(chg).at(type).at(cor.first)[i]) = TH1D("Passed", "Passed", (bins.second.size()-1), bin);
@@ -693,27 +733,32 @@ void initEff1D(TH1DMap_t& h, const BinMapMap_t& binMap, const CorrMap_t& corrTyp
 };
 
 
-bool fillEff1D(TH1DVec_t& h, const bool& pass, const double& xVar, const TnPVec_t& sfTnP, const TnPVec_t& wMC, const double& evtWeight)
+bool fillEff1D(TH1DVec_t& h, const bool& pass, const double& xVar, const TnPVec_t& sfTnP, const TnPVec_t& wMC, const double& evtWeight, const std::string& type)
 {
   for (auto& cor : h) {
     for (uint i = 0; i < cor.second.size(); i++) {
       //
+      bool found = false;
+      //
       double sf = 1.0;
-      if (sfTnP.count(cor.first)>0 && sfTnP.at(cor.first).size()>i) { sf = sfTnP.at(cor.first)[i]; }
-      else if (sfTnP.size()==0) { sf = 1.0; }
-      else if (sfTnP.count(cor.first)==0) { std::cout << "[ERROR] Correction " << cor.first << " was not found!" << std::endl; return false; }
+      if (sfTnP.count(cor.first)>0 && sfTnP.at(cor.first).size()>i) { sf = sfTnP.at(cor.first)[i]; found = true; }
+      else if (sfTnP.size()==0 || sfTnP.count(cor.first)==0) { sf = 1.0; }
       else { std::cout << "[ERROR] Correction " << cor.first << " has invalid number of entries: " << cor.second.size() << "  " << sfTnP.at(cor.first).size() << " !" << std::endl; return false; }
-      if ((cor.first!="NoCorr" && cor.first!="HFCorr") && pass && sfTnP.size()==0) { std::cout << "[ERROR] TnP scale factor vector is empty!" << std::endl; return false; }
+      if ((cor.first.find("TnP_")!=std::string::npos) && pass && sfTnP.size()==0) { std::cout << "[ERROR] TnP scale factor vector is empty!" << std::endl; return false; }
       //
       double w_MC = 1.0;
-      if (wMC.count(cor.first)>0 && wMC.at(cor.first).size()>i) { w_MC = wMC.at(cor.first)[i]; }
-      else if (wMC.size()==0) { w_MC = 1.0; }
-      else if (wMC.count(cor.first)==0) { std::cout << "[ERROR] MC PDF Weight " << cor.first << " was not found!" << std::endl; return false; }
+      if (wMC.count(cor.first)>0 && wMC.at(cor.first).size()>i) { w_MC = wMC.at(cor.first)[i]; found = true; }
+      else if (wMC.size()==0 || wMC.count(cor.first)==0) { w_MC = 1.0; }
       else { std::cout << "[ERROR] MC PDF Weight " << cor.first << " has invalid number of entries: " << cor.second.size() << "  " << wMC.at(cor.first).size() << " !" << std::endl; return false; }
+      //
+      if (found==false && ( (cor.first.find("MC_")!=std::string::npos && wMC.size()>0) || (sfTnP.size()>0) )) {
+        std::cout << "[ERROR] Correction " << cor.first << " was not found!" << std::endl; return false;
+      }
       //
       // Fill the Pass histogram
       if      (cor.first=="NoCorr") { if (pass) { std::get<0>(cor.second[i]).Fill(xVar , 1.0                 ); } }
       else if (cor.first=="HFCorr") { if (pass) { std::get<0>(cor.second[i]).Fill(xVar , evtWeight           ); } }
+      else if (type=="Acceptance" ) { if (pass) { std::get<0>(cor.second[i]).Fill(xVar , (evtWeight*w_MC)    ); } }
       else                          { if (pass) { std::get<0>(cor.second[i]).Fill(xVar , (evtWeight*sf*w_MC) ); } }
       // Fill the total histogram
       if      (cor.first=="NoCorr") { std::get<1>(cor.second[i]).Fill(xVar , 1.0              ); }
@@ -752,7 +797,7 @@ bool fillEff1D(TH1DMap_t& h, const bool& pass, const std::string& type, const Va
           }
           if (xVar >= MU_BIN.at(c.first).at(v.first)[0] && xVar <= MU_BIN.at(c.first).at(v.first)[MU_BIN.at(c.first).at(v.first).size()-1]) { // Don't include values outside of range
             // Fill histograms
-            if (!fillEff1D(ch.second.at(type), pass, xVar, sfTnP, wMC, evtWeight)) { return false; }
+            if (!fillEff1D(ch.second.at(type), pass, xVar, sfTnP, wMC, evtWeight, type)) { return false; }
           }
         }
       }
