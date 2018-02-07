@@ -15,17 +15,13 @@
 #include <string>
 
 
-// ------------------ TYPE -------------------------------
-typedef std::map< std::string , std::map< std::string , std::pair< std::vector< std::string > , uint > > > WSDirMap;
-
-
 /////////////////////
 // OTHER FUNCTIONS //
 /////////////////////
 
 void extractInfo ( VarBinMap& inputVar , bool& useEtaCM , const std::string& workDirName , const std::string& colTag , const std::string& metTag ,
                    const std::string& dsTag , const std::string& thePoiName );
-void getResult   ( BinPentaMap& var , VarBinMap& inputVar , const bool&  useEtaCM , const std::string& workDirName , const std::string& effType , const std::string& accType ,
+void getResult   ( BinPentaMap& var , BinSextaMapVec& systVar , VarBinMap& inputVar , const bool&  useEtaCM , const std::string& workDirName , const std::string& effType , const std::string& accType ,
 		   const bool doSyst = true , const bool isNominal = true , const VarBinMap nomVar = {} , const uint systCorr = 0 );
 
 /////////////////////
@@ -100,8 +96,9 @@ void plotWAsym(
   const std::string thePoiNames = "all";
   bool useEtaCM = false;
   //
-  // Initialize the Results var
+  // Initialize the Result and Systematic variables
   BinSextaMap var;
+  BinSeptaMapVec systVar;
   //
   // Get the Nominal Result
   VarBinMap inputVarNom;
@@ -109,7 +106,7 @@ void plotWAsym(
     const auto& wkDir = workDirNames.at("Nominal").at("Nominal").first[0];
     std::cout << "[INFO] Adding results for : " << wkDir << std::endl;
     for (const auto& colTag : collVec) { extractInfo( inputVarNom , useEtaCM , wkDir , colTag , metTag , dsTag , thePoiNames ); }
-    getResult( var["Nominal"] , inputVarNom , useEtaCM , wkDir , effType , accType , doSyst );
+    getResult( var["Nominal"] , systVar["Efficiency"] , inputVarNom , useEtaCM , wkDir , effType , accType , doSyst );
   }
   if (var.count("Nominal")==0) { std::cout << "[ERROR] Nominal results are missing" << std::endl; return; }
   //
@@ -126,7 +123,6 @@ void plotWAsym(
   // --------------------------------------------------------------------------------- //
   //
   // Get the Systematic Results
-  BinSeptaMapVec systVar;
   if (doSyst) {
     // Add all systematic uncertainty
     for (const auto& cat : workDirNames) {
@@ -137,34 +133,29 @@ void plotWAsym(
 	  std::cout << "[INFO] Adding results for : " << wkDir << std::endl;
 	  VarBinMap inputVar;
 	  for (const auto& colTag : collVec) { extractInfo( inputVar , useEtaCM , wkDir , colTag , metTag , dsTag , thePoiNames ); }
-	  BinPentaMap tmpVar;
-	  getResult( tmpVar , inputVar , useEtaCM , wkDir , effType , accType , true , false , inputVarNom , corrType);
+	  BinPentaMap tmpVar; BinSextaMapVec tmpSystVar;
+	  getResult( tmpVar , tmpSystVar , inputVar , useEtaCM , wkDir , effType , accType , true , false , inputVarNom , corrType);
 	  systVar[cat.first][lbl.first].push_back(tmpVar);
 	}
       }
     }
-    // Add efficiency systematic uncertainty
-    BinPentaMap tmpVar;
-    for (const auto& c : var.at("Nominal")) { for (const auto& ch : c.second) { for (const auto& v : ch.second) { for (const auto& t : v.second) { for (const auto& b : t.second) {
-	      if (t.first.find("Err_Syst_")!=std::string::npos) {
-                tmpVar[c.first][ch.first][v.first][t.first][b.first] = b.second;
-              }
-	      else if (t.first=="Val") {
-                tmpVar[c.first][ch.first][v.first]["Nom"][b.first] = b.second;
-                tmpVar[c.first][ch.first][v.first]["Val"][b.first] = b.second + v.second.at("Err_Syst_High").at(b.first);
-              }
-	    } } } } }
-    systVar["Efficiency"]["Efficiency"].push_back(tmpVar);
     //
     // Compute all systematic uncertainties
     computeSystematic(var, systVar);
     //
     // --------------------------------------------------------------------------------- //
-    if (doSyst) {
-      // Print systematic Tables
-      if (!printSystematicTables(var.at("Nominal"), outDir , useEtaCM)) { return; }
-      if (!printFullSystematicTable(var, outDir, useEtaCM)) { return; }
-    }
+    // Print Covariance Matrix
+    if (!printCovarianceMatrix(systVar, workDirNames, outDir, useEtaCM)) { return; }
+    //
+    // --------------------------------------------------------------------------------- //
+    // Print systematic Tables
+    //
+    // Nominal Systematics
+    if (!printSystematicTables(var.at("Nominal"), outDir , useEtaCM)) { return; }
+    // Efficiency Systematics
+    if (!printEffSystematicTables(systVar.at("Efficiency"), outDir , useEtaCM)) { return; }
+    // Full Systematics
+    if (!printFullSystematicTable(var, outDir, useEtaCM)) { return; }
   }
   //
   // Create the main plots
@@ -305,8 +296,9 @@ void extractInfo(
 
 
 void getResult(
-               BinPentaMap& var,
-               VarBinMap& inputVar,
+               BinPentaMap&       var,
+               BinSextaMapVec&    systVar,
+               VarBinMap&         inputVar,
                const bool&        useEtaCM,
                const std::string& workDirName,
                const std::string& effType,
@@ -357,14 +349,14 @@ void getResult(
   //
   // Compute the Charge Asymmetry
   //
-  if (!computeChargeAsymmetry(var, inputVar, doSyst, nomVar, systCorr)) { return; }
+  if (!computeChargeAsymmetry(var, systVar, inputVar, doSyst, nomVar, systCorr)) { return; }
   //
   // Compute the Forward-Backward ratio
   //
-  if (!computeForwardBackwardRatio(var, inputVar, doSyst, nomVar, systCorr)) { return; }
+  if (!computeForwardBackwardRatio(var, systVar, inputVar, doSyst, nomVar, systCorr)) { return; }
   //
   // Compute the Cross-Section
   //
-  if (!computeCrossSection(var, inputVar, doSyst, nomVar, systCorr)) { return; }
+  if (!computeCrossSection(var, systVar, inputVar, doSyst, nomVar, systCorr)) { return; }
   //
 };

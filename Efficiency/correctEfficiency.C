@@ -570,8 +570,8 @@ bool getMCUncertainties(Unc1DVec_t& unc, const EffVec_t& eff)
         const double miVal = co.second[0].GetEfficiency(iBin);
         const double plVal = co.second[1].GetEfficiency(iBin);
         double err = ( ( plVal - miVal ) / 2.0 );
-        // Convert from deltaAlpha_s = 0.002 to 0.0015 (68% CL)
-        const double convFactor = (0.0015/0.0020);
+        // Convert from deltaAlpha_s = 0.0010 to 0.0015 (68% CL)
+        const double convFactor = (0.0015/0.0010);
         err = ( convFactor * std::abs( err ) );
         //
         uncVal = err;

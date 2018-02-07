@@ -16,6 +16,7 @@
 #include "RooWorkspace.h"
 #include "RooRealVar.h"
 #include "RooAbsData.h"
+#include "RooStringVar.h"
 // c++ headers
 #include <dirent.h>
 #include <memory>
@@ -65,7 +66,7 @@ void     getFitText  ( const TF1& fit, std::vector<std::string>& text );
 void     formatLegendEntry ( TLegendEntry& e );
 void     updateYAxisRange ( std::unique_ptr<TGraphErrors>& graph , const std::unique_ptr<TF1>& fit );
 double   roundVal    ( const double& v, const uint& n=3 ) { return ( floor(v * pow(10, n)) / pow(10, n) ); }
-bool     createInputFiles ( const std::string& dirPath , const FitMap_t& iniFitMap , const FitExMap_t& iniFitExMap , const bool& useEtaCM , const BinMapMap_t& binMap );
+bool     createInputFiles ( const std::string& dirPath , const FitMap_t& iniFitMap , const FitExMap_t& iniFitExMap , const bool& useEtaCM , const BinMapMap_t& binMap , const std::string VarName="" );
 
 // Global 
 const std::vector< std::string > cutSelection = {
@@ -73,7 +74,7 @@ const std::vector< std::string > cutSelection = {
 };
 std::map< std::string, std::tuple< std::string > > yAxis;
 std::string fitType_ = "" , useBin_ = "";
-const double isoPoint = 0.03;
+const double isoPoint = 0.08; // 0.08 is from QCD MC, 0.03 is from data in signal region
 std::string MODELNAME_ = "";
 
 void makeQCDTemplate(
@@ -136,7 +137,10 @@ void makeQCDTemplate(
     for (const auto& useBin : binList) {
       for (const auto& fitType : fitList) {
         useBin_ = useBin; fitType_ = fitType;
-        createInputFiles((outDir+"InputFiles/"), fitMap, fitExMap, useEtaCM, MU_BIN_RANGE);
+        createInputFiles((outDir+"InputFiles"), fitMap, fitExMap, useEtaCM, MU_BIN_RANGE);
+	if (useBin=="Mean" && fitType=="Constrain") {
+	  for (const auto& var : fitMap) { createInputFiles((outDir+"InputFiles"), fitMap, fitExMap, useEtaCM, MU_BIN_RANGE, var.first); }
+	}
       }
     }
     // Create the fits
@@ -235,9 +239,9 @@ bool getBinPars(const RooWorkspace& myws, RooRealVarMap_t& binPars)
   if (myws.var("Muon_Iso")) { binPars["Muon_Iso"] = *myws.var("Muon_Iso"); }
   else { std::cout << "[ERROR] " << "Muon_Iso" << " was not found!" << std::endl; return false; }
   // Compute the mean and RMS values for each bin parameter
-  const std::string DSTAG = ( myws.obj("DSTAG") ? ((TObjString*)myws.obj("DSTAG"))->GetString().Data() : "" ); 
+  const std::string DSTAG = ( myws.obj("DSTAG") ? ((RooStringVar*)myws.obj("DSTAG"))->getVal() : "" ); 
   if (DSTAG=="") { std::cout << "[ERROR] DSTAG was not found!" << std::endl; return false; }
-  const std::string charge  = ( myws.obj("fitCharge") ? ((TObjString*)myws.obj("fitCharge"))->GetString().Data() : "" );
+  const std::string charge  = ( myws.obj("fitCharge") ? ((RooStringVar*)myws.obj("fitCharge"))->getVal() : "" );
   if (charge=="") { std::cout << "[ERROR] fitCharge was not found!" << std::endl; return false; };
   const std::string dsName = "d" + charge + "_" + DSTAG;
   if (myws.data(dsName.c_str())) {
@@ -256,17 +260,17 @@ bool getBinPars(const RooWorkspace& myws, RooRealVarMap_t& binPars)
 bool getFitPars(const RooWorkspace& myws, RooRealVarMap_t& fitPars, std::string& label)
 {
   // Extract the internal info
-  const std::string channel = ( myws.obj("channel") ? ((TObjString*)myws.obj("channel"))->GetString().Data() : "" ); 
+  const std::string channel = ( myws.obj("channel") ? ((RooStringVar*)myws.obj("channel"))->getVal() : "" ); 
   if (channel=="") { std::cout << "[ERROR] channel was not found!" << std::endl; return false; }
-  const std::string object  = ( myws.obj("fitObject") ? ((TObjString*)myws.obj("fitObject"))->GetString().Data() : "" );
+  const std::string object  = ( myws.obj("fitObject") ? ((RooStringVar*)myws.obj("fitObject"))->getVal() : "" );
   if (object=="") { std::cout << "[ERROR] fitObject was not found!" << std::endl; return false; }
-  const std::string charge  = ( myws.obj("fitCharge") ? ((TObjString*)myws.obj("fitCharge"))->GetString().Data() : "" );
+  const std::string charge  = ( myws.obj("fitCharge") ? ((RooStringVar*)myws.obj("fitCharge"))->getVal() : "" );
   if (charge=="") { std::cout << "[ERROR] fitCharge was not found!" << std::endl; return false; };
-  const std::string beamDir = ( myws.obj("fitObject") ? ((TObjString*)myws.obj("fitSystem"))->GetString().Data() : "" );
+  const std::string beamDir = ( myws.obj("fitObject") ? ((RooStringVar*)myws.obj("fitSystem"))->getVal() : "" );
   if (beamDir=="") { std::cout << "[ERROR] fitSystem was not found!" << std::endl; return false; }
   label = object + channel + charge + "_" + beamDir;
   // Extract the model name
-  const std::string modelName = ( myws.obj(("Model_"+label).c_str()) ? ((TObjString*)myws.obj(("Model_"+label).c_str()))->GetString().Data() : "" );
+  const std::string modelName = ( myws.obj(("Model_"+label).c_str()) ? ((RooStringVar*)myws.obj(("Model_"+label).c_str()))->getVal() : "" );
   if (modelName=="") { std::cout << "[ERROR] " << ("Model_"+label) << " was not found!" << std::endl; return false; }
   // Extract the parameters of the model
   if (modelName=="MultiJetBkg") {
@@ -761,10 +765,10 @@ void drawExGraph(const std::string& outDir, GraphMap_t& exGraphMap, const FitExM
           tmp->SetFillColor(kGreen+3); tmp->SetMarkerColor(kOrange);
           tmp->Draw("samep2");
           //
-          if (f) {
-            f->SetLineColor(kGreen+2); f->SetLineWidth(2);
-            f->Draw("same");
-          }
+          //if (f) {
+          //  f->SetLineColor(kGreen+2); f->SetLineWidth(2);
+          //  f->Draw("same");
+          //}
           // Draw the text
           for (const auto& s: cutSelection) { tex->DrawLatex(0.20, 0.85-dy, s.c_str()); dy+=0.04; }; dy = 0.0;
           // Draw the text results
@@ -785,10 +789,10 @@ void drawExGraph(const std::string& outDir, GraphMap_t& exGraphMap, const FitExM
           tmp->GetPoint(0, xDummy, val); err = tmp->GetErrorY(0);
           resultText.push_back(Form("Mean : %.5f#pm%.5f", val, err));
           //
-          if (f) {
-            tmp->GetPoint(0, xDummy, val); err = tmp->GetErrorY(0);
-            resultText.push_back(Form("Fit : %.5f + %.5f #times #eta_{CM}", f->GetParameter(0),  f->GetParameter(1)));
-          }
+          //if (f) {
+          //  tmp->GetPoint(0, xDummy, val); err = tmp->GetErrorY(0);
+          //  resultText.push_back(Form("Fit : %.5f + %.5f #times #eta_{CM}", f->GetParameter(0),  f->GetParameter(1)));
+	  //}
           //
           for (const auto& s: resultText  ) { tex->DrawLatex(0.20, 0.70-dy, s.c_str()); dy+=0.04; }; dy = 0.0;
           // Draw the legend
@@ -813,7 +817,7 @@ void drawExGraph(const std::string& outDir, GraphMap_t& exGraphMap, const FitExM
 };
 
 
-bool createInputFiles(const std::string& dirPath, const FitMap_t& iniFitMap, const FitExMap_t& iniFitExMap, const bool& useEtaCM, const BinMapMap_t& binMap)
+bool createInputFiles(const std::string& dirPath, const FitMap_t& iniFitMap, const FitExMap_t& iniFitExMap, const bool& useEtaCM, const BinMapMap_t& binMap, const std::string VarName)
 {
   // Define inputFile as a matrix where the row index are the bins and column index are the headers
   std::map< std::string , std::map< Bin_t , std::vector< std::string > > > inputFile;
@@ -888,15 +892,22 @@ bool createInputFiles(const std::string& dirPath, const FitMap_t& iniFitMap, con
           header = Form("%s_QCDToMu%s_%s", var.first.c_str(), chg.c_str(), col.c_str());
           if (fitType_=="Constrain") { inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f;%.5f]", val, err); }
           if (fitType_=="Fixed"    ) { inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f]", val); }
+	  if (VarName!="" && var.first!=VarName) {
+	    inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f]", val);
+	  }
         }
       }
       else if ((useBin_=="Mean") && lbl.second.count(std::make_tuple(std::make_pair(etaMeanMin,etaMeanMin+0.06), std::make_pair(ptMin, ptMax)))>0) {
         for (const auto& var : lbl.second.at(std::make_tuple(std::make_pair(etaMeanMin,etaMeanMin+0.06), std::make_pair(ptMin, ptMax)))) {
-          const double val = var.second->GetParameter(0);
-          const double err = var.second->GetParError(0);
+	  const double val = var.second->GetParameter(0);
+	  const double err = var.second->GetParError(0);
           header = Form("%s_QCDToMu%s_%s", var.first.c_str(), chg.c_str(), col.c_str());
-          if (fitType_=="Constrain") { inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f;%.5f]", val, err); }
-          if (fitType_=="Fixed"    ) { inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f]", val); }
+	  if (fitType_=="Constrain") { inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f;%.5f]", val, err); }
+	  if (fitType_=="Fixed"    ) { inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f]", val); }
+	  if (VarName!="" && var.first!=VarName) {
+	    const double val_Inc = lbl.second.at(std::make_tuple(std::make_pair(etaIncMin,etaIncMax), std::make_pair(ptMin, ptMax))).at(var.first)->GetParameter(0);
+	    inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f]", val_Inc);
+	  }
         }
       }
       else if (useBin_=="Fit") {
@@ -909,6 +920,10 @@ bool createInputFiles(const std::string& dirPath, const FitMap_t& iniFitMap, con
           header = Form("%s_QCDToMu%s_%s", var.first.c_str(), chg.c_str(), col.c_str());
           if (fitType_=="Constrain") { inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f;%.5f]", val, err); }
           if (fitType_=="Fixed"    ) { inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f]", val); }
+	  if (VarName!="" && var.first!=VarName) {
+	    const double val_Inc = lbl.second.at(std::make_tuple(std::make_pair(etaIncMin,etaIncMax), std::make_pair(ptMin, ptMax))).at(var.first)->GetParameter(0);
+	    inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f]", val_Inc);
+	  }
         }
       }
       else {
@@ -916,13 +931,17 @@ bool createInputFiles(const std::string& dirPath, const FitMap_t& iniFitMap, con
           const double val = var.second->GetParameter(0);
           const double err = var.second->GetParError(0);
           header = Form("%s_QCDToMu%s_%s", var.first.c_str(), chg.c_str(), col.c_str());
-          if (fitType_=="Constrain") { inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.4f;%.4f]", val, err); }
+          if (fitType_=="Constrain") { inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f;%.5f]", val, err); }
           if (fitType_=="Fixed"    ) { inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f]", val); }
+	  if (VarName!="" && var.first!=VarName) {
+	    const double val_Inc = lbl.second.at(std::make_tuple(std::make_pair(etaIncMin,etaIncMax), std::make_pair(ptMin, ptMax))).at(var.first)->GetParameter(0);
+	    inputFile.at(inputFileName).at(bin.first).at(colIdx[header]) = Form("[%.5f]", val_Inc);
+	  }
         }
       }      
     }
   }
-  const std::string dirPathFile = dirPath+"/" + (fitType_ + "_" + useBin_)+"/";
+  const std::string dirPathFile = dirPath+"/" + (fitType_ + "_" + useBin_ + (VarName!="" ? ("_" + VarName) : ""))+"/";
   // Print the new input files
   makeDir(dirPathFile);
   for (const auto& name : inputFile) {

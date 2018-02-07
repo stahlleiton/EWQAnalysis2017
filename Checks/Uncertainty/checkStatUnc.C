@@ -125,7 +125,6 @@ bool checkStatUnc(
     auto varP = (RooRealVar*) ws->var("MET");
     if (varP == NULL) { std::cout << "[ERROR] The variable MET was not found in the workspace" << std::endl; inputFile.Close(); return false; }
     auto var = *varP;
-    var.setBins(100);
     //
     auto parP = (RooRealVar*) ws->var(Form("N_%s", tag.c_str()));
     if (parP == NULL) { std::cout << "[ERROR] The parameter " << Form("N_%s", tag.c_str()) << " was not found in the workspace" << std::endl; inputFile.Close(); return false; }
