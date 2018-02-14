@@ -774,7 +774,7 @@ bool correctMC(RooWorkspaceMap_t& Workspaces, const RooWorkspaceMap_t& iniWorksp
   bool ignoreCorrDS = false;
   if (applyRecoilCorr) {
     recoilMethod = info.Par.at("RecoilCorrMethod");
-    const std::string met = info.Par.at("METType");
+    const std::string met = info.Par.at("RecoilMET");
     const std::string recoilPath = info.Par.at("RecoilPath");
     const std::string col = "PA";
     std::string fnc_MC = "doubleGauss" , fnc_DATA = "doubleGauss";
@@ -785,7 +785,7 @@ bool correctMC(RooWorkspaceMap_t& Workspaces, const RooWorkspaceMap_t& iniWorksp
     //
     const std::string recoilVarTyp = (info.Par.count("RecoilVarTyp")>0 ? info.Par.at("RecoilVarTyp") : "");
     const std::string recoilVarLbl = (info.Par.count("RecoilVarLbl")>0 ? info.Par.at("RecoilVarLbl") : "");
-    if (recoilVarTyp!="" && recoilVarLbl!="") { ignoreCorrDS = true; }
+    if ((recoilVarTyp!="" && recoilVarLbl!="") || info.Flag.at("ignoreCorrDS")) { ignoreCorrDS = true; }
     if (recoilVarTyp.find("MC"  )!=std::string::npos) {
       fileName_MC = Form("%sMC_DYToMuMu_POWHEG/MET_%s/%s/%s/%s/Systematics/Sys_%s/fits_RecoilPDF_%s_%s.root", recoilPath.c_str(), met.c_str(), col.c_str(), HFCorrLbl.c_str(),
                          fnc_MC.c_str(), recoilVarLbl.c_str(), met.c_str(), col.c_str());

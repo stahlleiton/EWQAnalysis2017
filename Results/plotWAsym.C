@@ -43,10 +43,9 @@ void plotWAsym(
 	{ "Nominal"  , { { nominalWorkDirName } , 0 } }
       }
     },
-    // SIGNAL
-    { "Signal" , {
-	{ "METRange" , { { "NominalCM_METMax300" } , 0 } },
-	{ "BinWidth" , { { "NominalCM_BinWidth1" , "NominalCM_BinWidth3" } , 3 } },
+    // TEMPLATE
+    { "Binning" , {
+	{ "BinWidth" , { { "NominalCM_BinWidth1" } , 3 } }, // , "NominalCM_BinWidth3"
       }
     },
     // BACKGROUND: QCD
@@ -58,18 +57,23 @@ void plotWAsym(
     },
     // BACKGROUND: ELECTROWEAK
     { "EWK_Background" , {
-	{ "XSection_DrellYan" , { { "SystematicCM_XSECTION_DY_DOWN"     , "SystematicCM_XSECTION_DY_UP"     } , 3 } },
-	{ "XSection_WToTau"   , { { "SystematicCM_XSECTION_WToTau_DOWN" , "SystematicCM_XSECTION_WToTau_UP" } , 3 } },
-	{ "XSection_TTbar"    , { { "SystematicCM_XSECTION_TTbar_DOWN"  , "SystematicCM_XSECTION_TTbar_UP"  } , 3 } },
+	{ "XSection_DYToMuMu"   , { { "SystematicCM_XSECTION_DY_DOWN"      , "SystematicCM_XSECTION_DY_UP"      } , 3 } },
+	{ "XSection_DYToTauTau" , { { "SystematicCM_XSECTION_DYToTau_DOWN" , "SystematicCM_XSECTION_DYToTau_UP" } , 3 } },
+	{ "XSection_WToTau"     , { { "SystematicCM_XSECTION_WToTau_DOWN"  , "SystematicCM_XSECTION_WToTau_UP"  } , 3 } },
+	{ "XSection_TTbar"      , { { "SystematicCM_XSECTION_TTbar_DOWN"   , "SystematicCM_XSECTION_TTbar_UP"   } , 3 } },
       }
     },
-    // CORRECTION
+    // RECOIL CORRECTION
     { "Recoil_Correction" , {
-	{ "Recoil_Smearing" , { { "NominalCM_RecoilSmearing" } , 0 } },
-	{ "Recoil_SystPtFunc" , { { "NominalCM_RecoilSystPtFunc" } , 0 } },
+	{ "Recoil_Smearing"    , { { "NominalCM_RecoilSmearing"    } , 0 } },
+	{ "Recoil_SystPtFunc"  , { { "NominalCM_RecoilSystPtFunc"  } , 0 } },
+	{ "Recoil_SystBWGauss" , { { "NominalCM_RecoilSystBWGauss" } , 0 } },
+	{ "Recoil_SystJetEn"   , { { "NominalCM_RecoilSystJetEnDown" , "NominalCM_RecoilSystJetEnUp" } , 0 } },
+	//{ "Recoil_SystUnclusEn"   , { { "NominalCM_RecoilSystUnclusEnDown" , "NominalCM_RecoilSystUnclusEnUp" } , 0 } },
+	//{ "Recoil_Scaling"     , { { "NominalCM_RecoilScaling"     } , 0 } },
       }
     },
-    // CORRECTION
+    // EVENT ACTIVITY CORRECTION
     { "Event_Activity" , {
 	{ "HF_NTrackCorr"  , { { "NominalCM_NTrackCorr" } , 0 } },
       }
@@ -170,9 +174,10 @@ void plotWAsym(
     for (const auto& sVar : systVar) { iniResultsGraph(systGraph, sVar.second); }
     for (const auto& sVar : systVar) { if (!fillResultsGraph(systGraph, sVar.second)) { return; } }
     drawGraph(systGraph, outDir, useEtaCM, accType, effType);
-    drawSystematicGraph(systGraph, outDir, useEtaCM, accType, effType);
     drawSystematicGraph(graph, outDir, useEtaCM, accType, effType);
     drawCombineSystematicGraph(graph, outDir, useEtaCM, accType, effType);
+    drawCombineSystematicGraph(systGraph, outDir, useEtaCM, accType, effType, "TnP_Stat");
+    drawCombineSystematicGraph(systGraph, outDir, useEtaCM, accType, effType, "TnP_Syst");
   }
   //
   // Create the plots with predictions
@@ -278,6 +283,13 @@ void extractInfo(
         inputVar[collSystem][bin][charge][name]["RMS"] = v.second.at("Err");
         inputVar[collSystem][bin][charge][name]["Min"] = v.second.at("Min");
         inputVar[collSystem][bin][charge][name]["Max"] = v.second.at("Max");
+      }
+      else if (v.first=="TEST_FIT") {
+        // Get the remaining variables
+        const std::string name = v.first;
+        inputVar[collSystem][bin][charge][name]["Val"]  = v.second.at("Val");
+        inputVar[collSystem][bin][charge][name]["Chi2"] = v.second.at("Chi2");
+        inputVar[collSystem][bin][charge][name]["NDoF"] = v.second.at("NDoF");
       }
       else {
         // Get the remaining variables

@@ -793,16 +793,15 @@ void createUnc1DTable(std::vector< std::string >& texTable, const std::vector< s
       const auto&  chg = colChg[i];
       std::string val;
       if (cor=="TnP_Syst_STA") {
-        const auto& nomEff = effMap.at(col).at("Plus").at("Total").at("TnP_Nominal")[0];
-        const double tnpErr = 0.0060*nomEff.GetEfficiency(iBin);
+        const double tnpErr = 0.0060;
         val = Form("%.4f", tnpErr );
       }
       else  if (cor=="TnP_Syst_PU") {
-        const auto& nomEff = effMap.at(col).at("Plus").at("Total").at("TnP_Nominal")[0];
-        const double tnpErr = 0.0034*nomEff.GetEfficiency(iBin);
+        const double tnpErr = 0.0034;
         val = Form("%.4f", tnpErr );
       }
       else if (cor=="TnP_Stat_MuID" || cor=="TnP_Stat_Iso" || cor=="TnP_Stat_Trig") {
+        const auto& valNomEff = effMap.at(col).at("Plus").at("Total").at("TnP_Nominal")[0].GetEfficiency(iBin);
         double tnpErr = 0.0;
         if (uncMap.at(col).at(chg).at(typ).count(cor+"_p21_p24")>0) {
           for (const auto& cr : uncMap.at(col).at(chg).at(typ)) {
@@ -815,14 +814,17 @@ void createUnc1DTable(std::vector< std::string >& texTable, const std::vector< s
         else {
           tnpErr = uncMap.at(col).at(chg).at(typ).at(cor)[iBin-1];
         }
+        tnpErr /= valNomEff; // make it relative
         val = Form("%.4f", tnpErr );
       }
       else if (cor=="MC_Syst_Alpha") {
-        const auto& mcErr = uncMap.at(col).at(chg).at(typ).at(cor)[iBin-1];
+        const auto& valNomEff = effMap.at(col).at("Plus").at("Total").at("TnP_Nominal")[0].GetEfficiency(iBin);
+        const auto& mcErr = (uncMap.at(col).at(chg).at(typ).at(cor)[iBin-1]/valNomEff);
         val = Form("%.6f", mcErr );
       }
       else if (typ=="Total") {
-        const auto& err = uncMap.at(col).at(chg).at(typ).at(cor)[iBin-1];
+        const auto& valNomEff = effMap.at(col).at("Plus").at("Total").at("TnP_Nominal")[0].GetEfficiency(iBin);
+        const auto& err = (uncMap.at(col).at(chg).at(typ).at(cor)[iBin-1]/valNomEff);
         val = Form("%.4f", err );
       }
       else {
@@ -871,7 +873,7 @@ void makeTnPUnc1DTable(std::ofstream& file, const EffMap_t& iEffMap, const Unc1D
   createUnc1DTable(texTable, colTyp, colCor, colTitle1, colChg, effMap, uncMap, col);
   texTable.push_back("  }");
   texTable.push_back(Form("  \\caption{%s}",
-                          Form("Systematic uncertainties corresponding to the muon efficiency corrections derived applying the Tag and Probe scale factors event by event. The errors are shown as a function of the generated %s, derived from the %s %s \\POWHEG samples. %sGenerated muons are require to match reconstructed muons passing all analysis cuts.",
+                          Form("Relative systematic uncertainties corresponding to the muon efficiency corrections derived by applying the Tag and Probe scale factors event by event. The errors are shown as a function of the generated %s, derived from the %s %s \\POWHEG samples. %sGenerated muons are require to match reconstructed muons passing all analysis cuts.",
                                (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
                                (chg=="Plus" ? "$\\WToMuNuPl$" : "$\\WToMuNuMi$"),
                                col.c_str(),
@@ -902,7 +904,7 @@ void makeTnPUnc1DTable(std::ofstream& file, const EffMap_t& iEffMap, const Unc1D
   createUnc1DTable(texTable, colTyp, colCor, colTitle1, colChg, effMap, uncMap, col);
   //texTable.push_back("  }");
   texTable.push_back(Form("  \\caption{%s}",
-                          Form("Statistical uncertainties corresponding to the muon efficiency corrections derived by applying the Tag and Probe scale factors event by event. The errors are shown as a function of the generated %s, derived from the %s %s \\POWHEG samples. %sGenerated muons are require to match reconstructed muons passing all analysis cuts.",
+                          Form("Relative statistical uncertainties corresponding to the muon efficiency corrections derived by applying the Tag and Probe scale factors event by event. The errors are shown as a function of the generated %s, derived from the %s %s \\POWHEG samples. %sGenerated muons are require to match reconstructed muons passing all analysis cuts.",
                                (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
                                (chg=="Plus" ? "$\\WToMuNuPl$" : "$\\WToMuNuMi$"),
                                col.c_str(),
@@ -947,7 +949,7 @@ void makeMCUnc1DTable(std::ofstream& file, const EffMap_t& iEffMap, const Unc1DM
   createUnc1DTable(texTable, colTyp, colCor, colTitle1, colChg, effMap, uncMap, col);
   texTable.push_back("  }");
   texTable.push_back(Form("  \\caption{%s}",
-                          Form("Systematic uncertainties corresponding to the variation of the EPPS16+CT14 PDF, $\\alpha_{s}$ and ($\\mu_{R},\\mu_{F}$) scale variations. The errors are shown as a function of the generated %s, derived from the %s %s \\POWHEG samples. %sGenerated muons are require to match reconstructed muons passing all analysis cuts.",
+                          Form("Relative systematic uncertainties corresponding to the variation of the EPPS16+CT14 PDF, $\\alpha_{s}$ and ($\\mu_{R},\\mu_{F}$) scale variations. The errors are shown as a function of the generated %s, derived from the %s %s \\POWHEG samples. %sGenerated muons are require to match reconstructed muons passing all analysis cuts.",
                                (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
                                (chg=="Plus" ? "$\\WToMuNuPl$" : "$\\WToMuNuMi$"),
                                col.c_str(),

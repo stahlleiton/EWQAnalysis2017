@@ -395,7 +395,7 @@ void computeTnPUncertainty( double& Error_High, double& Error_Low , const std::v
       Err_Low  += std::pow( std::min( std::min( (plVal - ctVal) , (miVal - ctVal) ) , 0.0 ) , 2.0 );
     }
     // Convert from 90% CL to 68% CL
-    const double convFactor = TMath::ErfcInverse((1.-0.68))/TMath::ErfcInverse((1.-0.90));
+    const double convFactor = TMath::ErfcInverse((1.00-0.68))/TMath::ErfcInverse((1.00-0.90));
     Err_High = ( convFactor * std::sqrt( Err_High ) );
     Err_Low  = ( convFactor * std::sqrt( Err_Low  ) );
   }
@@ -1366,7 +1366,7 @@ bool computeCrossSection( BinPentaMap& var , BinSextaMapVec& systVar , const Var
           for (const auto& effT : effTnPType_) {
             //
             // Case: Apply Propagation Method
-            if (false) { //effT.second.second<4) {//
+            if (effT.second.second<4) {  //false) { //
               const std::string vL = Form("N_WToMu_Efficiency_%s_PROP", effT.first.c_str());
               if (b.second.at("Mi").count(vL)==0 || b.second.at("Pl").count(vL)==0) {
                 std::cout << "[ERROR] " << vL << " variable is missing in bin [" << b.first.etabin().high() << " , " << b.first.etabin().low() << "]" << std::endl; return false;
@@ -1390,7 +1390,7 @@ bool computeCrossSection( BinPentaMap& var , BinSextaMapVec& systVar , const Var
               }
             }
             // Case: Apply Variation Method
-            if (true) { //effT.second.second>=4) {
+            if (effT.second.second>=4) { //true) { //
               if (systVar[effT.first].size()<effT.second.first) { systVar.at(effT.first).resize(effT.second.first); }
               for (uint i = 0; i < effT.second.first; i++) {
                 const std::string vL = std::string("N_WToMu_Efficiency_") + effT.first + ( (effT.second.first>1) ? Form("_%d", i) : "" );
@@ -1938,13 +1938,16 @@ void drawGraph( GraphPentaMap& graphMap , const std::string& outDir , const bool
           // Declare the graph vector (for drawing with markers)
           std::vector< TGraphAsymmErrors > grVec;
           // Initialize the Legend
-          double legOff = 0.0; if (accType=="") { legOff = 0.05; }
-          TLegend leg(0.2, (0.71 - legOff), 0.4, (0.84 - legOff));
+          double legOff = 0.0 , legOff2 = 0.0; if (accType=="") { legOff = 0.05; }
+          if ( type=="MC_Statistics" || type=="TnP_Syst_PU" || type=="TnP_Syst_STA" ) { legOff2 = 0.07; }
+          TLegend leg(0.2, (0.71 - legOff + legOff2), 0.4, (0.84 - legOff));
           // Initialize the graph x range variables
           double xMin=0.0 , xMax=0.0 , yErrMin=9999999. , yErrMax=-1. , fbYLine = -1.;
+          //
+          std::string mainDir = "";
           // Draw graph
           if ( type=="Nominal" ) {
-            // Format the graphs
+            mainDir = "Result";
             const bool incAcc = (accType!="");
             grVec.push_back(graph.at("Err_Tot"));
             grVec.push_back(graph.at("Err_Stat"));
@@ -1962,7 +1965,8 @@ void drawGraph( GraphPentaMap& graphMap , const std::string& outDir , const bool
             grVec[1].SetFillColor(kGreen+3);
 	    if (graph.count("Err_Syst")>0) { grVec[2].SetFillColor(kOrange); }
             // Create Legend
-            formatLegendEntry(*leg.AddEntry(&grVec[0], "Data", "pe"));
+            if (graph.count("Err_Syst")>0) { formatLegendEntry(*leg.AddEntry(&grVec[0], "Data (Total Unc.)", "pe")); }
+            else { formatLegendEntry(*leg.AddEntry(&grVec[0], "Data", "pe")); }
             formatLegendEntry(*leg.AddEntry(&grVec[1], "Statistical Uncertainty", "f"));
 	    if (graph.count("Err_Syst")>0) { formatLegendEntry(*leg.AddEntry(&grVec[2], "Systematic Uncertainty", "f")); }
             // Draw the graphs
@@ -1974,6 +1978,9 @@ void drawGraph( GraphPentaMap& graphMap , const std::string& outDir , const bool
             xMin = grVec[0].GetXaxis()->GetXmin(); xMax = grVec[0].GetXaxis()->GetXmax(); fbYLine = 1.0;
           }
           else {
+            mainDir = "Systematic";
+            bool drawVar = true;
+            if ( type=="MC_Statistics" || type=="TnP_Syst_PU" || type=="TnP_Syst_STA" ) { drawVar = false; }
             const auto ref = graph.at("Total");
             // Extract the Varied Efficiency graphs
             uint iMax = 0; double yMax = -9999999999.0;
@@ -1989,7 +1996,7 @@ void drawGraph( GraphPentaMap& graphMap , const std::string& outDir , const bool
                   if (yMax < 0.90*std::max(errLo, errHi)) { yMax = std::max(errLo, errHi); }
                 }
               }
-              else {
+              else if (drawVar) {
                 for (int j = 0; j < grVec[i].GetN(); j++) {
                   double x=0., y1=0., y2=0.; ref.GetPoint(j, x, y1); grVec[i].GetPoint(j, x, y2);
                   double vVal = (y2 - y1);
@@ -2012,17 +2019,22 @@ void drawGraph( GraphPentaMap& graphMap , const std::string& outDir , const bool
             setRangeYAxisGraph(grVec[iMax], 0.1, 0.4);
             std::vector<int> color;
             for (uint i=0; i<grVec.size(); i++) {  color.push_back(kRed); }
-            const std::vector<int> COLOR = { kBlack , kRed , (kBlue+2) , (kGreen+2) , (kViolet+2) , (kOrange+10) , (kPink+4) };
-            if (grVec.size()<=COLOR.size()) { for (uint i=0; i<grVec.size(); i++) { color[i] = COLOR[i]; } }
+            if (grVec.size()==3) { color[1] = (kBlue+2); }
             for (uint i=0; i<grVec.size(); i++) { if (i!=0) { grVec[i].SetMarkerColor(kBlack); grVec[i].SetLineWidth(4); grVec[i].SetMarkerSize(0.0); grVec[i].SetLineColor(color[i]); } }
             TGaxis::SetMaxDigits(3); // to display powers of 10
             // Create Legend
             formatLegendEntry(*leg.AddEntry(&grVec[0], Form("%s Uncertainty", type.c_str()), "f"));
-            formatLegendEntry(*leg.AddEntry(&grVec[1], Form("%s + Variation", type.c_str()), "l"));
+            if (drawVar) {
+              if (grVec.size()==3) {
+                formatLegendEntry(*leg.AddEntry(&grVec[2], Form("%s + Variation", type.c_str()), "l"));
+                formatLegendEntry(*leg.AddEntry(&grVec[1], Form("%s - Variation", type.c_str()), "l"));
+              }
+              else { formatLegendEntry(*leg.AddEntry(&grVec[1], Form("%s Variation", type.c_str()), "l")); }
+            }
             // Draw the Graph
             grVec[iMax].Draw("apx");
             grVec[0].Draw("same2");
-            for (uint i=0; i<grVec.size(); i++) { if (i!=0) { grVec[i].Draw("samep"); } }
+            if (drawVar) { for (uint i=0; i<grVec.size(); i++) { if (i!=0) { grVec[i].Draw("samep"); } } }
             if (iMax!=0) { grVec[0].Draw("same2"); }
             //
             xMin = grVec[0].GetXaxis()->GetXmin(); xMax = grVec[0].GetXaxis()->GetXmax(); fbYLine = 0.0;
@@ -2078,7 +2090,7 @@ void drawGraph( GraphPentaMap& graphMap , const std::string& outDir , const bool
           else if (type.find("TnP_S")!=std::string::npos) { subDir = "TnP"; }
           else if (type.find("MC_Syst" )!=std::string::npos) { subDir = "PDF"; }
           else { subDir = "Variation"; }
-          const std::string plotDir = outDir+"/Plots/Result/" + col+"/" + label+"/" + subDir+"/" + var;
+          const std::string plotDir = outDir+"/Plots/" + mainDir+"/" + col+"/" + label+"/" + subDir+"/" + var;
           makeDir(plotDir + "/png/");
           makeDir(plotDir + "/pdf/");
           makeDir(plotDir + "/root/");
@@ -2235,7 +2247,8 @@ void drawSystematicGraph( const GraphPentaMap& graphMap , const std::string& out
 };
 
 
-void drawCombineSystematicGraph( const GraphPentaMap& graphMap , const std::string& outDir , const bool useEtaCM = true , const std::string accType = "MC" , const std::string effType = "TnP" )
+void drawCombineSystematicGraph( const GraphPentaMap& graphMap , const std::string& outDir , const bool useEtaCM = true ,
+                                 const std::string accType = "MC" , const std::string effType = "TnP" , const std::string cmbType = "" )
 {
   //
   // Set Style
@@ -2265,38 +2278,52 @@ void drawCombineSystematicGraph( const GraphPentaMap& graphMap , const std::stri
         if (accType=="") { textToPrint.push_back("p^{#mu}_{T} > 25 GeV/c"); }
         //
         // Declare the graph map (for drawing with markers)
-        std::map< std::string , TGraphAsymmErrors > grMap;
-        // Initialize the Legend
-        double legOff = 0.0; if (accType=="") { legOff = 0.05; }
-        TLegend leg(0.2, (0.54 - legOff), 0.4, (0.82 - legOff));
-        double xMin = 0.0 , xMax = 0.0;
+        std::map< std::string , TGraphAsymmErrors > grMapTmP , grMap;
         //
         for (const auto& lbl : v.second) {
           if (lbl.first=="Nominal") continue;
+          if (cmbType!="" && lbl.first.find(cmbType)==std::string::npos) continue;
           const std::string type = lbl.first;
           auto& graph = lbl.second;
-          grMap[lbl.first] = graph.at("Total");
+          if (graph.count("Total")>0) { grMapTmP[lbl.first] = graph.at("Total"); }
         }
-        grMap["Systematic" ] = v.second.at("Nominal").at("Err_Syst");
-        grMap["Statistical"] = v.second.at("Nominal").at("Err_Stat");
+        if (v.second.count("Nominal")>0) {
+          grMapTmP["Total_Systematic" ] = v.second.at("Nominal").at("Err_Syst");
+          grMapTmP["Statistical"] = v.second.at("Nominal").at("Err_Stat");
+        }
         //
         std::string lMax = ""; double vMax = -99999999.0;
-        for (auto& lbl : grMap) {
-          for (int j = 0; j < grMap.at(lbl.first).GetN(); j++) {
-            double X , Y; grMap.at(lbl.first).GetPoint(j, X, Y); Y = std::abs(Y);
-            grMap.at(lbl.first).SetPoint(j, X, 0);
+        for (const auto& lbl : grMapTmP) {
+          //
+          std::string vLbl = lbl.first;
+          if (std::count(lbl.first.begin(), lbl.first.end(), '_')>2) {
+            std::string tmp = vLbl.substr(vLbl.find("_")+1) , tmp2 = tmp.substr(tmp.find("_")+1);
+            vLbl = vLbl.substr(0, vLbl.find("_"))+"_"+tmp.substr(0, tmp.find("_"))+"_"+tmp2.substr(0, tmp2.find("_"));
+          }
+          //
+          if (grMap.count(vLbl)==0) { grMap[vLbl].Set(lbl.second.GetN()); }
+          for (int j = 0; j < lbl.second.GetN(); j++) {
+            double X , Y; lbl.second.GetPoint(j, X, Y); Y = std::abs(Y);
+            grMap.at(vLbl).SetPoint(j, X, 0);
             //
-            double Err_Y_Low  = grMap.at(lbl.first).GetErrorYlow(j);
-            double Err_Y_High = grMap.at(lbl.first).GetErrorYhigh(j);
+            double Err_Y_Low  = lbl.second.GetErrorYlow(j);
+            double Err_Y_High = lbl.second.GetErrorYhigh(j);
             if (var=="Cross_Section") { Err_Y_Low /= std::abs(Y); Err_Y_High /= std::abs(Y); }
+            Err_Y_Low  = std::sqrt( std::pow(Err_Y_Low , 2.0) + std::pow(grMap.at(vLbl).GetErrorYlow(j) , 2.0) );
+            Err_Y_High = std::sqrt( std::pow(Err_Y_High, 2.0) + std::pow(grMap.at(vLbl).GetErrorYhigh(j), 2.0) );
             //
-            grMap.at(lbl.first).SetPointError(j, 
-                                              grMap.at(lbl.first).GetErrorXlow(j), grMap.at(lbl.first).GetErrorXhigh(j), 
-                                              Err_Y_Low, Err_Y_High
-                                              );
-            if (vMax < std::max(Err_Y_Low, Err_Y_High)) { vMax = std::max(Err_Y_Low, Err_Y_High); lMax = lbl.first; }
+            grMap.at(vLbl).SetPointError(j, 
+                                         lbl.second.GetErrorXlow(j), lbl.second.GetErrorXhigh(j), 
+                                         Err_Y_Low, Err_Y_High
+                                         );
+            if (vMax < std::max(Err_Y_Low, Err_Y_High)) { vMax = std::max(Err_Y_Low, Err_Y_High); lMax = vLbl; }
           }
         }
+        // Initialize the Legend
+        double legOff = 0.0 , legOff2 = 0.0; if (accType=="") { legOff = 0.05; }
+        if (grMap.size()==3) { legOff2 = 0.15; }
+        TLegend leg(0.2, (0.54 - legOff + legOff2), 0.4, (0.82 - legOff));
+        double xMin = 0.0 , xMax = 0.0;
         //
         // Draw the graphs in the same canvas
         bool firstPlot = true; uint iCnt = 1;
@@ -2363,6 +2390,7 @@ void drawCombineSystematicGraph( const GraphPentaMap& graphMap , const std::stri
         makeDir(plotDir + "/root/");
         //
         // Save Canvas
+        if (cmbType!="") { label += ( "_" + cmbType ); }
         const std::string name = Form("gr_WToMu%s_%s_%s_%s", chg.c_str(), col.c_str(), var.c_str(), label.c_str());
         c.SaveAs(( plotDir + "/png/"  + name + ".png"  ).c_str());
         c.SaveAs(( plotDir + "/pdf/"  + name + ".pdf"  ).c_str());
@@ -2446,7 +2474,7 @@ void drawGraphWithTheory( GraphPentaMap& graphMap , const std::string& outDir , 
         auto h2 = graphToHist(grVec[2]); for (int i=1; i<=grVec[2].GetN(); i++) { h2.SetBinError(i, 0.0001); }
         //
 	// Create Legend
-	formatLegendEntry(*leg.AddEntry(&grVec[0], "Data", "pe"));
+	formatLegendEntry(*leg.AddEntry(&grVec[0], "Data (Total Unc.)", "pe"));
 	formatLegendEntry(*leg.AddEntry(&grVec[1], "CT14", "lf"));
 	formatLegendEntry(*leg.AddEntry(&grVec[2], "CT14+EPPS16", "lf"));
 	// Draw the graphs
@@ -2562,7 +2590,7 @@ void drawGraphWithpPb5TeV( GraphPentaMap& graphMap , const std::string& outDir ,
 	grVec[1].SetMarkerStyle(21);
 	grVec[1].SetMarkerSize(2.);
 	// Create Legend
-	formatLegendEntry(*leg.AddEntry(&grVec[0], "Data", "pe"));
+	formatLegendEntry(*leg.AddEntry(&grVec[0], "Data (Total Unc.)", "pe"));
 	formatLegendEntry(*leg.AddEntry(&grVec[1], "HIN-13007", "pe"));
 	// Draw the graphs
 	grVec[0].Draw("ap");
@@ -2663,10 +2691,10 @@ void createYieldTable(std::vector< std::string >& texTable, const std::vector< s
         val = Form("%.0f", var.at("Val"));
       }
       else if (v=="TEST_FIT") {
-        //const double Chi2 = var.at("Chi2");
-        //const double NDoF = var.at("NDoF");
-        //const double pVal = TMath::Prob(Chi2, NDoF);
-        const double pVal = var.at("Val");
+        const double Chi2 = var.at("Chi2");
+        const double NDoF = var.at("NDoF");
+        const double pVal = TMath::Prob(Chi2, NDoF);
+        //const double pVal = var.at("Val");
         val = Form("%.2f", pVal);
       }
       else if (v=="Acceptance_MC" || v=="Efficiency_MC" || v=="Efficiency_TnP") {
@@ -2712,8 +2740,7 @@ void makeRawYieldsTable(std::ofstream& file, const VarBinMap& inputVar, const st
   //
   // Determine number of columns
   const std::vector< std::string > allColVar    = { "Muon_Eta" , "N_DS_Entries" , "N_FIT_Entries" , "N_WToMu_RAW" , "N_DYToMu" , "N_WToTauToMu" , "N_DYToTauToMu" , "N_TTbarToMu" , "N_QCDToMu" , "TEST_FIT" };
-  std::vector< std::string > allColTitle1 = { "$\\eta_{LAB}$ Range" , "Total"  , "Fitted" , "Signal" , "$Z/\\gamma*\\to\\mu^{+}+\\mu^{-}$" , "$W\\to\\tau+\\nu_{\\tau}$" ,
-                                              "$Z/\\gamma*\\to\\tau^{+}+\\tau^{-}$" , "$t\\bar{t}$" , "QCD" , "$\\chi^{2}/NDoF$" };
+  std::vector< std::string > allColTitle1 = { "$\\eta_{LAB}$ Range" , "Total"  , "Fitted" , "Signal" , "\\DYToMuMu" , "\\WToTauNu" , "\\DYToTauTau" , "\\ttbar" , "QCD" , "p-value ($\\chi^{2}$)" };
   if (useEtaCM) { allColTitle1[0] = "$\\eta_{CM}$ Range"; }
   //
   std::vector< std::string > colVar , colTitle1, colTitle2;
@@ -2938,7 +2965,7 @@ void makeCrossSectionTable(std::ofstream& file, const BinPentaMap& resultVar, co
   createResultTable(texTable, colVar, colTitle1, colChg, colEta, inputVar, resultVar, col);
   texTable.push_back("  }");
   texTable.push_back(Form("  \\caption{%s}",
-                          Form("Cross-Section of \\WToMuNu, given for each %s bin in the %s collision system. The total integrated luminosity of the sample corresponds to $%.1f \\pm %.1f$~\nbinv. All analysis cuts are applied%s. All uncertainties shown are statistical only.",
+                          Form("Differential cross section of \\WToMuNu, given for each %s bin in the %s collision system. The total integrated luminosity of the sample corresponds to $%.1f \\pm %.1f$~\\nbinv. All analysis cuts are applied%s. All uncertainties shown are statistical only.",
                                (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
                                (col=="PA" ? "combined \\pPb and \\Pbp" : (col=="pPb" ? "\\pPb" : (col=="Pbp" ? "\\Pbp" : "????"))),
                                lumiVal, lumiErr,
@@ -3127,15 +3154,15 @@ void createSystematicTable(std::vector< std::string >& texTable, const std::vect
 	const double systErrHi  = varMap.at(col).at(chg).at(v).at("Err_Syst_High").at(b.first);
 	const double rVal       = varMap.at(col).at(chg).at(v).at("Val").at(b.first);
 	if (v=="Cross_Section") {
-	  if (statErrLow==statErrHi) { val = Form("$%.2f \\pm %.2f$ (stat)", rVal, statErrLow ); }
+	  if (std::abs(statErrLow-statErrHi)<0.001) { val = Form("$%.2f \\pm %.2f$ (stat)", rVal, statErrLow ); }
 	  else { val = Form("$%.2f + %.2f - %.2f$ (stat)", rVal, statErrHi, statErrLow ); }
-	  if (systErrLow==systErrHi) { val += Form("$ \\pm %.2f$ (syst)", systErrLow ); }
+	  if (std::abs(systErrLow-systErrHi)<0.001) { val += Form("$ \\pm %.2f$ (syst)", systErrLow ); }
 	  else { val += Form("$ + %.2f - %.2f$ (syst)", systErrHi, systErrLow ); }
 	}
 	else if (v=="ForwardBackward_Ratio" || v=="Charge_Asymmetry") {
-	  if (statErrLow==statErrHi) { val = Form("$%.3f \\pm %.3f$ (stat)", rVal, statErrLow ); }
+	  if (std::abs(statErrLow-statErrHi)<0.001) { val = Form("$%.3f \\pm %.3f$ (stat)", rVal, statErrLow ); }
 	  else { val = Form("$%.2f + %.3f - %.3f$ (stat)", rVal, statErrHi, statErrLow ); }
-	  if (systErrLow==systErrHi) { val += Form("$ \\pm %.3f$ (syst)", systErrLow ); }
+	  if (std::abs(systErrLow-systErrHi)<0.001) { val += Form("$ \\pm %.3f$ (syst)", systErrLow ); }
 	  else { val += Form("$ + %.3f - %.3f$ (syst)", systErrHi, systErrLow ); }
 	}
       }
@@ -3442,8 +3469,6 @@ void makeFullSystematicTable(std::ofstream& file, const BinSextaMap& varMap, con
   // Initialize the latex table
   std::vector< std::string > texTable;
   //
-  const std::string pTCUT = Form("$p_{T} > %.0f$~GeV/c", 25.0);
-  //
   // Determine number of columns
   const std::vector< std::string > colChg = { "" , "Mi" , "Pl" , "Mi" , "Pl" , "" , "" };
   const std::vector< std::string > colVar = { "Title_Syst" , "Cross_Section" , "Cross_Section" , "ForwardBackward_Ratio" , "ForwardBackward_Ratio" , "ForwardBackward_Ratio" , "Charge_Asymmetry" };
@@ -3461,9 +3486,8 @@ void makeFullSystematicTable(std::ofstream& file, const BinSextaMap& varMap, con
   createFullSystematicTable(texTable, colVar, colTitle1, colChg, varMap, col);
   texTable.push_back("  }");
   texTable.push_back(Form("  \\caption{%s}",
-                          Form("Maximum error of the measured observables determined for each category in the %s collision system. The uncertainties of the cross-sections are relative while for the asymmetries are absolute. All analysis cuts are applied%s.",
-                               (col=="PA" ? "combined \\pPb and \\Pbp" : (col=="pPb" ? "\\pPb" : (col=="Pbp" ? "\\Pbp" : "????"))),
-                               (pTCUT!="" ? Form(" including the muon %s cut", pTCUT.c_str()) : "")
+                          Form("Maximum error of the measured observables determined for each category in the %s collision system. The uncertainties of the cross-sections are relative while for the asymmetries are absolute.",
+                               (col=="PA" ? "combined \\pPb and \\Pbp" : (col=="pPb" ? "\\pPb" : (col=="Pbp" ? "\\Pbp" : "????")))
                                )
                           )
                      );
@@ -3786,7 +3810,7 @@ void makeCovarianceMatrix(std::ofstream& file , const WSDirMap& workDirNames, co
               const double varBin1  = sMap.at(chg1).at(var).at("Val").at(bin1.first);
               const double varBin2  = sMap.at(chg2).at(var).at("Val").at(bin2.first);
               double covSgn12 = 1.0;
-              if (cat.first=="Efficiency") {
+              if (cat.first=="Efficiency" || cat.first=="EWK_Background") {
                 if ( (((varBin1 - nomBin1)*(varBin2 - nomBin2)) < 0.0) && nVar <=3 ) { covSgn12 = -1.0; }
               }
               //

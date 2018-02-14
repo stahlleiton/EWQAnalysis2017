@@ -826,7 +826,7 @@ bool loadEff1D(EffMap_t& eff, const TH1DMap_t& h)
                   // Set Global Weight
                   eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).at(co.first)[i].SetWeight(weight);
                   if ( checkWeights(hPassed, hTotal) ) {
-                    eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).at(co.first)[i].SetStatisticOption(TEfficiency::kFNormal);
+                    eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).at(co.first)[i].SetStatisticOption(TEfficiency::kBJeffrey);
                   }
                 }
                 else {
@@ -843,7 +843,7 @@ bool loadEff1D(EffMap_t& eff, const TH1DMap_t& h)
                   // Set Global Weight
                   eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).at(co.first)[i].SetWeight(weight);
                   if ( checkWeights(hPassed, hTotal) ) {
-                    eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).at(co.first)[i].SetStatisticOption(TEfficiency::kFNormal);
+                    eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).at(co.first)[i].SetStatisticOption(TEfficiency::kBJeffrey);
                   }
                 }
               }
@@ -880,7 +880,7 @@ void mergeEff(EffMap_t& eff)
                   hTotal.Add(eff_pPb.GetTotalHistogram(), co.second[i].GetTotalHistogram(), eff_pPb.GetWeight(), eff_Pbp.GetWeight());
                   co.second[i].SetTotalHistogram(hTotal, "f");
                   // Set the statistics in case of weighted histograms
-                  if ( checkWeights(hPassed, hTotal) ) { co.second[i].SetStatisticOption(TEfficiency::kFNormal); }
+                  if ( checkWeights(hPassed, hTotal) ) { co.second[i].SetStatisticOption(TEfficiency::kBJeffrey); }
                 }
               }
             }

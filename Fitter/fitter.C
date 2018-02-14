@@ -188,6 +188,11 @@ void fitter(
   userInput.Par["RecoilPath"]      = "/grid_mnt/vol__vol_U__u/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_nom_sysStat/";
   if (workDirName=="NominalCM_RecoilSystPtFunc" ) { userInput.Par.at("RecoilPath") = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_sysPtFunc/";  }
   if (workDirName=="NominalCM_RecoilSystBWGauss") { userInput.Par.at("RecoilPath") = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_sysBWGauss/"; }
+  if (workDirName=="NominalCM_RecoilSystJetEnUp"  ) { userInput.Par.at("RecoilPath") = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil/"; }
+  if (workDirName=="NominalCM_RecoilSystJetEnDown") { userInput.Par.at("RecoilPath") = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil/"; }
+  if (workDirName=="NominalCM_RecoilSystUnclusEnUp"  ) { userInput.Par.at("RecoilPath") = "/home/llr/cms/stahl/ElectroWeakAnalysis/JAVIER/MET_Recoil/FitRecoil/"; }
+  if (workDirName=="NominalCM_RecoilSystUnclusEnDown") { userInput.Par.at("RecoilPath") = "/home/llr/cms/stahl/ElectroWeakAnalysis/JAVIER/MET_Recoil/FitRecoil/"; }
+  //
   if (userInput.Par.at("Analysis").find("Nu")!=std::string::npos) {
     userInput.Var["MET"]["type"] = varType;
     if      (workDirName=="NominalCM_BinWidth3") { userInput.Var["MET"]["binWidth"] = 3.0; }
@@ -207,6 +212,19 @@ void fitter(
     else if (workDirName.find("CM")!=std::string::npos    ) { userInput.Par["extInitFileDir_MET_QCD"] = Form("%s/Input/NominalCM/", CWD.c_str()); }
     else                                                    { userInput.Par["extInitFileDir_MET_QCD"] = Form("%s/Input/Nominal/", CWD.c_str());   }
   }
+  if (userInput.Par.at("Analysis").find("Nu")!=std::string::npos) {
+    userInput.StrV["variable"] = std::vector<std::string>({"MET"});
+    userInput.StrV["METType"] = std::vector<std::string>({"PF_RAW","PF_Type1","PF_NoHF_RAW","PF_NoHF_Type1"});
+    userInput.Par["METType"] = userInput.StrV.at("METType").at(varType);
+    userInput.Flag["ignoreCorrDS"] = false;
+    userInput.Par["RecoilMET"] = userInput.Par.at("METType");
+    if      (workDirName=="NominalCM_RecoilSystJetEnUp"  ) { userInput.Par.at("RecoilMET") = "PF_RAW_JetEnUp";   userInput.Flag.at("ignoreCorrDS") = true; }
+    else if (workDirName=="NominalCM_RecoilSystJetEnDown") { userInput.Par.at("RecoilMET") = "PF_RAW_JetEnDown"; userInput.Flag.at("ignoreCorrDS") = true; }
+    else if (workDirName=="NominalCM_RecoilSystUnclusEnUp"  ) { userInput.Par.at("RecoilMET") = "PF_RAW_UnclusEnUp";   userInput.Flag.at("ignoreCorrDS") = true; }
+    else if (workDirName=="NominalCM_RecoilSystUnclusEnDown") { userInput.Par.at("RecoilMET") = "PF_RAW_UnclusEnDown"; userInput.Flag.at("ignoreCorrDS") = true; }
+    else if (workDirName=="NominalCM_RecoilSystBWGauss") { userInput.Flag.at("ignoreCorrDS") = true; }
+    else if (workDirName=="NominalCM_RecoilSystPtFunc" ) { userInput.Flag.at("ignoreCorrDS") = true; }
+  }
   // Set all the Boolean Flags from the input settings
   //
   userInput.StrV["setext"] = std::vector<std::string>({"ExtDS"});
@@ -218,12 +236,6 @@ void fitter(
   userInput.Flag["doPA"]  = (userInput.Flag.at("fitpPb") || userInput.Flag.at("fitPbp") || userInput.Flag.at("fitPA"));
   userInput.Flag["dopPb"] = (userInput.Flag.at("fitpPb") || userInput.Flag.at("fitPA"));
   userInput.Flag["doPbp"] = (userInput.Flag.at("fitPbp") || userInput.Flag.at("fitPA"));
-  //
-  if (userInput.Par.at("Analysis").find("Nu")!=std::string::npos) {
-    userInput.StrV["variable"] = std::vector<std::string>({"MET"});
-    userInput.StrV["METType"] = std::vector<std::string>({"PF_RAW","PF_Type1","PF_NoHF_RAW","PF_NoHF_Type1"});
-    userInput.Par["METType"] = userInput.StrV.at("METType").at(varType);
-  }
   //
   if (userInput.Par.at("Analysis").find("W")!=std::string::npos) {
     userInput.StrV["charge"] = std::vector<std::string>({"Plus","Minus","ChgInc"});

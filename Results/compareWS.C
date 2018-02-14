@@ -69,11 +69,11 @@ void compareWS(const std::string mode = "Runs", const bool doCorrectYield=false)
   StrPairMap cmpWS;
   if (mode=="Runs") {
     refWS = StringMap({
-	{ "PA" , "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Output/NominalCM_BKP/METPF_RAW/DATA/W/PA/result/" }
+	{ "PA" , "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Output/NominalCM/METPF_RAW/DATA/W/PA/result/" }
       });
     cmpWS = StrPairMap({
-	{ "pPb"  , { "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Output/NominalCM_BKP/METPF_RAW/DATA/W/pPb/result/" , 1 } },
-        { "Pbp"  , { "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Output/NominalCM_BKP/METPF_RAW/DATA/W/Pbp/result/" , 1 } }
+	{ "pPb"  , { "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Output/NominalCM/METPF_RAW/DATA/W/pPb/result/" , 1 } },
+        { "Pbp"  , { "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Output/NominalCM/METPF_RAW/DATA/W/Pbp/result/" , 1 } }
       });
   }
   else if (mode=="Runs2") {

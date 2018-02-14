@@ -111,10 +111,11 @@ bool resultsEWQ2tree(
     const std::string dsName = ( "d" + CHG + "_" + DSTAG );
     //
     // Fill the Model Information
-    const std::vector< std::string > objType = { "W" , "WToTau" , "DY" , "DYToTau" , "TTbar" , "WW" , "WZ" , "ZZ" , "QCD" };
+    const std::vector< std::string > objType = { "W" , "WToTau" , "DY" , "DYToTau" , "TTbar" , "QCD" };
     for (const auto& o : objType) {
       const std::string modelLabel = Form("Model_%s%s%s", o.c_str(), CHA.c_str(), token.c_str());
-      info.Str.at("Model_"+o) = ( (ws->obj(modelLabel.c_str())) ? ((RooStringVar*)ws->obj(modelLabel.c_str()))->getVal() : "" );
+      if (info.Str.count("Model_"+o)>0) { info.Str.at("Model_"+o) = ( (ws->obj(modelLabel.c_str())) ? ((RooStringVar*)ws->obj(modelLabel.c_str()))->getVal() : "" ); }
+      else { std::cout << "[ERROR] Object " << o << " has not been defined!" << std::endl; return false; }
     }
     //
     // Fill the Cut Information

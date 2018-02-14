@@ -74,7 +74,7 @@ const std::vector< std::string > cutSelection = {
 };
 std::map< std::string, std::tuple< std::string > > yAxis;
 std::string fitType_ = "" , useBin_ = "";
-const double isoPoint = 0.08; // 0.08 is from QCD MC, 0.03 is from data in signal region
+const double isoPoint = 0.03; // 0.08 is from QCD MC, 0.03 is from data in signal region
 std::string MODELNAME_ = "";
 
 void makeQCDTemplate(
