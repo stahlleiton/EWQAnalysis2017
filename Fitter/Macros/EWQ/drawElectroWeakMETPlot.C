@@ -138,7 +138,7 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
             else if (ws.function(name.c_str())) { coef.add(*ws.function(name.c_str())); }
           }
           const std::string pdfPlotName = Form("pdfPlot_%s", name.c_str());
-          auto pf = RooAddPdf(pdfPlotName.c_str(), pdfPlotName.c_str(), pdfs, coef); ws.import(pf);
+          auto pf = RooAddPdf(pdfPlotName.c_str(), pdfPlotName.c_str(), pdfs, coef); if (ws.pdf(pdfPlotName.c_str())==NULL) { ws.import(pf); }
           ws.pdf(pdfPlotName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", name.c_str())), RooFit::Range("METWindowPlot"), RooFit::NormRange("METWindowPlot"),
                                               RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-6),
                                               RooFit::FillStyle(1001), RooFit::FillColor(colorMap.at(obj)), RooFit::VLines(), RooFit::DrawOption("F")
@@ -264,7 +264,7 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   printElectroWeakLegend(*pad.at("MAIN"), leg, *frame.at("MAIN"), legInfo);
   //
   frame.at("MAIN")->SetTitle(Form("frame_Tot%s", tag.c_str()));
-  ws.import(*frame.at("MAIN"), frame.at("MAIN")->GetTitle());
+  if (ws.obj(frame.at("MAIN")->GetTitle())==NULL) { ws.import(*frame.at("MAIN"), frame.at("MAIN")->GetTitle()); }
   //
   pad.at("MAIN")->SetLogy(setLogScale);
   pad.at("MAIN")->Update();
