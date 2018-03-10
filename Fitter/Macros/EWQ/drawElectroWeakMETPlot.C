@@ -10,7 +10,7 @@ void       printElectroWeakLegend        ( TPad& pad , TLegend& leg , const RooP
 void       setRange                      ( RooPlot& frame , const RooWorkspace& ws , const std::string& varName , const std::string& dsName , const bool& setLogScale );
 bool       getVar                        ( std::vector<RooRealVar>& varVec, const RooWorkspace& ws, const std::string& name, const std::string& pdfName );
 void       parseVarName                  ( const std::string& name, std::string& label );
-bool       printChi2                     ( TPad& pad , RooWorkspace& ws , const RooPlot& frame , const string& varLabel , const string& dataLabel , const string& pdfLabel );
+bool       printGoF                      ( TPad& pad , RooWorkspace& ws , const RooPlot& frame , const string& varLabel , const string& dataLabel , const string& pdfLabel );
 
 bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
                              // Select the type of datasets to fit
@@ -18,7 +18,8 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
                              const std::string& outputDir,
                              const bool& yLogScale,
 			     const bool saveAll = true,
-                             const double maxRng = -1.0
+                             const double maxRng = -1.0,
+                             const bool doGoF = true
                              )
 {
   //
@@ -83,7 +84,6 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   }
   else {
     ws.data(dsName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::Binning("METWindowPlot"),
-                                    RooFit::DataError(RooAbsData::SumW2), RooFit::XErrorSize(0),
                                     RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
   }
   legInfo["DATA"][Form("plot_Tot%s", dsName.c_str())] = ( isMC ? "Simulation" : "Data" );
@@ -150,7 +150,6 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
       }
       //
       ws.data(dsName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::Binning("METWindowPlot"),
-                                      RooFit::DataError(RooAbsData::SumW2), RooFit::XErrorSize(0),
                                       RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
       //
       norm = ws.data(dsNameFit.c_str())->sumEntries();
@@ -231,7 +230,7 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
     pad.at("EXTRA")->Draw();
     pad.at("EXTRA")->cd();
     frame.at("EXTRA")->Draw();
-    printChi2(*pad.at("EXTRA"), ws, *frame.at("MAIN"), "MET", dsName, pdfName);
+    if (doGoF) { printGoF(*pad.at("EXTRA"), ws, *frame.at("MAIN"), "MET", dsName, pdfName); }
     if (drawPull) { pLine = std::unique_ptr<TLine>(new TLine(frame.at("EXTRA")->GetXaxis()->GetXmin(), 0.0, frame.at("EXTRA")->GetXaxis()->GetXmax(), 0.0)); }
     else          { pLine = std::unique_ptr<TLine>(new TLine(frame.at("EXTRA")->GetXaxis()->GetXmin(), 1.0, frame.at("EXTRA")->GetXaxis()->GetXmax(), 1.0)); }
     pLine->Draw("same");
@@ -474,41 +473,103 @@ void setRange(RooPlot& frame, const RooWorkspace& ws, const std::string& varName
 };
 
 
-bool printChi2(TPad& pad, RooWorkspace& ws, const RooPlot& frame, const string& varLabel, const string& dataLabel, const string& pdfLabel)
+void addGoFToWS(RooWorkspace& ws, const std::string& parName, const double& parValue)
+{
+  if (ws.var(parName.c_str())) { ws.var(parName.c_str())->setVal(parValue);               }
+  else                         { ws.factory(Form("%s[%.6f]", parName.c_str(), parValue)); }
+};
+
+
+bool printGoF(TPad& pad, RooWorkspace& ws, const RooPlot& frame, const string& varLabel, const string& dataLabel, const string& pdfLabel)
 {
   //
   if (ws.data(dataLabel.c_str())==NULL) { std::cout << "[ERROR] Dataset " << dataLabel << " was not found!" << std::endl; return false; }
   if (ws.pdf (pdfLabel.c_str() )==NULL) { std::cout << "[ERROR] PDF "     << pdfLabel  << " was not found!" << std::endl; return false; }
+  auto dataP = (RooDataSet*)ws.data(dataLabel.c_str());
+  auto pdfP  = (RooAbsPdf* )ws.pdf (pdfLabel.c_str() );
+  auto varP  = (RooRealVar*)ws.var (varLabel.c_str() );
+  //
+  // Find curve object
+  //auto rFit = (RooCurve*) frame.findObject(0, RooCurve::Class());
+  RooCurve* rFit = frame.getCurve(Form("plot_%s", pdfLabel.c_str()));
+  if (!rFit) { std::cout << "[ERROR] The latest RooCurve was not found" << std::endl; return false; }
+  // Find histogram object
+  //auto rData = (RooHist*) frame.findObject(0, RooHist::Class());
+  RooHist* rData = frame.getHist(Form("plot_Tot%s", dataLabel.c_str()));
+  if (!rData) { std::cout << "[ERROR] The latest RooHist was not found" << std::endl; return false; }
   //
   pad.cd();
   //
-  TH1D hData, hFit;
-  if(!rooPlotToTH1(hData, hFit, frame)) { return false; }
+  // Unbinned Goodness-of-Fit tests
   //
-  auto parList = std::unique_ptr<RooArgSet>(ws.pdf(pdfLabel.c_str())->getParameters(*ws.data(dataLabel.c_str())));
-  uint nFitPar = parList->selectByAttrib("Constant", kFALSE)->getSize();
-  RooHist hPull(hData.GetBinWidth(1));
-  if (!makePullHist(hPull, frame, "", "", true)) { return false; }
-  double* ypulls = hPull.GetY();
-  uint nFullBins = 0; double chi2=0;
-  for (int i = 0; i < hData.GetNbinsX(); i++) {
-    if ( (hData.GetBinError(i+1) != 0.0) && ((hData.GetBinContent(i+1) != 0.0) || (hFit.GetBinContent(i+1) != 0.0))) {
-      chi2 += ypulls[i]*ypulls[i];
-      nFullBins++;
-    }
+  RooFit::RooGoF GoF_Unbinned(dataP, pdfP, varP);
+  GoF_Unbinned.setRange(varP->getMin(), varP->getMax());
+  //GoF_Unbinned.setNtoys(100, true, RooFit::Extended(kTRUE), RooFit::Strategy(2), RooFit::NumCPU(32));
+  //
+  // Kolmogorov-Smirnov test
+  double pvalue_KS = -1., testStat_KS = -1.;
+  GoF_Unbinned.KSTest(pvalue_KS, testStat_KS);
+  if (testStat_KS>=0.0) {
+    std::cout << "[INFO] Using Kolmogorov-Smirnov test gives result " << testStat_KS << " ( " << pvalue_KS << " ) " << std::endl;
+    addGoFToWS(ws, Form("testStat_KS_%s", varLabel.c_str()), testStat_KS);
+    addGoFToWS(ws, Form("pvalue_KS_%s"  , varLabel.c_str()), pvalue_KS  );
   }
-  const int ndof = (nFullBins - nFitPar);
-  std::cout << "[INFO] Using Standard method gives Chi2/NDoF " << chi2 << " / " << ndof << std::endl;
-  double chi2T = 0.; int ndofT = 0 , igood = -1;
-  hData.Chi2TestX(&hFit, chi2T, ndofT, igood, "UW");
-  std::cout << "[INFO] Using TH1 method gives Chi2/NDoF " << chi2T << " / " << ndofT << std::endl;
+  //
+  // Anderson-Darling test
+  double pvalue_AD = -1., testStat_AD = -1.;
+  GoF_Unbinned.ADTest(pvalue_AD, testStat_AD);
+  if (testStat_AD>=0.0) {
+    std::cout << "[INFO] Using Anderson-Darling test gives result " << testStat_AD << " ( " << pvalue_AD << " ) " << std::endl;
+    addGoFToWS(ws, Form("testStat_AD_%s", varLabel.c_str()), testStat_AD);
+    addGoFToWS(ws, Form("pvalue_AD_%s"  , varLabel.c_str()), pvalue_AD  );
+  }
+  //
+  // Binned Goodness-of-Fit tests
+  //
+  RooFit::RooGoF GoF_Binned(rData, rFit);
+  GoF_Binned.setRange(varP->getMin(), varP->getMax());
+  GoF_Binned.setRebin(5, false);
+  //
+  // Determine the number of free parameters
+  auto parList = std::unique_ptr<RooArgSet>(ws.pdf(pdfLabel.c_str())->getParameters(*ws.data(dataLabel.c_str())));
+  const int nFitPar = parList->selectByAttrib("Constant", kFALSE)->getSize();
+  //
+  // Baker-Cousins chi2 test
+  int ndof_BCChi2 = -1;
+  double pvalue_BCChi2 = -1., testStat_BCChi2 = -1.;
+  GoF_Binned.BCChi2Test(pvalue_BCChi2, testStat_BCChi2, ndof_BCChi2, nFitPar);
+  if (testStat_BCChi2>=0.0) {
+    std::cout << "[INFO] Using Baker-Cousins chi2 test gives result " << testStat_BCChi2 << "/" << ndof_BCChi2 << " ( " << pvalue_BCChi2 << " ) " << std::endl;
+    addGoFToWS(ws, Form("testStat_BCChi2_%s", varLabel.c_str()), testStat_BCChi2);
+    addGoFToWS(ws, Form("pvalue_BCChi2_%s"  , varLabel.c_str()), pvalue_BCChi2  );
+    addGoFToWS(ws, Form("ndofc_BCChi2_%s"   , varLabel.c_str()), ndof_BCChi2    );
+  }
+  //
+  // Pearson chi2 test
+  int ndof_PChi2 = -1;
+  double pvalue_PChi2 = -1., testStat_PChi2 = -1.;
+  GoF_Binned.PearsonChi2Test(pvalue_PChi2, testStat_PChi2, ndof_PChi2, nFitPar);
+  if (testStat_PChi2>=0.0) {
+    std::cout << "[INFO] Using Pearson chi2 test gives result " << testStat_PChi2 << "/" << ndof_PChi2 << " ( " << pvalue_PChi2 << " ) " << std::endl;
+    addGoFToWS(ws, Form("testStat_PChi2_%s", varLabel.c_str()), testStat_PChi2);
+    addGoFToWS(ws, Form("pvalue_PChi2_%s"  , varLabel.c_str()), pvalue_PChi2  );
+    addGoFToWS(ws, Form("ndofc_PChi2_%s"   , varLabel.c_str()), ndof_PChi2    );
+  }
+  //
+  // Default RooFit chi2 test (NOT RECOMMENDED)
+  int ndof_RooFitChi2 = -1;
+  double pvalue_RooFitChi2 = -1., testStat_RooFitChi2 = -1.;
+  GoF_Binned.RooFitChi2Test(pvalue_RooFitChi2, testStat_RooFitChi2, ndof_RooFitChi2, nFitPar);
+  if (testStat_RooFitChi2>=0.0) {
+    std::cout << "[INFO] Using RooFit chi2 test gives result " << testStat_RooFitChi2 << "/" << ndof_RooFitChi2 << " ( " << pvalue_RooFitChi2 << " ) " << std::endl;
+    addGoFToWS(ws, Form("testStat_RooFitChi2_%s", varLabel.c_str()), testStat_RooFitChi2);
+    addGoFToWS(ws, Form("pvalue_RooFitChi2_%s"  , varLabel.c_str()), pvalue_RooFitChi2  );
+    addGoFToWS(ws, Form("ndofc_RoofitChi2_%s"   , varLabel.c_str()), ndof_RooFitChi2    );
+  }
   //
   TLatex t = TLatex(); t.SetNDC(); t.SetTextSize(0.12);
-  t.DrawLatex(0.76, 0.85, Form("#chi^{2}/ndof = %.0f / %d ", chi2, ndof));
-  if (ws.var(Form("chi2_%s", varLabel.c_str()))) { ws.var(Form("chi2_%s", varLabel.c_str()))->setVal(chi2); }
-  else { ws.factory(Form("chi2_%s[%.6f]", varLabel.c_str(), chi2)); }
-  if (ws.var(Form("ndof_%s", varLabel.c_str()))) { ws.var(Form("ndof_%s", varLabel.c_str()))->setVal(ndof); }
-  else { ws.factory(Form("ndof_%s[%d]", varLabel.c_str(), ndof)); }
+  t.DrawLatex(0.76, 0.85, Form("#chi^{2}/ndof = %.0f / %d ", testStat_BCChi2, ndof_BCChi2));
+  //
   return true;
 };
 
