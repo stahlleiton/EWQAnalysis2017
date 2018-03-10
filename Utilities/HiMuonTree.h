@@ -1133,7 +1133,7 @@ GenPart HiMuonTree::findMuonMother(const int imuGenIdx, const int momPdg, const 
   UInt_t genPdg = std::abs(Gen_Particle_PdgId()[genIdx]);
   auto mom = Mother(genIdx);
   uint i = 1;
-  while(mom.idx!=genIdx && mom.pdg!=std::abs(momPdg) && i<numIter) {
+  while(mom.idx!=genIdx && mom.pdg!=(unsigned int)std::abs(momPdg) && i<numIter) {
     genIdx = mom.idx;
     genPdg = mom.pdg;
     mom = Mother(genIdx);

@@ -71,6 +71,7 @@ void fitter(
   userInput.Par["Analysis"] = Analysis;
   userInput.Int["numCores"] = numCores;
   userInput.Flag["setLogScale"] = setLogScale;
+  userInput.Flag["applyBosonPTCorr"] = false;
   //
   if (workDirName.find("QCDTemplateCM")!=std::string::npos) {
     userInput.Flag["applyHFCorr"]     = false;
@@ -118,6 +119,7 @@ void fitter(
     if (workDirName=="NominalCM_NoHFCorr"       ) { userInput.Flag.at("applyHFCorr")     = false; }
     if (workDirName=="NominalCM_NoTnPCorr"      ) { userInput.Flag.at("applyTnPCorr")    = false; }
     if (workDirName=="NominalCM_NTrackCorr"     ) { userInput.Par.at("HFCorrMethod") = "NTracks"; }
+    if (workDirName=="NominalCM_BosonPTCorr"    ) { userInput.Flag.at("applyBosonPTCorr") = true; }
     //
     if (workDirName=="NominalCM_RecoilScalingOneGaussDATA" ) { userInput.Par.at("RecoilCorrMethod") = "Scaling_OneGaussianDATA"; }
     if (workDirName=="NominalCM_RecoilScalingOneGaussMC"   ) { userInput.Par.at("RecoilCorrMethod") = "Scaling_OneGaussianMC";   }

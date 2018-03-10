@@ -104,7 +104,7 @@ public :
   Float_t                   vz_                 = -99.;
   Int_t                     ProcessID_          = -1;
   Float_t                   pthat_              = -1.;
-  Float_t                   weight_             = 1.;
+  Float_t                   weight_             = 0.;
   Float_t                   alphaQCD_           = -1.;
   Float_t                   alphaQED_           = -1.;
   Float_t                   qScale_             = -1.;
@@ -286,7 +286,7 @@ void HiEvtTree::InitTree(void)
   vz_                 = -99.;
   ProcessID_          = -1;
   pthat_              = -1.;
-  weight_             = 1.;
+  weight_             = 0.;
   alphaQCD_           = -1.;
   alphaQED_           = -1.;
   qScale_             = -1.;
@@ -379,7 +379,7 @@ void HiEvtTree::Clear(void)
   vz_                 = -99.;
   ProcessID_          = -1;
   pthat_              = -1.;
-  weight_             = -1.;
+  weight_             = 0.;
   alphaQCD_           = -1.;
   alphaQED_           = -1.;
   qScale_             = -1.;
