@@ -636,8 +636,8 @@ bool applyMCCorrection(RooWorkspace& ws, RooWorkspace& corrWS, const RooWorkspac
     //
     if (applyBosonPTCorr) {
       // Get the Boson pT
-      auto bosonPt = (RooRealVar*)mcCols.find("Boson_Pt");
-      if (bosonPt==NULL) { std::cout << "[ERROR] applyMCCorrection: Variable Boson_Pt was not found in " << dDSName << std::endl; return false; }
+      auto bosonPt = (RooRealVar*)mcCols.find("GenBoson_Pt");
+      if (bosonPt==NULL) { std::cout << "[ERROR] applyMCCorrection: Variable Gen Boson_Pt was not found in " << dDSName << std::endl; return false; }
       double bosonPT = bosonPt->getVal(); if (bosonPT < 0.5) { bosonPT = 0.5; } // Weights derived down to 0.5 GeV
       // Compute the Boson pT weight
       const double weightBPT = ( 1.0 / ( ( -0.37 * std::pow(bosonPT, -0.37) ) + 1.19 ) );
