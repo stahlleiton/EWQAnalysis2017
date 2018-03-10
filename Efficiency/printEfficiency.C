@@ -71,11 +71,11 @@ const char*  sgn                 ( const double n ) { if (n >= 0.) { return "+";
 //
 
 
-void printEfficiency(const std::string workDirName = "NominalCM", const uint applyHFCorr = 1)
+void printEfficiency(const std::string workDirName = "NominalCM", const uint applyHFCorr = 1, const bool applyBosonPTCorr = true)
 {
   // Change the working directory
   const std::string CWD = getcwd(NULL, 0);
-  const std::string mainDir = Form("%s/Output/%s/", CWD.c_str(), (workDirName+((applyHFCorr==1) ? "_WithHF" : ((applyHFCorr==2) ? "_WithNTrack" : ""))).c_str());
+  const std::string mainDir = Form("%s/Output/%s/", CWD.c_str(), (workDirName+((applyBosonPTCorr) ? "_WithBosonPT" : "")+((applyHFCorr==1) ? "_WithHF" : ((applyHFCorr==2) ? "_WithNTrack" : ""))).c_str());
   gSystem->mkdir(mainDir.c_str(), kTRUE);
   gSystem->ChangeDirectory(mainDir.c_str());
   //
@@ -222,7 +222,7 @@ void formatEff1D(TEfficiency& eff, const std::string& col, const std::string& va
   // Set Axis Titles
   eff.SetTitle(Form(";%s;%s", xLabel.c_str(), yLabel.c_str()));
   if (graph) { formatEff1D(*graph, col, var, charge, type); }
-  gPad->Update(); 
+  gPad->Update();
 };
 
 

@@ -114,7 +114,7 @@ const std::map< std::string , std::vector< std::pair< std::string , double > > >
 std::map< std::string , std::vector< std::string > > sampleType_;
 
 
-void correctEfficiency(const std::string workDirName = "NominalCM", const uint applyHFCorr = 1)
+void correctEfficiency(const std::string workDirName = "NominalCM", const uint applyHFCorr = 1, const bool applyBosonPTCorr = true)
 {
   //
   // Initialize the Kinematic Bin info
@@ -168,7 +168,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const uint a
   CorrMap_t corrType;
   //
   corrType["NoCorr"] = 1;
-  corrType["TnP_Nominal"] = 1;  
+  corrType["TnP_Nominal"] = 1;
   if (applyHFCorr>0) { corrType["HFCorr"] = 1; }
   //
   corrType["TnP_Syst_MuID"   ] = corrType_.at("TnP_Syst_MuID");
@@ -300,6 +300,19 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const uint a
       for (ushort iGenMu = 0; iGenMu < muonTree.at(sample)->Gen_Muon_Mom().size(); iGenMu++) {
         // Check the content of the MC
         if (PA::checkGenMuon(iGenMu, sampleType, muonTree.at(sample)) == false) continue;
+        // Determine the Boson PT Weight from Drell-Yan analysis
+        double evtW = evtWeight;
+        if (applyBosonPTCorr) {
+          // Determine the gen boson pT
+          const auto momIdx = PA::getGenMom(iGenMu, sampleType, muonTree.at(sample));
+          if (momIdx>=0) {
+            const auto momPdg = std::abs(muonTree.at(sample)->Gen_Particle_PdgId()[momIdx]);
+            if (momPdg<22 || momPdg>24) { std::cout << "[ERROR] Mother pdg " << momPdg << " can not be used to correct the boson pT" << std::endl; return; }
+            double bosonPT = muonTree.at(sample)->Gen_Particle_Mom()[momIdx].Pt();
+            if (bosonPT<0.5) { bosonPT = 0.5; }
+            evtW *= ( 1.0 / ( ( -0.37 * std::pow(bosonPT, -0.37) ) + 1.19 ) );
+          }
+        }
         // Check if the generated muon pass the kinematic cuts
         const bool isGoodGenMuon  = PA::selectGenMuon(iGenMu, muonTree.at(sample));
         // Extract the kinematic information of generated muon
@@ -370,12 +383,12 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const uint a
           //
           // Total Efficiency (Based on Generated muons)
           //
-          if (!fillEff1D(h1D, (passIdentification && passTrigger && passIsolation), "Total", genMuonVar, sfTnP, wMC, evtWeight, MU_BIN)) { return; }
+          if (!fillEff1D(h1D, (passIdentification && passTrigger && passIsolation), "Total", genMuonVar, sfTnP, wMC, evtW, MU_BIN)) { return; }
         }
         //
         // Total Acceptance (Based on Generated muons)
         //
-        if (!fillEff1D(h1D, isGoodGenMuon, "Acceptance", genMuonVar, sfTnP, wMC, evtWeight, MU_BIN)) { return; }
+        if (!fillEff1D(h1D, isGoodGenMuon, "Acceptance", genMuonVar, sfTnP, wMC, evtW, MU_BIN)) { return; }
       }
     }
   }
@@ -410,6 +423,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const uint a
   // Store the Efficiencies
   //
   std::string outDir = mainDir + workDirName;
+  if    (applyBosonPTCorr) { outDir += "_WithBosonPT"; }
   if      (applyHFCorr==1) { outDir += "_WithHF/";     }
   else if (applyHFCorr==2) { outDir += "_WithNTrack/"; }
   else { outDir += "/"; }

@@ -210,7 +210,7 @@ namespace POWHEG {
 //
 namespace PYTHIA {
   std::map< std::string , std::map< std::string , double > > XSec = {  
-    { "QCDToMu"  , { { "pPb" , (28919.33 * 0.78998) }  , { "Pbp" , 28927.43 * 0.81767 } } }, // pPb: 3.67970e+05 * 3.77844e-4 * 208. 48.68  Pbp: 3.67966e+05 * 3.77954e-4 * 208.
+    { "QCDToMu"  , { { "pPb" , (28919.33 * 0.6786) }  , { "Pbp" , 28927.43 * 0.6786 } } }, // pPb: 3.67970e+05 * 3.77844e-4 * 208. 48.68  Pbp: 3.67966e+05 * 3.77954e-4 * 208.
     { "WWall"    , { { "pPb" , 12.83 } , { "Pbp" , 12.83 } } },
     { "WZall"    , { { "pPb" , 4.63  } , { "Pbp" , 4.63  } } },
     { "ZZall"    , { { "pPb" , 2.09  } , { "Pbp" , 2.09  } } }
@@ -447,6 +447,47 @@ namespace PA {
     }
     //
     return false;
+  };
+  //
+  int getGenMom(const ushort& iGenMu, const std::string& sample, const std::unique_ptr<HiMuonTree>& muonTree)
+  {
+    if (
+        (sample.find("MC_TT")     == std::string::npos) && (sample.find("MC_DY")  == std::string::npos) && (sample.find("MC_DYToTau") == std::string::npos) &&
+        (sample.find("MC_ZZ")     == std::string::npos) && (sample.find("MC_WW")  == std::string::npos) && (sample.find("MC_WZ") == std::string::npos) &&
+        (sample.find("MC_Z")      == std::string::npos) && (sample.find("MC_W")   == std::string::npos) &&
+        (sample.find("MC_WToTau") == std::string::npos) && (sample.find("MC_QCD") == std::string::npos)
+        )
+      { std::cout << "[ERROR] GEN sample " << sample << " has an INVALID NAME!" << std::endl; return false; }
+    //
+    if (sample.find("MC_DY")!=std::string::npos) { // Z/gamma* -> Muon + Muon
+      const auto& mom1 = muonTree->findMuonMother(iGenMu, 23, 1); if (mom1.pdg==23) { return mom1.idx; }
+      const auto& mom2 = muonTree->findMuonMother(iGenMu, 22, 1); if (mom2.pdg==22) { return mom2.idx; }
+    }
+    else if (sample.find("MC_DYToTau")!=std::string::npos) { // Z/gamma* -> Tau -> Muon + Muon
+      const auto& mom1 = muonTree->findMuonMother(iGenMu, 23, 2); if (mom1.pdg==23) { return mom1.idx; }
+      const auto& mom2 = muonTree->findMuonMother(iGenMu, 22, 2); if (mom2.pdg==22) { return mom2.idx; }
+    }
+    else if (sample.find("MC_Z")!=std::string::npos) { // Z -> X -> Muon
+      const auto& mom1 = muonTree->findMuonMother(iGenMu, 23, 1); if (mom1.pdg==23) { return mom1.idx; }
+    }
+    else if (sample.find("MC_ZZ")!=std::string::npos) {
+      const auto& mom1 = muonTree->findMuonMother(iGenMu, 23, 2); if (mom1.pdg==23) { return mom1.idx; }
+    }
+    else if (sample.find("MC_WZ")!=std::string::npos) { // Z -> X -> Muon or W -> X -> Muon
+      const auto& mom1 = muonTree->findMuonMother(iGenMu, 24, 2); if (mom1.pdg==24) { return mom1.idx; }
+      const auto& mom2 = muonTree->findMuonMother(iGenMu, 23, 2); if (mom2.pdg==23) { return mom2.idx; }
+    }
+    else if (sample.find("MC_W")!=std::string::npos) { // W -> Muon + Neutrino
+      const auto& mom1 = muonTree->findMuonMother(iGenMu, 24, 1); if (mom1.pdg==24) { return mom1.idx; }
+    }
+    else if (sample.find("MC_WW")!=std::string::npos) { // W -> X -> Muon
+      const auto& mom1 = muonTree->findMuonMother(iGenMu, 24, 2); if (mom1.pdg==24) { return mom1.idx; }
+    }
+    else if (sample.find("MC_WToTau")!=std::string::npos) { // W -> Tau -> Muon + Neutrinos
+      const auto& mom1 = muonTree->findMuonMother(iGenMu, 24, 2); if (mom1.pdg==24) { return mom1.idx; }
+    }
+    //
+    return -1;
   };
   //
   bool selectGenMuon(const ushort& iGenMu, const std::unique_ptr<HiMuonTree>& muonTree)

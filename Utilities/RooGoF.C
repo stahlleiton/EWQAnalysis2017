@@ -201,7 +201,7 @@ namespace RooFit {
                continue;
             }
 
-            if (mode==BCChi2) testStat += ff - dd + dd*log(dd/ff);
+            if (mode==BCChi2) testStat += ff - dd + (dd>0.0 ? dd*log(dd/ff) : 0.0);
             else if (mode==PearsonChi2) testStat += pow(dd-ff,2)/ff;
             else if (mode==NeymanChi2) testStat += pow(dd-ff,2)/dd;
 
@@ -235,7 +235,7 @@ namespace RooFit {
             }
 
             if (ddp>=0 || ffp>=0) { // if either of ddp or ffp is positive, we are not in the first bin
-               if (mode==BCChi2) dchi2 = ffp - ddp + ddp*log(ddp/ffp);
+               if (mode==BCChi2) dchi2 = ffp - ddp + (ddp>0.0 ? ddp*log(ddp/ffp) : 0.0);
                else if (mode==PearsonChi2) dchi2 = pow(ddp-ffp,2)/ffp;
                else if (mode==NeymanChi2) dchi2 = pow(ddp-ffp,2)/ddp;
 
@@ -256,9 +256,9 @@ namespace RooFit {
             ddp+=dd; ffp+=ff;
          }
 
-         if (mode==BCChi2) dchi2 = ffp - ddp + ddp*log(ddp/ffp);
-         else if (mode==PearsonChi2) dchi2 = pow(ddp-ffp,2)/ffp;
-         else if (mode==NeymanChi2) dchi2 = pow(ddp-ffp,2)/ddp;
+         if (mode==BCChi2 && ffp>0) dchi2 = ffp - ddp + (ddp>0.0 ? ddp*log(ddp/ffp) : 0.0);
+         else if (mode==PearsonChi2 && ffp>0) dchi2 = pow(ddp-ffp,2)/ffp;
+         else if (mode==NeymanChi2 && ddp>0) dchi2 = pow(ddp-ffp,2)/ddp;
 
          testStat += dchi2;
          nbin++;

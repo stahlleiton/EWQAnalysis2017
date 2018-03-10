@@ -38,6 +38,7 @@
 #include "../../../Utilities/CMS/tdrstyle.C"
 #include "../../../Utilities/CMS/CMS_lumi.C"
 #include "../../../Utilities/EVENTUTILS.h"
+#include "../../../Utilities/RooGoF.C"
 
 #include <iostream>
 #include <sstream>
@@ -531,7 +532,7 @@ bool makeRatioHist(RooHist& rHist, const RooPlot& frame, const std::string histn
     if (useAverage) { fitVal = rFit->average(x-exl, x+exh); }
     else            { fitVal = rFit->interpolate(x);        }
     // Set Values
-    if (fitVal>0.0) {
+    if (fitVal>0.0 && dataVal>0.0) {
       const double y = (dataVal / fitVal);
       eyl /= fitVal;
       eyh /= fitVal;
