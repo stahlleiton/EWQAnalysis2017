@@ -101,9 +101,10 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
     RooRealVar muPhi    = RooRealVar ( "Muon_Phi"  , "#mu #phi"                   ,   -9.0 ,            9.0 , ""      );
     RooRealVar hiHF     = RooRealVar ( "hiHF"      , "Total E_{HF}"               ,   -1.0 ,       100000.0 , "GeV/c" );
     RooRealVar nTracks  = RooRealVar ( "nTracks"   , "Number of Tracks"           ,   -1.0 ,   1000000000.0 , ""      );
+    RooRealVar gbosonPt = RooRealVar ( "GenBoson_Pt" , "Gen Boson p_{T}"          ,   -1.0 ,       100000.0 , "GeV/c" );
     //
     RooArgSet  mcCols = RooArgSet(mcNGen, mcType, bosonPt, bosonPhi, refPt, refPhi);
-    mcCols.add(metPhi); mcCols.add(muPhi); mcCols.add(hiHF); mcCols.add(nTracks);
+    mcCols.add(metPhi); mcCols.add(muPhi); mcCols.add(hiHF); mcCols.add(nTracks); mcCols.add(gbosonPt);
     ///// MET Information
     RooRealVar metMag_RAW       = RooRealVar ( "MET_Mag_PF_RAW"        , "|#slash{E}_{T}|"     ,   -1.0 , 100000.0 , "GeV/c" );
     RooRealVar metPhi_RAW       = RooRealVar ( "MET_Phi_PF_RAW"        , "#slash{E}_{T} #phi"  ,   -9.0 ,      9.0 , ""      );
@@ -272,6 +273,17 @@ bool EWQForest_WToMuNu(RooWorkspaceMap_t& Workspaces, const StringVectorMap_t& F
         muPhi.setVal    ( muP4.Phi()     );
         hiHF.setVal     ( evtTree->hiHF());
         nTracks.setVal  ( evtTree->hiNtracks());
+      }
+        // Determine the gen boson pT
+      if (isMC) {
+        double gbosonPT = -1.0;
+        const auto momIdx = PA::getGenMom(muonTree->PF_Muon_Gen_Idx()[leadMuPFIdx], DSNames[0], muonTree);
+        if (momIdx>=0) {
+          const auto momPdg = std::abs(muonTree->Gen_Particle_PdgId()[momIdx]);
+          if (momPdg<22 || momPdg>24) { std::cout << "[ERROR] Mother pdg " << momPdg << " can not be used to correct the boson pT" << std::endl; return false; }
+          gbosonPT = muonTree->Gen_Particle_Mom()[momIdx].Pt();
+        }
+        gbosonPt.setVal ( gbosonPT );
       }
       //
       //// Fill the RooDataSets
