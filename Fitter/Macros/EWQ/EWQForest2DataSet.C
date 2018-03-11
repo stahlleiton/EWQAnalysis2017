@@ -650,14 +650,16 @@ bool applyMCCorrection(RooWorkspace& ws, RooWorkspace& corrWS, const RooWorkspac
       // Get the Boson pT
       auto bosonPt = (RooRealVar*)mcCols.find("GenBoson_Pt");
       if (bosonPt==NULL) { std::cout << "[ERROR] applyMCCorrection: Variable Gen Boson_Pt was not found in " << dDSName << std::endl; return false; }
-      double bosonPT = bosonPt->getVal(); if (bosonPT < 0.5) { bosonPT = 0.5; } // Weights derived down to 0.5 GeV
-      // Compute the Boson pT weight
-      const double weightBPT = ( 1.0 / ( ( -0.37 * std::pow(bosonPT, -0.37) ) + 1.19 ) );
-      if (weightBPT==0.) { std::cout << "[ERROR] Weight is zero for boson pT " << bosonPT << " in " << dDSName << std::endl; return false; }
-      if (weightBPT <0.) { std::cout << "[ERROR] Weight is negative for boson pT " << bosonPT << " in " << dDSName << std::endl; return false; }
-      mcWBPT.setVal( weightBPT );
-      // Set the Boson pT weight
-      weight.setVal( weight.getVal() * mcWBPT.getVal() );
+      if (bosonPt->getVal()>=0.0) {
+        double bosonPT = bosonPt->getVal(); if (bosonPT < 0.5) { bosonPT = 0.5; } // Weights derived down to 0.5 GeV
+        // Compute the Boson pT weight
+        const double weightBPT = ( 1.0 / ( ( -0.37 * std::pow(bosonPT, -0.37) ) + 1.19 ) );
+        if (weightBPT==0.) { std::cout << "[ERROR] Weight is zero for boson pT " << bosonPT << " in " << dDSName << std::endl; return false; }
+        if (weightBPT <0.) { std::cout << "[ERROR] Weight is negative for boson pT " << bosonPT << " in " << dDSName << std::endl; return false; }
+        mcWBPT.setVal( weightBPT );
+        // Set the Boson pT weight
+        weight.setVal( weight.getVal() * mcWBPT.getVal() );
+      }
     }
     //
     // Apply the Tag And Probe corrections
