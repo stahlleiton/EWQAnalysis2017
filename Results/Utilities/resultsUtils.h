@@ -214,6 +214,16 @@ void iniResultsTreeInfo( TreeInfo& info , const std::string& thePoiNames )
   info.Var["TEST_FIT"]["Chi2"] = -1.0;
   info.Var["TEST_FIT"]["NDoF"] = -1.0;
   info.Var["TEST_FIT"]["Val"] = -1.0;
+  info.Var["TEST_FIT_KS"]["KS"] = -1.0;
+  info.Var["TEST_FIT_KS"]["Val"] = -1.0;
+  info.Var["TEST_FIT_AD"]["AD"] = -1.0;
+  info.Var["TEST_FIT_AD"]["Val"] = -1.0;
+  info.Var["TEST_FIT_BCChi2"]["Chi2"] = -1.0;
+  info.Var["TEST_FIT_BCChi2"]["NDoF"] = -1.0;
+  info.Var["TEST_FIT_BCChi2"]["Val"] = -1.0;
+  info.Var["TEST_FIT_PChi2"]["Chi2"] = -1.0;
+  info.Var["TEST_FIT_PChi2"]["NDoF"] = -1.0;
+  info.Var["TEST_FIT_PChi2"]["Val"] = -1.0;
   //
   // Initialize the model name containers
   const std::vector< std::string > objType = { "W" , "WToTau" , "DY" , "DYToTau" , "TTbar" , "QCD" };
@@ -2690,11 +2700,8 @@ void createYieldTable(std::vector< std::string >& texTable, const std::vector< s
       else if (v=="N_FIT_Entries") {
         val = Form("%.0f", var.at("Val"));
       }
-      else if (v=="TEST_FIT") {
-        const double Chi2 = var.at("Chi2");
-        const double NDoF = var.at("NDoF");
-        const double pVal = TMath::Prob(Chi2, NDoF);
-        //const double pVal = var.at("Val");
+      else if (v=="TEST_FIT_BCChi2") {
+        const double pVal = var.at("Val");
         val = Form("%.2f", pVal);
       }
       else if (v=="Acceptance_MC" || v=="Efficiency_MC" || v=="Efficiency_TnP") {
@@ -2739,7 +2746,7 @@ void makeRawYieldsTable(std::ofstream& file, const VarBinMap& inputVar, const st
   std::vector< std::string > texTable;
   //
   // Determine number of columns
-  const std::vector< std::string > allColVar    = { "Muon_Eta" , "N_DS_Entries" , "N_FIT_Entries" , "N_WToMu_RAW" , "N_DYToMu" , "N_WToTauToMu" , "N_DYToTauToMu" , "N_TTbarToMu" , "N_QCDToMu" , "TEST_FIT" };
+  const std::vector< std::string > allColVar    = { "Muon_Eta" , "N_DS_Entries" , "N_FIT_Entries" , "N_WToMu_RAW" , "N_DYToMu" , "N_WToTauToMu" , "N_DYToTauToMu" , "N_TTbarToMu" , "N_QCDToMu" , "TEST_FIT_BCChi2" };
   std::vector< std::string > allColTitle1 = { "$\\eta_{LAB}$ Range" , "Total"  , "Fitted" , "Signal" , "\\DYToMuMu" , "\\WToTauNu" , "\\DYToTauTau" , "\\ttbar" , "QCD" , "p-value ($\\chi^{2}$)" };
   if (useEtaCM) { allColTitle1[0] = "$\\eta_{CM}$ Range"; }
   //

@@ -5,9 +5,9 @@
 #include "TGaxis.h"
 
 void       printElectroWeakMETParameters ( TPad& pad , const RooWorkspace& ws , const std::string& pdfName , const uint& drawMode );
-void       printElectroWeakBinning       ( TPad& pad , const RooWorkspace& ws , const std::string& dsName , const std::vector< std::string >& text , const uint& drawMode );
+void       printElectroWeakBinning       ( TPad& pad , const RooWorkspace& ws , const std::string& dsName , const std::vector< std::string >& text , const uint& drawMode , const bool paperStyle );
 void       printElectroWeakLegend        ( TPad& pad , TLegend& leg , const RooPlot& frame , const StringDiMap_t& legInfo );
-void       setRange                      ( RooPlot& frame , const RooWorkspace& ws , const std::string& varName , const std::string& dsName , const bool& setLogScale );
+void       setRange                      ( RooPlot& frame , const RooWorkspace& ws , const std::string& varName , const std::string& dsName , const bool& setLogScale , const int& nBins );
 bool       getVar                        ( std::vector<RooRealVar>& varVec, const RooWorkspace& ws, const std::string& name, const std::string& pdfName );
 void       parseVarName                  ( const std::string& name, std::string& label );
 bool       printGoF                      ( TPad& pad , RooWorkspace& ws , const RooPlot& frame , const string& varLabel , const string& dataLabel , const string& pdfLabel );
@@ -17,9 +17,10 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
                              const std::string& fileName,
                              const std::string& outputDir,
                              const bool& yLogScale,
-			     const bool saveAll = true,
                              const double maxRng = -1.0,
-                             const bool doGoF = true
+                             const bool doGoF = true,
+                             const bool paperStyle = false,
+                             const bool redoFrame = false
                              )
 {
   //
@@ -36,7 +37,6 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   const std::string dsName = ( "d" + chg + "_" + DSTAG );
   const std::string dsNameFit = ( (ws.data((dsName+"_FIT").c_str())!=NULL) ? (dsName+"_FIT") : dsName );
   const std::string pdfName = Form("pdfMET_Tot%s", tag.c_str());
-  const bool paperStyle = false;
   const bool setLogScale = yLogScale;
   //
   // Create the Range for Plotting
@@ -46,6 +46,9 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   const int    nBins    = int(std::round((maxRange - minRange)/binWidth));
   ws.var("MET")->setRange("METWindowPlot", minRange, maxRange);
   ws.var("MET")->setBins(nBins, "METWindowPlot");
+  // BUG FIX
+  const int oNBins = ws.var("MET")->getBins(); const double oMinRange = ws.var("MET")->getMin(); const double oMaxRange = ws.var("MET")->getMax();
+  ws.var("MET")->setBins(nBins); ws.var("MET")->setRange(minRange, maxRange);
   //
   if (ws.data(dsName.c_str())==NULL) { std::cout << "[ERROR] Dataset " << dsName << " was not found!" << std::endl; return false; }
   //
@@ -76,26 +79,93 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   std::map< std::string , TPad* > pad; // Unique Pointer does produce Segmentation Fault, so don't use it
   //
   // Create the main plot of the fit
-  frame["MAIN"] = std::unique_ptr<RooPlot>(ws.var("MET")->frame( RooFit::Range("METWindowPlot") ));
-  if (ws.data(("CutAndCount_"+dsName).c_str())) {
-    ws.data(("CutAndCount_"+dsName).c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::Binning("METWindowPlot"),
-                                                     RooFit::DataError(RooAbsData::SumW2), RooFit::XErrorSize(0),
-                                                     RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
-  }
+  const std::string frameName = Form("frame_Tot%s", tag.c_str());
+  if (!redoFrame && ws.obj(frameName.c_str())!=NULL) { frame["MAIN"] = std::unique_ptr<RooPlot>((RooPlot*)ws.obj(frameName.c_str())); }
   else {
-    ws.data(dsName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::Binning("METWindowPlot"),
-                                    RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
+    frame["MAIN"] = std::unique_ptr<RooPlot>(ws.var("MET")->frame( RooFit::Range("METWindowPlot") ));
+    if (ws.data(("CutAndCount_"+dsName).c_str())) {
+      ws.data(("CutAndCount_"+dsName).c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::Binning("METWindowPlot"),
+                                                       RooFit::DataError(RooAbsData::SumW2), RooFit::XErrorSize(0),
+                                                       RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
+    }
+    else {
+      ws.data(dsName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::Binning("METWindowPlot"),
+                                      RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
+    }
+    //
+    if (ws.pdf(pdfName.c_str())) {
+      RooArgList pdfList = ((RooAddPdf*)ws.pdf(pdfName.c_str()))->pdfList();
+      if (pdfList.getSize()==1) {
+        const double norm = ((RooAddPdf*)ws.pdf(pdfName.c_str()))->expectedEvents(RooArgSet(*ws.var("MET")));
+        ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())), RooFit::Range("METWindowPlot"), RooFit::NormRange("METWindowPlot"),
+                                        RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-7),
+                                        RooFit::LineColor(kBlack), RooFit::LineStyle(1)
+                                        );
+      }
+      else {
+        double norm = ((RooAddPdf*)ws.pdf(pdfName.c_str()))->expectedEvents(RooArgSet(*ws.var("MET")));
+        const std::map< std::string , int > colorMap = { {"W" , kYellow} , {"DY" , kGreen+2} , {"WToTau" , kRed+1} , {"QCD" , kAzure-9} , {"TTbar" , kOrange+1} ,
+                                                         {"DYToTau" , kBlue+2} , {"WW" , kMagenta+1} };
+        const std::map< std::string , double > pdfMapOrder = { {"W" , 9} , {"QCD" , 8} , {"DY" , 7} , {"WToTau" , 6} , {"DYToTau" , 5} , {"TTbar" , 4} , {"WW" , 3} };
+        std::unique_ptr<TIterator> pdfIt = std::unique_ptr<TIterator>(pdfList.createIterator());
+        std::unique_ptr<RooArgList> list = std::unique_ptr<RooArgList>((RooArgList*)pdfList.Clone());
+        if (list==NULL) { std::cout << "[ERROR] List of PDFs from " << pdfName << " is empty!" << std::endl; return false; }
+        std::map< double , RooAbsPdf* , std::greater< double > > pdfMap;
+        std::map< std::string , double > pdfEvt;
+        for (RooAbsPdf* it = (RooAbsPdf*)pdfIt->Next(); it!=NULL; it = (RooAbsPdf*)pdfIt->Next() ) {
+          std::string obj = it->GetName(); obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find(cha));
+          double events = 0.;
+          if (ws.var(("N_"+obj+cha+chg+"_"+col).c_str())) { events = ws.var(("N_"+obj+cha+chg+"_"+col).c_str())->getValV(); }
+          else if (ws.function(("N_"+obj+cha+chg+"_"+col).c_str())) { events = ws.function(("N_"+obj+cha+chg+"_"+col).c_str())->getValV(); }
+          else { std::cout << "[ERROR] The variable " << ("N_"+obj+cha+chg+"_"+col) << " was not found in the workspace" << std::endl; return false; }
+          pdfMap[pdfMapOrder.at(obj)] = it;
+          pdfEvt[obj] = events;
+        }
+        for (const auto& elem : pdfMap) {
+          RooAbsPdf* it = elem.second;
+          const std::string name = it->GetName();
+          std::string obj = name; obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find(cha));
+          if (norm > 0.0) {
+            RooArgList coef; RooArgList pdfs;
+            std::unique_ptr<TIterator> tmpIt = std::unique_ptr<TIterator>(list->createIterator());
+            for (RooAbsPdf* it = (RooAbsPdf*)tmpIt->Next(); it!=NULL; it = (RooAbsPdf*)tmpIt->Next() ) {
+              std::string obj = it->GetName(); obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find(cha));
+              const std::string name = ("N_"+obj+cha+chg+"_"+col);
+              pdfs.add(*it);
+              if (ws.var(name.c_str())) { coef.add(*ws.var(name.c_str())); }
+              else if (ws.function(name.c_str())) { coef.add(*ws.function(name.c_str())); }
+            }
+            const std::string pdfPlotName = Form("pdfPlot_%s", name.c_str());
+            auto pf = RooAddPdf(pdfPlotName.c_str(), pdfPlotName.c_str(), pdfs, coef); if (ws.pdf(pdfPlotName.c_str())==NULL) { ws.import(pf); }
+            ws.pdf(pdfPlotName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", name.c_str())), RooFit::Range("METWindowPlot"), RooFit::NormRange("METWindowPlot"),
+                                                RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-6),
+                                                RooFit::FillStyle(1001), RooFit::FillColor(colorMap.at(obj)), RooFit::VLines(), RooFit::DrawOption("F")
+                                                );
+          }
+          list->remove(*it);
+          norm -= pdfEvt.at(obj);
+        }
+        //
+        ws.data(dsName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::Binning("METWindowPlot"),
+                                        RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
+        //
+        norm = ws.data(dsNameFit.c_str())->sumEntries();
+        ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())), RooFit::Range("METWindowPlot"), RooFit::NormRange("METWindowPlot"),
+                                        RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-7),
+                                        RooFit::LineColor(kBlack), RooFit::LineStyle(1)
+                                        );
+      }
+    }
+    // Store the frame
+    frame.at("MAIN")->SetTitle(frameName.c_str());
+    if (ws.obj(frameName.c_str())==NULL) { ws.import(*frame.at("MAIN"), frame.at("MAIN")->GetTitle()); }
   }
+  //
   legInfo["DATA"][Form("plot_Tot%s", dsName.c_str())] = ( isMC ? "Simulation" : "Data" );
   //
   if (ws.pdf(pdfName.c_str())) {
     RooArgList pdfList = ((RooAddPdf*)ws.pdf(pdfName.c_str()))->pdfList();
     if (pdfList.getSize()==1) {
-      const double norm = ((RooAddPdf*)ws.pdf(pdfName.c_str()))->expectedEvents(RooArgSet(*ws.var("MET")));
-      ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())), RooFit::Range("METWindowPlot"), RooFit::NormRange("METWindowPlot"),
-                                      RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-7),
-                                      RooFit::LineColor(kBlack), RooFit::LineStyle(1)
-                                      );
       legInfo["PDF"][Form("plot_%s", pdfName.c_str())] = "Total Fit";
       frame["EXTRA"] = std::unique_ptr<RooPlot>((RooPlot*)frame.at("MAIN")->emptyClone("EXTRA"));
       RooHist* hPull = new RooHist(2.0); // !!!DONT USE UNIQUE POINTER!!!!, 2 represents the binWidth of MET
@@ -105,59 +175,12 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
       drawMode = 1;
     }
     else {
-      double norm = ((RooAddPdf*)ws.pdf(pdfName.c_str()))->expectedEvents(RooArgSet(*ws.var("MET")));
-      const std::map< std::string , int > colorMap = { {"W" , kYellow} , {"DY" , kGreen+2} , {"WToTau" , kRed+1} , {"QCD" , kAzure-9} , {"TTbar" , kOrange+1} ,
-                                                       {"DYToTau" , kBlue+2} , {"WW" , kMagenta+1} };
-      const std::map< std::string , double > pdfMapOrder = { {"W" , 9} , {"QCD" , 8} , {"DY" , 7} , {"WToTau" , 6} , {"DYToTau" , 5} , {"TTbar" , 4} , {"WW" , 3} };
-      std::unique_ptr<TIterator> pdfIt = std::unique_ptr<TIterator>(pdfList.createIterator());
-      std::unique_ptr<RooArgList> list = std::unique_ptr<RooArgList>((RooArgList*)pdfList.Clone());
-      if (list==NULL) { std::cout << "[ERROR] List of PDFs from " << pdfName << " is empty!" << std::endl; return false; }
-      std::map< double , RooAbsPdf* , std::greater< double > > pdfMap;
-      std::map< std::string , double > pdfEvt;
-      for (RooAbsPdf* it = (RooAbsPdf*)pdfIt->Next(); it!=NULL; it = (RooAbsPdf*)pdfIt->Next() ) {
-        std::string obj = it->GetName(); obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find(cha));
-        double events = 0.;
-        if (ws.var(("N_"+obj+cha+chg+"_"+col).c_str())) { events = ws.var(("N_"+obj+cha+chg+"_"+col).c_str())->getValV(); }
-        else if (ws.function(("N_"+obj+cha+chg+"_"+col).c_str())) { events = ws.function(("N_"+obj+cha+chg+"_"+col).c_str())->getValV(); }
-        else { std::cout << "[ERROR] The variable " << ("N_"+obj+cha+chg+"_"+col) << " was not found in the workspace" << std::endl; return false; }
-        pdfMap[pdfMapOrder.at(obj)] = it;
-        pdfEvt[obj] = events;
+      const std::vector< std::string > pdfOrder = { "W" , "QCD" , "DY" , "WToTau" , "DYToTau" , "TTbar" };
+      for (const auto& pdfT : pdfOrder) {
+        const std::string obj = pdfT;
+        const std::string name = Form("pdfMETTot_%s%s%s_%s", obj.c_str(), cha.c_str(), chg.c_str(), col.c_str());
+        legInfo["TEMP"][Form("plot_%s", name.c_str())] = formatCut(obj);
       }
-      for (const auto& elem : pdfMap) {
-        RooAbsPdf* it = elem.second;
-        const std::string name = it->GetName();
-        std::string obj = name; obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find(cha));
-        if (norm > 0.0) {
-          RooArgList coef; RooArgList pdfs;
-          std::unique_ptr<TIterator> tmpIt = std::unique_ptr<TIterator>(list->createIterator());
-          for (RooAbsPdf* it = (RooAbsPdf*)tmpIt->Next(); it!=NULL; it = (RooAbsPdf*)tmpIt->Next() ) {
-            std::string obj = it->GetName(); obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find(cha));
-            const std::string name = ("N_"+obj+cha+chg+"_"+col);
-            pdfs.add(*it);
-            if (ws.var(name.c_str())) { coef.add(*ws.var(name.c_str())); }
-            else if (ws.function(name.c_str())) { coef.add(*ws.function(name.c_str())); }
-          }
-          const std::string pdfPlotName = Form("pdfPlot_%s", name.c_str());
-          auto pf = RooAddPdf(pdfPlotName.c_str(), pdfPlotName.c_str(), pdfs, coef); if (ws.pdf(pdfPlotName.c_str())==NULL) { ws.import(pf); }
-          ws.pdf(pdfPlotName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", name.c_str())), RooFit::Range("METWindowPlot"), RooFit::NormRange("METWindowPlot"),
-                                              RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-6),
-                                              RooFit::FillStyle(1001), RooFit::FillColor(colorMap.at(obj)), RooFit::VLines(), RooFit::DrawOption("F")
-                                              );
-          legInfo["TEMP"][Form("plot_%s", name.c_str())] = formatCut(obj);
-        }
-        list->remove(*it);
-        norm -= pdfEvt.at(obj);
-      }
-      //
-      ws.data(dsName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::Binning("METWindowPlot"),
-                                      RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
-      //
-      norm = ws.data(dsNameFit.c_str())->sumEntries();
-      ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())), RooFit::Range("METWindowPlot"), RooFit::NormRange("METWindowPlot"),
-                                      RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-7),
-                                      RooFit::LineColor(kBlack), RooFit::LineStyle(1)
-                                      );
-      //
       frame["EXTRA"] = std::unique_ptr<RooPlot>((RooPlot*)frame.at("MAIN")->emptyClone("EXTRA"));
       RooHist* hExtra = new RooHist(2.0); // !!!DONT USE UNIQUE POINTER!!!!, 2 represents the binWidth of MET
       if (drawPull) { if (!makePullHist (*hExtra, *frame.at("MAIN"), "", "", true)) { return false; } }
@@ -230,14 +253,14 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
     pad.at("EXTRA")->Draw();
     pad.at("EXTRA")->cd();
     frame.at("EXTRA")->Draw();
-    if (doGoF) { printGoF(*pad.at("EXTRA"), ws, *frame.at("MAIN"), "MET", dsName, pdfName); }
+    if (!paperStyle && doGoF) { printGoF(*pad.at("EXTRA"), ws, *frame.at("MAIN"), "MET", dsName, pdfName); }
     if (drawPull) { pLine = std::unique_ptr<TLine>(new TLine(frame.at("EXTRA")->GetXaxis()->GetXmin(), 0.0, frame.at("EXTRA")->GetXaxis()->GetXmax(), 0.0)); }
     else          { pLine = std::unique_ptr<TLine>(new TLine(frame.at("EXTRA")->GetXaxis()->GetXmin(), 1.0, frame.at("EXTRA")->GetXaxis()->GetXmax(), 1.0)); }
     pLine->Draw("same");
     pad.at("EXTRA")->Update();
   }
   //
-  setRange(*frame.at("MAIN"), ws, "MET", dsName, setLogScale);
+  setRange(*frame.at("MAIN"), ws, "MET", dsName, setLogScale, ws.var("MET")->getBins("METWindowPlot"));
   //
   cFig->cd();
   pad.at("MAIN")->Draw();
@@ -246,24 +269,22 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   //
   int lumiId = 0;
   if (isMC) { if (col=="pPb") { lumiId = 112; } else if (col=="Pbp") { lumiId = 113; } else if (col=="PA") { lumiId = 114; } }
-  else      { if (col=="pPb") { lumiId = 115; } else if (col=="Pbp") { lumiId = 116; } else if (col=="PA") { lumiId = 117; } }
+  else if (paperStyle) { if (col=="pPb") { lumiId = 120; } else if (col=="Pbp") { lumiId = 121; } else if (col=="PA") { lumiId = 122; } }
+  else { if (col=="pPb") { lumiId = 115; } else if (col=="Pbp") { lumiId = 116; } else if (col=="PA") { lumiId = 117; } }
   CMS_lumi(pad.at("MAIN"), lumiId, 33, "");
   //
-  printElectroWeakMETParameters(*pad.at("MAIN"), ws, pdfName, drawMode);
+  if (!paperStyle) { printElectroWeakMETParameters(*pad.at("MAIN"), ws, pdfName, drawMode); }
   std::vector< std::string > text = { process };
   if (ws.obj(("CutAndCount_"+tag).c_str())) {
     text.push_back( formatCut( ((RooStringVar*)ws.obj(("CutAndCount_"+tag).c_str()))->getVal(), varEWQLabel ) );
   }
   //
-  printElectroWeakBinning(*pad.at("MAIN"), ws, dsName, text, drawMode);
+  printElectroWeakBinning(*pad.at("MAIN"), ws, dsName, text, drawMode, paperStyle);
   //
   double ymax = 0.89, xmax = 0.65, dy = (0.89-0.64), dx = (0.65-0.48);
   TLegend leg(xmax-dx, ymax-dy, xmax, ymax); leg.SetTextSize(0.03);
   if (drawMode>0) { dy *= (1./0.8); leg.SetTextSize(0.03*(1./0.8)); }
   printElectroWeakLegend(*pad.at("MAIN"), leg, *frame.at("MAIN"), legInfo);
-  //
-  frame.at("MAIN")->SetTitle(Form("frame_Tot%s", tag.c_str()));
-  if (ws.obj(frame.at("MAIN")->GetTitle())==NULL) { ws.import(*frame.at("MAIN"), frame.at("MAIN")->GetTitle()); }
   //
   pad.at("MAIN")->SetLogy(setLogScale);
   pad.at("MAIN")->Update();
@@ -278,6 +299,9 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   //
   cFig->Clear();
   cFig->Close();
+  //
+  // Undo the changes
+  ws.var("MET")->setBins(oNBins); ws.var("MET")->setRange(oMinRange, oMaxRange);
   //
   return true;
 };
@@ -363,7 +387,7 @@ void printElectroWeakMETParameters(TPad& pad, const RooWorkspace& ws, const std:
 };
 
 
-void printElectroWeakBinning(TPad& pad, const RooWorkspace& ws, const std::string& dsName, const std::vector< std::string >& text, const uint& drawMode)
+void printElectroWeakBinning(TPad& pad, const RooWorkspace& ws, const std::string& dsName, const std::vector< std::string >& text, const uint& drawMode, const bool paperStyle)
 {
   pad.cd();
   float xPos = 0.2, yPos = 0.89, dYPos = 0.045, dy = 0.025;
@@ -374,6 +398,7 @@ void printElectroWeakBinning(TPad& pad, const RooWorkspace& ws, const std::strin
   for (RooRealVar* it = (RooRealVar*)parIt->Next(); it!=NULL; it = (RooRealVar*)parIt->Next() ) {
     if (std::string(it->GetName())=="MET" || std::string(it->GetName())=="Muon_Pt") continue;
     const std::string varName = it->GetName();
+    if (paperStyle && varName!="Muon_Eta") continue;
     double defaultMin = 0.0 , defaultMax = 100000.0;
     if (varName=="Muon_Eta") { defaultMin = -2.5; defaultMax = 2.5; }
     if (varName=="Muon_Iso") { defaultMin = 0.0; }
@@ -435,10 +460,10 @@ void printElectroWeakLegend(TPad& pad, TLegend& leg, const RooPlot& frame, const
 };
 
 
-void setRange(RooPlot& frame, const RooWorkspace& ws, const std::string& varName, const std::string& dsName, const bool& setLogScale)
+void setRange(RooPlot& frame, const RooWorkspace& ws, const std::string& varName, const std::string& dsName, const bool& setLogScale, const int& nBins)
 {
   // Find maximum and minimum points of Plot to rescale Y axis
-  auto h = std::unique_ptr<TH1>(ws.data(dsName.c_str())->createHistogram("hist", *ws.var(varName.c_str()), RooFit::Binning(frame.GetNbinsX(), frame.GetXaxis()->GetXmin(), frame.GetXaxis()->GetXmax())));
+  auto h = std::unique_ptr<TH1>(ws.data(dsName.c_str())->createHistogram("hist", *ws.var(varName.c_str()), RooFit::Binning(nBins, frame.GetXaxis()->GetXmin(), frame.GetXaxis()->GetXmax())));
   Double_t YMax = h->GetBinContent(h->GetMaximumBin());
   Double_t YMin = 1e99;
   for (int i=1; i<=h->GetNbinsX(); i++) if (h->GetBinContent(i)>0) YMin = min(YMin, h->GetBinContent(i));
@@ -450,7 +475,7 @@ void setRange(RooPlot& frame, const RooWorkspace& ws, const std::string& varName
   }
   else
   {
-    Yup = YMax+(YMax-0.0)*0.7;
+    Yup = YMax+(YMax-0.0)*0.55;
     Ydown = 0.0;
   }
   frame.GetYaxis()->SetRangeUser(Ydown,Yup);

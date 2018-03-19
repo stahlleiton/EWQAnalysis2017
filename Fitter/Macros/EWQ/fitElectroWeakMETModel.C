@@ -240,7 +240,7 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
           else {
             std::cout << "[ERROR] The PDF " << pdfName << " was not found!" << std::endl; return false;
           }
-	  if (!drawElectroWeakMETPlot(myws.at(chg), ("PLOT_"+fileName), outDir, info.Flag.at("setLogScale"), saveAll, 150.)) { return false; }
+	  if (!drawElectroWeakMETPlot(myws.at(chg), ("PLOT_"+fileName), outDir, info.Flag.at("setLogScale"), 150., true, false)) { return false; }
           myws.at(chg).saveSnapshot("fittedParameters", myws.at(chg).allVars(), kTRUE);
           // Save the results
           if (!saveWorkSpace(myws.at(chg), Form("%sresult/", outDir.c_str()), Form("%s.root", ("FIT_"+fileName).c_str()), saveAll)) { return false; }

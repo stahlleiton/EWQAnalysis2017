@@ -196,13 +196,53 @@ bool resultsEWQ2tree(
       else if (v.first=="N_FIT_Entries") {
         const std::string pdfName = ( "pdfMET_Tot" + tag );
         RooAddPdf* pdf = (RooAddPdf*) ws->pdf(pdfName.c_str());
-        const RooArgSet coefList(pdf->coefList());
-        if (v.second.count("Val")) { v.second.at("Val") = pdf ? pdf->expectedEvents(&coefList) : -1.0; }
+        if (pdf) {
+          const RooArgSet coefList(pdf->coefList());
+          if (v.second.count("Val")) { v.second.at("Val") = pdf ? pdf->expectedEvents(&coefList) : -1.0; }
+        }
       }
       else if (v.first=="TEST_FIT") {
-        RooRealVar* chi2 = (RooRealVar*) ws->var("chi2_MET");
-        RooRealVar* ndof = (RooRealVar*) ws->var("ndof_MET");
-        if (v.second.count("Val")) { v.second.at("Val") = (chi2 && ndof) ? TMath::Prob(chi2->getVal(),ndof->getVal()) : -1.0; }
+        if (ws->var("chi2_MET")!=NULL) {
+          RooRealVar* chi2 = (RooRealVar*) ws->var("chi2_MET");
+          RooRealVar* ndof = (RooRealVar*) ws->var("ndof_MET");
+          if (v.second.count("Val") ) { v.second.at("Val") = (chi2 && ndof) ? TMath::Prob(chi2->getVal(),ndof->getVal()) : -1.0; }
+          if (v.second.count("Chi2")) { v.second.at("Chi2") = chi2 ? chi2->getVal() : -1.0; }
+          if (v.second.count("NDoF")) { v.second.at("NDoF") = ndof ? ndof->getVal() : -1.0; }
+        }
+        else if (ws->var("pvalue_RooFitChi2_MET")!=NULL) {
+          RooRealVar* prob = (RooRealVar*) ws->var("pvalue_RooFitChi2_MET");
+          RooRealVar* chi2 = (RooRealVar*) ws->var("testStat_RooFitChi2_MET");
+          RooRealVar* ndof = (RooRealVar*) ws->var("pvalue_RooFitChi2_MET");
+          if (v.second.count("Val") ) { v.second.at("Val" ) = prob ? prob->getVal() : -1.0; }
+          if (v.second.count("Chi2")) { v.second.at("Chi2") = chi2 ? chi2->getVal() : -1.0; }
+          if (v.second.count("NDoF")) { v.second.at("NDoF") = ndof ? ndof->getVal() : -1.0; }
+        }
+      }
+      else if (v.first=="TEST_FIT_KS") {
+        RooRealVar* pvalue   = (RooRealVar*) ws->var("pvalue_KS_MET");
+        RooRealVar* testStat = (RooRealVar*) ws->var("testStat_KS_MET");
+        if (v.second.count("Val")) { v.second.at("Val") = pvalue   ? pvalue->getVal()   : -1.0; }
+        if (v.second.count("KS" )) { v.second.at("KS" ) = testStat ? testStat->getVal() : -1.0; }
+      }
+      else if (v.first=="TEST_FIT_AD") {
+        RooRealVar* pvalue   = (RooRealVar*) ws->var("pvalue_AD_MET");
+        RooRealVar* testStat = (RooRealVar*) ws->var("testStat_AD_MET");
+        if (v.second.count("Val")) { v.second.at("Val") = pvalue   ? pvalue->getVal()   : -1.0; }
+        if (v.second.count("AD" )) { v.second.at("AD" ) = testStat ? testStat->getVal() : -1.0; }
+      }
+      else if (v.first=="TEST_FIT_BCChi2") {
+        RooRealVar* prob = (RooRealVar*) ws->var("pvalue_BCChi2_MET");
+        RooRealVar* chi2 = (RooRealVar*) ws->var("testStat_BCChi2_MET");
+        RooRealVar* ndof = (RooRealVar*) ws->var("pvalue_BCChi2_MET");
+        if (v.second.count("Val") ) { v.second.at("Val" ) = prob ? prob->getVal() : -1.0; }
+        if (v.second.count("Chi2")) { v.second.at("Chi2") = chi2 ? chi2->getVal() : -1.0; }
+        if (v.second.count("NDoF")) { v.second.at("NDoF") = ndof ? ndof->getVal() : -1.0; }
+      }
+      else if (v.first=="TEST_FIT_PChi2") {
+        RooRealVar* prob = (RooRealVar*) ws->var("pvalue_PChi2_MET");
+        RooRealVar* chi2 = (RooRealVar*) ws->var("testStat_PChi2_MET");
+        RooRealVar* ndof = (RooRealVar*) ws->var("pvalue_PChi2_MET");
+        if (v.second.count("Val") ) { v.second.at("Val" ) = prob ? prob->getVal() : -1.0; }
         if (v.second.count("Chi2")) { v.second.at("Chi2") = chi2 ? chi2->getVal() : -1.0; }
         if (v.second.count("NDoF")) { v.second.at("NDoF") = ndof ? ndof->getVal() : -1.0; }
       }
