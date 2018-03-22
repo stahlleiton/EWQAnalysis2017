@@ -49,8 +49,8 @@ using KeyPVec_t    =  std::vector< TKey* >;
 
 // ------------------ FUNCTION -------------------------------
 bool         getObjectsFromFile  ( EffMap_t& eff , Unc1DMap_t& unc , const std::string& filePath );
-void         formatEff1D         ( TGraphAsymmErrors& graph , const std::string& col , const std::string& var , const std::string& charge , const std::string& type );
-void         formatEff1D         ( TEfficiency& eff , const std::string& col , const std::string& var , const std::string& charge , const std::string& type );
+void         formatEff1D         ( TGraphAsymmErrors& graph , const std::string& var , const std::string& charge , const std::string& type );
+void         formatEff1D         ( TEfficiency& eff , const std::string& var , const std::string& charge , const std::string& type );
 void         drawEff1D           ( const std::string& outDir , EffMap_t& effMap , Unc1DMap_t& unc , const bool isCutAndCount = false );
 void         createEff1DTable    ( std::vector< std::string >& texTable , const std::vector< std::string >& colTyp , const std::vector< std::string >& colCor ,
                                    const std::vector< std::string >& colTitle1 , const std::vector< std::string >& colChg ,
@@ -66,12 +66,14 @@ void         setStyle            ( );
 KeyPVec_t    getK                ( TList* list );
 const char*  sgn                 ( const double n ) { if (n >= 0.) { return "+"; } else { return ""; } }
 
+void         drawCompEff1D       ( const std::string& outDir , EffMap_t& effMap , const bool isCutAndCount );
+
 
 // ------------------ GLOBAL ------------------------------- 
 //
 
 
-void printEfficiency(const std::string workDirName = "NominalCM", const uint applyHFCorr = 1, const bool applyBosonPTCorr = true)
+void printEfficiency(const std::string workDirName = "NominalCM", const uint applyHFCorr = 1, const bool applyBosonPTCorr = false)
 {
   // Change the working directory
   const std::string CWD = getcwd(NULL, 0);
@@ -95,6 +97,7 @@ void printEfficiency(const std::string workDirName = "NominalCM", const uint app
   // ------------------------------------------------------------------------------------------------------------------------
   //
   // Draw the Efficiencies
+  drawCompEff1D(mainDir, eff1D, isCutAndCount);
   drawEff1D(mainDir, eff1D, unc1D, isCutAndCount);
   //
   // ------------------------------------------------------------------------------------------------------------------------
@@ -202,7 +205,7 @@ bool getObjectsFromFile(EffMap_t& eff, Unc1DMap_t& unc, const std::string& fileP
 };
 
 
-void formatEff1D(TEfficiency& eff, const std::string& col, const std::string& var, const std::string& charge, const std::string& type)
+void formatEff1D(TEfficiency& eff, const std::string& var, const std::string& charge, const std::string& type)
 {
   // Set the format of all graphs
   if (eff.GetDimension() != 1) { std::cout << "[ERROR] formatEff1D only works for dimension == 1" << std::endl; return; }
@@ -221,12 +224,12 @@ void formatEff1D(TEfficiency& eff, const std::string& col, const std::string& va
   if (type=="Acceptance_Unc") { yLabel = "Acceptance Uncertainty"; }
   // Set Axis Titles
   eff.SetTitle(Form(";%s;%s", xLabel.c_str(), yLabel.c_str()));
-  if (graph) { formatEff1D(*graph, col, var, charge, type); }
+  if (graph) { formatEff1D(*graph, var, charge, type); }
   gPad->Update();
 };
 
 
-void formatEff1D(TGraphAsymmErrors& graph, const std::string& col, const std::string& var, const std::string& charge, const std::string& type)
+void formatEff1D(TGraphAsymmErrors& graph, const std::string& var, const std::string& charge, const std::string& type)
 {
   // General
   graph.SetMarkerColor(kBlue);
@@ -322,7 +325,7 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                 eff[0].Draw(); gPad->Update();
                 grVec.push_back(*(eff[0].GetPaintedGraph()));
                 // Format the Graphs
-                for (auto& g : grVec) { formatEff1D(g, col, var, charge, type); }
+                for (auto& g : grVec) { formatEff1D(g, var, charge, type); }
                 // Create Legend
                 if (type=="Acceptance") {
                   if (corr=="NoCorrOnly") { formatLegendEntry(*leg.AddEntry(&grVec[0], "MC Acceptance", "pe")); }
@@ -344,7 +347,7 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                 eff[0].Draw(); gPad->Update();
                 grVec.push_back(*(eff[0].GetPaintedGraph()));
                 // Format the Graphs
-                for (auto& g : grVec) { formatEff1D(g, col, var, charge, type); }
+                for (auto& g : grVec) { formatEff1D(g, var, charge, type); }
                 grVec[0].SetMarkerColor(kRed);
                 // Create Legend
                 formatLegendEntry(*leg.AddEntry(&grVec[0], "MC Acceptance", "pe"));
@@ -372,7 +375,7 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                   grVec[2].SetPointError(j, grVec[1].GetErrorXlow(j), grVec[1].GetErrorXhigh(j), errorYlow, errorYhigh);
                 }
                 // Format the Graphs
-                for (auto& g : grVec) { formatEff1D(g, col, var, charge, type); }
+                for (auto& g : grVec) { formatEff1D(g, var, charge, type); }
                 grVec[0].SetMarkerColor(kRed);
                 grVec[1].SetMarkerColor(kGreen+2);
                 // Create Legend
@@ -400,7 +403,7 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                   grVec[1].SetPointError(j, grVec[1].GetErrorXlow(j), grVec[1].GetErrorXhigh(j), errorYlow, errorYhigh);
                 }
                 // Format the Graphs
-                for (auto& g : grVec) { formatEff1D(g, col, var, charge, type); }
+                for (auto& g : grVec) { formatEff1D(g, var, charge, type); }
                 grVec[0].SetMarkerColor(kRed);
                 // Create Legend
                 formatLegendEntry(*leg.AddEntry(&grVec[0], "MC Truth Efficiency", "pe"));
@@ -455,7 +458,7 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                 formatLegendEntry(*leg.AddEntry(&grVec[1], "TnP Statistical Uncertainty", "f"));
                 formatLegendEntry(*leg.AddEntry(&grVec[2], "TnP Systematic Uncertainty", "f"));
                 // Format the graphs
-                for (auto& g : grVec) { formatEff1D(g, col, var, charge, type); }
+                for (auto& g : grVec) { formatEff1D(g, var, charge, type); }
                 grVec[0].SetMarkerColor(kBlack);
                 grVec[1].SetFillColor(kOrange);
                 grVec[2].SetFillColor(kGreen+3);
@@ -499,7 +502,7 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                   }
                 }
                 // Format the graphs
-                for (auto& g : grVec) { formatEff1D(g, col, var, charge, (type+"_Unc")); }
+                for (auto& g : grVec) { formatEff1D(g, var, charge, (type+"_Unc")); }
                 grVec[0].SetMarkerColor(kBlack);
                 grVec[0].SetMarkerSize(1.0);
                 grVec[0].SetLineColor(kBlack);
@@ -548,6 +551,344 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
               // Clean up memory
               c.Clear(); c.Close();
             }
+          }
+        }
+      }
+    }
+  }
+};
+
+
+TGraphAsymmErrors divideGraph(const TGraphAsymmErrors& num, const TGraphAsymmErrors& den)
+{
+  TGraphAsymmErrors out;
+  out.Set(num.GetN());
+  for (int i = 0; i < out.GetN(); i++) {
+    double den_X_Val, den_Y_Val; den.GetPoint(i, den_X_Val, den_Y_Val);
+    const double den_X_ErrLo = den.GetErrorXlow(i);
+    const double den_X_ErrHi = den.GetErrorXhigh(i);
+    const double den_Y_ErrLo = den.GetErrorYlow(i);
+    const double den_Y_ErrHi = den.GetErrorYhigh(i);
+    //
+    double num_X_Val, num_Y_Val; num.GetPoint(i, num_X_Val, num_Y_Val);
+    const double num_X_ErrLo = num.GetErrorXlow(i);
+    const double num_X_ErrHi = num.GetErrorXhigh(i);
+    const double num_Y_ErrLo = num.GetErrorYlow(i);
+    const double num_Y_ErrHi = num.GetErrorYhigh(i);
+    //
+    if (num_X_Val!=den_X_Val || std::abs(num_X_ErrLo-den_X_ErrLo)>0.001 || std::abs(num_X_ErrHi-den_X_ErrHi)>0.001) { std::cout << "[ERROR] The den and num graphs are incompatible" << std::endl; return out; }
+    //
+    double ratio = 0.0; if (num_Y_Val!=0. && den_Y_Val!=0.) { ratio = ((num_Y_Val+0.0000001)/(den_Y_Val+0.0000001)); }
+    const double ratio_ErrLo = ratio*std::sqrt( std::pow((num_Y_ErrLo/num_Y_Val), 2.0) + std::pow((den_Y_ErrLo/den_Y_Val), 2.0));
+    const double ratio_ErrHi = ratio*std::sqrt( std::pow((num_Y_ErrHi/num_Y_Val), 2.0) + std::pow((den_Y_ErrHi/den_Y_Val), 2.0));
+    const double rat_X_Val = num_X_Val;
+    const double rat_Y_Val = ratio;
+    const double rat_X_ErrLo = num_X_ErrLo;
+    const double rat_X_ErrHi = num_X_ErrHi;
+    const double rat_Y_ErrLo = ratio_ErrLo;
+    const double rat_Y_ErrHi = ratio_ErrHi;
+    //
+    out.SetPoint(i, rat_X_Val, rat_Y_Val);
+    out.SetPointError(i, rat_X_ErrLo, rat_X_ErrHi, rat_Y_ErrLo, rat_Y_ErrHi);
+  }
+  //
+  return out;
+};
+
+
+void invGraph(TGraphAsymmErrors& gr)
+{
+  TGraphAsymmErrors grInv; grInv.Set(gr.GetN());
+  for (int i = 0; i < gr.GetN(); i++) {
+    const auto bin = (gr.GetN()-i-1);
+    double x, y; gr.GetPoint(bin, x, y); x*= -1.0;
+    const double xEr_Lo = gr.GetErrorXlow(bin);
+    const double xEr_Hi = gr.GetErrorXhigh(bin);
+    const double yEr_Lo = gr.GetErrorYlow(bin);
+    const double yEr_Hi = gr.GetErrorYhigh(bin);
+    grInv.SetPoint(i, x, y);
+    grInv.SetPointError(i, xEr_Lo, xEr_Hi, yEr_Lo, yEr_Hi);
+  }
+  gr = grInv;
+};
+
+
+void drawCompEff1D(const std::string& outDir, std::vector< std::pair<std::string , TEfficiency> >& effMap, const std::string& var, const std::string& type, const std::string& sample,
+                   const std::string charge="", const std::string col="", const std::string corr="", const bool isCutAndCount=false)
+{
+  //
+  // Draw the comparison plots
+  //
+  std::vector<TGraphAsymmErrors> graphVec;
+  std::vector<std::string> lblVec;
+  for (auto& eff : effMap) { lblVec.push_back(eff.first); eff.second.Draw(); gPad->Update(); graphVec.push_back(*(eff.second.GetPaintedGraph())); }
+  // Invert the Pbp
+  for (uint i = 0; i < graphVec.size(); i++) { if (lblVec[i]=="Pbp_Inv") { invGraph(graphVec[i]); } }
+  //
+  // Create Canvas
+  TCanvas c("c", "c", 1000, 1000); c.cd();
+  //
+  // Create the Text Info
+  TLatex tex; tex.SetNDC(); tex.SetTextSize(0.028); float dy = 0;
+  std::vector< std::string > textToPrint;
+  std::string sampleLabel; formatDecayLabel(sampleLabel, (sample+"_"+charge));
+  textToPrint.push_back(sampleLabel);
+  if (var=="Eta" || var=="EtaCM") { textToPrint.push_back("p^{#mu}_{T} > 25 GeV/c"); }
+  if (var=="Pt") { textToPrint.push_back("|#eta^{#mu}| < 2.4"); }
+  if (isCutAndCount) { textToPrint.push_back("20 GeV/c #geq |#slash{E}_{T}| & 40 GeV/c^{2} #geq M_{T}^{#mu}"); }
+  if (corr!="") { textToPrint.push_back(corr); }
+  //
+  // Define the plotting pads
+  TPad *pad1 = new TPad("pad1", "", 0, 0.23, 1, 1);  // Unique Pointer does produce Segmentation Fault, so don't use it
+  TPad *pad2 = new TPad("pad2", "", 0, 0, 1, 0.228); // Unique Pointer does produce Segmentation Fault, so don't use it
+  //
+  // Format the pads
+  pad2->SetTopMargin(0.02);
+  pad2->SetBottomMargin(0.4);
+  pad2->SetFillStyle(4000);
+  pad2->SetFrameFillStyle(4000);
+  pad1->SetBottomMargin(0.015);
+  //
+  // Create the ratio graphs
+  std::vector< TGraphAsymmErrors > grRatioVec;
+  for (uint i = 1; i < graphVec.size(); i++) { grRatioVec.push_back(divideGraph(graphVec[i], graphVec[0])); }
+  if (lblVec[0]=="Pbp") { for (int i=0; i<grRatioVec[0].GetN(); i++) { double x, y; grRatioVec[0].GetPoint(i, x, y); std::cout << "X: " << x << "  Y: " << y << std::endl; } }
+  //
+  // Format the graph
+  //
+  // General
+  for (auto& graph : graphVec) {
+    graph.SetMarkerStyle(20);
+    graph.SetMarkerSize(1.0);
+    graph.SetFillStyle(1001);
+  }
+  for (auto& graph : grRatioVec) {
+    graph.SetMarkerStyle(20);
+    graph.SetMarkerSize(1.0);
+    graph.SetFillStyle(1001);
+  }
+  const std::vector<int> COLOR = { kBlue , kRed , kGreen+2 };
+  for (uint i = 0; i < graphVec.size();   i++) { graphVec[i].SetMarkerColor(COLOR[i]);     }
+  for (uint i = 0; i < grRatioVec.size(); i++) { grRatioVec[i].SetMarkerColor(COLOR[i+1]); }
+  // X-axis
+  std::string xLabel = "Gen #mu"; if (charge=="Plus") xLabel += "^{+}"; if (charge=="Minus") xLabel += "^{-}";
+  if (var=="Eta"  ) { xLabel += " #eta_{LAB}";    }
+  if (var=="EtaCM") { xLabel += " #eta_{CM}";     }
+  if (var=="Pt"   ) { xLabel += " p_{T} (GeV/c)"; }
+  for (auto& graph : graphVec) {
+    graph.GetYaxis()->SetTitleFont(42);
+    graph.GetXaxis()->CenterTitle(kFALSE);
+    graph.GetXaxis()->SetTitleOffset(3);
+    graph.GetXaxis()->SetLabelOffset(3);
+    graph.GetXaxis()->SetTitleSize(0.045);
+    graph.GetXaxis()->SetLabelSize(0.035);
+  }
+  for (auto& graph : grRatioVec) {
+    graph.GetYaxis()->SetTitleFont(42);
+    graph.GetXaxis()->CenterTitle(kFALSE);
+    graph.GetXaxis()->SetTitleOffset(1);
+    graph.GetXaxis()->SetTitleSize(0.16);
+    graph.GetXaxis()->SetLabelSize(0.14);
+  }
+  double xMin = 0.0, xMax = 0.0;
+  xMin = graphVec[0].GetXaxis()->GetXmin(); xMax = graphVec[0].GetXaxis()->GetXmax();;
+  for (auto& graph : graphVec) {
+    graph.GetXaxis()->SetLimits(xMin , xMax);
+  }
+  for (auto& graph : grRatioVec) {
+    graph.GetXaxis()->SetLimits(xMin , xMax);
+  }
+  // Y-axis
+  std::string yLabel = "";
+  for (auto& graph : graphVec) {
+    if (type=="Total"     ) { yLabel = "Efficiency"; }
+    if (type=="Acceptance") { yLabel = "Acceptance"; }
+    graph.GetYaxis()->SetTitleFont(42);
+    graph.GetYaxis()->CenterTitle(kFALSE);
+    graph.GetYaxis()->SetLabelSize(0.044);
+    graph.GetYaxis()->SetTitleSize(0.044);
+    graph.GetYaxis()->SetTitleOffset(1.4);
+    if (type!="Acceptance") { graph.GetYaxis()->SetRangeUser(0.79, 1.07); }
+    else { graph.GetYaxis()->SetRangeUser(0.60, 0.90); }
+    graph.SetTitle(Form(";%s;%s", "", yLabel.c_str()));
+  }
+  for (auto& graph : grRatioVec) {
+    if (lblVec.size()==2) { yLabel = Form("#frac{%s}{%s}", lblVec[1].c_str(), lblVec[0].c_str()); }
+    else if (col=="") { yLabel = Form("#frac{Run}{%s}", lblVec[0].c_str()); }
+    graph.GetYaxis()->SetTitleFont(42);
+    graph.GetYaxis()->CenterTitle(kTRUE);
+    graph.GetYaxis()->SetTitleOffset(0.3);
+    graph.GetYaxis()->SetTitleSize(0.16);
+    graph.GetYaxis()->SetLabelSize(0.11);
+    graph.GetYaxis()->SetNdivisions(503);
+    graph.GetYaxis()->SetRangeUser(0.95, 1.05);
+    graph.SetTitle(Form(";%s;%s", xLabel.c_str(), yLabel.c_str()));
+  }
+  //
+  // Create the legend
+  TLegend leg(0.57, 0.69, 0.67, 0.89);
+  for (uint i = 0; i < graphVec.size(); i++) { auto lbl = lblVec[i]; if (lbl=="Pbp_Inv") { lbl = "Pbp (Inverted)"; }; formatLegendEntry(*leg.AddEntry(&graphVec[i], lbl.c_str(), "pe")); }
+  //
+  // Draw the Graphs
+  //
+  // Main Frame
+  c.cd();
+  pad1->Draw();
+  pad1->cd();
+  graphVec[0].Draw("ap");
+  for (uint i = 1; i < graphVec.size(); i++) { graphVec[i].Draw("samep"); }
+  //
+  // Draw the Legend
+  leg.Draw("same");
+  //
+  // Draw line
+  const double yLine = 1.0;
+  TLine line( xMin , yLine ,  xMax , yLine ); line.SetLineStyle(2);
+  line.Draw("same");
+  pad1->Modified(); pad1->Update();
+  //
+  // Draw the text
+  for (const auto& s: textToPrint) { tex.DrawLatex(0.22, 0.86-dy, s.c_str()); dy+=0.04; }
+  pad1->Modified(); pad1->Update();
+  //
+  // set the CMS style
+  int option = 114;
+  if (col.find("pPb")!=std::string::npos) option = 112;
+  if (col.find("Pbp")!=std::string::npos) option = 113;
+  CMS_lumi(pad1, option, 33, "");
+  pad1->Modified(); pad1->Update();
+  //
+  // Ratio Frame
+  c.cd();
+  pad2->Draw();
+  pad2->cd();
+  grRatioVec[0].Draw("ap");
+  for (uint i = 1; i < grRatioVec.size(); i++) { grRatioVec[i].Draw("samep"); }
+  //
+  // Draw the line
+  TLine line2( xMin , 1.0 ,  xMax , 1.0 ); line2.SetLineStyle(2);
+  line2.Draw("same");
+  pad2->Update();
+  //
+  // Create Output Directory
+  const std::string plotDir = outDir + "compEfficiency/" + lblVec[0]+"/" +var+"/" + sample+"/" + type;
+  makeDir(plotDir + "/png/");
+  makeDir(plotDir + "/pdf/");
+  makeDir(plotDir + "/root/");
+  // Save Canvas
+  const std::string ename = "eff1D_" + var +"_"+ sample +(col!=""?"_":"")+ col +(charge!=""?"_":"")+ charge +"_"+ type +(corr!=""?"_":"")+ corr;
+  c.SaveAs(( plotDir + "/png/" + ename + ".png" ).c_str());
+  c.SaveAs(( plotDir + "/pdf/" + ename + ".pdf" ).c_str());
+  c.SaveAs(( plotDir + "/root/" + ename + ".root" ).c_str());
+  // Clean up memory
+  c.Clear(); c.Close();
+};
+
+
+void drawCompEff1D(const std::string& outDir, EffMap_t& effMap, const bool isCutAndCount)
+{
+  // Set Style
+  setStyle();
+  //
+  // Draw the comparison between pPb and Pbp and pA (ref)
+  //
+  for (auto& v : effMap) {
+    for (auto& s : v.second) {
+      for (auto& ch : s.second.at("PA")) {
+        for (auto& t : ch.second) {
+          for (auto& co : t.second) {
+            if (co.first!="NoCorr" && co.first!="HFCorr" && co.first!="TnP_Nominal") continue;
+            //
+            const std::string var    = v.first;
+            const std::string sample = s.first;
+            const std::string charge = ch.first;
+            const std::string type   = t.first;
+            const std::string corr   = co.first;
+            //
+            std::vector< std::pair<std::string , TEfficiency> > effM;
+            effM.push_back( { "pA"  , effMap.at(var).at(sample).at("PA" ).at(charge).at(type).at(corr)[0] } );
+            effM.push_back( { "pPb" , effMap.at(var).at(sample).at("pPb").at(charge).at(type).at(corr)[0] } );
+            effM.push_back( { "Pbp_Inv" , effMap.at(var).at(sample).at("Pbp").at(charge).at(type).at(corr)[0] } );
+            //
+            drawCompEff1D(outDir, effM, var, type, sample, charge, "", corr, isCutAndCount);
+          }
+        }
+      }
+    }
+  }
+  //
+  // Draw the comparison between Pbp and pPb (ref)
+  //
+  for (auto& v : effMap) {
+    for (auto& s : v.second) {
+      for (auto& ch : s.second.at("PA")) {
+        for (auto& t : ch.second) {
+          for (auto& co : t.second) {
+            if (co.first!="NoCorr" && co.first!="HFCorr" && co.first!="TnP_Nominal") continue;
+            //
+            const std::string var    = v.first;
+            const std::string sample = s.first;
+            const std::string charge = ch.first;
+            const std::string type   = t.first;
+            const std::string corr   = co.first;
+            //
+            std::vector< std::pair<std::string , TEfficiency> > effM;
+            effM.push_back( { "pPb" , effMap.at(var).at(sample).at("pPb").at(charge).at(type).at(corr)[0] } );
+            effM.push_back( { "Pbp" , effMap.at(var).at(sample).at("Pbp").at(charge).at(type).at(corr)[0] } );
+            //
+            drawCompEff1D(outDir, effM, var, type, sample, charge, "", corr, isCutAndCount);
+          }
+        }
+      }
+    }
+  }
+  //
+  // Draw the comparison between Pbp Inverse and Pbp (ref)
+  //
+  for (auto& v : effMap) {
+    for (auto& s : v.second) {
+      for (auto& ch : s.second.at("PA")) {
+        for (auto& t : ch.second) {
+          for (auto& co : t.second) {
+            if (co.first!="NoCorr" && co.first!="HFCorr" && co.first!="TnP_Nominal") continue;
+            //
+            const std::string var    = v.first;
+            const std::string sample = s.first;
+            const std::string charge = ch.first;
+            const std::string type   = t.first;
+            const std::string corr   = co.first;
+            //
+            std::vector< std::pair<std::string , TEfficiency> > effM;
+            effM.push_back( { "Pbp" , effMap.at(var).at(sample).at("Pbp").at(charge).at(type).at(corr)[0] } );
+            effM.push_back( { "Pbp_Inv" , effMap.at(var).at(sample).at("Pbp").at(charge).at(type).at(corr)[0] } );
+            //
+            drawCompEff1D(outDir, effM, var, type, sample, charge, "", corr, isCutAndCount);
+          }
+        }
+      }
+    }
+  }
+  //
+  // Draw the comparison between Plus and Minus (ref)
+  //
+  for (auto& v : effMap) {
+    for (auto& s : v.second) {
+      for (auto& cl : s.second) {
+        for (auto& t : cl.second.at("Minus")) {
+          for (auto& co : t.second) {
+            if (co.first!="NoCorr" && co.first!="HFCorr" && co.first!="TnP_Nominal") continue;
+            //
+            const std::string var    = v.first;
+            const std::string sample = s.first;
+            const std::string col    = cl.first;
+            const std::string type   = t.first;
+            const std::string corr   = co.first;
+            //
+            std::vector< std::pair<std::string , TEfficiency> > effM;
+            effM.push_back( { "Minus" , effMap.at(var).at(sample).at(col).at("Minus").at(type).at(corr)[0] } );
+            effM.push_back( { "Plus"  , effMap.at(var).at(sample).at(col).at("Plus" ).at(type).at(corr)[0] } );
+            //
+            drawCompEff1D(outDir, effM, var, type, sample, "", col, corr, isCutAndCount);
           }
         }
       }

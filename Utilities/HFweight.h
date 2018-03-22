@@ -76,7 +76,7 @@ double HFweight::weight(double hiHF, HFweight::HFside side, bool isPV1) {
       return 1;
    }
 
-   return hist->GetBinContent(hist->FindBin(hiHF));
+   return std::min(7.0 , hist->GetBinContent(hist->FindBin(hiHF)));
 }
 
 #endif // #ifndef HFweight_h

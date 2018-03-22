@@ -114,7 +114,7 @@ const std::map< std::string , std::vector< std::pair< std::string , double > > >
 std::map< std::string , std::vector< std::string > > sampleType_;
 
 
-void correctEfficiency(const std::string workDirName = "NominalCM", const uint applyHFCorr = 1, const bool applyBosonPTCorr = true)
+void correctEfficiency(const std::string workDirName = "NominalCM", const uint applyHFCorr = 1, const bool applyBosonPTCorr = false)
 {
   //
   // Initialize the Kinematic Bin info
@@ -149,6 +149,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const uint a
   // Define the working flags
   bool useEtaCM = false;      if ( (workDirName.find("NominalCM")!=std::string::npos) || (workDirName == "CutAndCountCM") ) { useEtaCM = true; }
   bool isCutAndCount = false; if ( (workDirName == "CutAndCount") || (workDirName == "CutAndCountCM") ) { isCutAndCount = true; }
+  bool isMTCut = false;       if (workDirName.find("_MTCut")!=std::string::npos) { isMTCut = true; }
   //
   // Change the working directory
   const std::string CWD = getcwd(NULL, 0);
@@ -281,8 +282,16 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const uint a
       double evtWeight = 1.0;
       //
       // Determine the HF Weight
-      if      (applyHFCorr==1) { evtWeight *= corrHF->weight(evtTree.at(sample)->hiHF()     , HFweight::HFside::both , false); }
-      else if (applyHFCorr==2) { evtWeight *= corrHF->weight(evtTree.at(sample)->hiNtracks(), HFweight::HFside::track, false); }
+      if (applyHFCorr==1) {
+        const double hf = ( (evtTree.at(sample)->hiHF()>=300.) ? 290. : evtTree.at(sample)->hiHF() ); // The histograms are made up to 300.
+        if (hf<0.) { std::cout << "[ERROR] The hiHF is negative" << std::endl; return; }
+        evtWeight *= corrHF->weight(hf , HFweight::HFside::both , false);
+      }
+      else if (applyHFCorr==2) {
+        const double nTrks = ( (evtTree.at(sample)->hiNtracks()>=300.) ? 290. : evtTree.at(sample)->hiNtracks() ); // The histograms are made up to 300.
+        if (nTrks<0.) { std::cout << "[ERROR] The nTracks is negative" << std::endl; return; }
+        evtWeight *= corrHF->weight(nTrks, HFweight::HFside::track, false);
+      }
       //
       // Get the MC PDF Weights
       TnPVec_t wMC; if (doMCWeight) { wMC = getMCWeights(evtTree.at(sample), corrType); }
@@ -300,6 +309,8 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const uint a
       for (ushort iGenMu = 0; iGenMu < muonTree.at(sample)->Gen_Muon_Mom().size(); iGenMu++) {
         // Check the content of the MC
         if (PA::checkGenMuon(iGenMu, sampleType, muonTree.at(sample)) == false) continue;
+        // Consider Generated Muons within the Pseudo-Rapidity acceptance of CMS
+        if ( std::abs(muonTree.at(sample)->Gen_Muon_Mom()[iGenMu].Eta()) > 2.4 ) continue;
         // Determine the Boson PT Weight from Drell-Yan analysis
         double evtW = evtWeight;
         if (applyBosonPTCorr) {
@@ -323,7 +334,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const uint a
         const std::string chg = ( (charge < 0) ? "Minus" : "Plus" );
         // Fill the VarMap with the kinematic information
         VarMap_t genMuonVar;
-        genMuonVar[sampleType][col][chg]["Pt" ]      = { mu_Gen_Pt  };
+        genMuonVar[sampleType][col][chg]["Pt" ] = { mu_Gen_Pt  };
         if (useEtaCM) {
           const bool   ispPb = (col == "pPb");
           const double etaCM = PA::EtaLABtoCM( mu_Gen_Eta , ispPb );
@@ -369,15 +380,23 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const uint a
               const auto& MET = metTree.at(sample)->PF_MET_NoShift_Mom();
               // Recompute the Transver Mass based on the chosen MET
               const double mu_PF_Phi = muonTree.at(sample)->PF_Muon_Mom()[iPFMu].Phi();
-              const double mu_PF_M   = muonTree.at(sample)->PF_Muon_Mom()[iPFMu].M();
-              TLorentzVector pfMuonP4T = TLorentzVector(), METP4 = TLorentzVector();
-              pfMuonP4T.SetPtEtaPhiM(mu_PF_Pt, 0.0, mu_PF_Phi, mu_PF_M);
-              METP4.SetPtEtaPhiM( MET.Mod(), 0.0, MET.Phi(), 0.0 );
-              TLorentzVector muT = TLorentzVector( pfMuonP4T + METP4 );
+              const double muMTVal = PA::getWTransverseMass(mu_PF_Pt, mu_PF_Phi, MET.Mod(), MET.Phi());
               // Define the MET and MT selection
-              const bool passCutAndCountSel = ( (MET.Mod() >= 20.0) && (muT.M() >= 40.0) );
+              const bool passCutAndCountSel = ( (MET.Mod() >= 30.0) && (muMTVal >= 60.0) );
               // Include the Cut and Count selection in the Identification flag
               passIdentification = passIdentification && passCutAndCountSel;
+            }
+            // Check if we are using MT cut method
+            if (isMTCut) {
+              // Extract the MET
+              const auto& MET = metTree.at(sample)->PF_MET_NoShift_Mom();
+              // Recompute the Transver Mass based on the chosen MET
+              const double mu_PF_Phi = muonTree.at(sample)->PF_Muon_Mom()[iPFMu].Phi();
+              const double muMTVal = PA::getWTransverseMass(mu_PF_Pt, mu_PF_Phi, MET.Mod(), MET.Phi());
+              // Define the MT selection
+              const bool passMTSel = (muMTVal >= 60.0);
+              // Include the MT cut selection in the Identification flag
+              passIdentification = passIdentification && passMTSel;
             }
           }
           //

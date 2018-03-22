@@ -71,7 +71,6 @@ void fitter(
   userInput.Par["Analysis"] = Analysis;
   userInput.Int["numCores"] = numCores;
   userInput.Flag["setLogScale"] = setLogScale;
-  userInput.Flag["applyBosonPTCorr"] = false;
   //
   if (workDirName.find("QCDTemplateCM")!=std::string::npos) {
     userInput.Flag["applyHFCorr"]     = false;
@@ -119,7 +118,10 @@ void fitter(
     if (workDirName=="NominalCM_NoHFCorr"       ) { userInput.Flag.at("applyHFCorr")     = false; }
     if (workDirName=="NominalCM_NoTnPCorr"      ) { userInput.Flag.at("applyTnPCorr")    = false; }
     if (workDirName=="NominalCM_NTrackCorr"     ) { userInput.Par.at("HFCorrMethod") = "NTracks"; }
-    if (workDirName=="NominalCM_BosonPTCorr"    ) { userInput.Flag.at("applyBosonPTCorr") = true; }
+    if (workDirName=="NominalCM_BosonPTCorr"    ) { userInput.Flag["applyBosonPTCorr"] = true;    }
+    if (workDirName=="NominalCM_MuonPTCorr"     ) { userInput.Flag["applyMuonPTCorr"] = true;     }
+    if (workDirName=="NominalCM_AllCorr"        ) { userInput.Flag["applyMuonPTCorr"] = true; userInput.Flag["applyBosonPTCorr"] = true; }
+    if (workDirName=="NominalCM_TESTP"        ) { userInput.Flag["applyMuonPTCorr"] = false; userInput.Flag["applyBosonPTCorr"] = true; }
     //
     if (workDirName=="NominalCM_RecoilScalingOneGaussDATA" ) { userInput.Par.at("RecoilCorrMethod") = "Scaling_OneGaussianDATA"; }
     if (workDirName=="NominalCM_RecoilScalingOneGaussMC"   ) { userInput.Par.at("RecoilCorrMethod") = "Scaling_OneGaussianMC";   }
@@ -180,6 +182,9 @@ void fitter(
     userInput.Par["RecoilCorrMethod"] = "Scaling_OneGaussian";
     fitObj = 4;
   }
+  else if (workDirName.find("CutAndCount")!=std::string::npos) {
+    // JUST TRY
+  }
   else { std::cout << "[ERROR] Workdirname has not been defined!" << std::endl; return; }
   //
   //
@@ -188,6 +193,7 @@ void fitter(
   userInput.Par["extDSDir_DATA"]   = "/grid_mnt/vol__vol_U__u/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/DataSet/";
   userInput.Par["extDSDir_MC"]     = "/grid_mnt/vol__vol_U__u/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/DataSet/";
   userInput.Par["RecoilPath"]      = "/grid_mnt/vol__vol_U__u/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_nom_sysStat/";
+  userInput.Par["RochesterPath"]   = "/grid_mnt/vol__vol_U__u/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Utilities/rcdata.2016.v3/";
   if (workDirName=="NominalCM_RecoilSystPtFunc" ) { userInput.Par.at("RecoilPath") = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_sysPtFunc/";  }
   if (workDirName=="NominalCM_RecoilSystBWGauss") { userInput.Par.at("RecoilPath") = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_sysBWGauss/"; }
   if (workDirName=="NominalCM_RecoilSystJetEnUp"  ) { userInput.Par.at("RecoilPath") = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil/"; }
@@ -211,6 +217,8 @@ void fitter(
       if (useNominal) { userInput.Par["extInitFileDir_MET_W"] = ( (workDirName.find("CM")!=std::string::npos) ? Form("%s/Input/NominalCM/", CWD.c_str()) : Form("%s/Input/Nominal/", CWD.c_str()) ); }
     }
     else if (workDirName.find("METMax")!=std::string::npos) { userInput.Par["extInitFileDir_MET_QCD"] = ""; }
+    else if (workDirName.find("MTCut" )!=std::string::npos) { userInput.Par["extInitFileDir_MET_QCD"] = ""; }
+    else if (workDirName.find("TESTP" )!=std::string::npos) { userInput.Par["extInitFileDir_MET_QCD"] = ""; }
     else if (workDirName.find("CM")!=std::string::npos    ) { userInput.Par["extInitFileDir_MET_QCD"] = Form("%s/Input/NominalCM/", CWD.c_str()); }
     else                                                    { userInput.Par["extInitFileDir_MET_QCD"] = Form("%s/Input/Nominal/", CWD.c_str());   }
   }
@@ -382,7 +390,7 @@ void fitter(
     RooWorkspaceMap_t Workspace;
     GlobalInfo vUserInput(userInput);
     if (workDirName.find("RecoilStatVar")!=std::string::npos) { vUserInput.Par["RecoilVarLbl"] = Form("%d", iVar); }
-    if (!correctMC(Workspace, iniWorkspace, vUserInput)) { return; }
+    if (!correctDS(Workspace, iniWorkspace, vUserInput)) { return; }
 
     // -------------------------------------------------------------------------------
     // STEP 4: COMBINE THE ROODATASETS

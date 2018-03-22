@@ -105,6 +105,14 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
     }
   }
 
+  // Store the Luminosity if it is missing
+  for (const auto& col : info.StrV.at("fitSystem")) {
+    for (const auto& chg : info.StrV.at("fitCharge")) {
+      if ( (col=="PA" || col=="pPb") && myws.at(chg).var("Luminosity_pPb")==NULL) { myws.at(chg).factory(Form("Luminosity_pPb[%.4f]", PA::LUMI::Data_pPb)); }
+      if ( (col=="PA" || col=="Pbp") && myws.at(chg).var("Luminosity_Pbp")==NULL) { myws.at(chg).factory(Form("Luminosity_Pbp[%.4f]", PA::LUMI::Data_Pbp)); }
+    }
+  }
+
   // Set global parameters
   for (const auto& chg : info.StrV.at("fitCharge")) { setMETGlobalParameterRange(myws.at(chg), info); }
 
