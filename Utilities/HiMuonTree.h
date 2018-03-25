@@ -1112,7 +1112,7 @@ GenPart HiMuonTree::Mother(const int iGenIdx)
   UInt_t genIdx = iGenIdx; UInt_t genIdx_OLD = iGenIdx;
   Int_t pdg = Gen_Particle_PdgId()[genIdx]; Int_t pdg_OLD = pdg;
   while(pdg==pdg_OLD && Gen_Particle_Mother_Idx()[genIdx].size()>0) {
-    if ((std::abs(pdg) < 400) && (Gen_Particle_Mother_Idx()[genIdx].size() > 1)) { std::cout << "[WARNING] Size of mother collection is larger than 1 for " << pdg << std::endl; }
+    if ((std::abs(pdg) < 22) && (Gen_Particle_Mother_Idx()[genIdx].size() > 1)) { std::cout << "[WARNING] Size of mother collection is larger than 1 for " << pdg << std::endl; }
     genIdx = Gen_Particle_Mother_Idx()[genIdx].at(0);
     pdg = Gen_Particle_PdgId()[genIdx];
   }

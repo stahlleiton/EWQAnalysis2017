@@ -276,48 +276,97 @@ bool RecoilCorrector::getPtFromTree(
   //
   // Determine the reference and the boson pT vectors
   //
-  // Case: DrellYan -> Tau -> Muon or VV-> X -> Muon
-  if ( (sample.find("MC_DYToTau")!=std::string::npos) || (sample.find("MC_ZZ")!=std::string::npos) ||
-       (sample.find("MC_WZ")!=std::string::npos) || (sample.find("MC_WW")!=std::string::npos) ) {
-    // Find the number of RECO muons matched to GEN muons from DY->Tau boson decay
-    std::vector< uint > idx;
-    const int& iGenMu = muonTree->PF_Muon_Gen_Idx()[muonIdx];
-    if ( iGenMu > -1 ) {
-      if (sample.find("MC_DYToTau")!=std::string::npos) {
-        const auto& mom = muonTree->findMuonMother(iGenMu, 23, 2);
-        if (mom.pdg == 23) { idx = { muonIdx , uint(iGenMu) , mom.idx }; }
-        else {
-          const auto& mom = muonTree->findMuonMother(iGenMu, 22, 2);
-          if (mom.pdg == 22) { idx = { muonIdx , uint(iGenMu) , mom.idx }; }
+  // Case: VV-> X -> Muon
+  if ( (sample.find("MC_ZZ")!=std::string::npos) || (sample.find("MC_WZ")!=std::string::npos) || (sample.find("MC_WW")!=std::string::npos) ) {
+    // Don't correct for Double Vector decays since the Recoil Method is not design for these processes
+    return true;
+  }
+  //
+  // Case: t -> W -> Muon + Neutrinos
+  else if (sample.find("MC_TT")!=std::string::npos) {
+    // Don't correct for TTbar since the Recoil Method is not design for this process
+    return true;
+  }
+  //
+  // Case: DrellYan -> Tau -> Muon
+  else if (sample.find("MC_DYToTau")!=std::string::npos) {
+    // Find the number of RECO muons matched to GEN muons from Z/gamma boson -> tau decay
+    std::vector< std::vector< uint > > idx;
+    const int genMuIdx = muonTree->PF_Muon_Gen_Idx()[muonIdx];
+    if ( genMuIdx > -1 ) {
+      // Get the mom of the leading muon
+      const auto& muMom = muonTree->MuonMother(genMuIdx);
+      if (muMom.pdg!=15) { std::cout << "[ERROR] Leading Muon in DY->Tau MC comes from invalid mother " << muMom.pdg << " !" << std::endl; return false; }
+      // Get the grandmom of the leading muon
+      auto muGMom = muonTree->findMuonMother(genMuIdx, 23, 2);
+      if (muGMom.pdg == 23) { idx.push_back({ muonIdx , uint(genMuIdx) , muGMom.idx }); }
+      else {
+        muGMom = muonTree->findMuonMother(genMuIdx, 22, 2);
+        if (muGMom.pdg == 22) { idx.push_back({ muonIdx , uint(genMuIdx) , muGMom.idx }); }
+      }
+      if (muGMom.pdg!=22 && muGMom.pdg!=23) { std::cout << "[ERROR] Leading Muon in DY->Tau MC comes from invalid grandmother " << muGMom.pdg << " !" << std::endl; return false; }
+      // Search for the other reco muons
+      for (uint iMu = 0; iMu < muonTree->PF_Muon_Mom().size(); iMu++) {
+        const int& iGenMu = muonTree->PF_Muon_Gen_Idx()[iMu];
+        if ( (iGenMu != genMuIdx) && (iGenMu > -1) ) {
+          // Get the mom of the reco muon
+          const auto& mom = muonTree->MuonMother(iGenMu);
+          if (mom.pdg != 15) continue;
+          // Get the grandmom of the reco muon
+          auto gMom = muonTree->findMuonMother(iGenMu, 23, 2);
+          if (gMom.pdg != 23) { gMom = muonTree->findMuonMother(iGenMu, 22, 2); }
+          // Check and store if same grandmother
+          if ( gMom.idx == muGMom.idx ) { idx.push_back({ iMu , uint(iGenMu) , gMom.idx }); }
         }
-      }
-      else if (sample.find("MC_WZ")!=std::string::npos) {
-        const auto& mom = muonTree->findMuonMother(iGenMu, 24, 2);
-        if (mom.pdg == 24) { idx = { muonIdx , uint(iGenMu) , mom.idx }; }
-        else {
-          const auto& mom = muonTree->findMuonMother(iGenMu, 23, 2);
-          if (mom.pdg == 23) { idx = { muonIdx , uint(iGenMu) , mom.idx }; }
-        }
-      }
-      else if (sample.find("MC_ZZ")!=std::string::npos) {
-        const auto& mom = muonTree->findMuonMother(iGenMu, 23, 2);
-        if (mom.pdg == 23) { idx = { muonIdx , uint(iGenMu) , mom.idx }; }
-      }
-      else if (sample.find("MC_WW")!=std::string::npos) {
-        const auto& mom = muonTree->findMuonMother(iGenMu, 24, 2);
-        if (mom.pdg == 24) { idx = { muonIdx , uint(iGenMu) , mom.idx }; }
       }
     }
-    if ( idx.size() == 0 ) { std::cout << "[ERROR] Found in " << sample << " 0 RECO muons matched to GEN muon from decay!" << std::endl; return false; }
-    // Found 1 RECO muon from the decay
-    // Reference is RECO Muon pT
-    reference_pT.SetMagPhi( muonTree->PF_Muon_Mom()[idx[0]].Pt() , muonTree->PF_Muon_Mom()[idx[0]].Phi() );
-    // Boson pT is the GEN boson pT (mother of muon)
-    boson_pT.SetMagPhi( muonTree->Gen_Particle_Mom()[idx[2]].Pt() , muonTree->Gen_Particle_Mom()[idx[2]].Phi() );
+    if ( idx.size() == 0 || idx.size() > 2 ) { std::cout << "[ERROR] Found " << idx.size() << " RECO muons matched to GEN muons from DY->Tau decay!" << std::endl; return false; }
+    // Check the mother
+    const auto& mmom = muonTree->Mother(idx[0][2]);
+    if (mmom.idx==idx[0][2]) { std::cout << "[ERROR] NOT FOUND MOTHER OF MUON GRANDMOTHER " << muonTree->Gen_Particle_PdgId()[idx[0][2]] << std::endl; return false; }
+    if (mmom.idx!=idx[0][2] && mmom.pdg!=21 && mmom.pdg>10) { std::cout << "[ERROR] INVALID PDG OF MOTHER "  << mmom.pdg << " OF MUON GRANDMOTHER " << muonTree->Gen_Particle_PdgId()[idx[0][2]] << std::endl; return false; }
+    // Found 2 RECO muons from DrellYan decay
+    if ( idx.size() == 2 ) {
+      if ( (idx[0][0] != muonIdx) && (idx[1][0] != muonIdx) ) { std::cout << "[ERROR] Input muon index is inconsistent with the RECO muon from DY->Tau decay!" << std::endl; return false; }
+      if ( idx[0][2] != idx[1][2] ) { std::cout << "[ERROR] The 2 muons don't share the same grandmother (" << idx[0][2] << " , " << idx[1][2] << ") !" << std::endl; return false; }
+      const TLorentzVector& DiMuon_P4 = muonTree->PF_Muon_Mom()[idx[0][0]] + muonTree->PF_Muon_Mom()[idx[1][0]];
+      // Reference is DiMuon pT
+      reference_pT.SetMagPhi( DiMuon_P4.Pt(), DiMuon_P4.Phi() );
+      // Boson pT is the GEN boson pT (grandmother of muon)
+      boson_pT.SetMagPhi( muonTree->Gen_Particle_Mom()[idx[0][2]].Pt() , muonTree->Gen_Particle_Mom()[idx[0][2]].Phi() );
+    }
+    // Found 1 or more than 2 RECO muons from DY->Tau decay
+    if ( idx.size() == 1 ) {
+      if ( idx[0][0] != muonIdx ) { std::cout << "[ERROR] Input muon index is inconsistent with the RECO muon from DrellYan->Mu decay!" << std::endl; return false; }
+      // Find the GEN muon that was not matched to a RECO muon
+      std::vector< uint > iGenMissingMuon;
+      for (uint iGenMu = 0; iGenMu < muonTree->Gen_Muon_Mom().size(); iGenMu++) {
+        if (iGenMu != idx[0][1]) {
+          // Get the mom of the reco muon
+          const auto& mom = muonTree->MuonMother(iGenMu);
+          if (mom.pdg != 15) continue;
+          // Get the grandmom of the reco muon
+          auto gMom = muonTree->findMuonMother(iGenMu, 23, 2);
+          if (gMom.pdg != 23) { gMom = muonTree->findMuonMother(iGenMu, 22, 2); }
+          // Check and store if same grandmother
+          if (gMom.idx == idx[0][2]) { iGenMissingMuon.push_back(iGenMu); }
+        }
+      }
+      if ( iGenMissingMuon.size() == 1 ) {
+        // Reference is RECO Muon pT
+        reference_pT.SetMagPhi( muonTree->PF_Muon_Mom()[idx[0][0]].Pt() , muonTree->PF_Muon_Mom()[idx[0][0]].Phi() );
+        // Boson pT is the GEN boson pT (grandmother of muon)
+        boson_pT.SetMagPhi( muonTree->Gen_Particle_Mom()[idx[0][2]].Pt() , muonTree->Gen_Particle_Mom()[idx[0][2]].Phi() );
+      }
+      else {
+        // Don't correct if we don't have 2 gen muons since we can not ensure wether the other hadrons/electrons were reconstructed
+        return true;
+      }
+    }
   }
   //
   // Case: DrellYan -> Muon + Muon
-  else if (sample.find("MC_DY")!=std::string::npos) {
+  else if (sample.find("MC_DY")!=std::string::npos || sample.find("MC_Z")!=std::string::npos) {
     // Find the number of RECO muons matched to GEN muons from Z/gamma boson decay
     std::vector< std::vector< uint > > idx;
     // Get the mom of the leading muon
@@ -335,10 +384,14 @@ bool RecoilCorrector::getPtFromTree(
         }
       }
     }
-    if ( idx.size() == 0 ) { std::cout << "[ERROR] Found 0 RECO muons matched to GEN muons from Z decay!" << std::endl; return false; }
+    if ( idx.size() == 0 || idx.size() > 2 ) { std::cout << "[ERROR] Found " << idx.size() << " RECO muons matched to GEN muons from DY->Mu decay!" << std::endl; return false; }
+    // Check the mother
+    const auto& mmom = muonTree->Mother(idx[0][2]);
+    if (mmom.idx==idx[0][2]) { std::cout << "[ERROR] NOT FOUND MOTHER OF MUON MOTHER " << muonTree->Gen_Particle_PdgId()[idx[0][2]] << std::endl; return false; }
+    if (mmom.idx!=idx[0][2] && mmom.pdg!=21 && mmom.pdg>10) { std::cout << "[ERROR] INVALID PDG OF MOTHER "  << mmom.pdg << " OF MUON MOTHER " << muonTree->Gen_Particle_PdgId()[idx[0][2]] << std::endl; return false; }
     // Found 2 RECO muons from DrellYan decay
     if ( idx.size() == 2 ) {
-      if ( (idx[0][0] != muonIdx) && (idx[1][0] != muonIdx) ) { std::cout << "[ERROR] Input muon index is inconsistent with the RECO muon from DrellYan->MuMu decay!" << std::endl; return false; }
+      if ( (idx[0][0] != muonIdx) && (idx[1][0] != muonIdx) ) { std::cout << "[ERROR] Input muon index is inconsistent with the RECO muon from DY->Mu decay!" << std::endl; return false; }
       if ( idx[0][2] != idx[1][2] ) { std::cout << "[ERROR] The 2 muons don't share the same mother (" << idx[0][2] << " , " << idx[1][2] << ") !" << std::endl; return false; }
       const TLorentzVector& DY_P4 = muonTree->PF_Muon_Mom()[idx[0][0]] + muonTree->PF_Muon_Mom()[idx[1][0]];
       // Reference is DY pT
@@ -348,7 +401,7 @@ bool RecoilCorrector::getPtFromTree(
     }
     // Found 1 RECO muon from Drell Yan decay
     if ( idx.size() == 1 ) {
-      if ( idx[0][0] != muonIdx ) { std::cout << "[ERROR] Input muon index is inconsistent with the RECO muon from DrellYan->Mu decay!" << std::endl; return false; }
+      if ( idx[0][0] != muonIdx ) { std::cout << "[ERROR] Input muon index is inconsistent with the RECO muon from DY->Mu decay!" << std::endl; return false; }
       // Find the GEN muon that was not matched to a RECO muon
       std::vector< uint > iGenMissingMuon;
       for (uint iGenMu = 0; iGenMu < muonTree->Gen_Muon_Mom().size(); iGenMu++) {
@@ -357,7 +410,7 @@ bool RecoilCorrector::getPtFromTree(
           if (mom.idx == idx[0][2]) { iGenMissingMuon.push_back(iGenMu); }
         }
       }
-      if ( iGenMissingMuon.size() != 1 ) { std::cout << "[ERROR] Inconsistent number of GEN muons (" << iGenMissingMuon.size() << ") from Z decay!" << std::endl; return false; }
+      if ( iGenMissingMuon.size() != 1 ) { std::cout << "[ERROR] Inconsistent number of GEN muons (" << iGenMissingMuon.size() << ") from DY->Mu decay!" << std::endl; return false; }
       // Reference is RECO Muon pT
       reference_pT.SetMagPhi( muonTree->PF_Muon_Mom()[idx[0][0]].Pt() , muonTree->PF_Muon_Mom()[idx[0][0]].Phi() );
       // Boson pT is the sum of RECO Muon pT and missing GEN Muon pT
@@ -372,10 +425,18 @@ bool RecoilCorrector::getPtFromTree(
     std::vector< uint > idx;
     const int& iGenMu = muonTree->PF_Muon_Gen_Idx()[muonIdx];
     if ( iGenMu > -1 ) {
-      const auto& mom = muonTree->findMuonMother(iGenMu, 24, 2);
-      if ( mom.pdg == 24 ) { idx = { muonIdx , uint(iGenMu) , mom.idx }; }
+      // Get the mom of the reco muon
+      const auto& mom = muonTree->MuonMother(iGenMu);
+      if (mom.pdg!=15) { std::cout << "[ERROR] Leading Muon in W->Tau MC comes from invalid mother " << mom.pdg << " !" << std::endl; return false; }
+      // Get the grandmom of the reco muon
+      const auto& gMom = muonTree->findMuonMother(iGenMu, 24, 2);
+      if ( gMom.pdg == 24 ) { idx = { muonIdx , uint(iGenMu) , gMom.idx }; }
     }
-    if ( idx.size() == 0 ) { std::cout << "[ERROR] Found 0 RECO muons matched to GEN muon from W->Tau decay!" << std::endl; return false; }
+    if ( idx.size() == 0 ) { std::cout << "[ERROR] Found 0 RECO muons matched to GEN muons from W->Tau decay!" << std::endl; return false; }
+    // Check the mother
+    const auto& mmom = muonTree->Mother(idx[2]);
+    if (mmom.idx==idx[2]) { std::cout << "[ERROR] NOT FOUND MOTHER OF MUON GRANDMOTHER " << muonTree->Gen_Particle_PdgId()[idx[2]] << std::endl; return false; }
+    if (mmom.idx!=idx[2] && mmom.pdg!=21 && mmom.pdg>10) { std::cout << "[ERROR] INVALID PDG OF MOTHER "  << mmom.pdg << " OF MUON GRANDMOTHER " << muonTree->Gen_Particle_PdgId()[idx[2]] << std::endl; return false; }
     // Found 1 RECO muon from W->Tau decay
     // Reference is RECO Muon pT
     reference_pT.SetMagPhi( muonTree->PF_Muon_Mom()[idx[0]].Pt() , muonTree->PF_Muon_Mom()[idx[0]].Phi() );
@@ -392,39 +453,26 @@ bool RecoilCorrector::getPtFromTree(
       const auto& mom = muonTree->MuonMother(iGenMu);
       if ( mom.pdg == 24 ) { idx = { muonIdx , uint(iGenMu) , mom.idx }; }
     }
-    if ( idx.size() == 0 ) { std::cout << "[ERROR] Found 0 RECO muons matched to GEN muon from W decay!" << std::endl; return false; }
+    if ( idx.size() == 0 ) { std::cout << "[ERROR] Found 0 RECO muons matched to GEN muons from W->Mu decay!" << std::endl; return false; }
     // Found 1 RECO muon from W decay
     // Find the GEN neutrino
     int iGenNeutrino = -1;
     for (uint i = 0; i < muonTree->Gen_Particle_PdgId().size(); i++) {
-      if ( (muonTree->Gen_Particle_Status()[i]==1) && (abs(muonTree->Gen_Particle_PdgId()[i])==14) ) {
+      if ( (muonTree->Gen_Particle_Status()[i]==1) && (std::abs(muonTree->Gen_Particle_PdgId()[i])==14) ) {
         const auto& mom = muonTree->Mother(i);
         if (mom.idx == idx[2]) { iGenNeutrino = i; break; }
       }
     }
     if ( iGenNeutrino == -1 ) { std::cout << "[ERROR] No GEN neutrinos were found from W decay!" << std::endl; return false; }
+    // Check the mother
+    const auto& mmom = muonTree->Mother(idx[2]);
+    if (mmom.idx==idx[2]) { std::cout << "[ERROR] NOT FOUND MOTHER OF MUON MOTHER " << muonTree->Gen_Particle_PdgId()[idx[2]] << std::endl; return false; }
+    if (mmom.idx!=idx[2] && mmom.pdg!=21 && mmom.pdg>10) { std::cout << "[ERROR] INVALID PDG OF MOTHER "  << mmom.pdg << " OF MUON MOTHER " << muonTree->Gen_Particle_PdgId()[idx[2]] << std::endl; return false; }
     // Reference is RECO Muon pT
     reference_pT.SetMagPhi( muonTree->PF_Muon_Mom()[idx[0]].Pt() , muonTree->PF_Muon_Mom()[idx[0]].Phi() );
     // Boson pT is the sum of RECO Muon pT and missing GEN Neutrino pT
     boson_pT.SetMagPhi( muonTree->Gen_Particle_Mom()[iGenNeutrino].Pt() , muonTree->Gen_Particle_Mom()[iGenNeutrino].Phi() );
     boson_pT += reference_pT;
-  }
-  //
-  // Case: t -> W -> Muon + Neutrinos
-  else if (sample.find("MC_TT")!=std::string::npos) {
-    // Find the number of RECO muons matched to GEN muons from W->Muon boson decay
-    std::vector< uint > idx;
-    const int& iGenMu = muonTree->PF_Muon_Gen_Idx()[muonIdx];
-    if ( iGenMu > -1 ) {
-      const auto& mom = muonTree->MuonMother(iGenMu);
-      if ( mom.pdg == 24 ) { idx = { muonIdx , uint(iGenMu) , mom.idx }; }
-    }
-    if ( idx.size() == 0 ) { std::cout << "[ERROR] Found 0 RECO muons matched to GEN muon from t->W->Mu decay!" << std::endl; return false; }
-    // Found 1 RECO muon from W->Muon decay
-    // Reference is RECO Muon pT
-    reference_pT.SetMagPhi( muonTree->PF_Muon_Mom()[idx[0]].Pt() , muonTree->PF_Muon_Mom()[idx[0]].Phi() );
-    // Boson pT is the GEN W boson pT (mother of muon)
-    boson_pT.SetMagPhi( muonTree->Gen_Particle_Mom()[idx[2]].Pt() , muonTree->Gen_Particle_Mom()[idx[2]].Phi() );
   }
   //
   // Case: QCD -> Muon + X
@@ -724,8 +772,8 @@ bool RecoilCorrector::correctMET(
                                  )
 {
   //
-  if ( (reference_pT_.Px() == 0.0) && (reference_pT_.Py() == 0.0) ) { std::cout << "[ERROR] The reference pT has not been defined!" << std::endl; return false; }
-  if ( (    boson_pT_.Px() == 0.0) && (    boson_pT_.Py() == 0.0) ) { std::cout << "[ERROR] The boson pT has not been defined!"     << std::endl; return false; }
+  if ( (reference_pT_.Px() == 0.0) && (reference_pT_.Py() == 0.0) ) { std::cout << "[WARNING] The reference pT is zero, ignoring correction!" << std::endl; MET_CORR=MET_RAW; return true; }
+  if ( (    boson_pT_.Px() == 0.0) && (    boson_pT_.Py() == 0.0) ) { std::cout << "[ERROR] The boson pT has not been defined!" << std::endl; return false; }
   if ( u1Fits_MC_.count(METType_) == 0 ) { std::cout << "[ERROR] MET type " << METType_ << " has not been defined!" << std::endl; return false; }
   //
   // Initialize output variables
