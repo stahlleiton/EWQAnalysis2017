@@ -5,6 +5,7 @@
 #include "../Utilities/HiEvtTree.h"
 #include "../Utilities/tnp_weight.h"
 #include "../Utilities/HFweight.h"
+#include "../Utilities/RoccoR.cc"
 #include "../Utilities/EVENTUTILS.h"
 // ROOT headers
 #include "TROOT.h"
@@ -22,6 +23,7 @@
 #include "TPaletteAxis.h"
 #include "TVectorD.h"
 #include "TMath.h"
+#include "TRandom3.h"
 // c++ headers
 #include <dirent.h>
 #include <iostream>
@@ -114,7 +116,7 @@ const std::map< std::string , std::vector< std::pair< std::string , double > > >
 std::map< std::string , std::vector< std::string > > sampleType_;
 
 
-void correctEfficiency(const std::string workDirName = "NominalCM", const uint applyHFCorr = 1, const bool applyBosonPTCorr = false)
+void correctEfficiency(const std::string workDirName = "NominalCM", const uint applyHFCorr = 1, const bool applyBosonPTCorr = false, const bool applyMuonPTCorr = false)
 {
   //
   // Initialize the Kinematic Bin info
@@ -194,6 +196,15 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const uint a
   // Initialize the HF corrections
   std::unique_ptr<HFweight> corrHF;
   if (applyHFCorr>0) { corrHF = std::unique_ptr<HFweight>(new HFweight("/afs/cern.ch/work/e/echapon/public/DY_pA_2016/HFweight.root")); }
+  //
+  // Initialize the Rochester Corrector
+  std::unique_ptr<RoccoR> RCCorr;
+  std::unique_ptr<TRandom3> rnd;
+  if (applyMuonPTCorr) {
+    const std::string rcPath = "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Utilities/rcdata.2016.v3/";
+    RCCorr.reset(new RoccoR(rcPath.c_str()));
+    rnd.reset(new TRandom3());
+  }
   //
   // ------------------------------------------------------------------------------------------------------------------------
   //
@@ -311,18 +322,20 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const uint a
         if (PA::checkGenMuon(iGenMu, sampleType, muonTree.at(sample)) == false) continue;
         // Consider Generated Muons within the Pseudo-Rapidity acceptance of CMS
         if ( std::abs(muonTree.at(sample)->Gen_Muon_Mom()[iGenMu].Eta()) > 2.4 ) continue;
-        // Determine the Boson PT Weight from Drell-Yan analysis
+        // Apply Muon Corrections
         double evtW = evtWeight;
+        // Determine the Boson PT Weight from Drell-Yan analysis
         if (applyBosonPTCorr) {
           // Determine the gen boson pT
           const auto momIdx = PA::getGenMom(iGenMu, sampleType, muonTree.at(sample));
           if (momIdx>=0) {
             const auto momPdg = std::abs(muonTree.at(sample)->Gen_Particle_PdgId()[momIdx]);
-            if (momPdg<22 || momPdg>24) { std::cout << "[ERROR] Mother pdg " << momPdg << " can not be used to correct the boson pT" << std::endl; return; }
+            if (momPdg!=24) { std::cout << "[ERROR] Mother pdg " << momPdg << " can not be used to correct the boson pT" << std::endl; return; }
             double bosonPT = muonTree.at(sample)->Gen_Particle_Mom()[momIdx].Pt();
             if (bosonPT<0.5) { bosonPT = 0.5; }
             evtW *= ( 1.0 / ( ( -0.37 * std::pow(bosonPT, -0.37) ) + 1.19 ) );
           }
+          else { std::cout << "[ERROR] Mother of muon was not found!" << std::endl; return; }
         }
         // Check if the generated muon pass the kinematic cuts
         const bool isGoodGenMuon  = PA::selectGenMuon(iGenMu, muonTree.at(sample));
@@ -363,17 +376,26 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const uint a
             // Extract the kinematic information of generated muon
             const double mu_PF_Pt  = muonTree.at(sample)->PF_Muon_Mom()[iPFMu].Pt();
             const double mu_PF_Eta = muonTree.at(sample)->PF_Muon_Mom()[iPFMu].Eta();
-            // Determine the Tag-And-Probe scale factos
+            // Determine the Tag-And-Probe scale factors
             sfTnP = getTnPScaleFactors(mu_PF_Pt, mu_PF_Eta, corrType);
-            //
+            // Check the RECO Idx
             const short iRecoMu = muonTree.at(sample)->PF_Muon_Reco_Idx()[iPFMu];
             if (iRecoMu < 0) { std::cout << "[ERROR] Reco idx is negative" << std::endl; return; }
+            // Determine the Muon PT (Rochester) scale factor
+            double muSF = 1.0;
+            if (applyMuonPTCorr) {
+              const double mu_PF_Chg  = muonTree.at(sample)->PF_Muon_Charge()[iPFMu];
+              const double mu_PF_Phi  = muonTree.at(sample)->PF_Muon_Mom()[iPFMu].Phi();
+              const double mu_PF_NTrk = muonTree.at(sample)->Reco_Muon_InTrk_TrkLayers()[iRecoMu];
+              if (mu_PF_NTrk>=0) { muSF = RCCorr->kScaleFromGenMC (mu_PF_Chg, mu_PF_Pt, mu_PF_Eta, mu_PF_Phi, mu_PF_NTrk, mu_Gen_Pt, rnd->Rndm(), 7, 6); }
+              //else { std::cout << "[ERROR] Leading PF Muon Tracker Layers variable is negative!" << std::endl; return; }
+            }
             // Check if the reconstructed muon pass muon ID and kinematic cuts
-            passIdentification = PA::isGoodMuon(iPFMu , muonTree.at(sample));
+            passIdentification = PA::isGoodMuon(iPFMu , muonTree.at(sample), muSF);
             // Check if the reconstructed muon is matched to the trigger
             passTrigger = PA::isTriggerMatched(triggerIndex_, iPFMu, muonTree.at(sample));
             // Check if the reconstructed muon pass isolation cuts
-            passIsolation = PA::isIsolatedMuon(iPFMu , muonTree.at(sample));
+            passIsolation = PA::isIsolatedMuon(iPFMu , muonTree.at(sample), muSF);
             // Check if we are using cut and count method
             if (isCutAndCount) {
               // Extract the MET
@@ -443,6 +465,7 @@ void correctEfficiency(const std::string workDirName = "NominalCM", const uint a
   //
   std::string outDir = mainDir + workDirName;
   if    (applyBosonPTCorr) { outDir += "_WithBosonPT"; }
+  if    (applyMuonPTCorr ) { outDir += "_WithMuonPT";  }
   if      (applyHFCorr==1) { outDir += "_WithHF/";     }
   else if (applyHFCorr==2) { outDir += "_WithNTrack/"; }
   else { outDir += "/"; }

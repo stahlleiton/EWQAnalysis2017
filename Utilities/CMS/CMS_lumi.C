@@ -178,7 +178,7 @@ CMS_lumi( TPad* pad, int iPeriod, int iPosX, TString label )
     }
   else if (iPeriod==118)
     {
-      lumiText2 += lumi_PA2016_alt2 + " (8.16 TeV)";
+      lumiText2 += lumi_PA2016_alt2 + "                  #sqrt{s_{NN}} = 8.16 TeV";
     }
   else if (iPeriod==120)
     {

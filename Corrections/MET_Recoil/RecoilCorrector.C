@@ -454,6 +454,10 @@ bool RecoilCorrector::getPtFromTree(
       if ( mom.pdg == 24 ) { idx = { muonIdx , uint(iGenMu) , mom.idx }; }
     }
     if ( idx.size() == 0 ) { std::cout << "[ERROR] Found 0 RECO muons matched to GEN muons from W->Mu decay!" << std::endl; return false; }
+    // Check the mother
+    const auto& mmom = muonTree->Mother(idx[2]);
+    if (mmom.idx==idx[2]) { std::cout << "[ERROR] NOT FOUND MOTHER OF MUON MOTHER " << muonTree->Gen_Particle_PdgId()[idx[2]] << std::endl; return false; }
+    if (mmom.idx!=idx[2] && mmom.pdg!=21 && mmom.pdg>10) { std::cout << "[ERROR] INVALID PDG OF MOTHER "  << mmom.pdg << " OF MUON MOTHER " << muonTree->Gen_Particle_PdgId()[idx[2]] << std::endl; return false; }
     // Found 1 RECO muon from W decay
     // Find the GEN neutrino
     int iGenNeutrino = -1;
@@ -464,10 +468,6 @@ bool RecoilCorrector::getPtFromTree(
       }
     }
     if ( iGenNeutrino == -1 ) { std::cout << "[ERROR] No GEN neutrinos were found from W decay!" << std::endl; return false; }
-    // Check the mother
-    const auto& mmom = muonTree->Mother(idx[2]);
-    if (mmom.idx==idx[2]) { std::cout << "[ERROR] NOT FOUND MOTHER OF MUON MOTHER " << muonTree->Gen_Particle_PdgId()[idx[2]] << std::endl; return false; }
-    if (mmom.idx!=idx[2] && mmom.pdg!=21 && mmom.pdg>10) { std::cout << "[ERROR] INVALID PDG OF MOTHER "  << mmom.pdg << " OF MUON MOTHER " << muonTree->Gen_Particle_PdgId()[idx[2]] << std::endl; return false; }
     // Reference is RECO Muon pT
     reference_pT.SetMagPhi( muonTree->PF_Muon_Mom()[idx[0]].Pt() , muonTree->PF_Muon_Mom()[idx[0]].Phi() );
     // Boson pT is the sum of RECO Muon pT and missing GEN Neutrino pT

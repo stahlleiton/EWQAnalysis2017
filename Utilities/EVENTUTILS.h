@@ -537,10 +537,11 @@ namespace PA {
     return false;
   };
   //
-  bool isIsolatedMuon(const ushort& iPFMu, const std::unique_ptr<HiMuonTree>& muonTree)
+  bool isIsolatedMuon(const ushort& iPFMu, const std::unique_ptr<HiMuonTree>& muonTree, const double muSF=1.0)
   {
+    const auto Muon_Iso = (muonTree->PF_Muon_IsoPFR03NoPUCorr()[iPFMu] / muSF);
     if (
-        ( muonTree->PF_Muon_IsoPFR03NoPUCorr()[iPFMu] < 0.15 ) // Consider Isolated Muons
+        ( Muon_Iso < 0.15 ) // Consider Isolated Muons
         ) {
       return true;
     }
@@ -560,11 +561,12 @@ namespace PA {
     return false;
   };
   //
-  bool isGoodMuon(const ushort& iPFMu, const std::unique_ptr<HiMuonTree>& muonTree)
+  bool isGoodMuon(const ushort& iPFMu, const std::unique_ptr<HiMuonTree>& muonTree, const double muSF=1.0)
   {
+    const auto Muon_Pt = (muonTree->PF_Muon_Mom()[iPFMu].Pt() * muSF);
     if (
-        ( isTightMuon(iPFMu, muonTree)               ) && // Consider Tight Muons
-        ( muonTree->PF_Muon_Mom()[iPFMu].Pt() > 25.0 )    // Consider Muons with pT > 25 GeV/c
+        ( isTightMuon(iPFMu, muonTree) ) && // Consider Tight Muons
+        ( Muon_Pt > 25.0               )    // Consider Muons with pT > 25 GeV/c
         ) {
       return true;
     }
@@ -572,11 +574,11 @@ namespace PA {
     return false;
   };
   //
-  bool isOfflineMuon(const ushort& iPFMu, const std::unique_ptr<HiMuonTree>& muonTree)
+  bool isOfflineMuon(const ushort& iPFMu, const std::unique_ptr<HiMuonTree>& muonTree, const double muSF=1.0)
   {
     if (
-        ( isGoodMuon(iPFMu, muonTree)     ) && // Consider Good Quality Muons
-        ( isIsolatedMuon(iPFMu, muonTree) )    // Consider Isolated Muons
+        ( isGoodMuon(iPFMu, muonTree, muSF)     ) && // Consider Good Quality Muons
+        ( isIsolatedMuon(iPFMu, muonTree, muSF) )    // Consider Isolated Muons
         ) {
       return true;
     }
