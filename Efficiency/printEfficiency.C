@@ -73,11 +73,11 @@ void         drawCompEff1D       ( const std::string& outDir , EffMap_t& effMap 
 //
 
 
-void printEfficiency(const std::string workDirName = "NominalCM", const uint applyHFCorr = 1, const bool applyBosonPTCorr = false)
+void printEfficiency(const std::string workDirName = "NominalCM", const uint applyHFCorr = 1, const bool applyBosonPTCorr = false, const bool applyMuonPTCorr = false)
 {
   // Change the working directory
   const std::string CWD = getcwd(NULL, 0);
-  const std::string mainDir = Form("%s/Output/%s/", CWD.c_str(), (workDirName+((applyBosonPTCorr) ? "_WithBosonPT" : "")+((applyHFCorr==1) ? "_WithHF" : ((applyHFCorr==2) ? "_WithNTrack" : ""))).c_str());
+  const std::string mainDir = Form("%s/Output/%s/", CWD.c_str(), (workDirName+((applyBosonPTCorr) ? "_WithBosonPT" : "")+((applyMuonPTCorr) ? "_WithMuonPT" : "")+((applyHFCorr==1) ? "_WithHF" : ((applyHFCorr==2) ? "_WithNTrack" : ""))).c_str());
   gSystem->mkdir(mainDir.c_str(), kTRUE);
   gSystem->ChangeDirectory(mainDir.c_str());
   //
