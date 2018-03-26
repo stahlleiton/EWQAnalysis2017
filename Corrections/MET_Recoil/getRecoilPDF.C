@@ -74,10 +74,11 @@ bool performFit(
 void getRecoilPDF(
                   const bool isData = false,
                   uint pfumodel = 2, // u1 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian, 4 => Breit-Wigner plus Gaussian)
-                  const bool applyHFCorr = true, // Only used for MC, in data it is ignored
+                  const int  applyHFCorr = 1, // Only used for MC, in data it is ignored
+                  const bool applyBosonPTCorr = false, // Only used for MC, in data it is ignored
                   const bool computeSyst = false, // If true computes the 100 random variations of each pT point and perform the fits
                   const std::vector< std::string > metType = { "PF_RAW"/*,"PF_RAW_JetEnDown","PF_RAW_JetEnUp","PF_RAW_JetResDown","PF_RAW_JetResUp","PF_RAW_MuonEnDown","PF_RAW_MuonEnUp", "PF_Type1" , "PF_NoHF_RAW" , "PF_NoHF_Type1" */},
-                  const std::vector< std::string > COLL    = { "PA" /*, "Pbp" , "pPb" */}
+                  const std::vector< std::string > COLL    = { "PA", "Pbp" , "pPb" }
                   )
 {
   //
@@ -115,8 +116,14 @@ void getRecoilPDF(
       std::cout << "[INFO] Working with MET " << met << " and coll: " << col  << std::endl;
       //
       // Define directories and file names
-      const std::string inputDir  = mainDir + dsLabel + "/" + ("MET_"+met) + "/" + col + "/" + (isData?"":(applyHFCorr?"HFCorr/":"noHFCorr/")) + pfu12model.c_str() + "/Fits/";
-      const std::string outputDir = mainDir + dsLabel + "/" + ("MET_"+met) + "/" + col + "/" + (isData?"":(applyHFCorr?"HFCorr/":"noHFCorr/")) + pfu12model.c_str() + (computeSyst?"/Systematics/":"/Results/");
+      std::string labelDir = "";
+      if (!isData) {
+        if (applyHFCorr==1  ) { labelDir += "HFCorr";  } else if (applyHFCorr==2) { labelDir += "NTrack"; } else { labelDir += "noHFCorr"; }
+        if (applyBosonPTCorr) { labelDir += "_BosonPT"; }
+      }
+      if (labelDir!="") { labelDir += "/"; }
+      const std::string inputDir  = mainDir + dsLabel + "/" + ("MET_"+met) + "/" + col + "/" + labelDir.c_str() + pfu12model.c_str() + "/Fits/";
+      const std::string outputDir = mainDir + dsLabel + "/" + ("MET_"+met) + "/" + col + "/" + labelDir.c_str() + pfu12model.c_str() + (computeSyst?"/Systematics/":"/Results/");
       gSystem->mkdir(outputDir.c_str(), true);
       const std::string fileName  = "plots_RecoilPDF_" + met + "_" + col + ".root";
       //
@@ -188,7 +195,13 @@ void getRecoilPDF(
         for (const auto& fitres : u2FitRes) { if (fitres.second) fitres.second->Write(); }
         outfile->Close();
         // Make Website with plots
-        const std::string htmlDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col + "/" + (isData?"":(applyHFCorr?"HFCorr/":"noHFCorr/")) + pfu12model.c_str() + (computeSyst?"/Systematics":"");
+        std::string labelDir = "";
+        if (!isData) {
+          if (applyHFCorr==1  ) { labelDir += "HFCorr";  } else if (applyHFCorr==2) { labelDir += "NTrack"; } else { labelDir += "noHFCorr"; }
+          if (applyBosonPTCorr) { labelDir += "_BosonPT"; }
+        }
+        if (labelDir!="") { labelDir += "/"; }
+        const std::string htmlDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col + "/" + labelDir.c_str() + pfu12model.c_str() + (computeSyst?"/Systematics":"");
         makeHTML(htmlDir, u1Graph_rnd, u2Graph_rnd, uparName, uprpName,(computeSyst?i:-1));
         cout << "  <> Output saved in " << outputDir_rnd << endl;
         // Clean up
