@@ -88,10 +88,11 @@ bool performFit(
 void fitRecoil(
                const bool isData = false,
                uint pfumodel = 2, // u1/2 model (1 => single Gaussian, 2 => double Gaussian, 3 => triple Gaussian, 4 => Breit-Wigner plus Gaussian)
-               const bool applyHFCorr = false, // Only used for MC, in data it is ignored
+               const int applyHFCorr = 0, // Only used for MC, in data it is ignored. 1: hiHF , 2: NTracksv
+               const bool applyBosonPTCorr = false, // Only used for MC, in data it is ignored.
                const std::string yRange = "full", // Z rapidity (full => [-2.4,2.4], mid => [-1.6,1.6], fwd => |y| < 1.6)
                const std::vector< std::string > metType = { "PF_RAW"/*,"PF_RAW_JetEnDown","PF_RAW_JetEnUp","PF_RAW_JetResDown","PF_RAW_JetResUp","PF_RAW_MuonEnDown","PF_RAW_MuonEnUp" , "PF_Type1" , "PF_NoHF_RAW", "PF_NoHF_Type1" */},
-               const std::vector< std::string > COLL    = { "PA"/* , "Pbp" , "pPb" */},
+               const std::vector< std::string > COLL    = { "PA" , "Pbp" , "pPb" },
                const bool remakeDS = false
                )
 {
@@ -192,7 +193,12 @@ void fitRecoil(
       // Open the input file
       for (const auto& met : metType) {
         for (const auto& col : COLL) {
-          const std::string inDSname = (inputDSDir + Form("DATASET_%s_%s%s.root", met.c_str(), col.c_str(),(!isData && applyHFCorr)?"_HFCorr":""));
+          std::string label = "";
+          if (!isData) {
+            if (applyHFCorr==1) { label += "_HFCorr";  } else if (applyHFCorr==2) { label += "_NTrack"; } else { label += ""; }
+            if (applyBosonPTCorr) { label += "_BosonPT"; }
+          }
+          const std::string inDSname = (inputDSDir + Form("DATASET_%s_%s%s.root", met.c_str(), col.c_str(), label.c_str()));
           if (existFile(inDSname)) {
             bool prodNotFound = false;
             std::cout << "[INFO] Extracting DataSets from " << inDSname << endl;
@@ -246,14 +252,14 @@ void fitRecoil(
         RooRealVar weight = RooRealVar("weight", "weight", -1.0, 1000000000.0, "");
         RooRealVar u1Var  = RooRealVar(uparName.c_str(), uparName.c_str(), -1000., 1000., "GeV/c");
         std::unique_ptr<RooDataSet> ds;
-        if (!isData && applyHFCorr) {
+        if (!isData && (applyHFCorr>0 || applyBosonPTCorr)) {
           ds.reset(new RooDataSet(Form("dPF%s_%s", uparName.c_str(), dsLabel.c_str()), "", RooArgSet(u1Var, ptVar, weight), RooFit::WeightVar(weight)));
         }
         else { ds.reset(new RooDataSet(Form("dPF%s_%s", uparName.c_str(), dsLabel.c_str()), "", RooArgSet(u1Var, ptVar))); }
         myws_u1[met][col].import(*ds);
         //
         RooRealVar u2Var  = RooRealVar(uprpName.c_str(), uprpName.c_str(), -1000., 1000., "GeV/c");
-        if (!isData && applyHFCorr) {
+        if (!isData && (applyHFCorr>0 || applyBosonPTCorr)) {
           ds.reset(new RooDataSet(Form("dPF%s_%s", uprpName.c_str(), dsLabel.c_str()), "", RooArgSet(u2Var, ptVar, weight), RooFit::WeightVar(weight)));
         }
         else { ds.reset(new RooDataSet(Form("dPF%s_%s", uprpName.c_str(), dsLabel.c_str()), "", RooArgSet(u2Var, ptVar))); }
@@ -263,7 +269,7 @@ void fitRecoil(
     //
     // Define the HF Weight
     std::unique_ptr<HFweight> HFCorr;
-    if (!isData && applyHFCorr) { HFCorr = std::unique_ptr<HFweight>(new HFweight("/afs/cern.ch/work/e/echapon/public/DY_pA_2016/HFweight.root")); }
+    if (!isData && applyHFCorr>0) { HFCorr = std::unique_ptr<HFweight>(new HFweight("/afs/cern.ch/work/e/echapon/public/DY_pA_2016/HFweight.root")); }
     //
     // Proceed to loop over each input file
     for(const auto& file : fileName) {
@@ -327,7 +333,16 @@ void fitRecoil(
         //
         // Get the HF Weight
         double weightEvt = 1.0;
-        if (!isData && applyHFCorr && (HFCorr!=NULL)) { weightEvt = HFCorr->weight(evtTree->hiHF(), HFweight::HFside::both, false); }
+        if (!isData && (HFCorr!=NULL)) {
+          if (applyHFCorr==1) {
+            const double hf = (evtTree->hiHF()>=300. ? 290. : evtTree->hiHF());
+            weightEvt = HFCorr->weight(hf, HFweight::HFside::both, false);
+          }
+          else if (applyHFCorr==2) {
+            const double nTrks = (evtTree->hiNtracks()>=300. ? 290. : evtTree->hiNtracks());
+            weightEvt = HFCorr->weight(nTrks, HFweight::HFside::track, false);
+          }
+        }
         //
         // Loop over dimuons
         //
@@ -339,10 +354,26 @@ void fitRecoil(
           // Only consider Muons Matched to GEN in MC
           if (!isData && muonTree->PF_Muon_Gen_Idx()[iPFMu1]<0) continue;
           if (!isData && muonTree->PF_Muon_Gen_Idx()[iPFMu2]<0) continue;
-          if (!isData) { // Check that the mother is a Z boson in MC and both share the same
+          // Check that the mother is a Z boson in MC and both share the same
+          if (!isData) {
             const auto mom_1 = muonTree->MuonMother(muonTree->PF_Muon_Gen_Idx()[iPFMu1]);
             const auto mom_2 = muonTree->MuonMother(muonTree->PF_Muon_Gen_Idx()[iPFMu2]);
             if ( (mom_1.pdg != 23) || (mom_2.pdg != 23) || (mom_1.idx != mom_2.idx) ) continue;
+          }
+          //
+          double weight = weightEvt;
+          // Apply the Boson pT correction
+          if (!isData && applyBosonPTCorr) {
+            // Determine the gen boson pT
+            const auto momIdx = PA::getGenMom(muonTree->PF_Muon_Gen_Idx()[iPFMu1], "MC_ZToMuMu", muonTree);
+            if (momIdx>=0) {
+              const auto momPdg = std::abs(muonTree->Gen_Particle_PdgId()[momIdx]);
+              if (momPdg!=23) { std::cout << "[ERROR] Mother pdg " << momPdg << " can not be used to correct the boson pT" << std::endl; return; }
+              double bosonPT = muonTree->Gen_Particle_Mom()[momIdx].Pt();
+              if (bosonPT<0.5) { bosonPT = 0.5; }
+              weight *= ( 1.0 / ( ( -0.37 * std::pow(bosonPT, -0.37) ) + 1.19 ) );
+            }
+            else { std::cout << "[ERROR] Mother of muon was not found!" << std::endl; return; }
           }
           // Consider muons passing Tight ID and isolation
           if (PA::isTightIsolatedMuon(iPFMu1 , muonTree)==false) continue;
@@ -400,8 +431,8 @@ void fitRecoil(
             for (const auto& col : COLL) {
               if (col==evtCol || col=="PA") {
                 // Fill the histograms with the recoil (u1 or u2) in each pT bin
-                hPFu1v.at(met).at(col).at(ipt)->Fill(u1, weightEvt);
-                hPFu2v.at(met).at(col).at(ipt)->Fill(u2, weightEvt);
+                hPFu1v.at(met).at(col).at(ipt)->Fill(u1, weight);
+                hPFu2v.at(met).at(col).at(ipt)->Fill(u2, weight);
                 // Fill the RooWorkspaces with the recoil
                 //
                 RooDataSet* u1DS = ((RooDataSet*)myws_u1.at(met).at(col).data(Form("dPF%s_%s", uparName.c_str(), dsLabel.c_str())));
@@ -415,8 +446,8 @@ void fitRecoil(
                 ((RooRealVar*)u1Set.find(uparName.c_str()))->setVal(u1);
                 ((RooRealVar*)u2Set.find(uprpName.c_str()))->setVal(u2);
                 //
-                u1DS->addFast(u1Set, weightEvt);
-                u2DS->addFast(u2Set, weightEvt);
+                u1DS->addFast(u1Set, weight);
+                u2DS->addFast(u2Set, weight);
               }
             }
           }
@@ -431,7 +462,12 @@ void fitRecoil(
         const std::string outputDir = dsDir + dsLabel +"/";
         if (!existDir(outputDir)) { makeDir(outputDir); }
         // Create output file
-        const std::string outfname = (outputDir + Form("DATASET_%s_%s%s.root", met.c_str(), col.c_str(),(!isData && applyHFCorr)?"_HFCorr":""));
+        std::string label = "";
+        if (!isData) {
+          if (applyHFCorr==1  ) { label += "_HFCorr";  } else if (applyHFCorr==2) { label += "_NTrack"; }
+          if (applyBosonPTCorr) { label += "_BosonPT"; }
+        }
+        const std::string outfname = (outputDir + Form("DATASET_%s_%s%s.root", met.c_str(), col.c_str(), label.c_str()));
         auto outfile = std::unique_ptr<TFile>(new TFile(outfname.c_str(), "RECREATE"));
         if (outfile!=NULL && outfile->IsOpen() && !outfile->IsZombie()) {
           myws_u1.at(met).at(col).Write("workspace_u1");
@@ -458,7 +494,13 @@ void fitRecoil(
     for (const auto& col : COLL) {
       std::cout << "[INFO] Working with MET " << met << " and coll: " << col  << std::endl;
       // Create output directories
-      const std::string outputDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col +"/" + (!isData?(applyHFCorr?"HFCorr/":"noHFCorr/"):"") + (pfu1model==1?"singleGauss/":(pfu1model==2?"doubleGauss/":(pfu1model==3?"doubleGauss/":"BWGauss/")));
+      std::string labelDir = "";
+      if (!isData) {
+        if (applyHFCorr==1  ) { labelDir += "HFCorr";  } else if (applyHFCorr==2) { labelDir += "NTrack"; } else { labelDir += "noHFCorr"; }
+        if (applyBosonPTCorr) { labelDir += "_BosonPT"; }
+      }
+      if (labelDir!="") { labelDir += "/"; }
+      const std::string outputDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col +"/" + labelDir.c_str() + (pfu1model==1?"singleGauss/":(pfu1model==2?"doubleGauss/":(pfu1model==3?"doubleGauss/":"BWGauss/")));
       if (!existDir(outputDir)) { makeDir(outputDir); }
       // Do fits on u1
       std::cout << "[INFO] Proceed to perform the fit for u1" << std::endl;
@@ -502,7 +544,13 @@ void fitRecoil(
   for (const auto& met : metType) {
     for (const auto& col : COLL) {
       // Create output directories
-      const std::string outputDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col +"/" + (!isData?(applyHFCorr?"HFCorr/":"noHFCorr/"):"")+ (pfu1model==1?"singleGauss/":(pfu1model==2?"doubleGauss/":(pfu1model==3?"doubleGauss/":"BWGauss/"))) +"Fits/";
+      std::string labelDir = "";
+      if (!isData) {
+        if (applyHFCorr==1) { labelDir += "HFCorr";  } else if (applyHFCorr==2) { labelDir += "NTrack"; } else { labelDir += "noHFCorr"; }
+        if (applyBosonPTCorr) { labelDir += "_BosonPT"; }
+      }
+      if (labelDir!="") { labelDir += "/"; }
+      const std::string outputDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col +"/" + labelDir.c_str()+ (pfu1model==1?"singleGauss/":(pfu1model==2?"doubleGauss/":(pfu1model==3?"doubleGauss/":"BWGauss/"))) +"Fits/";
       gSystem->mkdir(TString(outputDir + uparName + "/" + "png/"), true);
       gSystem->mkdir(TString(outputDir + uparName + "/" + "pdf/"), true);
       gSystem->mkdir(TString(outputDir + uparName + "/" + "root/"), true);
@@ -637,7 +685,7 @@ void fitRecoil(
       for (const auto& graph : u2Graph) { if (graph.second) graph.second->Write(); }
       outfile->Close();
 
-      const std::string htmlDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col + "/" + (!isData?(applyHFCorr?"HFCorr/":"noHFCorr/"):"") + (pfu1model==1?"singleGauss/":(pfu1model==2?"doubleGauss/":(pfu1model==3?"doubleGauss/":"BWGauss/")));
+      const std::string htmlDir = mainDir + dsLabel +"/"+ ("MET_"+met) +"/"+ col + "/" + labelDir.c_str() + (pfu1model==1?"singleGauss/":(pfu1model==2?"doubleGauss/":(pfu1model==3?"doubleGauss/":"BWGauss/")));
       makeHTML(htmlDir, u1Graph, u2Graph, uparName, uprpName, nbins);
   
       cout << "  <> Output saved in " << outputDir << endl;
