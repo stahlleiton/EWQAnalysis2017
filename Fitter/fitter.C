@@ -121,12 +121,12 @@ void fitter(
     if (workDirName=="NominalCM_BosonPTCorr"    ) { userInput.Flag["applyBosonPTCorr"] = true;    }
     if (workDirName=="NominalCM_MuonPTCorr"     ) { userInput.Flag["applyMuonPTCorr"] = true;     }
     if (workDirName=="NominalCM_AllCorr"        ) { userInput.Flag["applyMuonPTCorr"] = true; userInput.Flag["applyBosonPTCorr"] = true; }
-    if (workDirName=="NominalCM_TESTP"        ) { userInput.Flag["applyMuonPTCorr"] = false; userInput.Flag["applyBosonPTCorr"] = true; }
     //
     if (workDirName=="NominalCM_RecoilScalingOneGaussDATA" ) { userInput.Par.at("RecoilCorrMethod") = "Scaling_OneGaussianDATA"; }
     if (workDirName=="NominalCM_RecoilScalingOneGaussMC"   ) { userInput.Par.at("RecoilCorrMethod") = "Scaling_OneGaussianMC";   }
     if (workDirName=="NominalCM_RecoilScaling"  ) { userInput.Par.at("RecoilCorrMethod") = "Scaling"; }
     if (workDirName=="NominalCM_RecoilSmearing" ) { userInput.Par.at("RecoilCorrMethod") = "Smearing"; }
+    if (workDirName=="NominalCM_RecoilSplitRuns" ) { userInput.Flag["RecoilCorr_splitRuns"] = true; }
     //
     if (workDirName.find("RecoilStatVar")!=std::string::npos) {
       startVariation = 0;
@@ -192,7 +192,8 @@ void fitter(
   userInput.Par["extTreesFileDir"] = Form("%s/Input/", CWD.c_str());
   userInput.Par["extDSDir_DATA"]   = "/grid_mnt/vol__vol_U__u/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/DataSet/";
   userInput.Par["extDSDir_MC"]     = "/grid_mnt/vol__vol_U__u/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/DataSet/";
-  userInput.Par["RecoilPath"]      = "/grid_mnt/vol__vol_U__u/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_nom_sysStat/";
+  userInput.Par["RecoilPath"]      = "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil/";
+  //userInput.Par["RecoilPath"]      = "/grid_mnt/vol__vol_U__u/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_nom_sysStat/";
   userInput.Par["RochesterPath"]   = "/grid_mnt/vol__vol_U__u/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Utilities/rcdata.2016.v3/";
   if (workDirName=="NominalCM_RecoilSystPtFunc" ) { userInput.Par.at("RecoilPath") = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_sysPtFunc/";  }
   if (workDirName=="NominalCM_RecoilSystBWGauss") { userInput.Par.at("RecoilPath") = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_sysBWGauss/"; }
@@ -234,6 +235,8 @@ void fitter(
     else if (workDirName=="NominalCM_RecoilSystUnclusEnDown") { userInput.Par.at("RecoilMET") = "PF_RAW_UnclusEnDown"; userInput.Flag.at("ignoreCorrDS") = true; }
     else if (workDirName=="NominalCM_RecoilSystBWGauss") { userInput.Flag.at("ignoreCorrDS") = true; }
     else if (workDirName=="NominalCM_RecoilSystPtFunc" ) { userInput.Flag.at("ignoreCorrDS") = true; }
+    else if (workDirName=="NominalCM_RecoilSplitRuns" ) { userInput.Flag.at("ignoreCorrDS") = true; }
+    else if (workDirName=="NominalCM_NTrackCorr"     ) { userInput.Flag.at("ignoreCorrDS") = true; }
   }
   // Set all the Boolean Flags from the input settings
   //

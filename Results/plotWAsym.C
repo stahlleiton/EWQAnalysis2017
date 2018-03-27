@@ -21,7 +21,7 @@
 
 void extractInfo ( VarBinMap& inputVar , bool& useEtaCM , const std::string& workDirName , const std::string& colTag , const std::string& metTag ,
                    const std::string& dsTag , const std::string& thePoiName );
-void getResult   ( BinPentaMap& var , BinSextaMapVec& systVar , VarBinMap& inputVar , const bool&  useEtaCM , const std::string& workDirName , const std::string& effType , const std::string& accType ,
+bool getResult   ( BinPentaMap& var , BinSextaMapVec& systVar , VarBinMap& inputVar , const bool&  useEtaCM , const std::string& workDirName , const std::string& effType , const std::string& accType ,
 		   const bool doSyst = true , const bool isNominal = true , const VarBinMap nomVar = {} , const uint systCorr = 0 );
 
 /////////////////////
@@ -77,6 +77,11 @@ void plotWAsym(
     { "Event_Activity" , {
 	{ "HF_NTrackCorr"  , { { "NominalCM_NTrackCorr" } , 0 } },
       }
+    },
+    // BOSON PT CORRECTION
+    { "Boson_pT" , {
+	{ "BosonPT"  , { { "NominalCM_BosonPTCorr" } , 0 } },
+      }
     }
     // OTHER STUFF
     //{ "Other" , {
@@ -110,7 +115,7 @@ void plotWAsym(
     const auto& wkDir = workDirNames.at("Nominal").at("Nominal").first[0];
     std::cout << "[INFO] Adding results for : " << wkDir << std::endl;
     for (const auto& colTag : collVec) { extractInfo( inputVarNom , useEtaCM , wkDir , colTag , metTag , dsTag , thePoiNames ); }
-    getResult( var["Nominal"] , systVar["Efficiency"] , inputVarNom , useEtaCM , wkDir , effType , accType , doSyst );
+    if (!getResult( var["Nominal"] , systVar["Efficiency"] , inputVarNom , useEtaCM , wkDir , effType , accType , doSyst )) { return; }
   }
   if (var.count("Nominal")==0) { std::cout << "[ERROR] Nominal results are missing" << std::endl; return; }
   //
@@ -307,7 +312,7 @@ void extractInfo(
 };
 
 
-void getResult(
+bool getResult(
                BinPentaMap&       var,
                BinSextaMapVec&    systVar,
                VarBinMap&         inputVar,
@@ -338,37 +343,43 @@ void getResult(
     if (workDirName.find("CutAndCount")!=std::string::npos) { effWorkDirName = "CutAndCount"; }
     else { effWorkDirName = "Nominal"; }
     if (useCM) { effWorkDirName += "CM"; }
+    if (workDirName.find("_MTCut")!=std::string::npos) { effWorkDirName += "_MTCut";  }
+    bool useBosonPTCorr = false;
+    if (workDirName.find("BosonPTCorr")!=std::string::npos) { useBosonPTCorr = true; }
     uint useHFCorr = 1;
     if ( (workDirName.find("TnPCorrOnly")!=std::string::npos) || (workDirName.find("RecoilCorrOnly")!=std::string::npos) || (workDirName.find("NoHFCorr")!=std::string::npos) ) { useHFCorr = 0; }
     if (workDirName.find("NTrackCorr")!=std::string::npos) { useHFCorr = 2; }
-    if      (useHFCorr==1) { effWorkDirName += "_WithHF";     }
-    else if (useHFCorr==2) { effWorkDirName += "_WithNTrack"; }
+    if      (useBosonPTCorr) { effWorkDirName += "_WithBosonPT"; }
+    if      (useHFCorr==1  ) { effWorkDirName += "_WithHF";      }
+    else if (useHFCorr==2  ) { effWorkDirName += "_WithNTrack";  }
     const std::string effDirPath  = Form("%s/Efficiency/Output/%s", preCWD.c_str(), effWorkDirName.c_str());
     const std::string effFileName = "efficiencyTnP.root";
     const std::string effFilePath = Form("%s/%s", effDirPath.c_str(), effFileName.c_str());
     //
     // Extract the Acceptance and Efficiency
-    if (!getAcceptanceAndEfficiency(eff, effFilePath, useEtaCM, isNominal)) { return; }
+    std::cout << "[INFO] Extracting efficiencies from: " << effFilePath << std::endl;
+    if (!getAcceptanceAndEfficiency(eff, effFilePath, useEtaCM, isNominal)) { return false; }
     //
     // --------------------------------------------------------------------------------- //
     //
     // Proceed to correct the Raw Yields
     //
-    if (!correctRawYields(inputVar, eff, accType, effType, isNominal)) { return; }
+    if (!correctRawYields(inputVar, eff, accType, effType, isNominal)) { return false; }
   }
   //
   // --------------------------------------------------------------------------------- //
   //
   // Compute the Charge Asymmetry
   //
-  if (!computeChargeAsymmetry(var, systVar, inputVar, doSyst, nomVar, systCorr)) { return; }
+  if (!computeChargeAsymmetry(var, systVar, inputVar, doSyst, nomVar, systCorr)) { return false; }
   //
   // Compute the Forward-Backward ratio
   //
-  if (!computeForwardBackwardRatio(var, systVar, inputVar, doSyst, nomVar, systCorr)) { return; }
+  if (!computeForwardBackwardRatio(var, systVar, inputVar, doSyst, nomVar, systCorr)) { return false; }
   //
   // Compute the Cross-Section
   //
-  if (!computeCrossSection(var, systVar, inputVar, doSyst, nomVar, systCorr)) { return; }
+  if (!computeCrossSection(var, systVar, inputVar, doSyst, nomVar, systCorr)) { return false; }
   //
+  return true;
 };
