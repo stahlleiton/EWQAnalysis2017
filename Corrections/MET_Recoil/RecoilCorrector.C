@@ -337,7 +337,7 @@ bool RecoilCorrector::getPtFromTree(
     }
     // Found 1 or more than 2 RECO muons from DY->Tau decay
     if ( idx.size() == 1 ) {
-      if ( idx[0][0] != muonIdx ) { std::cout << "[ERROR] Input muon index is inconsistent with the RECO muon from DrellYan->Mu decay!" << std::endl; return false; }
+      if ( idx[0][0] != muonIdx ) { std::cout << "[ERROR] Input muon index is inconsistent with the RECO muon from DY->Tau decay!" << std::endl; return false; }
       // Find the GEN muon that was not matched to a RECO muon
       std::vector< uint > iGenMissingMuon;
       for (uint iGenMu = 0; iGenMu < muonTree->Gen_Muon_Mom().size(); iGenMu++) {

@@ -241,12 +241,14 @@ Histogram2::ComputeRatio(const std::string& rName)
             TH1D_RATIO_NORM_[sample][type][varName] = new TH1D(histNormName.c_str(), histNormName.c_str(), v.second->GetNbinsX(), minX, maxX);
             TH1D_RATIO_NORM_.at(sample).at(type).at(varName)->SetDirectory(0);
             // Initialize the Histogram
-            TH1D_RATIO_.at(sample).at(type).at(varName)->GetYaxis()->SetTitle("DATA/MC");
-            TH1D_RATIO_NORM_.at(sample).at(type).at(varName)->GetYaxis()->SetTitle("DATA/MC");
+            TH1D_RATIO_.at(sample).at(type).at(varName)->GetYaxis()->SetTitle("#frac{DATA}{MC}");
+            TH1D_RATIO_NORM_.at(sample).at(type).at(varName)->GetYaxis()->SetTitle("#frac{DATA}{MC}");
+            TH1D_RATIO_.at(sample).at(type).at(varName)->GetXaxis()->SetTitle(v.second->GetXaxis()->GetTitle());
+            TH1D_RATIO_NORM_.at(sample).at(type).at(varName)->GetXaxis()->SetTitle(v.second->GetXaxis()->GetTitle());
             // Make the ratio
             std::string sampleData = "DATA_" + getBeam(sample);
             if (TH1D_.count(sampleData)>0 && TH1D_.at(sampleData).count(type)>0 && TH1D_.at(sampleData).at(type).count(varName)>0 && 
-                TH1D_.at(sampleData).at(type).at(varName) && TH1D_.at(sampleData).at(type).at(varName)->GetEntries()>0.) {
+                TH1D_.at(sampleData).at(type).at(varName) && TH1D_.at(sampleData).at(type).at(varName)->GetEntries()>5.) {
               TH1D_.at(sampleData).at(type).at(varName)->ClearUnderflowAndOverflow();
               bool isNorm = false; //if (v.second->GetSumOfWeights()<=1.5) { isNorm = true; }
               if (isNorm) { v.second->Scale(v.second->GetSumOfWeights()); }
@@ -322,12 +324,14 @@ Histogram2::ComputeRatio(const std::string& rName)
               TH1D_RATIO_NORM_[sample][type][varName] = new TH1D(histNormName.c_str(), histNormName.c_str(), hStack->GetNbinsX(), minX, maxX);
               TH1D_RATIO_NORM_.at(sample).at(type).at(varName)->SetDirectory(0);
               // Initialize the Histogram
-              TH1D_RATIO_.at(sample).at(type).at(varName)->GetYaxis()->SetTitle("DATA/MC");
-              TH1D_RATIO_NORM_.at(sample).at(type).at(varName)->GetYaxis()->SetTitle("DATA/MC");
+              TH1D_RATIO_.at(sample).at(type).at(varName)->GetYaxis()->SetTitle("#frac{DATA}{MC}");
+              TH1D_RATIO_NORM_.at(sample).at(type).at(varName)->GetYaxis()->SetTitle("#frac{DATA}{MC}");
+              TH1D_RATIO_.at(sample).at(type).at(varName)->GetXaxis()->SetTitle(v.second->GetXaxis()->GetTitle());
+              TH1D_RATIO_NORM_.at(sample).at(type).at(varName)->GetXaxis()->SetTitle(v.second->GetXaxis()->GetTitle());
               // Make the ratio
               std::string sampleData = "DATA_" + getBeam(sample);
               if (TH1D_.count(sampleData)>0 && TH1D_.at(sampleData).count(type)>0 && TH1D_.at(sampleData).at(type).count(varName)>0 && 
-                  TH1D_.at(sampleData).at(type).at(varName) && TH1D_.at(sampleData).at(type).at(varName)->GetEntries()>0.) {
+                  TH1D_.at(sampleData).at(type).at(varName) && TH1D_.at(sampleData).at(type).at(varName)->GetEntries()>5.) {
                 TH1D_.at(sampleData).at(type).at(varName)->ClearUnderflowAndOverflow();
                 TH1D_RATIO_.at(sample).at(type).at(varName)->Divide(TH1D_.at(sampleData).at(type).at(varName), hStack, 1.0, 1.0, "b");
                 TH1D_RATIO_NORM_.at(sample).at(type).at(varName)->Divide(TH1D_.at(sampleData).at(type).at(varName), hStack, 
@@ -347,7 +351,7 @@ Histogram2::ComputeRatio(const std::string& rName)
     }
   }
   // For TH1D
-  if (rName=="MCNLOvsMCLO") {
+  if (rName=="MCVarvsMCOff") {
     for (auto& s : TH1D_) {
       std::string sample = s.first;
       for (auto& t : s.second) {
@@ -358,7 +362,7 @@ Histogram2::ComputeRatio(const std::string& rName)
           std::string histNormName = (std::string("hRATIO_NORM_") + (type!="" ? (sample + "_" + type) : sample) + "_" + varName);
           double minX = v.second->GetXaxis()->GetXmin();
           double maxX = v.second->GetXaxis()->GetXmax();
-          if (rName=="MCNLOvsMCLO" && sample.find("MCNLO")!=std::string::npos) {
+          if (rName=="MCVarvsMCOff" && sample.find("_Official")==std::string::npos) {
             // Create Data Histogram
             if (TH1D_RATIO_[sample][type][varName]!=NULL) delete TH1D_RATIO_[sample][type][varName];
             TH1D_RATIO_[sample][type][varName] = new TH1D(histName.c_str(), histName.c_str(), v.second->GetNbinsX(), minX, maxX);
@@ -367,31 +371,33 @@ Histogram2::ComputeRatio(const std::string& rName)
             TH1D_RATIO_NORM_[sample][type][varName] = new TH1D(histNormName.c_str(), histNormName.c_str(), v.second->GetNbinsX(), minX, maxX);
             TH1D_RATIO_NORM_.at(sample).at(type).at(varName)->SetDirectory(0);
             // Initialize the Histogram
-            TH1D_RATIO_.at(sample).at(type).at(varName)->GetYaxis()->SetTitle("MC_NLO/MC_LO");
-            TH1D_RATIO_NORM_.at(sample).at(type).at(varName)->GetYaxis()->SetTitle("MC_NLO/MC_LO");
+            TH1D_RATIO_.at(sample).at(type).at(varName)->GetYaxis()->SetTitle("#frac{Variation}{Official}");
+            TH1D_RATIO_NORM_.at(sample).at(type).at(varName)->GetYaxis()->SetTitle("#frac{Variation}{Official}");
+            TH1D_RATIO_.at(sample).at(type).at(varName)->GetXaxis()->SetTitle(v.second->GetXaxis()->GetTitle());
+            TH1D_RATIO_NORM_.at(sample).at(type).at(varName)->GetXaxis()->SetTitle(v.second->GetXaxis()->GetTitle());
             // Make the ratio
-            std::string sampleMCLO = "MCLO_" + getDecayChannel(sample) + getBeam(sample);
-            if (TH1D_.count(sampleMCLO)>0 && TH1D_.at(sampleMCLO).count(type)>0 && TH1D_.at(sampleMCLO).at(type).count(varName)>0 && 
-                TH1D_.at(sampleMCLO).at(type).at(varName) && TH1D_.at(sampleMCLO).at(type).at(varName)->GetEntries()>0.) {
-              TH1D_.at(sampleMCLO).at(type).at(varName)->ClearUnderflowAndOverflow();
-              bool isNorm = false; //if (v.second->GetSumOfWeights()<=1.5) { isNorm = true; }
+            std::string sampleMCOff = "MC_" + getDecayChannel(sample) + "Official_"+ getBeam(sample);
+            if (TH1D_.count(sampleMCOff)>0 && TH1D_.at(sampleMCOff).count(type)>0 && TH1D_.at(sampleMCOff).at(type).count(varName)>0 && 
+                TH1D_.at(sampleMCOff).at(type).at(varName) && TH1D_.at(sampleMCOff).at(type).at(varName)->GetEntries()>0.) {
+              TH1D_.at(sampleMCOff).at(type).at(varName)->ClearUnderflowAndOverflow();
+              bool isNorm = false; if (v.second->GetSumOfWeights()<=1.5) { isNorm = true; }
               if (isNorm) { v.second->Scale(v.second->GetSumOfWeights()); }
-              if (isNorm) { TH1D_.at(sampleMCLO).at(type).at(varName)->Scale(TH1D_.at(sampleMCLO).at(type).at(varName)->GetSumOfWeights()); }
+              if (isNorm) { TH1D_.at(sampleMCOff).at(type).at(varName)->Scale(TH1D_.at(sampleMCOff).at(type).at(varName)->GetSumOfWeights()); }
               if (isNorm) { 
-                TH1D_RATIO_.at(sample).at(type).at(varName)->Divide(v.second, TH1D_.at(sampleMCLO).at(type).at(varName), 
+                TH1D_RATIO_.at(sample).at(type).at(varName)->Divide(v.second, TH1D_.at(sampleMCOff).at(type).at(varName), 
                                                                     (1./v.second->GetSumOfWeights()), 
-                                                                    (1./TH1D_.at(sampleMCLO).at(type).at(varName)->GetSumOfWeights()), 
+                                                                    (1./TH1D_.at(sampleMCOff).at(type).at(varName)->GetSumOfWeights()), 
                                                                     "b");
               }
               else {
-                TH1D_RATIO_.at(sample).at(type).at(varName)->Divide(v.second, TH1D_.at(sampleMCLO).at(type).at(varName), 1.0, 1.0, "b");
+                TH1D_RATIO_.at(sample).at(type).at(varName)->Divide(v.second, TH1D_.at(sampleMCOff).at(type).at(varName), 1.0, 1.0, "b");
               }
-              TH1D_RATIO_NORM_.at(sample).at(type).at(varName)->Divide(v.second, TH1D_.at(sampleMCLO).at(type).at(varName), 
+              TH1D_RATIO_NORM_.at(sample).at(type).at(varName)->Divide(v.second, TH1D_.at(sampleMCOff).at(type).at(varName), 
                                                                        (1./v.second->GetSumOfWeights()), 
-                                                                       (1./TH1D_.at(sampleMCLO).at(type).at(varName)->GetSumOfWeights()), 
+                                                                       (1./TH1D_.at(sampleMCOff).at(type).at(varName)->GetSumOfWeights()), 
                                                                        "b");
               if (isNorm) { v.second->Scale(1./v.second->GetSumOfWeights()); }
-              if (isNorm) { TH1D_.at(sampleMCLO).at(type).at(varName)->Scale(1./TH1D_.at(sampleMCLO).at(type).at(varName)->GetSumOfWeights()); }
+              if (isNorm) { TH1D_.at(sampleMCOff).at(type).at(varName)->Scale(1./TH1D_.at(sampleMCOff).at(type).at(varName)->GetSumOfWeights()); }
             }
             else {
               TH1D* tmp = new TH1D("TMP", "TMP", v.second->GetNbinsX(), minX, maxX);
@@ -405,7 +411,6 @@ Histogram2::ComputeRatio(const std::string& rName)
   }
   // Apply General Settings to all TH1D_RATIO_
   for (auto& s : TH1D_RATIO_) { for (auto& t : s.second) { for (auto& v : t.second) { if (v.second) {
-          v.second->GetXaxis()->SetTitle("");
           v.second->SetTitle("");
           v.second->GetYaxis()->CenterTitle(kTRUE);
           v.second->GetYaxis()->SetTitleOffset(0.4);
@@ -416,7 +421,27 @@ Histogram2::ComputeRatio(const std::string& rName)
           v.second->GetXaxis()->SetTitleOffset(1);
           v.second->GetXaxis()->SetTitleSize(0.15);
           v.second->GetXaxis()->SetLabelSize(0.15);
-          v.second->GetYaxis()->SetRangeUser(0.0, 2.0);
+          if (rName=="MCVarvsMCOff") { v.second->GetYaxis()->SetRangeUser(0.9, 1.1); }
+          else { v.second->GetYaxis()->SetRangeUser(0.7, 1.3); }
+          v.second->SetMarkerColor(kBlue);
+        }
+      }
+    }
+  }
+  // Apply General Settings to all TH1D_RATIO_
+  for (auto& s : TH1D_RATIO_NORM_) { for (auto& t : s.second) { for (auto& v : t.second) { if (v.second) {
+          v.second->SetTitle("");
+          v.second->GetYaxis()->CenterTitle(kTRUE);
+          v.second->GetYaxis()->SetTitleOffset(0.4);
+          v.second->GetYaxis()->SetTitleSize(0.15);
+          v.second->GetYaxis()->SetLabelSize(0.13);
+          v.second->GetYaxis()->SetNdivisions(204);
+          v.second->GetYaxis()->SetTitle("");
+          v.second->GetXaxis()->SetTitleOffset(1);
+          v.second->GetXaxis()->SetTitleSize(0.15);
+          v.second->GetXaxis()->SetLabelSize(0.15);
+          if (rName=="MCVarvsMCOff") { v.second->GetYaxis()->SetRangeUser(0.9, 1.1); }
+          else { v.second->GetYaxis()->SetRangeUser(0.7, 1.3); }
           v.second->SetMarkerColor(kBlue);
         }
       }
@@ -440,7 +465,7 @@ Histogram2::MakeStackHistogram(const std::string& tag)
     if (s.first.find("MC_")==std::string::npos) continue;
     for (auto& t : s.second) {
       for (auto& v : t.second) {
-        if (v.second && v.second->GetEntries()>0) {
+        if (v.second && v.second->GetEntries()>5) {
           const std::string sample  = "MC_" + getBeam(s.first);
           const std::string type    = t.first;
           const std::string varName = v.first;
@@ -700,9 +725,9 @@ Histogram2::Draw(const std::string& tag, const std::map< std::string , struct Ty
               }
               leg->Draw("SAME");
               c->Update();
-              int option = 111;
-              if (sample.find("pPb")!=std::string::npos) option = 109;
-              if (sample.find("Pbp")!=std::string::npos) option = 110;
+              int option = 117;
+              if (sample.find("pPb")!=std::string::npos) option = 115;
+              if (sample.find("Pbp")!=std::string::npos) option = 116;
               CMS_lumi(c, option, 33, "");
               c->Update();
               c->SaveAs(Form("Plots/%s/%s/%s/png/%s.png", tag.c_str(), type.c_str(), sample.c_str(), cName.c_str()));
@@ -751,6 +776,12 @@ Histogram2::Draw(const std::string& tag, const std::map< std::string , struct Ty
               padMAIN->Draw();
               padMAIN->cd();
               padMAIN->SetLogy(drawInfo_.begin()->second.at(type).at(varName).yLogScale);
+              v.second->GetXaxis()->SetTitle("");
+              v.second->GetYaxis()->SetTitle("Normalized Entries");
+              for (int i=0; i<v.second->GetNhists(); i++) {
+                ((TH1D*)v.second->GetStack()->At(i))->ClearUnderflowAndOverflow();
+                ((TH1D*)v.second->GetStack()->At(i))->Scale(1.0/hStack->GetSumOfWeights());
+              }
               v.second->Draw("HISTF");
               std::map<std::string , double> nEntries;
               for (int i=0; i<v.second->GetNhists(); i++) {
@@ -761,19 +792,23 @@ Histogram2::Draw(const std::string& tag, const std::map< std::string , struct Ty
                 nEntries[tmp] = ((TH1D*)v.second->GetHists()->At(i))->GetSumOfWeights();
               }
               if (typeInfo.count(type)>0) {
-                double dy = 0.08; for (const auto& s: typeInfo.at(type).cutSelection) { tex->DrawLatex(0.66, 0.72-dy, s.c_str()); dy+=0.04; }
+                double dy = 0.00; for (const auto& s: typeInfo.at(type).cutSelection) { tex->DrawLatex(0.66, 0.72-dy, s.c_str()); dy+=0.04; }
               }
               // Plot Data
               std::string sampleData = "DATA_" + getBeam(sample);
-              tex->DrawLatex(0.20, 0.72-dy, ("MC    : " + GetString(*hStack)).c_str()); dy+=0.040;
+              //tex->DrawLatex(0.20, 0.72-dy, ("MC    : " + GetString(*hStack)).c_str()); dy+=0.040;
               if (TH1D_.count(sampleData)>0 && TH1D_.at(sampleData).count(type)>0 && TH1D_.at(sampleData).at(type).count(varName)>0 && 
                   TH1D_.at(sampleData).at(type).at(varName) && TH1D_.at(sampleData).at(type).at(varName)->GetEntries()>0.) {
+                TH1D_.at(sampleData).at(type).at(varName)->ClearUnderflowAndOverflow();
+                TH1D_.at(sampleData).at(type).at(varName)->Scale(1.0/TH1D_.at(sampleData).at(type).at(varName)->GetSumOfWeights());
                 TH1D_.at(sampleData).at(type).at(varName)->SetMarkerColor(kRed); TH1D_.at(sampleData).at(type).at(varName)->Draw("samep"); 
                 leg->AddEntry(TH1D_.at(sampleData).at(type).at(varName), sampleData.c_str(), "p");
-                tex->DrawLatex(0.20, 0.72-dy, ("DATA: " + GetString(*TH1D_.at(sampleData).at(type).at(varName))).c_str()); dy+=0.040;
+                //tex->DrawLatex(0.20, 0.72-dy, ("DATA: " + GetString(*TH1D_.at(sampleData).at(type).at(varName))).c_str()); dy+=0.040;
                 setYRange(v.second, TH1D_.at(sampleData).at(type).at(varName), drawInfo_.at(sampleData).at(type).at(varName).yLogScale);
                 double ratio = TH1D_.at(sampleData).at(type).at(varName)->GetSumOfWeights()/hStack->GetSumOfWeights();
-                tex->DrawLatex(0.20, 0.72-dy, Form("DATA/MC: %.4f", ratio));
+                const double pValue_Chi2 = hStack->Chi2Test(TH1D_.at(sampleData).at(type).at(varName), "WW");
+                //tex->DrawLatex(0.20, 0.72-dy, Form("p-Value:  #Chi^{2}: %.3f", pValue_Chi2)); dy+=0.04;
+                if (std::abs(ratio-1.0)>0.001) { tex->DrawLatex(0.20, 0.72-dy, Form("DATA/MC: %.4f", ratio)); }
                 if (typeInfo.count(type)>0) {
                   std::vector<std::string> typeSample = typeInfo.at(type).sample;
                   double bkgN = 0.; for (const auto& n : nEntries) { bool isSig=false; for (const auto& s : typeSample) { if (n.first==s) {isSig=true; break;} } if (!isSig) bkgN += n.second; }
@@ -787,9 +822,9 @@ Histogram2::Draw(const std::string& tag, const std::map< std::string , struct Ty
               leg->Draw("SAME");
               padMAIN->Modified();
               padMAIN->Update();
-              int option = 111;
-              if (sample.find("pPb")!=std::string::npos) option = 109;
-              if (sample.find("Pbp")!=std::string::npos) option = 110;
+              int option = 117;
+              if (sample.find("pPb")!=std::string::npos) option = 115;
+              if (sample.find("Pbp")!=std::string::npos) option = 116;
               CMS_lumi(padMAIN, option, 33, "");
               padMAIN->Modified();
               padMAIN->Update();
@@ -810,7 +845,8 @@ Histogram2::Draw(const std::string& tag, const std::map< std::string , struct Ty
                 padRATIO->cd();
                 if (TH1D_RATIO_.count(sample)>0 && TH1D_RATIO_.at(sample).count(type)>0 && TH1D_RATIO_.at(sample).at(type).count(varName)>0 && TH1D_RATIO_.at(sample).at(type).at(varName)) {
                   TH1D_RATIO_.at(sample).at(type).at(varName)->GetYaxis()->SetTitle("#frac{DATA}{MC}");
-                  TH1D_RATIO_.at(sample).at(type).at(varName)->Draw("p");
+                  TH1D_RATIO_NORM_.at(sample).at(type).at(varName)->GetYaxis()->SetTitle("#frac{DATA}{MC}");
+                  TH1D_RATIO_NORM_.at(sample).at(type).at(varName)->Draw("p");
                   if (TF1_RATIO_[sample][type][varName]!=NULL) TF1_RATIO_[sample][type][varName]->Draw("samel");
                 }
                 padRATIO->Modified();
@@ -874,9 +910,9 @@ Histogram2::Draw(const std::string& tag, const std::map< std::string , struct Ty
               }
               leg->Draw("SAME");
               padMAIN->Update();
-              int option = 111;
-              if (sample.find("pPb")!=std::string::npos) option = 109;
-              if (sample.find("Pbp")!=std::string::npos) option = 110;
+              int option = 117;
+              if (sample.find("pPb")!=std::string::npos) option = 115;
+              if (sample.find("Pbp")!=std::string::npos) option = 116;
               CMS_lumi(padMAIN, option, 33, "");
               padMAIN->Update();
               draw = true;
@@ -945,6 +981,7 @@ Histogram2::Draw(const std::string& tag, const std::map< std::string , struct Ty
               padMAIN->Draw();
               padMAIN->cd();
               padMAIN->SetLogy(drawInfo_.at(sample).at(type).at(varName).yLogScale);
+              v.second->GetXaxis()->SetTitle("");
               v.second->Draw("histf");
               leg->AddEntry(v.second, (type!="" ? (sample+"_"+type) : sample).c_str(), "f");
               if (typeInfo.count(type)>0) {
@@ -958,25 +995,29 @@ Histogram2::Draw(const std::string& tag, const std::map< std::string , struct Ty
               }
               // Plot Data
               std::string sampleData = "DATA_" + getBeam(sample);
-              if (TF1_[sample][type][varName]==NULL) { tex->DrawLatex(0.20, 0.72-dy, ("MC    : " + GetString(*v.second)).c_str()); dy+=0.040; }
+              //if (TF1_[sample][type][varName]==NULL) { tex->DrawLatex(0.20, 0.72-dy, ("MC    : " + GetString(*v.second)).c_str()); dy+=0.040; }
               if (TH1D_.count(sampleData)>0 && TH1D_.at(sampleData).count(type)>0 && TH1D_.at(sampleData).at(type).count(varName)>0 && 
-                  TH1D_.at(sampleData).at(type).at(varName) && TH1D_.at(sampleData).at(type).at(varName)->GetEntries()>0.) {
+                  TH1D_.at(sampleData).at(type).at(varName) && TH1D_.at(sampleData).at(type).at(varName)->GetEntries()>5.) {
                 TH1D_.at(sampleData).at(type).at(varName)->SetMarkerColor(kRed); TH1D_.at(sampleData).at(type).at(varName)->Draw("samep"); 
                 leg->AddEntry(TH1D_.at(sampleData).at(type).at(varName), sampleData.c_str(), "p");
-                if (TF1_[sampleData][type][varName]==NULL) { tex->DrawLatex(0.20, 0.72-dy, ("DATA: " + GetString(*TH1D_[sampleData][type][varName])).c_str()); dy+=0.040; }
+                //if (TF1_[sampleData][type][varName]==NULL) { tex->DrawLatex(0.20, 0.72-dy, ("DATA: " + GetString(*TH1D_[sampleData][type][varName])).c_str()); dy+=0.040; }
                 setYRange(v.second, TH1D_.at(sampleData).at(type).at(varName), drawInfo_.at(sample).at(type).at(varName).yLogScale);
                 double ratio = TH1D_.at(sampleData).at(type).at(varName)->GetSumOfWeights()/v.second->GetSumOfWeights();
-                tex->DrawLatex(0.20, 0.72-dy, Form("DATA/MC: %.3f", ratio));
+                const double chi2Ratio = TH1D_.at(sampleData).at(type).at(varName)->Chi2Test(v.second, "UW,CHI2/NDF");
+                const double chi2Prob  = TH1D_.at(sampleData).at(type).at(varName)->Chi2Test(v.second, "UW");
+                const double KSVal     = TH1D_.at(sampleData).at(type).at(varName)->KolmogorovTest(v.second, "M");
+                const double KSProb    = TH1D_.at(sampleData).at(type).at(varName)->KolmogorovTest(v.second, "");
+                tex->DrawLatex(0.20, 0.72-dy, Form("DATA/MC: %.3f   #chi^{2}/ndof: %.2f (%.2f)   KS: %.2f (%.2f)", ratio, chi2Ratio, chi2Prob, KSVal, KSProb));
               }
               if (TF1_[sampleData][type][varName]!=NULL) { 
                 TF1_[sampleData][type][varName]->SetLineColor(kRed); TF1_[sampleData][type][varName]->Draw("samel"); leg->AddEntry(TF1_[sampleData][type][varName], "Fit Data", "l");
-                tex->DrawLatex(0.20, 0.72-dy, ("DATA: " + GetString(*TF1_[sampleData][type][varName])).c_str()); dy+=0.040;
+                //tex->DrawLatex(0.20, 0.72-dy, ("DATA: " + GetString(*TF1_[sampleData][type][varName])).c_str()); dy+=0.040;
               }
               leg->Draw("SAME");
               padMAIN->Update();
-              int option = 111;
-              if (sample.find("pPb")!=std::string::npos) option = 109;
-              if (sample.find("Pbp")!=std::string::npos) option = 110;
+              int option = 117;
+              if (sample.find("pPb")!=std::string::npos) option = 115;
+              if (sample.find("Pbp")!=std::string::npos) option = 116;
               CMS_lumi(padMAIN, option, 33, "");
               padMAIN->Update();
               draw = true;
@@ -1048,6 +1089,7 @@ Histogram2::Draw(const std::string& tag, const std::map< std::string , struct Ty
               padMAIN->Draw();
               padMAIN->cd();
               padMAIN->SetLogy(drawInfo_.at(sample).at(type).at(varName).yLogScale);
+              v.second->GetXaxis()->SetTitle("");
               v.second->Draw("histf");
               leg->AddEntry(v.second, sample.c_str(), "f");
               if (typeInfo.count(type)>0) {
@@ -1067,9 +1109,9 @@ Histogram2::Draw(const std::string& tag, const std::map< std::string , struct Ty
               }
               leg->Draw("SAME");
               padMAIN->Update();
-              int option = 111;
-              if (sample.find("pPb")!=std::string::npos) option = 109;
-              if (sample.find("Pbp")!=std::string::npos) option = 110;
+              int option = 117;
+              if (sample.find("pPb")!=std::string::npos) option = 115;
+              if (sample.find("Pbp")!=std::string::npos) option = 116;
               CMS_lumi(padMAIN, option, 33, "");
               padMAIN->Update();
               draw = true;
@@ -1089,6 +1131,99 @@ Histogram2::Draw(const std::string& tag, const std::map< std::string , struct Ty
                 padRATIO->cd();
                 if (TH1D_RATIO_.count(sample)>0 && TH1D_RATIO_.at(sample).count(type)>0 && TH1D_RATIO_.at(sample).at(type).count(varName)>0 && TH1D_RATIO_.at(sample).at(type).at(varName)) {
                   TH1D_RATIO_.at(sample).at(type).at(varName)->GetYaxis()->SetTitle("#frac{MC[NLO]}{MC[LO]}");
+                  TH1D_RATIO_.at(sample).at(type).at(varName)->Draw("p");
+                  if (TF1_RATIO_[sample][type][varName]!=NULL) TF1_RATIO_[sample][type][varName]->Draw("samel");
+                }
+                padRATIO->Update();
+              }
+              c->SaveAs(Form("Plots/%s/%s/%s/png/%s.png", tag.c_str(), type.c_str(), sample.c_str(), cName.c_str()));
+              c->SaveAs(Form("Plots/%s/%s/%s/pdf/%s.pdf", tag.c_str(), type.c_str(), sample.c_str(), cName.c_str()));
+            }
+            c->Clear();
+            c->Close();
+            delete c;
+            delete leg;
+            delete tex;
+          }
+        }
+      }
+    }
+    return;
+  }
+  // Case: MC_NLO vs MC_LO -> Use one canvas for each histogram comparing MC_NLO vs MC_LO
+  if (tag=="MCVarvsMCOff") {
+    ComputeRatio("MCVarvsMCOff");
+    Double_t xl1=.20, yl1=0.75, xl2=xl1+.5, yl2=yl1+.125;
+    for (const auto& s : TH1D_) {
+      const std::string sample = s.first;
+      if ( tag=="MCVarvsMCOff" && sample.find("_Official")!=std::string::npos) continue;
+      for (auto& t : s.second) {
+        const std::string type = t.first;
+        gSystem->mkdir(Form("Plots/%s/%s/%s/png/", tag.c_str(), type.c_str(), sample.c_str()), kTRUE);
+        gSystem->mkdir(Form("Plots/%s/%s/%s/pdf/", tag.c_str(), type.c_str(), sample.c_str()), kTRUE);
+        for (auto& v : t.second) {
+          const std::string varName = v.first;
+          if (v.second) {
+            std::string cName = (std::string("c_") + "MCVarvsMCOff" + "_" + (type!="" ? (sample + "_" + type) : sample) + "_" + varName);
+            TCanvas* c = new TCanvas(cName.c_str(), cName.c_str(), 1000, 1000);
+            TLegend *leg = new TLegend(xl1,yl1,xl2,yl2);
+            TLatex *tex = new TLatex(); tex->SetNDC(); tex->SetTextSize(0.025); float dy = 0; 
+            TPad* padRATIO = NULL; TPad* padMAIN = NULL;
+            bool draw = false;
+            c->cd();
+            if (v.second->GetEntries()>0.) {
+              padMAIN = NULL;
+              if (TH1D_RATIO_.count(sample)>0 && TH1D_RATIO_.at(sample).count(type)>0 && TH1D_RATIO_.at(sample).at(type).count(varName)>0 && TH1D_RATIO_.at(sample).at(type).at(varName)) {
+                padMAIN = new TPad( "padMAIN", "", 0, 0.2, 1, 1 );
+                padMAIN->SetFixedAspectRatio(kTRUE);
+                padMAIN->SetBottomMargin(0.015);
+              }
+              else { padMAIN = new TPad( "padMAIN", "", 0, 0, 1, 1 ); }
+              padMAIN->Draw();
+              padMAIN->cd();
+              padMAIN->SetLogy(drawInfo_.at(sample).at(type).at(varName).yLogScale);
+              v.second->GetXaxis()->SetTitle("");      
+              v.second->Draw("histf");
+              leg->AddEntry(v.second, sample.c_str(), "f");
+              if (typeInfo.count(type)>0) {
+                double dy = 0.08; for (const auto& s: typeInfo.at(type).cutSelection) { tex->DrawLatex(0.66, 0.72-dy, s.c_str()); dy+=0.04; }
+              }
+              // Plot Leading Order MC
+              std::string sampleMCOff = "MC_" + getDecayChannel(sample) + "Official_" + getBeam(sample);
+              if (TH1D_.count(sampleMCOff)>0 && TH1D_.at(sampleMCOff).count(type)>0 && TH1D_.at(sampleMCOff).at(type).count(varName)>0 && 
+                  TH1D_.at(sampleMCOff).at(type).at(varName) && TH1D_.at(sampleMCOff).at(type).at(varName)->GetEntries()>0.) {
+                TH1D_.at(sampleMCOff).at(type).at(varName)->SetMarkerColor(kRed); TH1D_.at(sampleMCOff).at(type).at(varName)->Draw("samep");
+                leg->AddEntry(TH1D_.at(sampleMCOff).at(type).at(varName), sampleMCOff.c_str(), "p");
+                setYRange(v.second, TH1D_.at(sampleMCOff).at(type).at(varName), drawInfo_.at(sample).at(type).at(varName).yLogScale);
+                double ratio = v.second->GetSumOfWeights()/TH1D_.at(sampleMCOff).at(type).at(varName)->GetSumOfWeights();
+                const double pValue_Chi2 = v.second->Chi2Test(TH1D_.at(sampleMCOff).at(type).at(varName), "WW");
+                tex->DrawLatex(0.20, 0.72-dy, Form("p-Value:  #Chi^{2}: %.3f", pValue_Chi2)); dy+=0.04;
+                if (std::abs(ratio-1.0)>0.001) { tex->DrawLatex(0.20, 0.72-dy, Form("Variation/Official: %.3f", ratio)); }
+              }
+              leg->Draw("SAME");
+              padMAIN->Update();
+              int option = 114;
+              if (sample.find("pPb")!=std::string::npos) option = 112;
+              if (sample.find("Pbp")!=std::string::npos) option = 113;
+              CMS_lumi(padMAIN, option, 33, "");
+              padMAIN->Update();
+              draw = true;
+            }
+            c->cd();
+            if (draw) {
+              if (sample.find("_Official")==std::string::npos) {
+                padRATIO = new TPad( "padRATIO", "", 0, 0, 1, 0.20 );
+                padRATIO->SetFixedAspectRatio(kTRUE);
+                padRATIO->SetTopMargin(0.02);
+                padRATIO->SetBottomMargin(0.4);
+                padRATIO->SetFillStyle(4000);
+                padRATIO->SetFrameFillStyle(4000);
+                padRATIO->SetGridx(kTRUE);
+                padRATIO->SetGridy(kTRUE);
+                padRATIO->Draw();
+                padRATIO->cd();
+                if (TH1D_RATIO_.count(sample)>0 && TH1D_RATIO_.at(sample).count(type)>0 && TH1D_RATIO_.at(sample).at(type).count(varName)>0 && TH1D_RATIO_.at(sample).at(type).at(varName)) {
+                  TH1D_RATIO_.at(sample).at(type).at(varName)->GetYaxis()->SetTitle("#frac{Variation}{Official}");
                   TH1D_RATIO_.at(sample).at(type).at(varName)->Draw("p");
                   if (TF1_RATIO_[sample][type][varName]!=NULL) TF1_RATIO_[sample][type][varName]->Draw("samel");
                 }
@@ -1173,9 +1308,9 @@ Histogram2::Draw(const std::string& tag, const std::map< std::string , struct Ty
           if (found) {
             leg->Draw("SAME");
             padMAIN->Update();
-            int option = 111;
-            if (beam=="pPb") option = 109;
-            if (beam=="Pbp") option = 110;
+            int option = 117;
+            if (beam=="pPb") option = 115;
+            if (beam=="Pbp") option = 116;
             CMS_lumi(padMAIN, option, 33, "");
             padMAIN->Update();
             draw = true;
@@ -1253,12 +1388,12 @@ Histogram2::setYRange(TH1D* h, TH1D* ref, bool logScale)
   Double_t Yup(0.),Ydown(0.);
   Double_t fup(0.4),fdown(0.0);
   if (logScale) {
-    YMin = max(YMin, 0.0001);
-    YMax = max(YMax, 0.0001);
+    YMin = max(YMin, 0.00001);
+    YMax = max(YMax, 0.00001);
     Ydown = YMin/(std::pow((YMax/YMin), (fdown/(1.0-fdown-fup))));
     Yup = YMax*std::pow((YMax/YMin), (fup/(1.0-fdown-fup)));
-    Ydown = max(Ydown, 0.001);
-    Yup = max(Yup, 0.001);
+    Ydown = max(Ydown, 0.0001);
+    Yup = max(Yup, 0.0001);
   }
   else {
     Ydown = 0.0;
@@ -1282,12 +1417,12 @@ Histogram2::setYRange(THStack* h, TH1D* ref, bool logScale)
   Double_t Yup(0.),Ydown(0.);
   Double_t fup(0.4),fdown(0.0);
   if (logScale) {
-    YMin = max(YMin, 0.0001);
-    YMax = max(YMax, 0.0001);
+    YMin = max(YMin, 0.00001);
+    YMax = max(YMax, 0.00001);
     Ydown = YMin/(std::pow((YMax/YMin), (fdown/(1.0-fdown-fup))));
     Yup = YMax*std::pow((YMax/YMin), (fup/(1.0-fdown-fup)));
-    Ydown = max(Ydown, 0.001);
-    Yup = max(Yup, 0.001);
+    Ydown = max(Ydown, 0.0001);
+    Yup = max(Yup, 0.0001);
   }
   else {
     Ydown = 0.0;

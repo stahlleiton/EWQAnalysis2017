@@ -178,7 +178,31 @@ CMS_lumi( TPad* pad, int iPeriod, int iPosX, TString label )
     }
   else if (iPeriod==118)
     {
-      lumiText2 += lumi_PA2016_alt2 + "                  #sqrt{s_{NN}} = 8.16 TeV";
+      lumiText2 += lumi_PA2016_alt2 + "                          #sqrt{s_{NN}} = 8.16 TeV";
+    }
+  else if (iPeriod==11820)
+    {
+      lumiText2 += lumi_pPb2016_alt + "                                       #sqrt{s_{NN}} = 8.16 TeV";
+    }
+  else if (iPeriod==11821)
+    {
+      lumiText2 += lumi_Pbp2016_alt + "                                       #sqrt{s_{NN}} = 8.16 TeV";
+    }
+  else if (iPeriod==11822)
+    {
+      lumiText2 += lumi_PA2016_alt2 + "                                        #sqrt{s_{NN}} = 8.16 TeV";
+    }
+  else if (iPeriod==11830)
+    {
+      lumiText2 += lumi_pPb2016_alt + "                                                #sqrt{s_{NN}} = 8.16 TeV";
+    }
+  else if (iPeriod==11831)
+    {
+      lumiText2 += lumi_Pbp2016_alt + "                                                #sqrt{s_{NN}} = 8.16 TeV";
+    }
+  else if (iPeriod==11832)
+    {
+      lumiText2 += lumi_PA2016_alt2 + "                                                #sqrt{s_{NN}} = 8.16 TeV";
     }
   else if (iPeriod==120)
     {

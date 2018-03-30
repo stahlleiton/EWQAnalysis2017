@@ -269,7 +269,7 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   //
   int lumiId = 0;
   if (isMC) { if (col=="pPb") { lumiId = 112; } else if (col=="Pbp") { lumiId = 113; } else if (col=="PA") { lumiId = 114; } }
-  else if (paperStyle) { if (col=="pPb") { lumiId = 120; } else if (col=="Pbp") { lumiId = 121; } else if (col=="PA") { lumiId = 122; } }
+  else if (paperStyle) { if (col=="pPb") { lumiId = 11820; } else if (col=="Pbp") { lumiId = 11821; } else if (col=="PA") { lumiId = 11822; } }
   else { if (col=="pPb") { lumiId = 115; } else if (col=="Pbp") { lumiId = 116; } else if (col=="PA") { lumiId = 117; } }
   CMS_lumi(pad.at("MAIN"), lumiId, 33, "");
   //

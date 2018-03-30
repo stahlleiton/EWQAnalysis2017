@@ -489,8 +489,7 @@ void chasym(GraphMap& graph)
 {
   //
   // CT14
-  Double_t hasym_bqsqscsc_pdf_fx3007[25] = {
-    -2.9,
+  Double_t hasym_bqsqscsc_pdf_fx3007[24] = {
     -2.7,
     -2.5,
     -2.3,
@@ -516,8 +515,7 @@ void chasym(GraphMap& graph)
     1.7,
     1.9
   };
-  Double_t hasym_bqsqscsc_pdf_fy3007[25] = {
-    -0.1227756,
+  Double_t hasym_bqsqscsc_pdf_fy3007[24] = {
     -0.06318444,
     -0.01589522,
     0.01801727,
@@ -543,8 +541,7 @@ void chasym(GraphMap& graph)
     0.2178251,
     0.2375786
   };
-  Double_t hasym_bqsqscsc_pdf_felx3007[25] = {
-    0.1,
+  Double_t hasym_bqsqscsc_pdf_felx3007[24] = {
     0.1,
     0.1,
     0.1,
@@ -570,8 +567,7 @@ void chasym(GraphMap& graph)
     0.1,
     0.1
   };
-  Double_t hasym_bqsqscsc_pdf_fely3007[25] = {
-    0.01805578,
+  Double_t hasym_bqsqscsc_pdf_fely3007[24] = {
     0.01680792,
     0.01658499,
     0.01543082,
@@ -597,8 +593,7 @@ void chasym(GraphMap& graph)
     0.007577457,
     0.009239419
   };
-  Double_t hasym_bqsqscsc_pdf_fehx3007[25] = {
-    0.1,
+  Double_t hasym_bqsqscsc_pdf_fehx3007[24] = {
     0.1,
     0.1,
     0.1,
@@ -624,8 +619,7 @@ void chasym(GraphMap& graph)
     0.1,
     0.1
   };
-  Double_t hasym_bqsqscsc_pdf_fehy3007[25] = {
-    0.0152876,
+  Double_t hasym_bqsqscsc_pdf_fehy3007[24] = {
     0.01483065,
     0.01386152,
     0.01171673,
@@ -652,12 +646,11 @@ void chasym(GraphMap& graph)
     0.007873712
   };
   //
-  graph["CT14"] = TGraphAsymmErrors(25,hasym_bqsqscsc_pdf_fx3007,hasym_bqsqscsc_pdf_fy3007,hasym_bqsqscsc_pdf_felx3007,hasym_bqsqscsc_pdf_fehx3007,hasym_bqsqscsc_pdf_fely3007,hasym_bqsqscsc_pdf_fehy3007);
+  graph["CT14"] = TGraphAsymmErrors(24,hasym_bqsqscsc_pdf_fx3007,hasym_bqsqscsc_pdf_fy3007,hasym_bqsqscsc_pdf_felx3007,hasym_bqsqscsc_pdf_fehx3007,hasym_bqsqscsc_pdf_fely3007,hasym_bqsqscsc_pdf_fehy3007);
   graph.at("CT14").SetName("CT14"); graph.at("CT14").SetTitle("CT14");
   //
   // EPPS16
-  Double_t hasym_zjnghkjm_pdf_fx3008[25] = {
-    -2.9,
+  Double_t hasym_zjnghkjm_pdf_fx3008[24] = {
     -2.7,
     -2.5,
     -2.3,
@@ -683,8 +676,7 @@ void chasym(GraphMap& graph)
     1.7,
     1.9
   };
-  Double_t hasym_zjnghkjm_pdf_fy3008[25] = {
-    -0.1406475,
+  Double_t hasym_zjnghkjm_pdf_fy3008[24] = {
     -0.07715488,
     -0.0274006,
     0.009630932,
@@ -710,8 +702,7 @@ void chasym(GraphMap& graph)
     0.2091115,
     0.2324755
   };
-  Double_t hasym_zjnghkjm_pdf_felx3008[25] = {
-    0.1,
+  Double_t hasym_zjnghkjm_pdf_felx3008[24] = {
     0.1,
     0.1,
     0.1,
@@ -737,8 +728,7 @@ void chasym(GraphMap& graph)
     0.1,
     0.1
   };
-  Double_t hasym_zjnghkjm_pdf_fely3008[25] = {
-    0.02497926,
+  Double_t hasym_zjnghkjm_pdf_fely3008[24] = {
     0.0287873,
     0.02307633,
     0.02690066,
@@ -764,8 +754,7 @@ void chasym(GraphMap& graph)
     0.007990946,
     0.0138091
   };
-  Double_t hasym_zjnghkjm_pdf_fehx3008[25] = {
-    0.1,
+  Double_t hasym_zjnghkjm_pdf_fehx3008[24] = {
     0.1,
     0.1,
     0.1,
@@ -791,8 +780,7 @@ void chasym(GraphMap& graph)
     0.1,
     0.1
   };
-  Double_t hasym_zjnghkjm_pdf_fehy3008[25] = {
-    0.02349659,
+  Double_t hasym_zjnghkjm_pdf_fehy3008[24] = {
     0.01953938,
     0.02216871,
     0.01755173,
@@ -819,7 +807,7 @@ void chasym(GraphMap& graph)
     0.01024053
   };
   //
-  graph["EPPS16"] = TGraphAsymmErrors(25,hasym_zjnghkjm_pdf_fx3008,hasym_zjnghkjm_pdf_fy3008,hasym_zjnghkjm_pdf_felx3008,hasym_zjnghkjm_pdf_fehx3008,hasym_zjnghkjm_pdf_fely3008,hasym_zjnghkjm_pdf_fehy3008);
+  graph["EPPS16"] = TGraphAsymmErrors(24,hasym_zjnghkjm_pdf_fx3008,hasym_zjnghkjm_pdf_fy3008,hasym_zjnghkjm_pdf_felx3008,hasym_zjnghkjm_pdf_fehx3008,hasym_zjnghkjm_pdf_fely3008,hasym_zjnghkjm_pdf_fehy3008);
   graph.at("EPPS16").SetName("EPPS16"); graph.at("EPPS16").SetTitle("EPPS16");
   //
 };
@@ -829,8 +817,7 @@ void Wm(GraphMap& graph)
 {
   //
   // CT14
-  Double_t hrebin_ottriune_pdf_fx3004[25] = {
-    -2.9,
+  Double_t hrebin_ottriune_pdf_fx3004[24] = {
     -2.7,
     -2.5,
     -2.3,
@@ -856,8 +843,7 @@ void Wm(GraphMap& graph)
     1.7,
     1.9
   };
-  Double_t hrebin_ottriune_pdf_fy3004[25] = {
-    103.2191,
+  Double_t hrebin_ottriune_pdf_fy3004[24] = {
     106.6235,
     109.2612,
     111.269,
@@ -883,8 +869,7 @@ void Wm(GraphMap& graph)
     100.5288,
     96.33432
   };
-  Double_t hrebin_ottriune_pdf_felx3004[25] = {
-    0.1,
+  Double_t hrebin_ottriune_pdf_felx3004[24] = {
     0.1,
     0.1,
     0.1,
@@ -910,8 +895,7 @@ void Wm(GraphMap& graph)
     0.1,
     0.1
   };
-  Double_t hrebin_ottriune_pdf_fely3004[25] = {
-    2.619812,
+  Double_t hrebin_ottriune_pdf_fely3004[24] = {
     2.840252,
     2.660996,
     2.451546,
@@ -937,8 +921,7 @@ void Wm(GraphMap& graph)
     3.158324,
     2.828977
   };
-  Double_t hrebin_ottriune_pdf_fehx3004[25] = {
-    0.1,
+  Double_t hrebin_ottriune_pdf_fehx3004[24] = {
     0.1,
     0.1,
     0.1,
@@ -964,8 +947,7 @@ void Wm(GraphMap& graph)
     0.1,
     0.1
   };
-  Double_t hrebin_ottriune_pdf_fehy3004[25] = {
-    2.694268,
+  Double_t hrebin_ottriune_pdf_fehy3004[24] = {
     2.493692,
     2.701526,
     2.789888,
@@ -992,12 +974,11 @@ void Wm(GraphMap& graph)
     2.811997
   };
   //
-  graph["CT14"] = TGraphAsymmErrors(25,hrebin_ottriune_pdf_fx3004,hrebin_ottriune_pdf_fy3004,hrebin_ottriune_pdf_felx3004,hrebin_ottriune_pdf_fehx3004,hrebin_ottriune_pdf_fely3004,hrebin_ottriune_pdf_fehy3004);
+  graph["CT14"] = TGraphAsymmErrors(24,hrebin_ottriune_pdf_fx3004,hrebin_ottriune_pdf_fy3004,hrebin_ottriune_pdf_felx3004,hrebin_ottriune_pdf_fehx3004,hrebin_ottriune_pdf_fely3004,hrebin_ottriune_pdf_fehy3004);
   graph.at("CT14").SetName("CT14"); graph.at("CT14").SetTitle("CT14");
   //
   // EPPS16
-  Double_t hrebin_komixkgq_pdf_fx3005[25] = {
-    -2.9,
+  Double_t hrebin_komixkgq_pdf_fx3005[24] = {
     -2.7,
     -2.5,
     -2.3,
@@ -1023,8 +1004,7 @@ void Wm(GraphMap& graph)
     1.7,
     1.9
   };
-  Double_t hrebin_komixkgq_pdf_fy3005[25] = {
-    106.7709,
+  Double_t hrebin_komixkgq_pdf_fy3005[24] = {
     110.8993,
     114.162,
     116.3075,
@@ -1050,8 +1030,7 @@ void Wm(GraphMap& graph)
     89.08978,
     84.8621
   };
-  Double_t hrebin_komixkgq_pdf_felx3005[25] = {
-    0.1,
+  Double_t hrebin_komixkgq_pdf_felx3005[24] = {
     0.1,
     0.1,
     0.1,
@@ -1077,8 +1056,7 @@ void Wm(GraphMap& graph)
     0.1,
     0.1
   };
-  Double_t hrebin_komixkgq_pdf_fely3005[25] = {
-    3.515828,
+  Double_t hrebin_komixkgq_pdf_fely3005[24] = {
     3.949441,
     4.02382,
     3.811979,
@@ -1104,8 +1082,7 @@ void Wm(GraphMap& graph)
     8.597108,
     8.275235
   };
-  Double_t hrebin_komixkgq_pdf_fehx3005[25] = {
-    0.1,
+  Double_t hrebin_komixkgq_pdf_fehx3005[24] = {
     0.1,
     0.1,
     0.1,
@@ -1131,8 +1108,7 @@ void Wm(GraphMap& graph)
     0.1,
     0.1
   };
-  Double_t hrebin_komixkgq_pdf_fehy3005[25] = {
-    4.608354,
+  Double_t hrebin_komixkgq_pdf_fehy3005[24] = {
     4.468165,
     4.003603,
     4.136337,
@@ -1159,7 +1135,7 @@ void Wm(GraphMap& graph)
     8.228171
   };
   //
-  graph["EPPS16"] = TGraphAsymmErrors(25,hrebin_komixkgq_pdf_fx3005,hrebin_komixkgq_pdf_fy3005,hrebin_komixkgq_pdf_felx3005,hrebin_komixkgq_pdf_fehx3005,hrebin_komixkgq_pdf_fely3005,hrebin_komixkgq_pdf_fehy3005);
+  graph["EPPS16"] = TGraphAsymmErrors(24,hrebin_komixkgq_pdf_fx3005,hrebin_komixkgq_pdf_fy3005,hrebin_komixkgq_pdf_felx3005,hrebin_komixkgq_pdf_fehx3005,hrebin_komixkgq_pdf_fely3005,hrebin_komixkgq_pdf_fehy3005);
   graph.at("EPPS16").SetName("EPPS16"); graph.at("EPPS16").SetTitle("EPPS16");
   //
 };
@@ -1169,8 +1145,7 @@ void Wp(GraphMap& graph)
 {
   //
   // CT14
-  Double_t hrebin_zehygmyt_pdf_fx3001[25] = {
-    -2.9,
+  Double_t hrebin_zehygmyt_pdf_fx3001[24] = {
     -2.7,
     -2.5,
     -2.3,
@@ -1196,8 +1171,7 @@ void Wp(GraphMap& graph)
     1.7,
     1.9
   };
-  Double_t hrebin_zehygmyt_pdf_fy3001[25] = {
-    80.64506,
+  Double_t hrebin_zehygmyt_pdf_fy3001[24] = {
     93.95037,
     105.8421,
     115.352,
@@ -1223,8 +1197,7 @@ void Wp(GraphMap& graph)
     156.5206,
     156.3719
   };
-  Double_t hrebin_zehygmyt_pdf_felx3001[25] = {
-    0.1,
+  Double_t hrebin_zehygmyt_pdf_felx3001[24] = {
     0.1,
     0.1,
     0.1,
@@ -1250,8 +1223,7 @@ void Wp(GraphMap& graph)
     0.1,
     0.1
   };
-  Double_t hrebin_zehygmyt_pdf_fely3001[25] = {
-    2.772316,
+  Double_t hrebin_zehygmyt_pdf_fely3001[24] = {
     3.33991,
     3.607972,
     3.642282,
@@ -1277,8 +1249,7 @@ void Wp(GraphMap& graph)
     4.016873,
     3.845221
   };
-  Double_t hrebin_zehygmyt_pdf_fehx3001[25] = {
-    0.1,
+  Double_t hrebin_zehygmyt_pdf_fehx3001[24] = {
     0.1,
     0.1,
     0.1,
@@ -1304,8 +1275,7 @@ void Wp(GraphMap& graph)
     0.1,
     0.1
   };
-  Double_t hrebin_zehygmyt_pdf_fehy3001[25] = {
-    2.610517,
+  Double_t hrebin_zehygmyt_pdf_fehy3001[24] = {
     2.771411,
     3.155527,
     3.244552,
@@ -1332,12 +1302,11 @@ void Wp(GraphMap& graph)
     3.30962
   };
   //
-  graph["CT14"] = TGraphAsymmErrors(25,hrebin_zehygmyt_pdf_fx3001,hrebin_zehygmyt_pdf_fy3001,hrebin_zehygmyt_pdf_felx3001,hrebin_zehygmyt_pdf_fehx3001,hrebin_zehygmyt_pdf_fely3001,hrebin_zehygmyt_pdf_fehy3001);
+  graph["CT14"] = TGraphAsymmErrors(24,hrebin_zehygmyt_pdf_fx3001,hrebin_zehygmyt_pdf_fy3001,hrebin_zehygmyt_pdf_felx3001,hrebin_zehygmyt_pdf_fehx3001,hrebin_zehygmyt_pdf_fely3001,hrebin_zehygmyt_pdf_fehy3001);
   graph.at("CT14").SetName("CT14"); graph.at("CT14").SetTitle("CT14");
   //
   // EPPS16
-  Double_t hrebin_rpvwkpgu_pdf_fx3002[25] = {
-    -2.9,
+  Double_t hrebin_rpvwkpgu_pdf_fx3002[24] = {
     -2.7,
     -2.5,
     -2.3,
@@ -1363,8 +1332,7 @@ void Wp(GraphMap& graph)
     1.7,
     1.9
   };
-  Double_t hrebin_rpvwkpgu_pdf_fy3002[25] = {
-    80.44016,
+  Double_t hrebin_rpvwkpgu_pdf_fy3002[24] = {
     95.01221,
     108.0727,
     118.5696,
@@ -1390,8 +1358,7 @@ void Wp(GraphMap& graph)
     136.2006,
     136.2699
   };
-  Double_t hrebin_rpvwkpgu_pdf_felx3002[25] = {
-    0.1,
+  Double_t hrebin_rpvwkpgu_pdf_felx3002[24] = {
     0.1,
     0.1,
     0.1,
@@ -1417,8 +1384,7 @@ void Wp(GraphMap& graph)
     0.1,
     0.1
   };
-  Double_t hrebin_rpvwkpgu_pdf_fely3002[25] = {
-    2.952202,
+  Double_t hrebin_rpvwkpgu_pdf_fely3002[24] = {
     4.576611,
     4.38709,
     5.75366,
@@ -1444,8 +1410,7 @@ void Wp(GraphMap& graph)
     12.7508,
     15.18715
   };
-  Double_t hrebin_rpvwkpgu_pdf_fehx3002[25] = {
-    0.1,
+  Double_t hrebin_rpvwkpgu_pdf_fehx3002[24] = {
     0.1,
     0.1,
     0.1,
@@ -1471,8 +1436,7 @@ void Wp(GraphMap& graph)
     0.1,
     0.1
   };
-  Double_t hrebin_rpvwkpgu_pdf_fehy3002[25] = {
-    3.515685,
+  Double_t hrebin_rpvwkpgu_pdf_fehy3002[24] = {
     2.842142,
     4.020667,
     3.232178,
@@ -1499,7 +1463,7 @@ void Wp(GraphMap& graph)
     13.2683
   };
   //
-  graph["EPPS16"] = TGraphAsymmErrors(25,hrebin_rpvwkpgu_pdf_fx3002,hrebin_rpvwkpgu_pdf_fy3002,hrebin_rpvwkpgu_pdf_felx3002,hrebin_rpvwkpgu_pdf_fehx3002,hrebin_rpvwkpgu_pdf_fely3002,hrebin_rpvwkpgu_pdf_fehy3002);
+  graph["EPPS16"] = TGraphAsymmErrors(24,hrebin_rpvwkpgu_pdf_fx3002,hrebin_rpvwkpgu_pdf_fy3002,hrebin_rpvwkpgu_pdf_felx3002,hrebin_rpvwkpgu_pdf_fehx3002,hrebin_rpvwkpgu_pdf_fely3002,hrebin_rpvwkpgu_pdf_fehy3002);
   graph.at("EPPS16").SetName("EPPS16"); graph.at("EPPS16").SetTitle("EPPS16");
   //
 };

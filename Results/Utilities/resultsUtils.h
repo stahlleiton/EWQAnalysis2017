@@ -1626,19 +1626,39 @@ void computeSystematic(BinSextaMap& varMap, BinSeptaMapVec& systVarMap)
 };
 
 
-std::string formatResultVarName(const std::string varName, const bool useEtaCM, const bool isSyst = false, const bool useLATEX = false)
+std::string formatResultVarName(const std::string varName, const bool useEtaCM, const bool isSyst = false, const bool useLATEX = false, const std::string chg="")
 {
   std::string label = "";
   const std::string etaLbl = std::string(useLATEX ? "\\" : "#") + ( useEtaCM ? "eta_{CM}" : "eta_{LAB}" );
   if (isSyst) {
-    if (varName == "Charge_Asymmetry"      ) { label = "Abs. Unc. ( N^{+} - N^{-} ) / ( N^{+} + N^{-} )"; }
-    if (varName == "ForwardBackward_Ratio" ) { label = "Abs. Unc. R_{FB}"; }
-    if (varName == "Cross_Section"         ) { label = Form("Rel. Unc. B %s/d%s", (useLATEX ? "\\times d\\sigma" : "#times d#sigma"), etaLbl.c_str()); }
+    if (varName == "Charge_Asymmetry"      ) { label = "Abs. Uncert. ( N^{+} - N^{-} ) / ( N^{+} + N^{-} )"; }
+    if (varName == "ForwardBackward_Ratio" ) {
+      //if      (chg=="Pl" ) { label = Form("Abs. Uncert. %s   N(+#eta_{CM}) / N(-#eta_{CM})", (useLATEX ? "W^{+}\\rightarrow\\mu^{+} \\nu_{#mu}" : "W^{+}#rightarrow#mu^{+} #nu_{#mu}")); }
+      //else if (chg=="Mi" ) { label = Form("Abs. Uncert. %s   N(+#eta_{CM}) / N(-#eta_{CM})", (useLATEX ? "W^{-}\\rightarrow\\mu^{-} \\bar{\\nu}_{\\mu}" : "W^{-}#rightarrow#mu^{-} #bar{#nu}_{#mu}")); }
+      //else if (chg=="Inc") { label = Form("Abs. Uncert. %s   N(+#eta_{CM}) / N(-#eta_{CM})", (useLATEX ? "W^{#pm}\\rightarrow\\mu^{#pm} \\nu_{\\mu}" : "W#rightarrow#mu #nu_{#mu}")); }
+      //else { label = "Abs. Uncert. R_{FB}"; }
+      label = "Abs. Uncert.  N( +#eta_{CM} ) / N( -#eta_{CM} )";
+    }
+    if (varName == "Cross_Section"         ) {
+      if      (chg=="Pl") { label = Form("Rel. Uncert. %s / d%s [nb]", (useLATEX ? "d\\sigma(W^{+}\\rightarrow\\mu^{+} \\nu_{\\mu})" : "d#sigma(W^{+}#rightarrow#mu^{+} #nu_{#mu})"), etaLbl.c_str()); }
+      else if (chg=="Mi") { label = Form("Rel. Uncert. %s / d%s [nb]", (useLATEX ? "d\\sigma(W^{-}\\rightarrow\\mu^{-} \\bar{\\nu}_{\\mu})" : "d#sigma(W^{-}#rightarrow#mu^{-} #bar{#nu}_{#mu})"), etaLbl.c_str()); }
+      else { label = Form("Rel. Uncert. B %s/d%s [nb]", (useLATEX ? "\\times d\\sigma" : "#times d#sigma"), etaLbl.c_str()); }
+    }
   }
   else {
     if (varName == "Charge_Asymmetry"      ) { label = "( N^{+} - N^{-} ) / ( N^{+} + N^{-} )"; }
-    if (varName == "ForwardBackward_Ratio" ) { label = "R_{FB}"; }
-    if (varName == "Cross_Section"         ) { label = Form("B %s/d%s (nb)", (useLATEX ? "\\times d\\sigma" : "#times d#sigma"), etaLbl.c_str()); }
+    if (varName == "ForwardBackward_Ratio" ) {
+      //if      (chg=="Pl" ) { label = Form("%s   N(+#eta_{CM}) / N(-#eta_{CM})", (useLATEX ? "W^{+}\\rightarrow\\mu^{+} \\nu_{\\mu}" : "W^{+}#rightarrow#mu^{+} #nu_{#mu}")); }
+      //else if (chg=="Mi" ) { label = Form("%s   N(+#eta_{CM}) / N(-#eta_{CM})", (useLATEX ? "W^{-}\\rightarrow\\mu^{-} \\bar{\\nu}_{\\mu}" : "W^{-}#rightarrow#mu^{-} #bar{#nu}_{#mu}")); }
+      //else if (chg=="Inc") { label = Form("%s   N(+#eta_{CM}) / N(-#eta_{CM})", (useLATEX ? "W\\rightarrow\\mu \\nu_{\\mu}" : "W^{#pm}#rightarrow#mu^{#pm} #nu_{#mu}")); }
+      //else { label = "R_{FB}"; }
+      label = "N( +#eta_{CM} ) / N( -#eta_{CM} )";
+    }
+    if (varName == "Cross_Section"         ) {
+      if      (chg=="Pl") { label = Form("%s / d%s [nb]", (useLATEX ? "d\\sigma(W^{+}\\rightarrow\\mu^{+} \\nu_{\\mu})" : "d#sigma(W^{+}#rightarrow#mu^{+} #nu_{#mu})"), etaLbl.c_str()); }
+      else if (chg=="Mi") { label = Form("%s / d%s [nb]", (useLATEX ? "d\\sigma(W^{-}\\rightarrow\\mu^{-} \\bar{\\nu}_{\\mu})" : "d#sigma(W^{-}#rightarrow#mu^{-} #bar{#nu}_{#mu})"), etaLbl.c_str()); }
+      else { label = Form("B %s/d%s [nb]", (useLATEX ? "\\times d\\sigma" : "#times d#sigma"), etaLbl.c_str()); }
+    }
     if (varName == "N_WToMu"               ) { label = "Signal Yield"; }
   }
   return label;
@@ -1848,9 +1868,9 @@ void setStyle()
 };
 
 
-void formatLegendEntry(TLegendEntry& e)
+void formatLegendEntry(TLegendEntry& e, double size=0.028)
 {
-  e.SetTextSize(0.028);
+  e.SetTextSize(size);
 };
 
 
@@ -1861,7 +1881,7 @@ void formatResultsGraph(TGraphAsymmErrors& graph, const std::string& col, const 
   std::string xLabel = "#mu"; if (chg == "Pl") { xLabel += "^{+}"; }; if (chg == "Mi") { xLabel += "^{-}"; }; xLabel += " #eta";
   if (useEtaCM) { xLabel += "_{CM}"; }
   else { xLabel += "_{LAB}"; }
-  std::string yLabel = formatResultVarName(var, useEtaCM, isSyst);
+  std::string yLabel = formatResultVarName(var, useEtaCM, isSyst, false, chg);
   graph.SetTitle(Form(";%s;%s", xLabel.c_str(), yLabel.c_str()));
   //
   // General
@@ -1870,7 +1890,7 @@ void formatResultsGraph(TGraphAsymmErrors& graph, const std::string& col, const 
   graph.SetMarkerSize(1.0);
   graph.SetFillStyle(1001);
   // X-axis
-  graph.GetXaxis()->CenterTitle(kFALSE);
+  graph.GetXaxis()->CenterTitle(kTRUE);
   graph.GetXaxis()->SetTitleOffset(0.9);
   graph.GetXaxis()->SetTitleSize(0.050);
   graph.GetXaxis()->SetLabelSize(0.035);
@@ -1882,7 +1902,7 @@ void formatResultsGraph(TGraphAsymmErrors& graph, const std::string& col, const 
   }
   graph.GetXaxis()->SetLimits(xMin , xMax);
   // Y-axis
-  graph.GetYaxis()->CenterTitle(kFALSE);
+  graph.GetYaxis()->CenterTitle(kTRUE);
   graph.GetYaxis()->SetTitleOffset(1.38);
   graph.GetYaxis()->SetTitleSize(0.050);
   if ( var == "Charge_Asymmetry" ) { graph.GetYaxis()->SetTitleSize(0.040); }
@@ -1890,7 +1910,7 @@ void formatResultsGraph(TGraphAsymmErrors& graph, const std::string& col, const 
   if ( var == "Charge_Asymmetry"      ) { graph.GetYaxis()->SetRangeUser(-0.2, 0.4); }
   if ( var == "ForwardBackward_Ratio" ) { graph.GetYaxis()->SetRangeUser( 0.6, 1.5); }
   if (incAcc){ if ( var == "Cross_Section" ) { graph.GetYaxis()->SetRangeUser(0.0, 300.0); } }
-  else       { if ( var == "Cross_Section" ) { graph.GetYaxis()->SetRangeUser(0.0, 250.0); } }
+  else       { if ( var == "Cross_Section" ) { graph.GetYaxis()->SetRangeUser(70.0, 220.0); } }
   if ( var == "N_WToMu" ) { graph.GetYaxis()->SetRangeUser(0.0, 10000.); }
 };
 
@@ -1941,7 +1961,7 @@ void drawGraph( GraphPentaMap& graphMap , const std::string& outDir , const bool
           std::vector< std::string > textToPrint;
           std::string sampleLabel = "W #rightarrow #mu + #nu_{#mu}";
           if (chg == "Pl") { sampleLabel = "W^{+} #rightarrow #mu^{+} + #nu_{#mu}"; }
-          if (chg == "Mi") { sampleLabel = "W^{-} #rightarrow #mu^{-} + #nu_{#mu}"; }
+          if (chg == "Mi") { sampleLabel = "W^{-} #rightarrow #mu^{-} + #bar{#nu}_{#mu}"; }
           textToPrint.push_back(sampleLabel);
           if (accType=="") { textToPrint.push_back("p^{#mu}_{T} > 25 GeV/c"); }
           //
@@ -1959,7 +1979,7 @@ void drawGraph( GraphPentaMap& graphMap , const std::string& outDir , const bool
           if ( type=="Nominal" ) {
             mainDir = "Result";
             const bool incAcc = (accType!="");
-            grVec.push_back(graph.at("Err_Tot"));
+            grVec.push_back(graph.at("Err_Stat"));
             grVec.push_back(graph.at("Err_Stat"));
             for (int j = 0; j < grVec.back().GetN(); j++) {
               grVec.back().SetPointError(j, grVec.back().GetErrorXlow(j)*0.8, grVec.back().GetErrorXhigh(j)*0.8, grVec.back().GetErrorYlow(j), grVec.back().GetErrorYhigh(j));
@@ -1969,20 +1989,24 @@ void drawGraph( GraphPentaMap& graphMap , const std::string& outDir , const bool
 	      for (int j = 0; j < grVec.back().GetN(); j++) {
 		grVec.back().SetPointError(j, grVec.back().GetErrorXlow(j)*0.4, grVec.back().GetErrorXhigh(j)*0.4, grVec.back().GetErrorYlow(j), grVec.back().GetErrorYhigh(j));
 	      }
+	      grVec.push_back(graph.at("Err_Tot"));
 	    }
             for (auto& gr : grVec) { formatResultsGraph(gr, col, var, chg, useEtaCM, incAcc); }
             grVec[0].SetMarkerColor(kBlack);
             grVec[1].SetFillColor(kGreen+3);
 	    if (graph.count("Err_Syst")>0) { grVec[2].SetFillColor(kOrange); }
+            for (int i=0; i<grVec[3].GetN(); i++) { grVec[3].SetPointEXhigh(i, 0.0); grVec[3].SetPointEXlow(i, 0.0); }
+            grVec[3].SetMarkerSize(0);
+            grVec[3].SetLineWidth(10);
             // Create Legend
-            if (graph.count("Err_Syst")>0) { formatLegendEntry(*leg.AddEntry(&grVec[0], "Data (Total Unc.)", "pe")); }
-            else { formatLegendEntry(*leg.AddEntry(&grVec[0], "Data", "pe")); }
+            formatLegendEntry(*leg.AddEntry(&grVec[0], "Data", "pe"));
             formatLegendEntry(*leg.AddEntry(&grVec[1], "Statistical Uncertainty", "f"));
 	    if (graph.count("Err_Syst")>0) { formatLegendEntry(*leg.AddEntry(&grVec[2], "Systematic Uncertainty", "f")); }
             // Draw the graphs
             grVec[0].Draw("ap");
             grVec[1].Draw("same2");
-            if (graph.count("Err_Syst")>0) { grVec[2].Draw("same2"); }
+            if (graph.count("Err_Syst")>0) { grVec[2].Draw("same2");  }
+            if (graph.count("Err_Syst")>0) { grVec[3].Draw("same||"); }
             grVec[0].Draw("samep");
             //
             xMin = grVec[0].GetXaxis()->GetXmin(); xMax = grVec[0].GetXaxis()->GetXmax(); fbYLine = 1.0;
@@ -2161,7 +2185,7 @@ void drawSystematicGraph( const GraphPentaMap& graphMap , const std::string& out
           std::vector< std::string > textToPrint;
           std::string sampleLabel = "W #rightarrow #mu + #nu_{#mu}";
           if (chg == "Pl") { sampleLabel = "W^{+} #rightarrow #mu^{+} + #nu_{#mu}"; }
-          if (chg == "Mi") { sampleLabel = "W^{-} #rightarrow #mu^{-} + #nu_{#mu}"; }
+          if (chg == "Mi") { sampleLabel = "W^{-} #rightarrow #mu^{-} + #bar{#nu}_{#mu}"; }
           textToPrint.push_back(sampleLabel);
           if (accType=="") { textToPrint.push_back("p^{#mu}_{T} > 25 GeV/c"); }
           //
@@ -2283,7 +2307,7 @@ void drawCombineSystematicGraph( const GraphPentaMap& graphMap , const std::stri
         std::vector< std::string > textToPrint;
         std::string sampleLabel = "W #rightarrow #mu + #nu_{#mu}";
         if (chg == "Pl") { sampleLabel = "W^{+} #rightarrow #mu^{+} + #nu_{#mu}"; }
-        if (chg == "Mi") { sampleLabel = "W^{-} #rightarrow #mu^{-} + #nu_{#mu}"; }
+        if (chg == "Mi") { sampleLabel = "W^{-} #rightarrow #mu^{-} + #bar{#nu}_{#mu}"; }
         textToPrint.push_back(sampleLabel);
         if (accType=="") { textToPrint.push_back("p^{#mu}_{T} > 25 GeV/c"); }
         //
@@ -2414,6 +2438,259 @@ void drawCombineSystematicGraph( const GraphPentaMap& graphMap , const std::stri
 };
 
 
+void drawGraphWithTheoryAndRatio( GraphPentaMap& graphMap , const std::string& outDir , const bool useEtaCM = true , const std::string accType = "MC" , const std::string effType = "TnP" )
+{
+  //
+  // Set Style
+  setStyle();
+  //
+  std::cout << "[INFO] Drawing the output graphs with Theory predictions" << std::endl;
+  //
+  // Add the Theory Predictions
+  A1m(graphMap["PA"]["Mi"]["ForwardBackward_Ratio"]["Theory"]);
+  A1p(graphMap["PA"]["Pl"]["ForwardBackward_Ratio"]["Theory"]);
+  A3 (graphMap["PA"][  ""]["ForwardBackward_Ratio"]["Theory"]);
+  Wp (graphMap["PA"]["Pl"]["Cross_Section"]["Theory"]);
+  Wm (graphMap["PA"]["Mi"]["Cross_Section"]["Theory"]);
+  chasym(graphMap["PA"][""]["Charge_Asymmetry"]["Theory"]);
+  //
+  // Draw all graphs
+  for (const auto& c : graphMap) {
+    for (const auto& ch : c.second) {
+      for (const auto& v : ch.second) {
+	//
+	const std::string col  = c.first;
+	const std::string chg  = ( (ch.first!="") ? ch.first : "Inc" );
+	const std::string var  = v.first;
+	auto& nomGraph = graphMap.at("PA").at(ch.first).at(v.first).at("Nominal");
+	auto& theGraph = graphMap.at("PA").at(ch.first).at(v.first).at("Theory");
+	//
+	// Create Canvas
+	TCanvas c("c", "c", 1000, 1000); c.cd();
+	//
+	// Create the Text Info
+	TLatex tex; tex.SetNDC(); tex.SetTextSize(0.045); float dy = 0;
+	std::vector< std::string > textToPrint;
+	std::string sampleLabel = "W #rightarrow #mu + #nu_{#mu}";
+	if (chg == "Pl") { sampleLabel = "W^{+} #rightarrow #mu^{+} + #nu_{#mu}"; }
+	if (chg == "Mi") { sampleLabel = "W^{-} #rightarrow #mu^{-} + #bar{#nu}_{#mu}"; }
+	textToPrint.push_back(sampleLabel);
+	if (accType=="") { textToPrint.push_back("p^{#mu}_{T} > 25 GeV/c"); }
+	//
+	// Declare the graph vector (for drawing with markers)
+	std::vector< TGraphAsymmErrors > grVec, grRatio;
+	// Initialize the Legend
+	double legOff = 0.0; if (accType=="") { legOff = 0.05; }
+	TLegend leg(0.2, (0.60 - legOff), 0.5, (0.77 - legOff));
+	// Initialize the graph x range variables
+	double xMin=0.0 , xMax=0.0 , yErrMin=9999999. , yErrMax=-1.;
+	// Format the graphs
+	const bool incAcc = (accType!="");
+	grVec.push_back(nomGraph.at("Err_Stat"));
+	grVec.push_back(theGraph.at("CT14"));
+	grVec.push_back(theGraph.at("EPPS16"));
+	grVec.push_back(nomGraph.at("Err_Tot"));
+	grVec.push_back(nomGraph.at("Err_Tot"));
+	for (auto& gr : grVec) { formatResultsGraph(gr, col, var, chg, useEtaCM, incAcc); }
+	grVec[0].SetMarkerColor(kBlack);
+	grVec[0].SetMarkerSize(1.5);
+	grVec[0].SetLineWidth(3);
+        grVec[0].GetXaxis()->SetTitle("");
+        grVec[0].GetYaxis()->CenterTitle(kFALSE);
+        grVec[0].GetXaxis()->SetLabelOffset(3);
+        grVec[0].GetYaxis()->SetLabelSize(0.040);
+        grVec[0].GetYaxis()->SetTitleSize(0.060);
+        grVec[0].GetYaxis()->SetTitleOffset(1.0);
+        //
+        for (int i=0; i<grVec[0].GetN(); i++) { grVec[0].SetPointEXhigh(i, 0.0); grVec[0].SetPointEXlow(i, 0.0); }
+        for (int i=0; i<grVec[0].GetN(); i++) { double x, y; grVec[0].GetPoint(i, x, y); grVec[3].SetPoint(i, x, y+grVec[3].GetErrorYhigh(i)); grVec[4].SetPoint(i, x, y-grVec[4].GetErrorYlow(i)); }
+	grVec[3].SetMarkerSize(0);
+        grVec[3].SetLineWidth(3);
+	grVec[3].SetLineStyle(1);
+        for (int i=0; i<grVec[3].GetN(); i++) { grVec[3].SetPointEYhigh(i, 0.0); grVec[3].SetPointEYlow(i, 0.0); }
+        for (int i=0; i<grVec[3].GetN(); i++) { grVec[3].SetPointEXhigh(i, 0.5*grVec[3].GetErrorXhigh(i)); grVec[3].SetPointEXlow(i, 0.5*grVec[3].GetErrorXlow(i)); }
+	grVec[4].SetMarkerSize(0);
+        grVec[4].SetLineWidth(3);
+	grVec[4].SetLineStyle(1);
+        for (int i=0; i<grVec[4].GetN(); i++) { grVec[4].SetPointEYhigh(i, 0.0); grVec[4].SetPointEYlow(i, 0.0); }
+        for (int i=0; i<grVec[4].GetN(); i++) { grVec[4].SetPointEXhigh(i, 0.5*grVec[4].GetErrorXhigh(i)); grVec[4].SetPointEXlow(i, 0.5*grVec[4].GetErrorXlow(i)); }
+	grVec[1].SetFillColor(kYellow);
+	grVec[1].SetLineColor(kRed);
+	grVec[1].SetFillStyle(1001);
+	grVec[1].SetLineStyle(1);
+	grVec[1].SetLineWidth(4);
+	grVec[1].SetMarkerSize(0);
+	grVec[2].SetFillColor(kGreen+2);
+	grVec[2].SetLineColor(kGreen+2);
+	grVec[2].SetFillStyle(3275);
+	grVec[2].SetLineStyle(7);
+	grVec[2].SetLineWidth(4);
+	grVec[2].SetMarkerSize(0);
+        gStyle->SetHatchesSpacing(1.5);
+        gStyle->SetHatchesLineWidth(2);
+        //
+        auto h1 = graphToHist(grVec[1]); for (int i=1; i<=grVec[1].GetN(); i++) { h1.SetBinError(i, 0.0002); }
+        auto h2 = graphToHist(grVec[2]); for (int i=1; i<=grVec[2].GetN(); i++) { h2.SetBinError(i, 0.0002); }
+        //
+	// Create Legend
+	formatLegendEntry(*leg.AddEntry(&grVec[0], "Data", "pe"), 0.040);
+	formatLegendEntry(*leg.AddEntry(&grVec[1], "CT14", "lf"), 0.040);
+	formatLegendEntry(*leg.AddEntry(&grVec[2], "CT14+EPPS16", "lf"), 0.040);
+        //
+        // Define the plotting pads
+        TPad *pad1  = new TPad("pad1", "", 0, 0.25, 1, 0.98);  // Unique Pointer does produce Segmentation Fault, so don't use it
+        pad1->SetBottomMargin(0.00);
+        //
+        // Draw the Graphs
+        //
+        // Main Frame
+        pad1->Draw();
+        pad1->cd();
+        //
+	grVec[0].Draw("ap");
+	grVec[1].Draw("same2"); h1.Draw("sameL");
+	grVec[2].Draw("same2"); h2.Draw("sameL");
+	grVec[3].Draw("samep"); grVec[4].Draw("samep");
+	grVec[0].Draw("samep");
+	//
+	xMin = grVec[0].GetXaxis()->GetXmin(); xMax = grVec[0].GetXaxis()->GetXmax();
+	// Draw the Line
+	TLine line_FB(xMin, 1.0, xMax, 1.0); line_FB.SetLineStyle(2);
+	if (var=="ForwardBackward_Ratio") { line_FB.Draw("same"); }
+	TLine line_CA(xMin, 0.0, xMax, 0.0); line_CA.SetLineStyle(2);
+	if (var=="Charge_Asymmetry") { line_CA.Draw("same"); }
+	// Draw the Legend
+	leg.Draw("same");
+	// Update
+	c.Modified(); c.Update();
+	// Draw the text
+	tex.SetTextSize(0.053); tex.DrawLatex(0.22, 0.84, textToPrint[0].c_str());
+	if (textToPrint.size()>1) { tex.SetTextSize(0.035); tex.DrawLatex(0.22, 0.78, textToPrint[1].c_str()); }
+        if (var=="Cross_Section") { tex.SetTextSize(0.035); tex.DrawLatex(0.58, 0.70, "Luminosity uncertainty: 5.0%"); }
+	// Update
+	c.Modified(); c.Update(); // Pure paranoia
+	//
+	// set the CMS style
+	int option = 11832;
+	if (col.find("pPb")!=std::string::npos) option = 11830;
+	if (col.find("Pbp")!=std::string::npos) option = 11831;
+	CMS_lumi(pad1, option, 33, "");
+        pad1->SetFillStyle(4000); 
+        pad1->SetFrameFillStyle(4000);
+	// Update
+	c.Modified(); c.Update(); // Pure paranoia
+        //
+        TPad *pad2  = new TPad("pad2", "", 0, 0, 1, 0.25); // Unique Pointer does produce Segmentation Fault, so don't use it
+        pad2->SetTopMargin(0.00);
+        pad2->SetBottomMargin(0.4);
+        pad2->SetFillStyle(4000); 
+        pad2->SetFrameFillStyle(4000);
+        //
+	grRatio.push_back(nomGraph.at("Err_Stat"));
+	grRatio.push_back(theGraph.at("CT14"));
+	grRatio.push_back(theGraph.at("EPPS16"));
+	grRatio.push_back(nomGraph.at("Err_Tot"));
+	grRatio.push_back(nomGraph.at("Err_Tot"));
+        for (auto& gr : grRatio) { gr.SetName(Form("%s_tmp", gr.GetName())); }
+        for (int i=0; i<grRatio[1].GetN(); i++) {
+          double x, y; grRatio[1].GetPoint(i, x, y);
+          const double yH = grRatio[1].GetErrorYhigh(i);
+          const double yL = grRatio[1].GetErrorYlow(i);
+          for (uint iGr=0; iGr<grRatio.size(); iGr++) {
+            auto& gr = grRatio[iGr];
+            double x1, y1; gr.GetPoint(i, x1, y1); gr.SetPoint(i, x1, y1/y);
+            const double yH1 = std::sqrt(std::pow(gr.GetErrorYhigh(i)/y1 , 2.0) + std::pow(yH/y , 2.0))*std::abs(y1/y);
+            const double yL1 = std::sqrt(std::pow(gr.GetErrorYlow (i)/y1 , 2.0) + std::pow(yL/y , 2.0))*std::abs(y1/y);
+            gr.SetPointEYhigh(i, yH1); gr.SetPointEYlow(i, yL1);
+          }
+        }
+	for (auto& gr : grRatio) { formatResultsGraph(gr, col, var, chg, useEtaCM, incAcc); }
+	grRatio[0].SetMarkerColor(kBlack);
+	grRatio[0].SetMarkerSize(1.0);
+	grRatio[0].SetLineWidth(3);
+        grRatio[0].GetXaxis()->SetTitleOffset(0.7);
+        grRatio[0].GetXaxis()->SetTitleSize(0.23);
+        grRatio[0].GetXaxis()->SetLabelSize(0.14);
+        grRatio[0].GetYaxis()->SetTitle("Ratio to CT14");
+        grRatio[0].GetYaxis()->CenterTitle(kTRUE);
+        grRatio[0].GetYaxis()->SetTitleOffset(0.55);
+        grRatio[0].GetYaxis()->SetTitleSize(0.105);
+        grRatio[0].GetYaxis()->SetLabelSize(0.14);
+        grRatio[0].GetYaxis()->SetRangeUser(0.72, 1.26);
+        grRatio[0].GetYaxis()->SetNdivisions(404);
+        //
+        for (int i=0; i<grRatio[0].GetN(); i++) { grRatio[0].SetPointEXhigh(i, 0.0); grRatio[0].SetPointEXlow(i, 0.0); }
+        for (int i=0; i<grRatio[0].GetN(); i++) { double x, y; grRatio[0].GetPoint(i, x, y); grRatio[3].SetPoint(i, x, y+grRatio[3].GetErrorYhigh(i)); grRatio[4].SetPoint(i, x, y-grRatio[4].GetErrorYlow(i)); }
+	grRatio[3].SetMarkerSize(0);
+        grRatio[3].SetLineWidth(3);
+	grRatio[3].SetLineStyle(1);
+        for (int i=0; i<grRatio[3].GetN(); i++) { grRatio[3].SetPointEYhigh(i, 0.0); grRatio[3].SetPointEYlow(i, 0.0); }
+        for (int i=0; i<grRatio[3].GetN(); i++) { grRatio[3].SetPointEXhigh(i, 0.5*grRatio[3].GetErrorXhigh(i)); grRatio[3].SetPointEXlow(i, 0.5*grRatio[3].GetErrorXlow(i)); }
+	grRatio[4].SetMarkerSize(0);
+        grRatio[4].SetLineWidth(3);
+	grRatio[4].SetLineStyle(1);
+        for (int i=0; i<grRatio[4].GetN(); i++) { grRatio[4].SetPointEYhigh(i, 0.0); grRatio[4].SetPointEYlow(i, 0.0); }
+        for (int i=0; i<grRatio[4].GetN(); i++) { grRatio[4].SetPointEXhigh(i, 0.5*grRatio[4].GetErrorXhigh(i)); grRatio[4].SetPointEXlow(i, 0.5*grRatio[4].GetErrorXlow(i)); }
+	grRatio[1].SetFillColor(kYellow);
+	grRatio[1].SetLineColor(kRed);
+	grRatio[1].SetFillStyle(1001);
+	grRatio[1].SetLineStyle(1);
+	grRatio[1].SetLineWidth(4);
+	grRatio[1].SetMarkerSize(0);
+	grRatio[2].SetFillColor(kGreen+2);
+	grRatio[2].SetLineColor(kGreen+2);
+	grRatio[2].SetFillStyle(3275);
+	grRatio[2].SetLineStyle(7);
+	grRatio[2].SetLineWidth(4);
+	grRatio[2].SetMarkerSize(0);
+        gStyle->SetHatchesSpacing(1.5);
+        gStyle->SetHatchesLineWidth(2);
+        //
+        auto h1Ratio = graphToHist(grRatio[1]); for (int i=1; i<=grRatio[1].GetN(); i++) { h1Ratio.SetBinError(i, 0.0002); }
+        auto h2Ratio = graphToHist(grRatio[2]); for (int i=1; i<=grRatio[1].GetN(); i++) { h2Ratio.SetBinError(i, 0.0002); }
+        //
+        // Ratio Frame
+        c.cd();
+        pad2->Draw();
+        pad2->cd();
+        //
+	grRatio[0].Draw("ap");
+	grRatio[1].Draw("same2"); h1Ratio.Draw("sameL");
+	grRatio[2].Draw("same2"); h2Ratio.Draw("sameL");
+	grRatio[3].Draw("samep"); grRatio[4].Draw("samep");
+	grRatio[0].Draw("samep");
+        //
+        line_FB.Draw("same");
+        pad2->Update();
+	//
+	std::string label = "";
+	if (accType==""   && effType==""   ) { label = "RAW";          }
+	if (accType=="MC" && effType==""   ) { label = "AccMC";        }
+	if (accType==""   && effType=="MC" ) { label = "EffMC";        }
+	if (accType=="MC" && effType=="MC" ) { label = "AccMC_EffMC";  }
+	if (accType==""   && effType=="TnP") { label = "EffTnP";       }
+	if (accType=="MC" && effType=="TnP") { label = "AccMC_EffTnP"; }
+	//
+	// Create Output Directory
+	const std::string plotDir = outDir+"/Plots/Theory/" + col+"/" + label+"/" + var;
+	makeDir(plotDir + "/png/");
+	makeDir(plotDir + "/pdf/");
+	makeDir(plotDir + "/root/");
+	//
+	// Save Canvas
+	const std::string name = Form("gr_WToMu%s_%s_%s_%s_%s", chg.c_str(), col.c_str(), var.c_str(), label.c_str(), "NominalWithTheoryAndRatio");
+	c.SaveAs(( plotDir + "/png/"  + name + ".png"  ).c_str());
+	c.SaveAs(( plotDir + "/pdf/"  + name + ".pdf"  ).c_str());
+	c.SaveAs(( plotDir + "/root/" + name + ".root" ).c_str());
+	//
+	// Clean up memory
+	c.Clear(); c.Close();
+      }
+    }
+  }
+};
+
+
 void drawGraphWithTheory( GraphPentaMap& graphMap , const std::string& outDir , const bool useEtaCM = true , const std::string accType = "MC" , const std::string effType = "TnP" )
 {
   //
@@ -2449,48 +2726,74 @@ void drawGraphWithTheory( GraphPentaMap& graphMap , const std::string& outDir , 
 	std::vector< std::string > textToPrint;
 	std::string sampleLabel = "W #rightarrow #mu + #nu_{#mu}";
 	if (chg == "Pl") { sampleLabel = "W^{+} #rightarrow #mu^{+} + #nu_{#mu}"; }
-	if (chg == "Mi") { sampleLabel = "W^{-} #rightarrow #mu^{-} + #nu_{#mu}"; }
+	if (chg == "Mi") { sampleLabel = "W^{-} #rightarrow #mu^{-} + #bar{#nu}_{#mu}"; }
 	textToPrint.push_back(sampleLabel);
 	if (accType=="") { textToPrint.push_back("p^{#mu}_{T} > 25 GeV/c"); }
 	//
 	// Declare the graph vector (for drawing with markers)
-	std::vector< TGraphAsymmErrors > grVec;
+	std::vector< TGraphAsymmErrors > grVec, grRatio;
 	// Initialize the Legend
 	double legOff = 0.0; if (accType=="") { legOff = 0.05; }
-	TLegend leg(0.2, (0.71 - legOff), 0.4, (0.84 - legOff));
+	TLegend leg(0.2, (0.68 - legOff), 0.4, (0.81 - legOff));
 	// Initialize the graph x range variables
 	double xMin=0.0 , xMax=0.0 , yErrMin=9999999. , yErrMax=-1.;
 	// Format the graphs
 	const bool incAcc = (accType!="");
-	grVec.push_back(nomGraph.at("Err_Tot"));
+	grVec.push_back(nomGraph.at("Err_Stat"));
 	grVec.push_back(theGraph.at("CT14"));
 	grVec.push_back(theGraph.at("EPPS16"));
+	grVec.push_back(nomGraph.at("Err_Tot"));
+	grVec.push_back(nomGraph.at("Err_Tot"));
 	for (auto& gr : grVec) { formatResultsGraph(gr, col, var, chg, useEtaCM, incAcc); }
 	grVec[0].SetMarkerColor(kBlack);
+	grVec[0].SetMarkerSize(1.5);
+	grVec[0].SetLineWidth(3);
+        grVec[0].GetXaxis()->SetTitleOffset(0.8);
+        grVec[0].GetXaxis()->SetTitleSize(0.060);
+        grVec[0].GetYaxis()->SetTitleOffset(1.1);
+        grVec[0].GetYaxis()->SetTitleSize(0.060);
+        //
+        for (int i=0; i<grVec[0].GetN(); i++) { grVec[0].SetPointEXhigh(i, 0.0); grVec[0].SetPointEXlow(i, 0.0); }
+        for (int i=0; i<grVec[0].GetN(); i++) { double x, y; grVec[0].GetPoint(i, x, y); grVec[3].SetPoint(i, x, y+grVec[3].GetErrorYhigh(i)); grVec[4].SetPoint(i, x, y-grVec[4].GetErrorYlow(i)); }
+	grVec[3].SetMarkerSize(0);
+        grVec[3].SetLineWidth(3);
+	grVec[3].SetLineStyle(1);
+        for (int i=0; i<grVec[3].GetN(); i++) { grVec[3].SetPointEYhigh(i, 0.0); grVec[3].SetPointEYlow(i, 0.0); }
+        for (int i=0; i<grVec[3].GetN(); i++) { grVec[3].SetPointEXhigh(i, 0.5*grVec[3].GetErrorXhigh(i)); grVec[3].SetPointEXlow(i, 0.5*grVec[3].GetErrorXlow(i)); }
+	grVec[4].SetMarkerSize(0);
+        grVec[4].SetLineWidth(3);
+	grVec[4].SetLineStyle(1);
+        for (int i=0; i<grVec[4].GetN(); i++) { grVec[4].SetPointEYhigh(i, 0.0); grVec[4].SetPointEYlow(i, 0.0); }
+        for (int i=0; i<grVec[4].GetN(); i++) { grVec[4].SetPointEXhigh(i, 0.5*grVec[4].GetErrorXhigh(i)); grVec[4].SetPointEXlow(i, 0.5*grVec[4].GetErrorXlow(i)); }
 	grVec[1].SetFillColor(kYellow);
 	grVec[1].SetLineColor(kRed);
 	grVec[1].SetFillStyle(1001);
 	grVec[1].SetLineStyle(1);
-	grVec[1].SetLineWidth(3);
+	grVec[1].SetLineWidth(4);
 	grVec[1].SetMarkerSize(0);
 	grVec[2].SetFillColor(kGreen+2);
 	grVec[2].SetLineColor(kGreen+2);
-	grVec[2].SetFillStyle(3005);
+	grVec[2].SetFillStyle(3275);
 	grVec[2].SetLineStyle(7);
-	grVec[2].SetLineWidth(3);
+	grVec[2].SetLineWidth(4);
 	grVec[2].SetMarkerSize(0);
+        gStyle->SetHatchesSpacing(1.5);
+        gStyle->SetHatchesLineWidth(2);
         //
-        auto h1 = graphToHist(grVec[1]); for (int i=1; i<=grVec[1].GetN(); i++) { h1.SetBinError(i, 0.0001); }
-        auto h2 = graphToHist(grVec[2]); for (int i=1; i<=grVec[2].GetN(); i++) { h2.SetBinError(i, 0.0001); }
+        auto h1 = graphToHist(grVec[1]); for (int i=1; i<=grVec[1].GetN(); i++) { h1.SetBinError(i, 0.0002); }
+        auto h2 = graphToHist(grVec[2]); for (int i=1; i<=grVec[2].GetN(); i++) { h2.SetBinError(i, 0.0002); }
         //
 	// Create Legend
-	formatLegendEntry(*leg.AddEntry(&grVec[0], "Data (Total Unc.)", "pe"));
-	formatLegendEntry(*leg.AddEntry(&grVec[1], "CT14", "lf"));
-	formatLegendEntry(*leg.AddEntry(&grVec[2], "CT14+EPPS16", "lf"));
-	// Draw the graphs
+	formatLegendEntry(*leg.AddEntry(&grVec[0], "Data", "pe"), 0.030);
+	formatLegendEntry(*leg.AddEntry(&grVec[1], "CT14", "lf"), 0.030);
+	formatLegendEntry(*leg.AddEntry(&grVec[2], "CT14+EPPS16", "lf"), 0.030);
+        //
+        // Draw the Graphs
+        //
 	grVec[0].Draw("ap");
 	grVec[1].Draw("same2"); h1.Draw("sameL");
 	grVec[2].Draw("same2"); h2.Draw("sameL");
+	grVec[3].Draw("samep"); grVec[4].Draw("samep");
 	grVec[0].Draw("samep");
 	//
 	xMin = grVec[0].GetXaxis()->GetXmin(); xMax = grVec[0].GetXaxis()->GetXmax();
@@ -2504,7 +2807,8 @@ void drawGraphWithTheory( GraphPentaMap& graphMap , const std::string& outDir , 
 	// Update
 	c.Modified(); c.Update();
 	// Draw the text
-	for (const auto& s: textToPrint) { tex.DrawLatex(0.22, 0.86-dy, s.c_str()); dy+=0.045; }
+	tex.SetTextSize(0.045); tex.DrawLatex(0.22, 0.85, textToPrint[0].c_str());
+	if (textToPrint.size()>1) { tex.SetTextSize(0.030); tex.DrawLatex(0.22, 0.80, textToPrint[1].c_str()); }
         if (var=="Cross_Section") { tex.SetTextSize(0.025); tex.DrawLatex(0.58, 0.72, "Luminosity uncertainty: 5.0%"); }
 	// Update
 	c.Modified(); c.Update(); // Pure paranoia
@@ -2579,7 +2883,7 @@ void drawGraphWithpPb5TeV( GraphPentaMap& graphMap , const std::string& outDir ,
 	std::vector< std::string > textToPrint;
 	std::string sampleLabel = "W #rightarrow #mu + #nu_{#mu}";
 	if (chg == "Pl") { sampleLabel = "W^{+} #rightarrow #mu^{+} + #nu_{#mu}"; }
-	if (chg == "Mi") { sampleLabel = "W^{-} #rightarrow #mu^{-} + #nu_{#mu}"; }
+	if (chg == "Mi") { sampleLabel = "W^{-} #rightarrow #mu^{-} + #bar{#nu}_{#mu}"; }
 	textToPrint.push_back(sampleLabel);
 	if (accType=="") { textToPrint.push_back("p^{#mu}_{T} > 25 GeV/c"); }
 	//
@@ -2592,19 +2896,24 @@ void drawGraphWithpPb5TeV( GraphPentaMap& graphMap , const std::string& outDir ,
 	double xMin=0.0 , xMax=0.0 , yErrMin=9999999. , yErrMax=-1.;
 	// Format the graphs
 	const bool incAcc = (accType!="");
-	grVec.push_back(nomGraph.at("Err_Tot"));
+	grVec.push_back(nomGraph.at("Err_Stat"));
 	grVec.push_back(theGraph.at("HIN-13007"));
+	grVec.push_back(nomGraph.at("Err_Tot"));
 	for (auto& gr : grVec) { formatResultsGraph(gr, col, var, chg, useEtaCM, incAcc); }
 	grVec[0].SetMarkerColor(kBlack);
+        for (int i=0; i<grVec[2].GetN(); i++) { grVec[2].SetPointEXhigh(i, 0.0); grVec[2].SetPointEXlow(i, 0.0); }
+	grVec[2].SetMarkerSize(0);
+        grVec[2].SetLineWidth(10);
 	grVec[1].SetMarkerColor(kRed);
 	grVec[1].SetMarkerStyle(21);
 	grVec[1].SetMarkerSize(2.);
 	// Create Legend
-	formatLegendEntry(*leg.AddEntry(&grVec[0], "Data (Total Unc.)", "pe"));
+	formatLegendEntry(*leg.AddEntry(&grVec[0], "Data", "pe"));
 	formatLegendEntry(*leg.AddEntry(&grVec[1], "HIN-13007", "pe"));
 	// Draw the graphs
 	grVec[0].Draw("ap");
 	grVec[1].Draw("samep");
+	grVec[2].Draw("same||");
 	grVec[0].Draw("samep");
 	//
 	xMin = grVec[0].GetXaxis()->GetXmin(); xMax = grVec[0].GetXaxis()->GetXmax();
@@ -2618,8 +2927,8 @@ void drawGraphWithpPb5TeV( GraphPentaMap& graphMap , const std::string& outDir ,
 	// Update
 	c.Modified(); c.Update();
 	// Draw the text
-	for (const auto& s: textToPrint) { tex.DrawLatex(0.22, 0.86-dy, s.c_str()); dy+=0.045; }
-        if (var=="Cross_Section") { tex.SetTextSize(0.025); tex.DrawLatex(0.58, 0.72, "Luminosity uncertainty: 5.0%"); }
+	for (const auto& s: textToPrint) { tex.DrawLatex(0.22, 0.86-dy, s.c_str()); dy+=0.050; }
+        if (var=="Cross_Section") { tex.SetTextSize(0.035); tex.DrawLatex(0.58, 0.72, "Luminosity uncertainty: 5.0%"); }
 	// Update
 	c.Modified(); c.Update(); // Pure paranoia
 	//
@@ -2699,6 +3008,10 @@ void createYieldTable(std::vector< std::string >& texTable, const std::vector< s
       }
       else if (v=="N_FIT_Entries") {
         val = Form("%.0f", var.at("Val"));
+      }
+      else if (v=="TEST_FIT") {
+        const double pVal = var.at("Val");
+        val = Form("%.2f", pVal);
       }
       else if (v=="TEST_FIT_BCChi2") {
         const double pVal = var.at("Val");
@@ -3965,7 +4278,7 @@ void makeCovarianceMatrix(std::ofstream& file , const WSDirMap& workDirNames, co
       std::string xLabel = "#mu"; if (chg == "Pl") { xLabel += "^{+}"; }; if (chg == "Mi") { xLabel += "^{-}"; }; xLabel += " #eta";
       if (useEtaCM) { xLabel += "_{CM}"; }
       else { xLabel += "_{LAB}"; }
-      std::string yLabel = formatResultVarName(var, useEtaCM, false);
+      std::string yLabel = formatResultVarName(var, useEtaCM, false, false, chg);
       graph.SetTitle(Form("Covariance Matrix;%s;%s", "", yLabel.c_str()));
       // X-axis
       graph.GetXaxis()->CenterTitle(kFALSE);

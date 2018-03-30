@@ -95,10 +95,10 @@ void plotWAsym(
     //}
     //}
   };
-  workDirNames.at("Recoil_Correction")["Recoil_StatVar_MC"] = std::make_pair(std::vector<std::string>(), 0);
-  for (uint i = 0; i < 100; i++) { workDirNames.at("Recoil_Correction").at("Recoil_StatVar_MC").first.push_back(Form("NominalCM_RecoilStatVar_MC/Variation_%d", i)); }
-  workDirNames.at("Recoil_Correction")["Recoil_StatVar_DATA"] = std::make_pair(std::vector<std::string>(), 0);
-  for (uint i = 0; i < 100; i++) { workDirNames.at("Recoil_Correction").at("Recoil_StatVar_DATA").first.push_back(Form("NominalCM_RecoilStatVar_DATA/Variation_%d", i)); }
+  //workDirNames.at("Recoil_Correction")["Recoil_StatVar_MC"] = std::make_pair(std::vector<std::string>(), 0);
+  //for (uint i = 0; i < 100; i++) { workDirNames.at("Recoil_Correction").at("Recoil_StatVar_MC").first.push_back(Form("NominalCM_RecoilStatVar_MC/Variation_%d", i)); }
+  //workDirNames.at("Recoil_Correction")["Recoil_StatVar_DATA"] = std::make_pair(std::vector<std::string>(), 0);
+  //for (uint i = 0; i < 100; i++) { workDirNames.at("Recoil_Correction").at("Recoil_StatVar_DATA").first.push_back(Form("NominalCM_RecoilStatVar_DATA/Variation_%d", i)); }
   //
   const std::string metTag      = "METPF_RAW";
   const std::string dsTag       = "DATA";
@@ -154,38 +154,39 @@ void plotWAsym(
     //
     // --------------------------------------------------------------------------------- //
     // Print Covariance Matrix
-    if (!printCovarianceMatrix(systVar, workDirNames, outDir, useEtaCM)) { return; }
+    //if (!printCovarianceMatrix(systVar, workDirNames, outDir, useEtaCM)) { return; }
     //
     // --------------------------------------------------------------------------------- //
     // Print systematic Tables
     //
     // Nominal Systematics
-    if (!printSystematicTables(var.at("Nominal"), outDir , useEtaCM)) { return; }
+    //if (!printSystematicTables(var.at("Nominal"), outDir , useEtaCM)) { return; }
     // Efficiency Systematics
-    if (!printEffSystematicTables(systVar.at("Efficiency"), outDir , useEtaCM)) { return; }
+    //if (!printEffSystematicTables(systVar.at("Efficiency"), outDir , useEtaCM)) { return; }
     // Full Systematics
-    if (!printFullSystematicTable(var, outDir, useEtaCM)) { return; }
+    //if (!printFullSystematicTable(var, outDir, useEtaCM)) { return; }
   }
   //
   // Create the main plots
   GraphPentaMap graph;
   iniResultsGraph(graph, var);
   if (!fillResultsGraph(graph, var)) { return; }
-  drawGraph(graph, outDir, useEtaCM, accType, effType);
+  //drawGraph(graph, outDir, useEtaCM, accType, effType);
   //
   // Create the systematic plots
   if (doSyst) {
     GraphPentaMap systGraph;
     for (const auto& sVar : systVar) { iniResultsGraph(systGraph, sVar.second); }
     for (const auto& sVar : systVar) { if (!fillResultsGraph(systGraph, sVar.second)) { return; } }
-    drawGraph(systGraph, outDir, useEtaCM, accType, effType);
-    drawSystematicGraph(graph, outDir, useEtaCM, accType, effType);
-    drawCombineSystematicGraph(graph, outDir, useEtaCM, accType, effType);
-    drawCombineSystematicGraph(systGraph, outDir, useEtaCM, accType, effType, "TnP_Stat");
-    drawCombineSystematicGraph(systGraph, outDir, useEtaCM, accType, effType, "TnP_Syst");
+    //drawGraph(systGraph, outDir, useEtaCM, accType, effType);
+    //drawSystematicGraph(graph, outDir, useEtaCM, accType, effType);
+    //drawCombineSystematicGraph(graph, outDir, useEtaCM, accType, effType);
+    //drawCombineSystematicGraph(systGraph, outDir, useEtaCM, accType, effType, "TnP_Stat");
+    //drawCombineSystematicGraph(systGraph, outDir, useEtaCM, accType, effType, "TnP_Syst");
   }
   //
   // Create the plots with predictions
+  drawGraphWithTheoryAndRatio(graph, outDir, useEtaCM, accType, effType);
   drawGraphWithTheory(graph, outDir, useEtaCM, accType, effType);
   //
   // Create the plots with 5 TeV results
