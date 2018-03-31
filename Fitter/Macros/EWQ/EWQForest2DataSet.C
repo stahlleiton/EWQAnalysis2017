@@ -1207,46 +1207,46 @@ bool correctDS(RooWorkspaceMap_t& Workspaces, const RooWorkspaceMap_t& iniWorksp
   RecoilCorrector recoilCorr_pPb(1);
   RecoilCorrector recoilCorr_Pbp(1);
   std::string recoilMethod;
-  bool ignoreCorrDS = false;
+  bool ignoreCorrDS = false, splitRuns = false;
   if (applyRecoilCorr) {
-    const bool splitRuns = (info.Flag.count("RecoilCorr_splitRuns")>0 ? info.Flag.at("RecoilCorr_splitRuns") : false);
+    const bool splitRuns  = (info.Flag.count("RecoilCorr_splitRuns" )>0 ? info.Flag.at("RecoilCorr_splitRuns" ) : false);
+    const bool useBWGauss = (info.Flag.count("RecoilCorr_useBWGauss")>0 ? info.Flag.at("RecoilCorr_useBWGauss") : false);
     recoilMethod = info.Par.at("RecoilCorrMethod");
     const std::string met = info.Par.at("RecoilMET");
     const std::string recoilPath = info.Par.at("RecoilPath");
     std::string fnc_MC = "doubleGauss" , fnc_DATA = "doubleGauss";
-    if (recoilPath.find("BWGauss")!=std::string::npos) { fnc_MC   = "BWGauss" , fnc_DATA = "BWGauss"; }
-    const std::string HFCorrLbl = (applyHFCorr ? (HFMethod=="HFBoth" ? "HFCorr" : "NTrack") : "noHFCorr");
-    std::string fileName_MC_pPb   = Form("%sMC_DYToMuMu_POWHEG/MET_%s/PA/%s/%s/Results/fits_RecoilPDF_%s_PA.root", recoilPath.c_str(), met.c_str(), HFCorrLbl.c_str(), fnc_MC.c_str(), met.c_str());
+    if (useBWGauss) { fnc_MC   = "BWGauss" , fnc_DATA = "BWGauss"; }
+    std::string corrLbl = (applyHFCorr ? (HFMethod=="HFBoth" ? "HFCorr" : "NTrack") : "noHFCorr");
+    //if (applyBosonPTCorr) { corrLbl += "_BosonPT"; }
+    std::string fileName_MC_pPb   = Form("%sMC_DYToMuMu_POWHEG/MET_%s/PA/%s/%s/Results/fits_RecoilPDF_%s_PA.root", recoilPath.c_str(), met.c_str(), corrLbl.c_str(), fnc_MC.c_str(), met.c_str());
     std::string fileName_DATA_pPb = Form("%sDATA/MET_%s/PA/%s/Results/fits_RecoilPDF_%s_PA.root", recoilPath.c_str(), met.c_str(), fnc_DATA.c_str(), met.c_str());
-    std::string fileName_MC_Pbp   = Form("%sMC_DYToMuMu_POWHEG/MET_%s/PA/%s/%s/Results/fits_RecoilPDF_%s_PA.root", recoilPath.c_str(), met.c_str(), HFCorrLbl.c_str(), fnc_MC.c_str(), met.c_str());
-    std::string fileName_DATA_Pbp = Form("%sDATA/MET_%s/PA/%s/Results/fits_RecoilPDF_%s_PA.root", recoilPath.c_str(), met.c_str(), fnc_DATA.c_str(), met.c_str());
+    std::string fileName_MC_Pbp   = fileName_MC_pPb;
+    std::string fileName_DATA_Pbp = fileName_DATA_pPb;
     if (splitRuns) {
-      fileName_MC_pPb   = Form("%sMC_DYToMuMu_POWHEG/MET_%s/pPb/%s/%s/Results/fits_RecoilPDF_%s_pPb.root", recoilPath.c_str(), met.c_str(), HFCorrLbl.c_str(), fnc_MC.c_str(), met.c_str());
+      fileName_MC_pPb   = Form("%sMC_DYToMuMu_POWHEG/MET_%s/pPb/%s/%s/Results/fits_RecoilPDF_%s_pPb.root", recoilPath.c_str(), met.c_str(), corrLbl.c_str(), fnc_MC.c_str(), met.c_str());
       fileName_DATA_pPb = Form("%sDATA/MET_%s/pPb/%s/Results/fits_RecoilPDF_%s_pPb.root", recoilPath.c_str(), met.c_str(), fnc_DATA.c_str(), met.c_str());
-      fileName_MC_Pbp   = Form("%sMC_DYToMuMu_POWHEG/MET_%s/Pbp/%s/%s/Results/fits_RecoilPDF_%s_Pbp.root", recoilPath.c_str(), met.c_str(), HFCorrLbl.c_str(), fnc_MC.c_str(), met.c_str());
+      fileName_MC_Pbp   = Form("%sMC_DYToMuMu_POWHEG/MET_%s/Pbp/%s/%s/Results/fits_RecoilPDF_%s_Pbp.root", recoilPath.c_str(), met.c_str(), corrLbl.c_str(), fnc_MC.c_str(), met.c_str());
       fileName_DATA_Pbp = Form("%sDATA/MET_%s/Pbp/%s/Results/fits_RecoilPDF_%s_Pbp.root", recoilPath.c_str(), met.c_str(), fnc_DATA.c_str(), met.c_str());
     }
     //
     const std::string recoilVarTyp = (info.Par.count("RecoilVarTyp")>0 ? info.Par.at("RecoilVarTyp") : "");
     const std::string recoilVarLbl = (info.Par.count("RecoilVarLbl")>0 ? info.Par.at("RecoilVarLbl") : "");
-    if ((recoilVarTyp!="" && recoilVarLbl!="") || info.Flag.at("ignoreCorrDS")) { ignoreCorrDS = true; }
-    if (recoilVarTyp.find("MC"  )!=std::string::npos) {
-      fileName_MC_pPb = Form("%sMC_DYToMuMu_POWHEG/MET_%s/PA/%s/%s/Systematics/Sys_%s/fits_RecoilPDF_%s_PA.root", recoilPath.c_str(), met.c_str(), HFCorrLbl.c_str(),
+    if ((recoilVarTyp!="" && recoilVarLbl!="") || info.Flag.at("ignoreCorrDS") || splitRuns) { ignoreCorrDS = true; }
+    if (recoilVarTyp.find("MC")!=std::string::npos) {
+      fileName_MC_pPb = Form("%sMC_DYToMuMu_POWHEG/MET_%s/PA/%s/%s/Systematics/Sys_%s/fits_RecoilPDF_%s_PA.root", recoilPath.c_str(), met.c_str(), corrLbl.c_str(),
                              fnc_MC.c_str(), recoilVarLbl.c_str(), met.c_str());
-      fileName_MC_Pbp = Form("%sMC_DYToMuMu_POWHEG/MET_%s/PA/%s/%s/Systematics/Sys_%s/fits_RecoilPDF_%s_PA.root", recoilPath.c_str(), met.c_str(), HFCorrLbl.c_str(),
-                             fnc_MC.c_str(), recoilVarLbl.c_str(), met.c_str());
+      fileName_MC_Pbp = fileName_MC_pPb;
       if (splitRuns) {
-        fileName_MC_pPb = Form("%sMC_DYToMuMu_POWHEG/MET_%s/pPb/%s/%s/Systematics/Sys_%s/fits_RecoilPDF_%s_pPb.root", recoilPath.c_str(), met.c_str(), HFCorrLbl.c_str(),
+        fileName_MC_pPb = Form("%sMC_DYToMuMu_POWHEG/MET_%s/pPb/%s/%s/Systematics/Sys_%s/fits_RecoilPDF_%s_pPb.root", recoilPath.c_str(), met.c_str(), corrLbl.c_str(),
                                fnc_MC.c_str(), recoilVarLbl.c_str(), met.c_str());
-        fileName_MC_Pbp = Form("%sMC_DYToMuMu_POWHEG/MET_%s/Pbp/%s/%s/Systematics/Sys_%s/fits_RecoilPDF_%s_Pbp.root", recoilPath.c_str(), met.c_str(), HFCorrLbl.c_str(),
+        fileName_MC_Pbp = Form("%sMC_DYToMuMu_POWHEG/MET_%s/Pbp/%s/%s/Systematics/Sys_%s/fits_RecoilPDF_%s_Pbp.root", recoilPath.c_str(), met.c_str(), corrLbl.c_str(),
                                fnc_MC.c_str(), recoilVarLbl.c_str(), met.c_str());
       }
     }
     if (recoilVarTyp.find("DATA")!=std::string::npos) {
       fileName_DATA_pPb = Form("%sDATA/MET_%s/PA/%s/Systematics/Sys_%s/fits_RecoilPDF_%s_PA.root", recoilPath.c_str(), met.c_str(),
                                fnc_DATA.c_str(), recoilVarLbl.c_str(), met.c_str());
-      fileName_DATA_Pbp = Form("%sDATA/MET_%s/PA/%s/Systematics/Sys_%s/fits_RecoilPDF_%s_PA.root", recoilPath.c_str(), met.c_str(),
-                               fnc_DATA.c_str(), recoilVarLbl.c_str(), met.c_str());
+      fileName_DATA_Pbp = fileName_DATA_pPb;
       if (splitRuns) {
         fileName_DATA_pPb = Form("%sDATA/MET_%s/pPb/%s/Systematics/Sys_%s/fits_RecoilPDF_%s_pPb.root", recoilPath.c_str(), met.c_str(),
                                  fnc_DATA.c_str(), recoilVarLbl.c_str(), met.c_str());
@@ -1272,7 +1272,8 @@ bool correctDS(RooWorkspaceMap_t& Workspaces, const RooWorkspaceMap_t& iniWorksp
     auto&  myws = Workspaces[ws.first];
     //
     bool doRecoilCorr = applyRecoilCorr;
-    if (ws.first.find("TTbar")!=std::string::npos) { doRecoilCorr = false; } // Dont apply recoil corr to TTbar
+    bool doBosonPTCorr = applyBosonPTCorr;
+    if (ws.first.find("TTbar")!=std::string::npos) { doRecoilCorr = false; doBosonPTCorr = false; } // Dont apply recoil corr to TTbar
     const std::string recoilMeth = (doRecoilCorr ? recoilMethod : "");
     //
     // Get the samples name
@@ -1282,26 +1283,27 @@ bool correctDS(RooWorkspaceMap_t& Workspaces, const RooWorkspaceMap_t& iniWorksp
     if (ws.first.find("MC_")!=std::string::npos) {
       auto& iniWS = ws.second;
       std::string smpMC = ""; if (!findDSName(smpMC, ws.second, ws.first, "mcPl")) { return false; }
-      const std::string corrString = std::string(applyMuonPTCorr ? " MuonPTCorr " : "") + std::string(applyBosonPTCorr ? " BosonPTCorr " : "") + std::string(applyTnPCorr ? " TnPCorr " : "") +
+      const std::string corrString = std::string(applyMuonPTCorr ? " MuonPTCorr " : "") + std::string(doBosonPTCorr ? " BosonPTCorr " : "") + std::string(applyTnPCorr ? " TnPCorr " : "") +
         std::string(applyHFCorr ? " HFCorr " : "")  + std::string(doRecoilCorr ? " RecoilCorr " : "");
       std::cout << "[INFO] Applying corrections ( " << corrString << " ) to " << smpDS << std::endl;
       // Extract the corrections
       bool makeCorrFile = false; RooWorkspace corrWS;
       if (doRecoilCorr && !ignoreCorrDS) { makeCorrFile = (!readCorrectionDS(corrWS, smpDS, recoilMethod, applyHFCorr)); }
       // Initialize the MET Recoil Corrector
+      const bool useRecPbp = (smpDS.find("_Pbp")!=std::string::npos);
+      auto& recoilCorr = (useRecPbp ? recoilCorr_Pbp : recoilCorr_pPb);
       if (doRecoilCorr) {
-        if      (recoilMethod.find("OneGaussianMC"  )!=std::string::npos) { recoilCorr_pPb.setInitialSetup(smpDS, true, false, true); recoilCorr_Pbp.setInitialSetup(smpDS, true, false, true); }
-        else if (recoilMethod.find("OneGaussianDATA")!=std::string::npos) { recoilCorr_pPb.setInitialSetup(smpDS, false, true, true); recoilCorr_Pbp.setInitialSetup(smpDS, false, true, true); }
-        else if (recoilMethod.find("OneGaussian"    )!=std::string::npos) { recoilCorr_pPb.setInitialSetup(smpDS, true, true, true);  recoilCorr_Pbp.setInitialSetup(smpDS, true, true, true); }
-        else { recoilCorr_pPb.setInitialSetup(smpDS, false, false, true); recoilCorr_Pbp.setInitialSetup(smpDS, false, false, true);}
+        if      (recoilMethod.find("OneGaussianMC"  )!=std::string::npos) { recoilCorr.setInitialSetup(smpDS, true, false, true); }
+        else if (recoilMethod.find("OneGaussianDATA")!=std::string::npos) { recoilCorr.setInitialSetup(smpDS, false, true, true); }
+        else if (recoilMethod.find("OneGaussian"    )!=std::string::npos) { recoilCorr.setInitialSetup(smpDS, true, true, true);  }
+        else { recoilCorr.setInitialSetup(smpDS, false, false, true); }
       }
-      const bool ispPb = (smpDS.find("_pPb")!=std::string::npos);
       // Apply the MC correction to positive muon dataset
-      if (!applyMCCorrection(myws, corrWS, iniWS, ("dPl_"+smpDS), ("mcPl_"+smpMC), ("muPl_"+smpMU), applyTnPCorr, applyBosonPTCorr,
-                             RCCorr.get(), rnd.get(), HFCorr.get(), HFMethod, (ispPb ? recoilCorr_pPb : recoilCorr_Pbp), recoilMeth)) { return false; }
+      if (!applyMCCorrection(myws, corrWS, iniWS, ("dPl_"+smpDS), ("mcPl_"+smpMC), ("muPl_"+smpMU), applyTnPCorr, doBosonPTCorr,
+                             RCCorr.get(), rnd.get(), HFCorr.get(), HFMethod, recoilCorr, recoilMeth)) { return false; }
       // Apply the MC correction to negative muon dataset
-      if (!applyMCCorrection(myws, corrWS, iniWS, ("dMi_"+smpDS), ("mcMi_"+smpMC), ("muMi_"+smpMU), applyTnPCorr, applyBosonPTCorr,
-                             RCCorr.get(), rnd.get(), HFCorr.get(), HFMethod, (ispPb ? recoilCorr_pPb : recoilCorr_Pbp), recoilMeth)) { return false; }
+      if (!applyMCCorrection(myws, corrWS, iniWS, ("dMi_"+smpDS), ("mcMi_"+smpMC), ("muMi_"+smpMU), applyTnPCorr, doBosonPTCorr,
+                             RCCorr.get(), rnd.get(), HFCorr.get(), HFMethod, recoilCorr, recoilMeth)) { return false; }
       // Store in the workspace the info regarding the corrections applied
       RooStringVar tmp; tmp.setVal(corrString.c_str()); tmp.SetTitle("CorrectionApplied"); myws.import(*((TObject*)&tmp), tmp.GetTitle());
       if (doRecoilCorr) { tmp.setVal(recoilMethod.c_str()); tmp.SetTitle("RecoilMethod"); myws.import(*((TObject*)&tmp), tmp.GetTitle()); }
