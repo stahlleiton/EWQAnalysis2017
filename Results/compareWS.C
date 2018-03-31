@@ -95,12 +95,22 @@ void compareWS(const std::string mode = "Runs", const bool doCorrectYield=false)
   }
   else if (mode=="BKG") {
     refWS = StringMap({
-	{ "Nom" , "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Output/NominalCM/METPF_RAW/DATA/W/PA/result/" }
+	{ "REF" , "/home/llr/cms/stahl/ElectroWeakAnalysis/NOMINAL/BOSONPTCORR/EWQAnalysis2017/Fitter/Output/NominalCM/METPF_RAW/DATA/W/PA/result/" }
       });
     cmpWS = StrPairMap({
-	{ "AllBkg"  , { "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Output/NominalCM_ALLBKG/METPF_RAW/DATA/W/PA/result/" , 1 } }
+	{ "VAR"  , { "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Output/NominalCM/METPF_RAW/DATA/W/PA/result/" , 1 } }
       });
   }
+  /*
+  else if (mode=="BKG") {
+    refWS = StringMap({
+	{ "OLD" , "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Output/PreApproval_HomeWork/NominalCM/METPF_RAW/DATA/W/PA/result/" }
+      });
+    cmpWS = StrPairMap({
+	{ "NEW"  , { "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Output/NominalCM/METPF_RAW/DATA/W/PA/result/" , 1 } }
+      });
+  }
+  */
   else { std::cout << "[ERROR] Mode (" << mode << ") is not valid!" << std::endl; return; }
   //
   StringMap legLabel;
@@ -117,6 +127,10 @@ void compareWS(const std::string mode = "Runs", const bool doCorrectYield=false)
     if (lblWS.first=="NoPU") { scale = 1.19; legLabel["NoPU"] = Form("NoPU (x%.2f)", scale); }
     if (lblWS.first=="Nom")  { legLabel["Nom"] = "Nominal"; }
     if (lblWS.first=="AllBkg") { legLabel["AllBkg"] = "Nominal + DY->Tau + VV"; }
+    if (lblWS.first=="NEW") { legLabel["NEW"] = "NEW Results"; }
+    if (lblWS.first=="OLD") { legLabel["OLD"] = "OLD Results"; }
+    if (lblWS.first=="REF") { legLabel["REF"] = "Nominal"; }
+    if (lblWS.first=="VAR") { legLabel["VAR"] = "With Boson PT Corr"; }
     extractInfo(cmpInputVar[lblWS.first], lblWS.second.first);
   }
   //
@@ -151,7 +165,6 @@ void compareWS(const std::string mode = "Runs", const bool doCorrectYield=false)
           const auto& effP_pPb = eff1D.at("EtaCM").at("MC_WToMuNu").at("pPb").at(chg).at("Total").at("TnP_Nominal")[0];
           const auto& effP_Pbp = eff1D.at("EtaCM").at("MC_WToMuNu").at("Pbp").at(chg).at("Total").at("TnP_Nominal")[0];
           const auto& effP_PA  = eff1D.at("EtaCM").at("MC_WToMuNu").at("PA" ).at(chg).at("Total").at("TnP_Nominal")[0];
-          const double etaV = ( (b.first.etabin().high() + b.first.etabin().low()) / 2.0 ); // Mean value of eta bin
           eff_pPb = effP_pPb.GetEfficiency(effP_pPb.FindFixBin(etaV));
           eff_Pbp = effP_Pbp.GetEfficiency(effP_Pbp.FindFixBin(-etaV));
           eff_PA  = effP_PA.GetEfficiency(effP_PA.FindFixBin(etaV));
@@ -190,10 +203,13 @@ void compareWS(const std::string mode = "Runs", const bool doCorrectYield=false)
         const auto& eff = eff1D.at("EtaCM").at("MC_WToMuNu").at(col).at(chg).at("Total").at("TnP_Nominal")[0];
         for (const auto& b : refVar.at("Val")) {
           const double etaV = (col=="Pbp" ? -1.0 : 1.0) * ( (b.first.etabin().high() + b.first.etabin().low()) / 2.0 ); // Mean value of eta bin
-          const double etaW = ( (b.first.etabin().high() - b.first.etabin().low()) / 2.0 )/0.1; // Width of eta bin
           const auto& effVal = eff.GetEfficiency(eff.FindFixBin(etaV));
-          for (auto& v : refVar) { v.second.at(b.first) /= (effVal*etaW); }
+          for (auto& v : refVar) { v.second.at(b.first) /= effVal; }
         }
+      }
+      for (const auto& b : refVar.at("Val")) {
+        const double etaW = ( (b.first.etabin().high() - b.first.etabin().low()) / 2.0 )/0.1; // Width of eta bin
+        for (auto& v : refVar) { v.second.at(b.first) /= etaW; }
       }
       if (scaleMap.count(ref.first)>0) {
         for (auto& v : refVar) { for (auto& b : v.second) { b.second *= scaleMap.at(ref.first); } }
@@ -208,14 +224,18 @@ void compareWS(const std::string mode = "Runs", const bool doCorrectYield=false)
 	auto cmpVar = cmp.second.at(ch.first).at("N_WToMu");
         if (doCorrectYield) {
           const std::string col = (cmp.first=="pPb" ? "pPb" : (cmp.first=="Pbp" ? "Pbp" : "PA"));
-          const std::string chg = (ch.first=="Pl" ? "Plus" : "Minus");
+          std::string chg = (ch.first=="Pl" ? "Plus" : "Minus");
+          if (col=="Pbp") { chg = "Minus"; }
           const auto& eff = eff1D.at("EtaCM").at("MC_WToMuNu").at(col).at(chg).at("Total").at("TnP_Nominal")[0];
           for (const auto& b : cmpVar.at("Val")) {
             const double etaV = (col=="Pbp" ? -1.0 : 1.0) * ( (b.first.etabin().high() + b.first.etabin().low()) / 2.0 ); // Mean value of eta bin
-            const double etaW = ( (b.first.etabin().high() - b.first.etabin().low()) / 2.0 )/0.1; // Width of eta bin
             const auto& effVal = eff.GetEfficiency(eff.FindFixBin(etaV));
-            for (auto& v : cmpVar) { v.second.at(b.first) /= (effVal*etaW); }
+            for (auto& v : cmpVar) { v.second.at(b.first) /= effVal; }
           }
+        }
+        for (const auto& b : cmpVar.at("Val")) {
+          const double etaW = ( (b.first.etabin().high() - b.first.etabin().low()) / 2.0 )/0.1; // Width of eta bin
+          for (auto& v : cmpVar) { v.second.at(b.first) /= etaW; }
         }
         if (scaleMap.count(cmp.first)>0) {
           for (auto& v : cmpVar) { for (auto& b : v.second) { b.second *= scaleMap.at(cmp.first); } }
@@ -235,6 +255,8 @@ void compareWS(const std::string mode = "Runs", const bool doCorrectYield=false)
     }
   }  
 };
+
+
 
 
 bool makePullGraph(GraphMap& grCmpMap, const GraphMap& grMap, const GraphMap& grMapRaw, const StrPairMap& cmpWS, const std::string whatDo)
@@ -313,22 +335,44 @@ bool makePullGraph(GraphMap& grCmpMap, const GraphMap& grMap, const GraphMap& gr
       //
       const double diff = ((cmpF*Y_Val_CmpRaw) - (refF*Y_Val_RefRaw));
       double err_High = 0.0 , err_Low = 0.0;
-      // Fully Uncorrelated
-      if (corrType == 0) {
-	err_High = std::sqrt(std::abs((Y_Err_High_Cmp*Y_Err_High_Cmp) + (Y_Err_High_Ref*Y_Err_High_Ref)));
-	err_Low  = std::sqrt(std::abs((Y_Err_Low_Cmp *Y_Err_Low_Cmp ) + (Y_Err_Low_Ref *Y_Err_Low_Ref )));
+      if (whatDo=="pull") {
+        // Fully Uncorrelated
+        if (corrType == 0) {
+          err_High = std::sqrt(std::abs((Y_Err_High_Cmp*Y_Err_High_Cmp) + (Y_Err_High_Ref*Y_Err_High_Ref)));
+          err_Low  = std::sqrt(std::abs((Y_Err_Low_Cmp *Y_Err_Low_Cmp ) + (Y_Err_Low_Ref *Y_Err_Low_Ref )));
+        }
+        // Fully Correlated
+        else if (corrType == 1) {
+          err_High = std::sqrt(std::abs((Y_Err_High_Cmp*Y_Err_High_Cmp) + (Y_Err_High_Ref*Y_Err_High_Ref) - 2.0*refF*cmpF*(Y_Err_High_RefRaw*Y_Err_High_RefRaw)));
+          err_Low  = std::sqrt(std::abs((Y_Err_Low_Cmp *Y_Err_Low_Cmp ) + (Y_Err_Low_Ref *Y_Err_Low_Ref ) - 2.0*refF*cmpF*(Y_Err_Low_RefRaw *Y_Err_Low_RefRaw )));
+        }
+        // Partially Correlated
+        else if (corrType == 2) {
+          err_High = Y_Err_High_Cmp;
+          err_Low  = Y_Err_Low_Cmp;
+        }
+        else { std::cout << "[ERROR] Correction type is invalid!" << std::endl; return false; }
       }
-      // Fully Correlated
-      else if (corrType == 1) {
-	err_High = std::sqrt(std::abs((Y_Err_High_Cmp*Y_Err_High_Cmp) + (Y_Err_High_Ref*Y_Err_High_Ref) - 2.0*refF*cmpF*(Y_Err_High_RefRaw*Y_Err_High_RefRaw)));
-	err_Low  = std::sqrt(std::abs((Y_Err_Low_Cmp *Y_Err_Low_Cmp ) + (Y_Err_Low_Ref *Y_Err_Low_Ref ) - 2.0*refF*cmpF*(Y_Err_Low_RefRaw *Y_Err_Low_RefRaw )));
+      if (whatDo=="ratio") {
+        // Fully Uncorrelated
+        if (corrType == 0) {
+          double Y_Val_Pull = (Y_Val_Cmp/Y_Val_Ref);
+          err_High = std::abs(Y_Val_Pull)*std::sqrt(std::pow(Y_Err_High_Cmp/Y_Val_Cmp, 2.0) + std::pow(Y_Err_High_Ref/Y_Val_Ref, 2.0));
+          err_Low  = std::abs(Y_Val_Pull)*std::sqrt(std::pow(Y_Err_Low_Cmp/Y_Val_Cmp, 2.0) + std::pow(Y_Err_Low_Ref/Y_Val_Ref, 2.0));
+        }
+        // Fully Correlated
+        else if (corrType == 1) {
+          double Y_Val_Pull = (Y_Val_Cmp/Y_Val_Ref);
+          err_High = std::abs(Y_Val_Pull)*std::sqrt(std::abs(std::pow(Y_Err_High_Cmp/Y_Val_Cmp, 2.0) + std::pow(Y_Err_High_Ref/Y_Val_Ref, 2.0) - (2.0/(Y_Val_Ref*Y_Val_Cmp))*std::pow(Y_Err_High_Cmp, 2.0)));
+          err_Low  = std::abs(Y_Val_Pull)*std::sqrt(std::abs(std::pow(Y_Err_Low_Cmp/Y_Val_Cmp, 2.0) + std::pow(Y_Err_Low_Ref/Y_Val_Ref, 2.0) - (2.0/(Y_Val_Ref*Y_Val_Cmp))*std::pow(Y_Err_Low_Cmp, 2.0)));
+        }
+        // Partially Correlated
+        else if (corrType == 2) {
+          err_High = Y_Err_High_Cmp;
+          err_Low  = Y_Err_Low_Cmp;
+        }
+        else { std::cout << "[ERROR] Correction type is invalid!" << std::endl; return false; }
       }
-      // Partially Correlated
-      else if (corrType == 2) {
-	err_High = Y_Err_High_Cmp;
-	err_Low  = Y_Err_Low_Cmp;
-      }
-      else { std::cout << "[ERROR] Correction type is invalid!" << std::endl; return false; }
       double Y_Val_Pull = 0.0 , Y_Err_High_Pull = 0.0 , Y_Err_Low_Pull = 0.0;
       const double err = ((diff>0.0) ? err_High : err_Low);
       if (whatDo=="pull") {
@@ -337,9 +381,9 @@ bool makePullGraph(GraphMap& grCmpMap, const GraphMap& grMap, const GraphMap& gr
         Y_Err_Low_Pull  = ( (err>0.0) ? (err_Low /err) : 0.0 );
       }
       if (whatDo=="ratio") {
-        Y_Val_Pull      = (Y_Val_Cmp/Y_Val_Ref);
-        Y_Err_High_Pull = std::abs(Y_Val_Pull)*std::sqrt(std::pow(Y_Err_High_Cmp/Y_Val_Cmp, 2.0) + std::pow(Y_Err_High_Ref/Y_Val_Ref, 2.0));
-        Y_Err_Low_Pull  = std::abs(Y_Val_Pull)*std::sqrt(std::pow(Y_Err_Low_Cmp/Y_Val_Cmp, 2.0) + std::pow(Y_Err_Low_Ref/Y_Val_Ref, 2.0));
+        Y_Val_Pull      = (Y_Val_Cmp/Y_Val_Ref) - 1.0;
+        Y_Err_High_Pull = err_High;
+        Y_Err_Low_Pull  = err_Low;
       }
       //
       // Fill the pull graph
@@ -409,14 +453,15 @@ void drawCompareGraph(GraphMap& grMap, GraphMap& grCmpMap, const std::string& ou
     gr.second.GetXaxis()->SetTitle("Muon #eta_{CM}");
     gr.second.GetXaxis()->SetLimits(-3.0, 2.0);
     if (whatDo=="pull" ) { gr.second.GetYaxis()->SetTitle("Pull"); }
-    if (whatDo=="ratio") { gr.second.GetYaxis()->SetTitle("Variation/Nominal"); }
+    if (whatDo=="ratio") { gr.second.GetYaxis()->SetTitle("#frac{New-Old}{Old}"); }
     gr.second.GetYaxis()->CenterTitle(kTRUE);
-    gr.second.GetYaxis()->SetTitleOffset(0.3);
+    gr.second.GetYaxis()->SetTitleOffset(0.4);
     gr.second.GetYaxis()->SetTitleSize(0.16);
     gr.second.GetYaxis()->SetLabelSize(0.11);
+    gr.second.GetYaxis()->SetNdivisions(404);
     TGaxis::SetMaxDigits(2); // to display powers of 10
     if (whatDo=="pull" ) { gr.second.GetYaxis()->SetRangeUser(-4.0, 4.0); }
-    if (whatDo=="ratio") { gr.second.GetYaxis()->SetRangeUser(0.98, 1.02); }
+    if (whatDo=="ratio") { gr.second.GetYaxis()->SetRangeUser(-0.01, 0.01); }
   }
   iGr = 0;
   for (auto& gr : grCmpMap) { if (gr.first!="Ref") { gr.second.SetMarkerColor(COLOR[iGr]); iGr++; } }
@@ -427,11 +472,11 @@ void drawCompareGraph(GraphMap& grMap, GraphMap& grCmpMap, const std::string& ou
   auto  pline = std::unique_ptr<TLine>(new TLine(-3.0, 0.0,  2.0, 0.0));
   // Format the pads
   c.cd();
-  pad2->SetTopMargin(0.02);
+  pad2->SetTopMargin(0.035);
   pad2->SetBottomMargin(0.4);
   pad2->SetFillStyle(4000); 
   pad2->SetFrameFillStyle(4000);
-  pad1->SetBottomMargin(0.015);
+  pad1->SetBottomMargin(0.025);
   //
   // Create Legend
   for (auto& gr : grMap) { formatLegendEntry(*leg.AddEntry(&gr.second, legLbl.at(gr.first).c_str(), "pe")); }
@@ -551,7 +596,7 @@ bool extractInfo(BinQuadMap& inputVar, const std::string& workDirPath)
     TFile inputFile(inputFilePath.c_str(), "READ");
     //
     if (inputFile.IsOpen()==false || inputFile.IsZombie()==true) {
-      std::cout << "[ERROR] The input file " << inputFilePath << " could not be created!" << std::endl; return false;
+      std::cout << "[ERROR] The input file " << inputFilePath << " could not be open!" << std::endl; return false;
     }
     //
     // Extract the Workspace
