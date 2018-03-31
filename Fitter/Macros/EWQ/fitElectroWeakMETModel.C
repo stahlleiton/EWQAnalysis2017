@@ -117,7 +117,7 @@ bool fitElectroWeakMETModel( const RooWorkspaceMap_t& inputWorkspaces,    // Wor
   for (const auto& chg : info.StrV.at("fitCharge")) { setMETGlobalParameterRange(myws.at(chg), info); }
 
   // Update the MET Fit Range
-  for (const auto& chg : info.StrV.at("fitCharge")) { updateMETParameterRange(myws.at(chg), info, chg, DSTAG, -1.); }
+  if (info.Var.at("MET").at("Max")>200.) { for (const auto& chg : info.StrV.at("fitCharge")) { updateMETParameterRange(myws.at(chg), info, chg, DSTAG, -1.); } }
 
   // Build the Fit Model
   for (const auto& chg : info.StrV.at("fitCharge")) { if (!buildElectroWeakMETModel(myws.at(chg), model, info, chg))  { return false; } }
@@ -278,6 +278,8 @@ void setEWQCutParameters(GlobalInfo& info)
     }
     // Selecting QCD Enhanced Events
     if (info.Flag.at("fitQCD")) {
+      // Define the MET range (BUG FIX)
+      info.Var.at("MET").at("Max") = 150.0;
       // Define the Muon Iso range
       if (info.Var.at("Muon_Iso").at("Min")<0.0) { info.Var.at("Muon_Iso").at("Min") = 0.15; }
       if (info.Var.at("Muon_Iso").at("Max")<=info.Var.at("Muon_Iso").at("Min")) { info.Var.at("Muon_Iso").at("Max") = 100000.0; }
