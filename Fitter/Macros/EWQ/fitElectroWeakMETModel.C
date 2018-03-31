@@ -288,6 +288,8 @@ void setEWQCutParameters(GlobalInfo& info)
     }
     // Selecting Z->MuMu Enhanced Events
     if (info.Flag.at("fitZ")) {
+      // Define the MET range (BUG FIX)
+      info.Var.at("MET").at("Max") = 150.0;
       // Define the Muon Iso range
       if (info.Var.at("Muon_Iso").at("Max")==100000.0) { info.Var.at("Muon_Iso").at("Max") = 0.15; }
       if (info.Var.at("Muon_Iso").at("Min")>=info.Var.at("Muon_Iso").at("Max")) { info.Var.at("Muon_Iso").at("Min") = 0.0; }
