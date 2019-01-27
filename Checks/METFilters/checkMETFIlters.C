@@ -30,12 +30,13 @@ using FilterMap_t  =  std::map< std::string , std::map< std::string , std::map< 
 const ushort triggerIndex_ = PA::HLT_PAL3Mu12;
 //
 // Collision System
-const std::vector< std::string > COLL_ = { "pPb" , "Pbp" , "PA" };
+const std::vector< std::string > COLL_ = {"PA"};//{ "pPb" , "Pbp" , "PA" };
 //
-const std::vector< std::string > EVT_ = { "Region_DY" , "Region_QCD" , "Region_W" };
+const std::vector< std::string > EVT_ = {"Region_W"};//{ "Region_DY" , "Region_QCD" , "Region_W" };
 //
 const std::vector< std::string > FILTERS_ = {
   "ALLEVENTS",
+  /*
   "ALLFILTERS",
   "collisionEventSelectionPA",
   "collisionEventSelectionPA_rejectPU",
@@ -48,30 +49,27 @@ const std::vector< std::string > FILTERS_ = {
   "eeBadScFilter",
   "globalTightHalo2016Filter",
   "goodVertices",
-  "badMuons"
-  "ZVeto"
+  "badMuons",
+  "ZVeto",
+  */
+  "GoodMultiMu",
+  "GoodPTMultiMu",
+  "GoodIsoMultiMu",
+  "GoodIsoTrgMultiMu"
 };
 const std::vector< std::string > FTYPE_ = { "ONLY" , "WithPA" };
 //
 // Input Files for analysis
-const std::string path_DATA = "root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/";
-const std::string path_MC   = "root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official";
+//const std::string path_DATA = "root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/Data/";
+//const std::string path_MC   = "root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official";
+const std::string path_DATA = "/home/llr/cms/blanco/Analysis/WAnalysis/DATASETS/DATA/";
+const std::string path_MC = "/data_CMS/cms/stahl/";
 const std::map< std::string , std::vector< std::string > > inputFileMap_ = {
-  {"DATA" , { Form("%s/%s", path_DATA.c_str(), "HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20171003.root") } },
-  {"MC_TTall_pPb"    , { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_TTall_pPb_8160GeV_20171003.root") } },
-  {"MC_TTall_Pbp"    , { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_TTall_Pbp_8160GeV_20171003.root") } },
-  {"MC_DYToMuMu_M_10_30_pPb" , { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_10_30_pPb_8160GeV_20171003.root") } },
-  {"MC_DYToMuMu_M_30_Inf_pPb" , { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_pPb_8160GeV_20171003.root") } },
-  {"MC_DYToMuMu_M_10_30_Pbp" , { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_10_30_Pbp_8160GeV_20171003.root") } },
-  {"MC_DYToMuMu_M_30_Inf_Pbp" , { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_Pbp_8160GeV_20171003.root") } },
-  {"MC_WToTauNu_Plus_pPb" , { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_TAUOLA_WToTauNu_Plus_pPb_8160GeV_20171003.root") } },
-  {"MC_WToTauNu_Minus_pPb" , { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_TAUOLA_WToTauNu_Minus_pPb_8160GeV_20171003.root") } },
-  {"MC_WToTauNu_Plus_Pbp" , { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_TAUOLA_WToTauNu_Plus_Pbp_8160GeV_20171003.root") } },
-  {"MC_WToTauNu_Minus_Pbp" , { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_TAUOLA_WToTauNu_Minus_Pbp_8160GeV_20171003.root") } },
-  {"MC_WToMuNu_Plus_pPb"      , { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Plus_pPb_8160GeV_20171003.root")  } },
-  {"MC_WToMuNu_Minus_pPb"     , { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_pPb_8160GeV_20171003.root") } },
-  {"MC_WToMuNu_Plus_Pbp"      , { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Plus_Pbp_8160GeV_20171003.root")  } },
-  {"MC_WToMuNu_Minus_Pbp"     , { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_Pbp_8160GeV_20171003.root") } }
+  {"DATA" , { "/home/llr/cms/blanco/Analysis/WAnalysis/DATASETS/DATA/HiEWQForest_PASingleMuon_pPb_Pbp_8160GeV_20171003.root" } },
+  //{"MC_WToMuNu_Plus_pPb"      , { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Plus_pPb_8160GeV_20171003.root")  } },
+  //{"MC_WToMuNu_Minus_pPb"     , { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_pPb_8160GeV_20171003.root") } },
+  //{"MC_WToMuNu_Plus_Pbp"      , { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Plus_Pbp_8160GeV_20171003.root")  } },
+  //{"MC_WToMuNu_Minus_Pbp"     , { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_Pbp_8160GeV_20171003.root") } }
 };
 std::map< std::string , std::vector< std::string > > sampleType_;
 
@@ -179,6 +177,7 @@ void checkMETFIlters(const bool print = true)
       //
       // Find the Leading Pt Muon
       float maxPt = -99.; int leadMuPFIdx = -1;
+      int goodMu = 0, goodPTMu = 0, goodIsoMu = 0, goodIsoTrgMu = 0;
       for (uint imu = 0; imu < muonTree.at(sample)->PF_Muon_Mom().size(); imu++) {
         if (muonTree.at(sample)->PF_Muon_Reco_Idx()[imu]==-1) { std::cout << "[ERROR] Reco idx is -1" << std::endl; return; }
         // Only consider Muons Matched to GEN in MC
@@ -186,6 +185,10 @@ void checkMETFIlters(const bool print = true)
         if (isMC && PA::checkGenMuon(muonTree.at(sample)->PF_Muon_Gen_Idx()[imu], sample, muonTree.at(sample)) == false) continue;
         // Only consider Tight Muons within the Pseudo-Rapidity acceptance of CMS
         if (PA::isTightMuon(imu, muonTree.at(sample))==false) continue;
+        if (true) { goodMu += 1; }
+        if (muonTree.at(sample)->PF_Muon_Mom()[imu].Pt() > 25.) { goodPTMu += 1; }
+        if (muonTree.at(sample)->PF_Muon_Mom()[imu].Pt() > 25. && muonTree.at(sample)->PF_Muon_IsoPFR03NoPUCorr()[imu] < 0.15) { goodIsoMu += 1; }
+        if (muonTree.at(sample)->PF_Muon_Mom()[imu].Pt() > 25. && muonTree.at(sample)->PF_Muon_IsoPFR03NoPUCorr()[imu] < 0.15 && PA::isTriggerMatched(triggerIndex_, imu, muonTree.at(sample))) { goodIsoTrgMu += 1; }
         // Determine the highest pT muon
         if (maxPt < muonTree.at(sample)->PF_Muon_Mom()[imu].Pt()) { maxPt = muonTree.at(sample)->PF_Muon_Mom()[imu].Pt(); leadMuPFIdx = imu; }
       }
@@ -196,7 +199,7 @@ void checkMETFIlters(const bool print = true)
       if (muP4.Pt() < 25.) continue;  // Consider only leading muons with pT larger or equal than 25 GeV
       //
       // Apply Trigger Matching
-      if (PA::isTriggerMatched(triggerIndex_, leadMuPFIdx, muonTree.at(sample))==false) continue;  // Only consider Muons Matched to Trigger
+      //if (PA::isTriggerMatched(triggerIndex_, leadMuPFIdx, muonTree.at(sample))==false) continue;  // Only consider Muons Matched to Trigger
       //
       // Isolation and Charge of Leading Muon
       const float leadMuIso = muonTree.at(sample)->PF_Muon_IsoPFR03NoPUCorr()[leadMuPFIdx];
@@ -211,6 +214,11 @@ void checkMETFIlters(const bool print = true)
       if (eventType=="Other") {
         if (PA::passDrellYanVeto(muonTree.at(sample)) == false) { eventType = "Region_DY"; }  // Found a Drell-Yan candidate
       }
+      bool passDY = PA::passDrellYanVeto(muonTree.at(sample));
+      bool passGoodMultiMu = (goodMu > 1);
+      bool passGoodPTMultiMu = (goodPTMu > 1);
+      bool passGoodIsoMultiMu = (goodIsoMu > 1);
+      bool passGoodIsoTrgMultiMu = (goodIsoTrgMu > 1);
       //
       // Event Type: QCD -> Muon + X
       //
@@ -235,6 +243,7 @@ void checkMETFIlters(const bool print = true)
             eventType = "Region_W";
           }
       }
+      eventType = "Region_W";
       if (eventType=="Other") continue;
       //
       // Apply Event Filters
@@ -251,33 +260,42 @@ void checkMETFIlters(const bool print = true)
                   (t=="ONLY") ||
                   (t=="WithPA" && metTree.at(sample)->Flag_collisionEventSelectionPA())
                   ) {
-                Filter[c][eventType][Form("ALLEVENTS_%s", t.c_str())][s] += 1;
-                if (metTree.at(sample)->Flag_collisionEventSelectionPA()         ) { Filter[c][eventType][Form("collisionEventSelectionPA_%s", t.c_str())         ][s] += 1; }
-                if (metTree.at(sample)->Flag_collisionEventSelectionPA_rejectPU()) { Filter[c][eventType][Form("collisionEventSelectionPA_rejectPU_%s", t.c_str())][s] += 1; }
-                if (metTree.at(sample)->Flag_goodVertices()                      ) { Filter[c][eventType][Form("goodVertices_%s", t.c_str())                      ][s] += 1; }
-                if (metTree.at(sample)->Flag_globalTightHalo2016Filter()         ) { Filter[c][eventType][Form("globalTightHalo2016Filter_%s", t.c_str())         ][s] += 1; }
-                if (metTree.at(sample)->Flag_HBHENoiseFilter()                   ) { Filter[c][eventType][Form("HBHENoiseFilter_%s", t.c_str())                   ][s] += 1; }
-                if (metTree.at(sample)->Flag_HBHENoiseIsoFilter()                ) { Filter[c][eventType][Form("HBHENoiseIsoFilter_%s", t.c_str())                ][s] += 1; }
-                if (metTree.at(sample)->Flag_EcalDeadCellTriggerPrimitiveFilter()) { Filter[c][eventType][Form("EcalDeadCellTriggerPrimitiveFilter_%s", t.c_str())][s] += 1; }
-                if (metTree.at(sample)->Flag_BadPFMuonFilter()                   ) { Filter[c][eventType][Form("BadPFMuonFilter_%s", t.c_str())                   ][s] += 1; }
-                if (metTree.at(sample)->Flag_BadChargedCandidateFilter()         ) { Filter[c][eventType][Form("BadChargedCandidateFilter_%s", t.c_str())         ][s] += 1; }
-                if (metTree.at(sample)->Flag_eeBadScFilter()                     ) { Filter[c][eventType][Form("eeBadScFilter_%s", t.c_str())                     ][s] += 1; }
-                if (metTree.at(sample)->Flag_badMuons()                          ) { Filter[c][eventType][Form("badMuons_%s", t.c_str())                          ][s] += 1; }
-                if (metTree.at(sample)->Flag_duplicateMuons()                    ) { Filter[c][eventType][Form("duplicateMuons_%s", t.c_str())                    ][s] += 1; }
+                if (passDY) { Filter[c][eventType][Form("ZVeto_%s", t.c_str())][s] += 1; }
+                if ( (eventType == "Region_DY") || ((eventType != "Region_DY") && passDY) || true ) {
+                  Filter[c][eventType][Form("ALLEVENTS_%s", t.c_str())][s] += 1;
+                  /*
+                  if (metTree.at(sample)->Flag_collisionEventSelectionPA()         ) { Filter[c][eventType][Form("collisionEventSelectionPA_%s", t.c_str())         ][s] += 1; }
+                  if (metTree.at(sample)->Flag_collisionEventSelectionPA_rejectPU()) { Filter[c][eventType][Form("collisionEventSelectionPA_rejectPU_%s", t.c_str())][s] += 1; }
+                  if (metTree.at(sample)->Flag_goodVertices()                      ) { Filter[c][eventType][Form("goodVertices_%s", t.c_str())                      ][s] += 1; }
+                  if (metTree.at(sample)->Flag_globalTightHalo2016Filter()         ) { Filter[c][eventType][Form("globalTightHalo2016Filter_%s", t.c_str())         ][s] += 1; }
+                  if (metTree.at(sample)->Flag_HBHENoiseFilter()                   ) { Filter[c][eventType][Form("HBHENoiseFilter_%s", t.c_str())                   ][s] += 1; }
+                  if (metTree.at(sample)->Flag_HBHENoiseIsoFilter()                ) { Filter[c][eventType][Form("HBHENoiseIsoFilter_%s", t.c_str())                ][s] += 1; }
+                  if (metTree.at(sample)->Flag_EcalDeadCellTriggerPrimitiveFilter()) { Filter[c][eventType][Form("EcalDeadCellTriggerPrimitiveFilter_%s", t.c_str())][s] += 1; }
+                  if (metTree.at(sample)->Flag_BadPFMuonFilter()                   ) { Filter[c][eventType][Form("BadPFMuonFilter_%s", t.c_str())                   ][s] += 1; }
+                  if (metTree.at(sample)->Flag_BadChargedCandidateFilter()         ) { Filter[c][eventType][Form("BadChargedCandidateFilter_%s", t.c_str())         ][s] += 1; }
+                  if (metTree.at(sample)->Flag_eeBadScFilter()                     ) { Filter[c][eventType][Form("eeBadScFilter_%s", t.c_str())                     ][s] += 1; }
+                  if (metTree.at(sample)->Flag_badMuons()                          ) { Filter[c][eventType][Form("badMuons_%s", t.c_str())                          ][s] += 1; }
+                  if (metTree.at(sample)->Flag_duplicateMuons()                    ) { Filter[c][eventType][Form("duplicateMuons_%s", t.c_str())                    ][s] += 1; }
+                  */
+                  if (passGoodMultiMu      ) { Filter[c][eventType][Form("GoodMultiMu_%s",       t.c_str())][s] += 1; }
+                  if (passGoodPTMultiMu      ) { Filter[c][eventType][Form("GoodPTMultiMu_%s",       t.c_str())][s] += 1; }
+                  if (passGoodIsoMultiMu   ) { Filter[c][eventType][Form("GoodIsoMultiMu_%s",    t.c_str())][s] += 1; }
+                  if (passGoodIsoTrgMultiMu) { Filter[c][eventType][Form("GoodIsoTrgMultiMu_%s", t.c_str())][s] += 1; }
 
-                if (
-                    //(metTree.at(sample)->Flag_goodVertices()                      ) &&
-                    (metTree.at(sample)->Flag_globalTightHalo2016Filter()         ) &&
-                    (metTree.at(sample)->Flag_HBHENoiseFilter()                   ) &&
-                    (metTree.at(sample)->Flag_HBHENoiseIsoFilter()                ) &&
-                    (metTree.at(sample)->Flag_EcalDeadCellTriggerPrimitiveFilter()) &&
-                    (metTree.at(sample)->Flag_BadPFMuonFilter()                   ) &&
-                    (metTree.at(sample)->Flag_BadChargedCandidateFilter()         ) &&
-                    (metTree.at(sample)->Flag_eeBadScFilter()                     )// &&
-                    //(metTree.at(sample)->Flag_badMuons()                          ) &&
-                    //(metTree.at(sample)->Flag_duplicateMuons()                    )
-                    ){
-                  Filter[c][eventType][Form("ALLFILTERS_%s", t.c_str())][s] += 1;
+                  if (
+                      //(metTree.at(sample)->Flag_goodVertices()                      ) &&
+                      (metTree.at(sample)->Flag_globalTightHalo2016Filter()         ) &&
+                      (metTree.at(sample)->Flag_HBHENoiseFilter()                   ) &&
+                      (metTree.at(sample)->Flag_HBHENoiseIsoFilter()                ) &&
+                      (metTree.at(sample)->Flag_EcalDeadCellTriggerPrimitiveFilter()) &&
+                      (metTree.at(sample)->Flag_BadPFMuonFilter()                   ) &&
+                      (metTree.at(sample)->Flag_BadChargedCandidateFilter()         ) &&
+                      (metTree.at(sample)->Flag_eeBadScFilter()                     )// &&
+                      //(metTree.at(sample)->Flag_badMuons()                          ) &&
+                      //(metTree.at(sample)->Flag_duplicateMuons()                    )
+                      ){
+                    Filter[c][eventType][Form("ALLFILTERS_%s", t.c_str())][s] += 1;
+                  }
                 }
               }
             }

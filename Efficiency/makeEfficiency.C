@@ -81,11 +81,11 @@ void     redrawBorder       ( );
 BinMapMap_t  MU_BIN_;
 Bin2DMapMap_t MU_BIN_2D_;
 const BinMap_t  TMP_pPb = {
-  { "EtaCM" , { -2.86 , -2.60 , -2.40 , -2.20 , -1.93 , -1.80 , -1.60 , -1.40 , -1.20 , -1.00 , -0.80 , -0.60 , -0.40 , -0.20 , 0.00 , 0.20 , 0.40 , 0.60 , 0.80 , 1.00 , 1.20 , 1.40 , 1.60 , 1.80, 1.93 } },
+  { "EtaCM" , { -2.86 , -2.60 , -2.40 , -2.20 , -1.93 , -1.80 , -1.60 , -1.40 , -1.20 , -1.00 , -0.80 , -0.60 , -0.40 , -0.20 , 0.00 , 0.20 , 0.40 , 0.60 , 0.80 , 1.00 , 1.20 , 1.40 , 1.60 , 1.80, 1.93 , 3.5 } },
   { "Pt"    , { 25., 30., 35., 40., 50, 70., 200. } }
 };
 const BinMap_t  TMP_Pbp = {
-  { "EtaCM" , { -1.93 , -1.80 , -1.60 , -1.40 , -1.20 , -1.00 , -0.80 , -0.60 , -0.40 , -0.20 , 0.00 , 0.20 , 0.40 , 0.60 , 0.80 , 1.00 , 1.20 , 1.40 , 1.60 , 1.80 , 1.93 , 2.20 , 2.40 , 2.60 , 2.86 } },
+  { "EtaCM" , { -1.93 , -1.80 , -1.60 , -1.40 , -1.20 , -1.00 , -0.80 , -0.60 , -0.40 , -0.20 , 0.00 , 0.20 , 0.40 , 0.60 , 0.80 , 1.00 , 1.20 , 1.40 , 1.60 , 1.80 , 1.93 , 2.20 , 2.40 , 2.60 , 2.86 , 3.5} },
   { "Pt"    , { 25., 30., 35., 40., 50, 70., 200. } }
 };
 //
@@ -102,14 +102,15 @@ const std::vector< std::string > CHG_  = { "Plus" , "Minus" };
 const std::vector< std::string > effType = {"Acceptance" , "Identification" , "Trigger" , "Isolation" , "Offline" , "Event" , "DrellYanVeto" , "Total" , "Acceptance_Efficiency"};
 //
 // Input Files for analysis
-const std::string path_MC = "root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official";
+const std::string path_MC = "/data_CMS/cms/stahl/";
 const std::map< std::string , std::vector< std::pair< std::string , double > > > inputFileMap_ = {
+  {"MC_ZToMuMu_M_30_Inf_pPb" , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_pPb_8160GeV_20171003.root")   , POWHEG::XSec.at("DYToMuMu_M_30_Inf").at("pPb") } } },
+  {"MC_ZToMuMu_M_30_Inf_Pbp" , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_Pbp_8160GeV_20171003.root")   , POWHEG::XSec.at("DYToMuMu_M_30_Inf").at("Pbp") } } },
+  /*
   {"MC_QCDToMu_pPb"          , { { Form("%s/%s", path_MC.c_str(), "PYTHIA/HiEWQForest_Embedded_Official_PYTHIA8_QCD_PtHat20_MuPt15_pPb_8160GeV_20171003.root")         , PYTHIA::XSec.at("QCDToMu").at("pPb")           } } },
   {"MC_QCDToMu_Pbp"          , { { Form("%s/%s", path_MC.c_str(), "PYTHIA/HiEWQForest_Embedded_Official_PYTHIA8_QCD_PtHat20_MuPt15_pPb_8160GeV_20171003.root")         , PYTHIA::XSec.at("QCDToMu").at("pPb")           } } },
   {"MC_TTall_pPb"            , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_TTall_pPb_8160GeV_20171003.root")           , EXTERN::XSec.at("TTall").at("pPb")             } } },
   {"MC_TTall_Pbp"            , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_TTall_Pbp_8160GeV_20171003.root")           , EXTERN::XSec.at("TTall").at("Pbp")             } } },
-  {"MC_ZToMuMu_M_30_Inf_pPb" , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_pPb_8160GeV_20171003.root")   , POWHEG::XSec.at("DYToMuMu_M_30_Inf").at("pPb") } } },
-  {"MC_ZToMuMu_M_30_Inf_Pbp" , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_30_Pbp_8160GeV_20171003.root")   , POWHEG::XSec.at("DYToMuMu_M_30_Inf").at("Pbp") } } },
   {"MC_DYToMuMu_M_10_30_pPb" , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_10_30_pPb_8160GeV_20171003.root"), POWHEG::XSec.at("DYToMuMu_M_10_30").at("pPb")  } } },
   {"MC_DYToMuMu_M_10_30_Pbp" , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_DYtoMuMu_M_10_30_Pbp_8160GeV_20171003.root"), POWHEG::XSec.at("DYToMuMu_M_10_30").at("Pbp")  } } },
   {"MC_WToTauNu_Plus_pPb"    , {
@@ -124,11 +125,12 @@ const std::map< std::string , std::vector< std::pair< std::string , double > > >
   {"MC_WToMuNu_Minus_pPb"    , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_pPb_8160GeV_20171003.root")   , POWHEG::XSec.at("WToMuNu_Minus").at("pPb")     } } },
   {"MC_WToMuNu_Plus_Pbp"     , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Plus_Pbp_8160GeV_20171003.root")    , POWHEG::XSec.at("WToMuNu_Plus").at("Pbp")      } } },
   {"MC_WToMuNu_Minus_Pbp"    , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_Pbp_8160GeV_20171003.root")   , POWHEG::XSec.at("WToMuNu_Minus").at("Pbp")     } } }
+  */
 };
 std::map< std::string , std::vector< std::string > > sampleType_;
 
 
-void makeEfficiency(const bool applyHFCorr = false)
+void makeEfficiency(const bool applyHFCorr = true, const bool applyBosonPTCorr = true)
 {
   //
   for (const auto& v : TMP_pPb) { MU_BIN_["PA"][v.first] = v.second; MU_BIN_["pPb"][v.first] = v.second; }
@@ -157,7 +159,7 @@ void makeEfficiency(const bool applyHFCorr = false)
   TH2DMap_t h2D;   // Stores the total and passing histograms separately
   //
   // Initialize the efficiencies
-  initEff1D(h1D , MU_BIN_);
+  //initEff1D(h1D , MU_BIN_);
   initEff2D(h2D , MU_BIN_2D_);
   //
   // ------------------------------------------------------------------------------------------------------------------------
@@ -246,7 +248,10 @@ void makeEfficiency(const bool applyHFCorr = false)
       const double sfTnP = 1.0;
       //
       // Determine the HF Weight
-      if (applyHFCorr) { evtWeight *= corrHF->weight(evtTree.at(sample)->hiHF(), HFweight::HFside::both, false); }
+      if (applyHFCorr) {
+        const double hf = ( (evtTree.at(sample)->hiHF()>=300.) ? 290. : evtTree.at(sample)->hiHF() ); // The histograms are made up to 300.
+        evtWeight *= corrHF->weight(hf , HFweight::HFside::both , false);
+      }
       //
       // Check Event Conditions
       //
@@ -261,6 +266,21 @@ void makeEfficiency(const bool applyHFCorr = false)
       for (ushort iGenMu = 0; iGenMu < muonTree.at(sample)->Gen_Muon_Mom().size(); iGenMu++) {
         // Check the content of the MC
         if (PA::checkGenMuon(iGenMu, sampleType, muonTree.at(sample)) == false) continue;
+        // Consider Generated Muons within the Pseudo-Rapidity acceptance of CMS
+        if ( std::abs(muonTree.at(sample)->Gen_Muon_Mom()[iGenMu].Eta()) > 2.4 ) continue;
+        // Determine the Boson PT Weight from Drell-Yan analysis
+        if (applyBosonPTCorr) {
+          // Determine the gen boson pT
+          const auto momIdx = PA::getGenMom(iGenMu, sampleType, muonTree.at(sample));
+          if (momIdx>=0) {
+            const auto momPdg = std::abs(muonTree.at(sample)->Gen_Particle_PdgId()[momIdx]);
+            if (momPdg!=24 && momPdg!=23) { std::cout << "[ERROR] Mother pdg " << momPdg << " can not be used to correct the boson pT" << std::endl; return; }
+            double bosonPT = muonTree.at(sample)->Gen_Particle_Mom()[momIdx].Pt();
+            if (bosonPT<0.5) { bosonPT = 0.5; }
+            evtWeight *= ( 1.0 / ( ( -0.37 * std::pow(bosonPT, -0.37) ) + 1.19 ) );
+          }
+          else { std::cout << "[ERROR] Mother of muon was not found!" << std::endl; return; }
+        }
         // Check if the generated muon pass the kinematic cuts
         const bool isGoodGenMuon  = PA::selectGenMuon(iGenMu, muonTree.at(sample));
         // Extract the kinematic information of generated muon
@@ -302,7 +322,7 @@ void makeEfficiency(const bool applyHFCorr = false)
               // Check if the reconstructed muon is matched to the trigger
               passTrigger = PA::isTriggerMatched(triggerIndex_, iPFMu, muonTree.at(sample));
               //
-              if (!fillEff1D(h1D, passTrigger, "Trigger", genMuonVar, sfTnP, evtWeight)) { return; }
+              //if (!fillEff1D(h1D, passTrigger, "Trigger", genMuonVar, sfTnP, evtWeight)) { return; }
               if (!fillEff2D(h2D, passTrigger, "Trigger", genMuonVar, sfTnP, evtWeight)) { return; }
               //
               if (passTrigger) {
@@ -312,16 +332,16 @@ void makeEfficiency(const bool applyHFCorr = false)
                 // Check if the reconstructed muon pass isolation cuts
                 passIsolation = PA::isIsolatedMuon(iPFMu , muonTree.at(sample));
                 //
-                if (!fillEff1D(h1D, passIsolation, "Isolation", genMuonVar, sfTnP, evtWeight)) { return; }
+                //if (!fillEff1D(h1D, passIsolation, "Isolation", genMuonVar, sfTnP, evtWeight)) { return; }
                 if (!fillEff2D(h2D, passIsolation, "Isolation", genMuonVar, sfTnP, evtWeight)) { return; }
                 //
                 if (passIsolation) {
                   //
                   // Event-Based Efficiency (Based on Identified and Isolated muons that passed the Trigger)
                   //
-                  if (!fillEff1D(h1D, passEvent, "Event", genMuonVar, sfTnP, evtWeight)) { return; }
+                  //if (!fillEff1D(h1D, passEvent, "Event", genMuonVar, sfTnP, evtWeight)) { return; }
                   if (!fillEff2D(h2D, passEvent, "Event", genMuonVar, sfTnP, evtWeight)) { return; }
-                  if (!fillEff1D(h1D, passDYVeto, "DrellYanVeto", genMuonVar, sfTnP, evtWeight)) { return; }
+                  //if (!fillEff1D(h1D, passDYVeto, "DrellYanVeto", genMuonVar, sfTnP, evtWeight)) { return; }
                   if (!fillEff2D(h2D, passDYVeto, "DrellYanVeto", genMuonVar, sfTnP, evtWeight)) { return; }
                 }
               }
@@ -330,20 +350,20 @@ void makeEfficiency(const bool applyHFCorr = false)
           //
           // Identification Efficiency (Based on Generated muons)
           //
-          if (!fillEff1D(h1D, passIdentification, "Identification", genMuonVar, sfTnP, evtWeight)) { return; }
+          //if (!fillEff1D(h1D, passIdentification, "Identification", genMuonVar, sfTnP, evtWeight)) { return; }
           if (!fillEff2D(h2D, passIdentification, "Identification", genMuonVar, sfTnP, evtWeight)) { return; }
           //
-          if (!fillEff1D(h1D, (passIdentification && passTrigger && passIsolation), "Offline", genMuonVar, sfTnP, evtWeight)) { return; }
+          //if (!fillEff1D(h1D, (passIdentification && passTrigger && passIsolation), "Offline", genMuonVar, sfTnP, evtWeight)) { return; }
           if (!fillEff2D(h2D, (passIdentification && passTrigger && passIsolation), "Offline", genMuonVar, sfTnP, evtWeight)) { return; }
           //
-          if (!fillEff1D(h1D, (passIdentification && passTrigger && passIsolation && passEvent && passDYVeto), "Total", genMuonVar, sfTnP, evtWeight)) { return; }
+          //if (!fillEff1D(h1D, (passIdentification && passTrigger && passIsolation && passEvent && passDYVeto), "Total", genMuonVar, sfTnP, evtWeight)) { return; }
           if (!fillEff2D(h2D, (passIdentification && passTrigger && passIsolation && passEvent && passDYVeto), "Total", genMuonVar, sfTnP, evtWeight)) { return; }
         }
         //
-        if (!fillEff1D(h1D, isGoodGenMuon, "Acceptance", genMuonVar, sfTnP, evtWeight)) { return; }
+        //if (!fillEff1D(h1D, isGoodGenMuon, "Acceptance", genMuonVar, sfTnP, evtWeight)) { return; }
         if (!fillEff2D(h2D, isGoodGenMuon, "Acceptance", genMuonVar, sfTnP, evtWeight)) { return; }
         //
-        if (!fillEff1D(h1D, (isGoodGenMuon && passIdentification && passTrigger && passIsolation && passEvent && passDYVeto), "Acceptance_Efficiency", genMuonVar, sfTnP, evtWeight)) { return; }
+        //if (!fillEff1D(h1D, (isGoodGenMuon && passIdentification && passTrigger && passIsolation && passEvent && passDYVeto), "Acceptance_Efficiency", genMuonVar, sfTnP, evtWeight)) { return; }
         if (!fillEff2D(h2D, (isGoodGenMuon && passIdentification && passTrigger && passIsolation && passEvent && passDYVeto), "Acceptance_Efficiency", genMuonVar, sfTnP, evtWeight)) { return; }
       }
     }
@@ -356,13 +376,13 @@ void makeEfficiency(const bool applyHFCorr = false)
   EffMap_t  eff2D; // Stores the efficiency
   //
   // Load the efficiencies with the histograms
-  if (!loadEff1D(eff1D, h1D)) { return; };
+  //if (!loadEff1D(eff1D, h1D)) { return; };
   if (!loadEff2D(eff2D, h2D)) { return; };
   //
   // ------------------------------------------------------------------------------------------------------------------------
   //
   // Merge Efficiencies
-  if (!mergeEff(eff1D)) { return; }
+  //if (!mergeEff(eff1D)) { return; }
   if (!mergeEff(eff2D)) { return; }
   //
   // ------------------------------------------------------------------------------------------------------------------------
@@ -370,15 +390,15 @@ void makeEfficiency(const bool applyHFCorr = false)
   // Set Style
   setStyle();
   // Draw the Efficiencies
-  drawEff1D(mainDir, eff1D);
+  //drawEff1D(mainDir, eff1D);
   drawEff2D(mainDir, eff2D);
   //
   // ------------------------------------------------------------------------------------------------------------------------
   //
   // Compare 2D histograms
-  compareEff2D(mainDir, eff2D, "MC_ZToMuMu_M_30_Inf");
-  compareEff2D(mainDir, eff2D, "PA");
-  compareEff2D(mainDir, eff2D, "Minus");
+  //compareEff2D(mainDir, eff2D, "MC_ZToMuMu_M_30_Inf");
+  //compareEff2D(mainDir, eff2D, "PA");
+  //compareEff2D(mainDir, eff2D, "Minus");
   //
   // ------------------------------------------------------------------------------------------------------------------------
   //
@@ -465,18 +485,32 @@ bool loadEff1D(EffMap_t& eff, const TH1DMap_t& h)
             const TH1D&   hTotal  = std::get<1>(t.second);
             const double& weight  = std::get<2>(t.second);
             const std::string name = "eff1D_" + v.first +"_"+ s.first +"_"+ c.first +"_"+ ch.first +"_"+ t.first;
-            if ( TEfficiency::CheckConsistency(hPassed, hTotal) ) {
+            if ( TEfficiency::CheckConsistency(hPassed, hTotal, "w") ) {
               eff[v.first][s.first][c.first][ch.first][t.first] = TEfficiency(hPassed , hTotal);
               eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).SetName(name.c_str());
               eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).SetTitle("");
               // Set Global Weight
               eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).SetWeight(weight);
               if ( checkWeights(hPassed, hTotal) ) {
-                eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).SetStatisticOption(TEfficiency::kFNormal);
+                eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).SetStatisticOption(TEfficiency::kBJeffrey);
               }
             }
             else {
-              std::cout << "[ERROR] 1D Histograms for " << name << " are not consistent!" << std::endl; return false;
+              std::cout << "[ERROR] 1D Histograms for " << name << " are not consistent!" << std::endl;
+              for(Int_t i = 0; i < (hPassed.GetNbinsX()+2); ++i) {
+                if(hPassed.GetBinContent(i) > hTotal.GetBinContent(i)) {
+                  std::cout << "[ERROR] Bin " << i << " has Pass: " << hPassed.GetBinContent(i) << " Total: " << hTotal.GetBinContent(i) << std::endl;
+                }
+              }
+              eff[v.first][s.first][c.first][ch.first][t.first] = TEfficiency();
+              eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).SetName(name.c_str());
+              eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).SetTotalHistogram(hTotal, "f");
+              eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).SetPassedHistogram(hPassed, "f");
+              // Set Global Weight
+              eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).SetWeight(weight);
+              if ( checkWeights(hPassed, hTotal) ) {
+                eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).SetStatisticOption(TEfficiency::kBJeffrey);
+              }
             }
           }
         }
@@ -498,23 +532,31 @@ void formatEff1D(TEfficiency& eff, const std::string& var, const std::string& ch
     graph->SetMarkerColor(kBlue);
     graph->SetMarkerStyle(20);
     graph->SetMarkerSize(1.0);
-    const std::string objLbl = ( (type.find("Acceptance")!=std::string::npos || type=="Total" || type=="Identification" || type=="Offline") ? "Gen #mu" : "Reco #mu" );
+    const std::string objLbl = ( (type.find("Acceptance")!=std::string::npos || type=="Total" || type=="Identification" || type=="Offline") ? "Gen #mu" : "#mu" );
     // X-axis
     std::string xLabel = objLbl; if (charge=="Plus") xLabel += "^{+}"; if (charge=="Minus") xLabel += "^{-}";
     if (var=="EtaCM") { xLabel += " #eta_{CM}"; }
     if (var=="Pt" ) { xLabel += " p_{T} (GeV/c)"; }
-    graph->GetXaxis()->CenterTitle(kFALSE);
-    graph->GetXaxis()->SetTitleOffset(0.9);
-    graph->GetXaxis()->SetTitleSize(0.050);
+    //graph->GetXaxis()->CenterTitle(kFALSE);
+    //graph->GetXaxis()->SetTitleOffset(0.9);
+    //graph->GetXaxis()->SetTitleSize(0.050);
+    //graph->GetXaxis()->SetLabelSize(0.035);
+    graph->GetXaxis()->CenterTitle(kTRUE);
+    graph->GetXaxis()->SetTitleOffset(0.70);
+    graph->GetXaxis()->SetTitleSize(0.060);
     graph->GetXaxis()->SetLabelSize(0.035);
     graph->GetXaxis()->SetLimits(MU_BIN_.at(col).at(var)[0] , MU_BIN_.at(col).at(var)[MU_BIN_.at(col).at(var).size()-1]);
     // Y-axis
     std::string yLabel = type + " Efficiency";
     if (type == "Acceptance") { yLabel = "Acceptance"; }
     if (type == "Acceptance_Efficiency") { yLabel = "Acceptance x Efficiency"; }
-    graph->GetYaxis()->CenterTitle(kFALSE);
-    graph->GetYaxis()->SetTitleOffset(1.4);
-    graph->GetYaxis()->SetTitleSize(0.04);
+    //graph->GetYaxis()->CenterTitle(kFALSE);
+    //graph->GetYaxis()->SetTitleOffset(1.4);
+    //graph->GetYaxis()->SetTitleSize(0.04);
+    //graph->GetYaxis()->SetLabelSize(0.035);
+    graph->GetYaxis()->CenterTitle(kTRUE);
+    graph->GetYaxis()->SetTitleOffset(0.7);
+    graph->GetYaxis()->SetTitleSize(0.065);
     graph->GetYaxis()->SetLabelSize(0.035);
     graph->GetYaxis()->SetRangeUser(0.0, 1.4);
     // Set Axis Titles
@@ -569,7 +611,7 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap)
               for (const auto& s: textToPrint) { tex.DrawLatex(0.22, 0.86-dy, s.c_str()); dy+=0.04; }
               c.Modified(); c.Update();
               // set the CMS style
-              int option = 114;
+              int option = 1142;
               if (col.find("pPb")!=std::string::npos) option = 112;
               if (col.find("Pbp")!=std::string::npos) option = 113;
               CMS_lumi(&c, option, 33, "");
@@ -652,7 +694,7 @@ bool fillEff2D(TH2DMap_t& h, const bool& pass, const std::string& type, const Va
           }
           if (
               (xVar >= MU_BIN_2D_.at(c.first).at(v.first).first[0] && xVar <= MU_BIN_2D_.at(c.first).at(v.first).first[MU_BIN_2D_.at(c.first).at(v.first).first.size()-1]) &&
-              (yVar >= MU_BIN_2D_.at(c.first).at(v.first).second[0] && yVar <= MU_BIN_2D_.at(c.first).at(v.first).second[MU_BIN_2D_.at(c.first).at(v.first).second.size()-1])
+              (yVar >= MU_BIN_2D_.at(c.first).at(v.first).second[0] && yVar <= MU_BIN_2D_.at(c.first).at(v.first).second[MU_BIN_2D_.at(c.first).at(v.first).second.size()-2])
               ) { // Don't include values outside of range
             // Fill the Pass histogram
             if (pass) { std::get<0>(ch.second.at(type)).Fill(xVar , yVar , (evtWeight*sfTnP)); }
@@ -678,18 +720,27 @@ bool loadEff2D(EffMap_t& eff, const TH2DMap_t& h)
             const TH2D&   hTotal  = std::get<1>(t.second);
             const double& weight  = std::get<2>(t.second);
             const std::string name = "eff2D_" + v.first +"_"+ s.first +"_"+ c.first +"_"+ ch.first +"_"+ t.first;
-            if ( TEfficiency::CheckConsistency(hPassed, hTotal) ) {
+            if ( TEfficiency::CheckConsistency(hPassed, hTotal, "w") ) {
               eff[v.first][s.first][c.first][ch.first][t.first] = TEfficiency(hPassed , hTotal);
               eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).SetName(name.c_str());
               eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).SetTitle("");
               // Set Global Weight
               eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).SetWeight(weight);
               if ( checkWeights(hPassed, hTotal) ) {
-                eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).SetStatisticOption(TEfficiency::kFNormal);
+                eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).SetStatisticOption(TEfficiency::kBJeffrey);
               }
             }
             else {
-              std::cout << "[ERROR] 2D Histograms for " << name << " are not consistent!" << std::endl; return false;
+              std::cout << "[ERROR] 2D Histograms for " << name << " are not consistent!" << std::endl;
+              eff[v.first][s.first][c.first][ch.first][t.first] = TEfficiency();
+              eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).SetName(name.c_str());
+              eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).SetTotalHistogram(hTotal, "f");
+              eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).SetPassedHistogram(hPassed, "f");
+              // Set Global Weight
+              eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).SetWeight(weight);
+              if ( checkWeights(hPassed, hTotal) ) {
+                eff.at(v.first).at(s.first).at(c.first).at(ch.first).at(t.first).SetStatisticOption(TEfficiency::kBJeffrey);
+              }
             }
           }
         }
@@ -708,15 +759,19 @@ void formatEff2D(TEfficiency& eff, const std::string& var, const std::string& ch
   auto histo = eff.GetPaintedHistogram();
   if (histo) {
     // General
-    const std::string objLbl = ( (type.find("Acceptance")!=std::string::npos || type=="Total" || type=="Identification" || type=="Offline") ? "Gen #mu" : "Reco #mu" );
+    const std::string objLbl = ( (type.find("Acceptance")!=std::string::npos || type=="Total" || type=="Identification" || type=="Offline") ? "Gen #mu" : "#mu" );
     // X-axis
     std::string xVar = ""; if (var=="Pt_EtaCM") { xVar = "Pt"; }
     std::string xLabel = objLbl; if (charge=="Plus") xLabel += "^{+}"; if (charge=="Minus") xLabel += "^{-}";
     if (xVar=="EtaCM") { xLabel += " #eta_{CM}"; }
     if (xVar=="Pt" ) { xLabel += " p_{T} (GeV/c)"; }
-    histo->GetXaxis()->CenterTitle(kFALSE);
-    histo->GetXaxis()->SetTitleOffset(1.2);
-    histo->GetXaxis()->SetTitleSize(0.043);
+    //histo->GetXaxis()->CenterTitle(kFALSE);
+    //histo->GetXaxis()->SetTitleOffset(1.2);
+    //histo->GetXaxis()->SetTitleSize(0.043);
+    //histo->GetXaxis()->SetLabelSize(0.035);
+    histo->GetXaxis()->CenterTitle(kTRUE);
+    histo->GetXaxis()->SetTitleOffset(0.80);
+    histo->GetXaxis()->SetTitleSize(0.060);
     histo->GetXaxis()->SetLabelSize(0.035);
     const double xMin = MU_BIN_.at(col).at(xVar)[0];
     const double xMax = MU_BIN_.at(col).at(xVar)[MU_BIN_.at(col).at(xVar).size()-1];
@@ -726,22 +781,27 @@ void formatEff2D(TEfficiency& eff, const std::string& var, const std::string& ch
     std::string yLabel = objLbl; if (charge=="Plus") yLabel += "^{+}"; if (charge=="Minus") yLabel += "^{-}";
     if (yVar=="EtaCM") { yLabel += " #eta_{CM}"; }
     if (yVar=="Pt" ) { yLabel += " p_{T} (GeV/c)"; }
-    histo->GetYaxis()->CenterTitle(kFALSE);
-    histo->GetYaxis()->SetTitleOffset(1.1);
-    histo->GetYaxis()->SetTitleSize(0.045);
+    //histo->GetYaxis()->CenterTitle(kFALSE);
+    //histo->GetYaxis()->SetTitleOffset(1.1);
+    //histo->GetYaxis()->SetTitleSize(0.045);
+    //histo->GetYaxis()->SetLabelSize(0.035);
+    histo->GetYaxis()->CenterTitle(kTRUE);
+    histo->GetYaxis()->SetTitleOffset(0.8);
+    histo->GetYaxis()->SetTitleSize(0.065);
     histo->GetYaxis()->SetLabelSize(0.035);
     const double yMin = MU_BIN_.at(col).at(yVar)[0];
-    const double yMax = MU_BIN_.at(col).at(yVar)[MU_BIN_.at(col).at(yVar).size()-1] + (MU_BIN_.at(col).at(yVar)[MU_BIN_.at(col).at(yVar).size()-1] - MU_BIN_.at(col).at(yVar)[0])*0.3;
-    histo->GetYaxis()->SetLimits(yMin , yMax);
-    histo->SetAxisRange(yMin , yMax , "Y");
+    const double yMax = MU_BIN_.at(col).at(yVar)[MU_BIN_.at(col).at(yVar).size()-1];// + (MU_BIN_.at(col).at(yVar)[MU_BIN_.at(col).at(yVar).size()-1] - MU_BIN_.at(col).at(yVar)[0])*0.3;
+    //histo->GetYaxis()->SetLimits(yMin , yMax);
+    //histo->SetAxisRange(yMin , yMax , "Y");
     // Z-axis
-    histo->GetZaxis()->SetLabelSize(0.025);
+    histo->GetZaxis()->SetLabelSize(0.030);
     histo->GetZaxis()->SetRangeUser(0.0 , 1.0);
     auto palette = (TPaletteAxis*)histo->GetListOfFunctions()->FindObject("palette");
     palette->SetX1NDC(0.91);
     palette->SetX2NDC(0.94);
     palette->SetY1NDC(0.12);
     palette->SetY2NDC(0.92);
+    histo->GetZaxis()->SetNdivisions(5);
     // Set Axis Titles
     eff.SetTitle(Form(";%s;%s;", xLabel.c_str(), yLabel.c_str()));
   }
@@ -772,6 +832,7 @@ void drawEff2D(const std::string& outDir, EffMap_t& effMap)
               TLatex tex; tex.SetNDC(); tex.SetTextSize(0.028); float dy = 0;
               std::vector< std::string > textToPrint;
               std::string zLabel = type + " Efficiency";
+              if (type=="DrellYanVeto") { zLabel = "Z/#gamma*#rightarrow#mu^{+}#mu^{-} veto efficiency"; }
               if (type == "Acceptance") { zLabel = "Acceptance"; }
               if (type == "Acceptance_Efficiency") { zLabel = "Acceptance x Efficiency"; }
               textToPrint.push_back(zLabel);
@@ -785,38 +846,58 @@ void drawEff2D(const std::string& outDir, EffMap_t& effMap)
               c.Modified(); c.Update();
               // Add Min, Max and Mean value of efficiency
               auto histo = eff.GetPaintedHistogram();
+              for (ushort i=1; i<=histo->GetNbinsY(); i++) {
+                if (i==histo->GetNbinsY()) {
+                  for (ushort j=1; j<=histo->GetNbinsX(); j++) { histo->SetBinContent(i, j, 0.0); histo->SetBinError(i, j, 0.0); }
+                }
+              }
+              histo->Draw("COLZ");
               if (histo) {
                 double avg = 0. , err = 0. , min = 0. , max = 0.;
                 getStats2D(avg, err, min, max, *histo);
                 textToPrint.push_back(Form("min: %.2f %% , max: %.2f %%", (min*100.), (max*100.)));
-                textToPrint.push_back(Form("mean: %.2f #pm %.2f %%", (avg*100.), (err*100.)));
+                //textToPrint.push_back(Form("mean: %.2f #pm %.2f %%", (avg*100.), (err*100.)));
                 if (min==max) { min -= 0.01; max += 0.01; } if (max>1.0) { max = 1.0; }
-                histo->GetZaxis()->SetRangeUser( (std::floor(min*10.)/10.) , (std::ceil(max*10.)/10.) );
+                if (max>0.0) histo->GetZaxis()->SetRangeUser( 0.0 , (std::ceil(max*10.)/10.) );
               }
+              // Draw the white box to hide under/overflow bins
+              c.cd(); c.Modified(); c.Update();
+              const double yMax = MU_BIN_2D_.at(col).at(var).second[MU_BIN_2D_.at(col).at(var).second.size()-2];
+              TBox box(c.GetFrame()->GetX1(), yMax, c.GetFrame()->GetX2(), c.GetFrame()->GetY2());
+              box.SetFillColor(kWhite); box.SetLineColor(kWhite);
+              box.Draw("same");
+              redrawBorder();
+              c.cd(); c.Modified(); c.Update();
               // Draw the text
-              for (const auto& s: textToPrint) { tex.DrawLatex(0.22, 0.87-dy, s.c_str()); dy+=0.04; }
+              tex.SetTextSize(0.040); tex.DrawLatex(0.19, 0.85, textToPrint[0].c_str());
+              tex.SetTextSize(0.058); tex.SetTextFont(61); tex.DrawLatex(0.75, 0.84, "CMS"); tex.SetTextFont(62);
+              tex.SetTextSize(0.044); tex.SetTextFont(52); tex.DrawLatex(0.66, 0.79, "Preliminary"); tex.SetTextFont(62);
+              tex.SetTextSize(0.040); tex.DrawLatex(0.19, 0.80, textToPrint[1].c_str());
+              if (textToPrint.size()>1) tex.SetTextSize(0.035); tex.DrawLatex(0.19, 0.75, textToPrint[2].c_str());
               c.Modified(); c.Update();
               // Draw the efficiency relative errors with text
-              TH2D hist;                        
-              fillErrorEff2D(hist, eff, var, col);
-              hist.SetMarkerSize(0.7);
-              hist.Draw("SAME,TEXT");
-              c.Modified(); c.Update();
+              //TH2D hist;                        
+              //fillErrorEff2D(hist, eff, var, col);
+              //hist.SetMarkerSize(0.7);
+              //hist.Draw("SAME,TEXT");
+              //c.Modified(); c.Update();
               // set the CMS style
-              int option = 114;
+              int option = 1142;
               if (col.find("pPb")!=std::string::npos) option = 112;
               if (col.find("Pbp")!=std::string::npos) option = 113;
-              CMS_lumi(&c, option, 33, "");
+              CMS_lumi(&c, option, 33, "", false, 0.6, false);
               c.Modified(); c.Update();
               // Create Output Directory
               const std::string plotDir = outDir + "Efficiency2D/" + var+"/" + sample+"/" + col;
               makeDir(plotDir + "/png/");
               makeDir(plotDir + "/pdf/");
               makeDir(plotDir + "/root/");
+              makeDir(plotDir + "/cpp/");
               // Save Canvas
               c.SaveAs(( plotDir + "/png/" + eff.GetName() + ".png" ).c_str());
               c.SaveAs(( plotDir + "/pdf/" + eff.GetName() + ".pdf" ).c_str());
               c.SaveAs(( plotDir + "/root/" + eff.GetName() + ".root" ).c_str());
+              c.SaveAs(( plotDir + "/cpp/" + eff.GetName() + ".C" ).c_str());
               // Clean up memory
               c.Clear(); c.Close();
             }
@@ -832,7 +913,7 @@ void formatComparisonEff2D(TH2& histo, const std::string& var, const std::string
 {
   // Set the format of all histograms
   // General
-  const std::string objLbl = ( (type.find("Acceptance")!=std::string::npos || type=="Total" || type=="Identification" || type=="Offline") ? "Gen #mu" : "Reco #mu" );
+  const std::string objLbl = ( (type.find("Acceptance")!=std::string::npos || type=="Total" || type=="Identification" || type=="Offline") ? "Gen #mu" : "#mu" );
   // X-axis
   std::string xVar = ""; if (var=="Pt_EtaCM") { xVar = "Pt"; }
   std::string xLabel = objLbl; if (charge=="Plus") xLabel += "^{+}"; if (charge=="Minus") xLabel += "^{-}";
@@ -855,7 +936,7 @@ void formatComparisonEff2D(TH2& histo, const std::string& var, const std::string
   histo.GetYaxis()->SetTitleSize(0.045);
   histo.GetYaxis()->SetLabelSize(0.035);
   const double yMin = MU_BIN_.at(col).at(yVar)[0];
-  const double yMax = MU_BIN_.at(col).at(yVar)[MU_BIN_.at(col).at(yVar).size()-1] + (MU_BIN_.at(col).at(yVar)[MU_BIN_.at(col).at(yVar).size()-1] - MU_BIN_.at(col).at(yVar)[0])*0.3;
+  const double yMax = MU_BIN_.at(col).at(yVar)[MU_BIN_.at(col).at(yVar).size()-1];// + (MU_BIN_.at(col).at(yVar)[MU_BIN_.at(col).at(yVar).size()-1] - MU_BIN_.at(col).at(yVar)[0])*0.3;
   histo.GetYaxis()->SetLimits(yMin , yMax);
   histo.SetAxisRange(yMin , yMax , "Y");
   // Z-axis
@@ -960,18 +1041,11 @@ void compareEff2D(const std::string& outDir, EffMap_t& effMap, const std::string
                 cmpHist.GetZaxis()->SetRangeUser( (refVal - range) , (refVal + range) );
               }
               c.Modified(); c.Update();
-              // Draw the white box to hide under/overflow bins
-              const double yMax = MU_BIN_2D_.at(col).at(var).second[MU_BIN_2D_.at(col).at(var).second.size()-1];
-              TBox box(c.GetFrame()->GetX1(), yMax, c.GetFrame()->GetX2(), c.GetFrame()->GetY2());
-              box.SetFillColor(kWhite); box.SetLineColor(kWhite);
-              box.Draw("same");
-              redrawBorder();
-              c.Modified(); c.Update();
               // Draw the text
               for (const auto& s: textToPrint) { tex.DrawLatex(0.20, 0.87-dy, s.c_str()); dy+=0.035;}
               c.Modified(); c.Update();
               // set the CMS style
-              int option = 114;
+              int option = 1142;
               if (col.find("pPb")!=std::string::npos) option = 112;
               if (col.find("Pbp")!=std::string::npos) option = 113;
               CMS_lumi(&c, option, 33, "");
@@ -1161,7 +1235,7 @@ void setStyle()
 
 void formatLegendEntry(TLegendEntry& e)
 {
-  e.SetTextSize(0.028);
+  e.SetTextSize(0.032);
 };
 
 
@@ -1200,9 +1274,10 @@ void getStats2D(double& mean, double& rms, double& min, double& max, const TH2& 
   mean = (hist.GetSumOfWeights() / nBins);
   // Get RMS, Min and Max Value
   double hMin = 999999999999., hMax = -999999999999.;
-  for (int biny = 1; biny <= hist.GetNbinsY(); biny++) {
-    for (int binx = 1; binx <= hist.GetNbinsX(); binx++) {
+  for (int biny = 1; biny < hist.GetNbinsY(); biny++) {
+    for (int binx = 1; binx < hist.GetNbinsX(); binx++) {
       const double value = hist.GetBinContent(hist.GetBin(binx, biny));
+      if (value<=0 || value>=1.0) continue;
       rms += (value - mean)*(value - mean);
       if (value > hMax) { hMax = value; }
       if (value < hMin) { hMin = value; }

@@ -106,7 +106,7 @@ std::vector< double > absEtaTnP_ = { 0.0 , 1.2 , 2.1 , 2.4 };
 std::vector< double > etaTnP_    = { -2.4 , -2.1 , -1.6 , -1.2 , -0.9 , -0.6 , -0.3 , 0.0 , 0.3 , 0.6 , 0.9 , 1.2 , 1.6 , 2.1 , 2.4 };
 //
 // Input Files for analysis
-const std::string path_MC = "root://cms-xrd-global.cern.ch//store/group/phys_heavyions/anstahll/EWQAnalysis2017/pPb2016/8160GeV/MC/Embedded/Official";
+const std::string path_MC = "/data_CMS/cms/stahl/";
 const std::map< std::string , std::vector< std::pair< std::string , double > > > inputFileMap_ = {
   {"MC_WToMuNu_Plus_pPb"      , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Plus_pPb_8160GeV_20171003.root")  , POWHEG::XSec.at("WToMuNu_Plus").at("pPb")  } } },
   {"MC_WToMuNu_Minus_pPb"     , { { Form("%s/%s", path_MC.c_str(), "POWHEG/HiEWQForest_Embedded_Official_POWHEG_CT14_EPPS16_WToMuNu_Minus_pPb_8160GeV_20171003.root") , POWHEG::XSec.at("WToMuNu_Minus").at("pPb") } } },
@@ -598,7 +598,7 @@ bool getMCUncertainties(Unc1DVec_t& unc, const EffVec_t& eff)
           errHi += std::pow( std::max( std::max( (plVal - ctVal) , (miVal - ctVal) ) , 0.0 ) , 2.0 );
         }
         // Convert from 90% CL to 68% CL
-        const double convFactor = TMath::ErfcInverse((1.-0.68))/TMath::ErfcInverse((1.-0.90));
+        const double convFactor = (1./std::sqrt(2.))/TMath::ErfcInverse(1.-0.90);
         errLo = ( convFactor * std::sqrt( errLo ) );
         errHi = ( convFactor * std::sqrt( errHi ) );
         //

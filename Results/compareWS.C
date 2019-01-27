@@ -69,11 +69,11 @@ void compareWS(const std::string mode = "Runs", const bool doCorrectYield=false)
   StrPairMap cmpWS;
   if (mode=="Runs") {
     refWS = StringMap({
-	{ "PA" , "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Output/NominalCM/METPF_RAW/DATA/W/PA/result/" }
+	{ "PA" , "/home/llr/cms/stahl/ElectroWeakAnalysis/NOMINAL/BOSONPTCORR/EWQAnalysis2017/Fitter/Output/NominalCM/METPF_RAW/DATA/W/PA/result/" }
       });
     cmpWS = StrPairMap({
-	{ "pPb"  , { "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Output/NominalCM/METPF_RAW/DATA/W/pPb/result/" , 1 } },
-        { "Pbp"  , { "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Output/NominalCM/METPF_RAW/DATA/W/Pbp/result/" , 1 } }
+	{ "pPb"  , { "/home/llr/cms/stahl/ElectroWeakAnalysis/NOMINAL/BOSONPTCORR/EWQAnalysis2017/Fitter/Output/NominalCM/METPF_RAW/DATA/W/pPb/result/" , 1 } },
+        { "Pbp"  , { "/home/llr/cms/stahl/ElectroWeakAnalysis/NOMINAL/BOSONPTCORR/EWQAnalysis2017/Fitter/Output/NominalCM/METPF_RAW/DATA/W/Pbp/result/" , 1 } }
       });
   }
   else if (mode=="Runs2") {
@@ -87,10 +87,10 @@ void compareWS(const std::string mode = "Runs", const bool doCorrectYield=false)
   }
   else if (mode=="PU") {
     refWS = StringMap({
-	{ "WithPU" , "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Output/NominalCM/METPF_RAW/DATA/W/PA/result/" }
+	{ "WithPU" , "/home/llr/cms/stahl/ElectroWeakAnalysis/NOMINAL/BOSONPTCORR/EWQAnalysis2017/Fitter/Output/NominalCM/METPF_RAW/DATA/W/PA/result/" }
       });
     cmpWS = StrPairMap({
-	{ "NoPU"  , { "/home/llr/cms/stahl/ElectroWeakAnalysis/NoPU/EWQAnalysis2017/Fitter/Output/NominalCM/METPF_RAW/DATA/W/PA/result/" , 1 } }
+	{ "NoPU"  , { "/home/llr/cms/stahl/ElectroWeakAnalysis/TESTDS/FILTER/EWQAnalysis2017/Fitter/Output/NominalCM/METPF_RAW/DATA/W/PA/result/" , 1 } }
       });
   }
   else if (mode=="BKG") {
@@ -98,7 +98,8 @@ void compareWS(const std::string mode = "Runs", const bool doCorrectYield=false)
 	{ "REF" , "/home/llr/cms/stahl/ElectroWeakAnalysis/NOMINAL/BOSONPTCORR/EWQAnalysis2017/Fitter/Output/NominalCM/METPF_RAW/DATA/W/PA/result/" }
       });
     cmpWS = StrPairMap({
-	{ "VAR"  , { "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Output/NominalCM/METPF_RAW/DATA/W/PA/result/" , 1 } }
+	//{ "VAR"  , { "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Fitter/Output/NominalCM/METPF_RAW/DATA/W/PA/result/" , 1 } }
+	{ "VAR"  , { "/home/llr/cms/stahl/ElectroWeakAnalysis/NOMINAL/BOSONPTCORR/EWQAnalysis2017/Fitter/Output/NominalCM_TEST/METPF_RAW/DATA/W/PA/result/" , 1 } }
       });
   }
   /*
@@ -124,7 +125,7 @@ void compareWS(const std::string mode = "Runs", const bool doCorrectYield=false)
     scale = 1.0;
     if (lblWS.first=="pPb")  { scale = ( (PA::LUMI::Data_pPb + PA::LUMI::Data_Pbp) / (PA::LUMI::Data_pPb) ); legLabel["pPb"] = Form("pPb (x%.2f)", scale); }
     if (lblWS.first=="Pbp")  { scale = ( (PA::LUMI::Data_pPb + PA::LUMI::Data_Pbp) / (PA::LUMI::Data_Pbp) ); legLabel["Pbp"] = Form("Pbp (x%.2f, inverse)", scale); }
-    if (lblWS.first=="NoPU") { scale = 1.19; legLabel["NoPU"] = Form("NoPU (x%.2f)", scale); }
+    if (lblWS.first=="NoPU") { scale = 1.18; legLabel["NoPU"] = Form("NoPU (x%.2f)", scale); }
     if (lblWS.first=="Nom")  { legLabel["Nom"] = "Nominal"; }
     if (lblWS.first=="AllBkg") { legLabel["AllBkg"] = "Nominal + DY->Tau + VV"; }
     if (lblWS.first=="NEW") { legLabel["NEW"] = "NEW Results"; }
@@ -137,7 +138,7 @@ void compareWS(const std::string mode = "Runs", const bool doCorrectYield=false)
   // Extract the efficiency
   const std::string CWD = getcwd(NULL, 0);
   std::string preCWD = CWD; preCWD.erase(preCWD.find_last_of("/"), 10);
-  const std::string effDir = Form("%s/Efficiency/Output/%s/", preCWD.c_str(), "NominalCM_WithHF");
+  const std::string effDir = Form("%s/Efficiency/Output/%s/", preCWD.c_str(), "NominalCM_WithBosonPT_WithHF");
   // Declare the efficiencies
   EffMap_t eff1D;
   Unc1DMap_t unc1D;
@@ -225,7 +226,6 @@ void compareWS(const std::string mode = "Runs", const bool doCorrectYield=false)
         if (doCorrectYield) {
           const std::string col = (cmp.first=="pPb" ? "pPb" : (cmp.first=="Pbp" ? "Pbp" : "PA"));
           std::string chg = (ch.first=="Pl" ? "Plus" : "Minus");
-          if (col=="Pbp") { chg = "Minus"; }
           const auto& eff = eff1D.at("EtaCM").at("MC_WToMuNu").at(col).at(chg).at("Total").at("TnP_Nominal")[0];
           for (const auto& b : cmpVar.at("Val")) {
             const double etaV = (col=="Pbp" ? -1.0 : 1.0) * ( (b.first.etabin().high() + b.first.etabin().low()) / 2.0 ); // Mean value of eta bin
@@ -461,7 +461,7 @@ void drawCompareGraph(GraphMap& grMap, GraphMap& grCmpMap, const std::string& ou
     gr.second.GetYaxis()->SetNdivisions(404);
     TGaxis::SetMaxDigits(2); // to display powers of 10
     if (whatDo=="pull" ) { gr.second.GetYaxis()->SetRangeUser(-4.0, 4.0); }
-    if (whatDo=="ratio") { gr.second.GetYaxis()->SetRangeUser(-0.01, 0.01); }
+    if (whatDo=="ratio") { gr.second.GetYaxis()->SetRangeUser(-0.02, 0.02); }
   }
   iGr = 0;
   for (auto& gr : grCmpMap) { if (gr.first!="Ref") { gr.second.SetMarkerColor(COLOR[iGr]); iGr++; } }

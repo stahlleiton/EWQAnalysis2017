@@ -9,8 +9,8 @@ typedef std::map< std::string , TGraphAsymmErrors > GraphMap;
 void A1m(GraphMap& graph)
 {
   //
-  // CT14
-  Double_t ha1p_elqrsmci_pdf_fx3013[10] = {
+  // CT10
+  Double_t hForwardBackwardRatio_xkvegrlg_pdf_fx3005[10] = {
     0.1,
     0.3,
     0.5,
@@ -20,21 +20,98 @@ void A1m(GraphMap& graph)
     1.3,
     1.5,
     1.7,
-    1.9
+    1.865
   };
-  Double_t ha1p_elqrsmci_pdf_fy3013[10] = {
+  Double_t hForwardBackwardRatio_xkvegrlg_pdf_fy3005[10] = {
+    0.9949959,
+    0.9820575,
+    0.9678833,
+    0.9509708,
+    0.9389985,
+    0.9239438,
+    0.9007124,
+    0.8838656,
+    0.8663865,
+    0.8493971
+  };
+  Double_t hForwardBackwardRatio_xkvegrlg_pdf_felx3005[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_xkvegrlg_pdf_fely3005[10] = {
+    0.002297881,
+    0.001698065,
+    0.004176787,
+    0.004779116,
+    0.007624872,
+    0.006964364,
+    0.006002745,
+    0.008498983,
+    0.01105284,
+    0.007743882
+  };
+  Double_t hForwardBackwardRatio_xkvegrlg_pdf_fehx3005[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_xkvegrlg_pdf_fehy3005[10] = {
+    0.004371081,
+    0.004508948,
+    0.006150061,
+    0.006676645,
+    0.002914558,
+    0.006453269,
+    0.01202591,
+    0.008587717,
+    0.008470457,
+    0.01621984
+  };
+  //
+  graph["CT10"] = TGraphAsymmErrors(10,hForwardBackwardRatio_xkvegrlg_pdf_fx3005,hForwardBackwardRatio_xkvegrlg_pdf_fy3005,hForwardBackwardRatio_xkvegrlg_pdf_felx3005,hForwardBackwardRatio_xkvegrlg_pdf_fehx3005,hForwardBackwardRatio_xkvegrlg_pdf_fely3005,hForwardBackwardRatio_xkvegrlg_pdf_fehy3005);
+  graph.at("CT10").SetName("CT10"); graph.at("CT10").SetTitle("CT10");
+  //
+  // CT14
+  Double_t hForwardBackwardRatio_tyurxneu_pdf_fx3011[10] = {
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hForwardBackwardRatio_tyurxneu_pdf_fy3011[10] = {
     0.9976748,
     0.9837714,
     0.9724824,
     0.9523835,
     0.9424112,
     0.9265168,
-    0.9049228,
+    0.9049227,
     0.883846,
     0.8652766,
-    0.8423289
+    0.8466122
   };
-  Double_t ha1p_elqrsmci_pdf_felx3013[10] = {
+  Double_t hForwardBackwardRatio_tyurxneu_pdf_felx3011[10] = {
     0.1,
     0.1,
     0.1,
@@ -44,21 +121,21 @@ void A1m(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1
+    0.065
   };
-  Double_t ha1p_elqrsmci_pdf_fely3013[10] = {
-    0.008510266,
-    0.003869819,
-    0.01209366,
-    0.002832682,
-    0.009525502,
-    0.0120595,
-    0.01429379,
-    0.01230002,
-    0.01478453,
-    0.01822449
+  Double_t hForwardBackwardRatio_tyurxneu_pdf_fely3011[10] = {
+    0.009088434,
+    0.001989348,
+    0.01223937,
+    0.002768657,
+    0.009338371,
+    0.01159086,
+    0.0143496,
+    0.0120747,
+    0.01507562,
+    0.01717654
   };
-  Double_t ha1p_elqrsmci_pdf_fehx3013[10] = {
+  Double_t hForwardBackwardRatio_tyurxneu_pdf_fehx3011[10] = {
     0.1,
     0.1,
     0.1,
@@ -68,26 +145,26 @@ void A1m(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1
+    0.065
   };
-  Double_t ha1p_elqrsmci_pdf_fehy3013[10] = {
-    0.005279776,
-    0.006121094,
-    0.003352799,
-    0.01355898,
-    0.007307071,
-    0.00951426,
-    0.01002604,
-    0.01391625,
-    0.01426721,
-    0.01699519
+  Double_t hForwardBackwardRatio_tyurxneu_pdf_fehy3011[10] = {
+    0.001173679,
+    0.006370311,
+    0.001980949,
+    0.01358325,
+    0.006850326,
+    0.009747164,
+    0.01004261,
+    0.01370684,
+    0.01322472,
+    0.01986967
   };
   //
-  graph["CT14"] = TGraphAsymmErrors(10,ha1p_elqrsmci_pdf_fx3013,ha1p_elqrsmci_pdf_fy3013,ha1p_elqrsmci_pdf_felx3013,ha1p_elqrsmci_pdf_fehx3013,ha1p_elqrsmci_pdf_fely3013,ha1p_elqrsmci_pdf_fehy3013);
+  graph["CT14"] = TGraphAsymmErrors(10,hForwardBackwardRatio_tyurxneu_pdf_fx3011,hForwardBackwardRatio_tyurxneu_pdf_fy3011,hForwardBackwardRatio_tyurxneu_pdf_felx3011,hForwardBackwardRatio_tyurxneu_pdf_fehx3011,hForwardBackwardRatio_tyurxneu_pdf_fely3011,hForwardBackwardRatio_tyurxneu_pdf_fehy3011);
   graph.at("CT14").SetName("CT14"); graph.at("CT14").SetTitle("CT14");
   //
   // EPPS16
-  Double_t ha1p_iysxysdv_pdf_fx3014[10] = {
+  Double_t hForwardBackwardRatio_rfjoaqvk_pdf_fx3017[10] = {
     0.1,
     0.3,
     0.5,
@@ -97,21 +174,21 @@ void A1m(GraphMap& graph)
     1.3,
     1.5,
     1.7,
-    1.9
+    1.865
   };
-  Double_t ha1p_iysxysdv_pdf_fy3014[10] = {
+  Double_t hForwardBackwardRatio_rfjoaqvk_pdf_fy3017[10] = {
     0.9872179,
     0.9569585,
     0.9199166,
     0.890173,
     0.86306,
-    0.8320612,
+    0.8320614,
     0.7990534,
     0.7710296,
     0.7455351,
-    0.7132261
+    0.7184044
   };
-  Double_t ha1p_iysxysdv_pdf_felx3014[10] = {
+  Double_t hForwardBackwardRatio_rfjoaqvk_pdf_felx3017[10] = {
     0.1,
     0.1,
     0.1,
@@ -121,21 +198,21 @@ void A1m(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1
+    0.065
   };
-  Double_t ha1p_iysxysdv_pdf_fely3014[10] = {
-    0.01351832,
-    0.03013399,
-    0.04061966,
-    0.04481497,
-    0.06279433,
-    0.06974823,
-    0.07280856,
-    0.07497024,
-    0.08649465,
-    0.07843464
+  Double_t hForwardBackwardRatio_rfjoaqvk_pdf_fely3017[10] = {
+    0.01300169,
+    0.03030172,
+    0.04069332,
+    0.04497633,
+    0.06258313,
+    0.06930585,
+    0.07271978,
+    0.07499482,
+    0.08638873,
+    0.0761247
   };
-  Double_t ha1p_iysxysdv_pdf_fehx3014[10] = {
+  Double_t hForwardBackwardRatio_rfjoaqvk_pdf_fehx3017[10] = {
     0.1,
     0.1,
     0.1,
@@ -145,23 +222,254 @@ void A1m(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1
+    0.065
   };
-  Double_t ha1p_iysxysdv_pdf_fehy3014[10] = {
-    0.006443392,
-    0.01884062,
-    0.03735691,
-    0.04814637,
-    0.05103378,
-    0.06535167,
-    0.07010151,
-    0.06994513,
-    0.07258194,
-    0.07823101
+  Double_t hForwardBackwardRatio_rfjoaqvk_pdf_fehy3017[10] = {
+    0.006432106,
+    0.0189076,
+    0.03730151,
+    0.04823601,
+    0.05098133,
+    0.06535122,
+    0.07016492,
+    0.06988732,
+    0.07254623,
+    0.07385724
   };
   //
-  graph["EPPS16"] = TGraphAsymmErrors(10,ha1p_iysxysdv_pdf_fx3014,ha1p_iysxysdv_pdf_fy3014,ha1p_iysxysdv_pdf_felx3014,ha1p_iysxysdv_pdf_fehx3014,ha1p_iysxysdv_pdf_fely3014,ha1p_iysxysdv_pdf_fehy3014);
+  graph["EPPS16"] = TGraphAsymmErrors(10,hForwardBackwardRatio_rfjoaqvk_pdf_fx3017,hForwardBackwardRatio_rfjoaqvk_pdf_fy3017,hForwardBackwardRatio_rfjoaqvk_pdf_felx3017,hForwardBackwardRatio_rfjoaqvk_pdf_fehx3017,hForwardBackwardRatio_rfjoaqvk_pdf_fely3017,hForwardBackwardRatio_rfjoaqvk_pdf_fehy3017);
   graph.at("EPPS16").SetName("EPPS16"); graph.at("EPPS16").SetTitle("EPPS16");
+  //
+  // EPS09+CT10  
+  Double_t hForwardBackwardRatio_edkbbelh_pdf_fx3023[10] = {
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hForwardBackwardRatio_edkbbelh_pdf_fy3023[10] = {
+    0.9837553,
+    0.9528332,
+    0.9194409,
+    0.890075,
+    0.862054,
+    0.8341593,
+    0.8054838,
+    0.7794476,
+    0.7579384,
+    0.7339513
+  };
+  Double_t hForwardBackwardRatio_edkbbelh_pdf_felx3023[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_edkbbelh_pdf_fely3023[10] = {
+    0.002386336,
+    0.008295354,
+    0.01923491,
+    0.02273036,
+    0.02546945,
+    0.03049337,
+    0.03339399,
+    0.03272972,
+    0.03814735,
+    0.03633109
+  };
+  Double_t hForwardBackwardRatio_edkbbelh_pdf_fehx3023[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_edkbbelh_pdf_fehy3023[10] = {
+    0.01122874,
+    0.01696362,
+    0.01781185,
+    0.0217923,
+    0.02666901,
+    0.03282793,
+    0.03025761,
+    0.03217068,
+    0.03309561,
+    0.03361428
+  };
+  //
+  graph["EPS09"] = TGraphAsymmErrors(10,hForwardBackwardRatio_edkbbelh_pdf_fx3023,hForwardBackwardRatio_edkbbelh_pdf_fy3023,hForwardBackwardRatio_edkbbelh_pdf_felx3023,hForwardBackwardRatio_edkbbelh_pdf_fehx3023,hForwardBackwardRatio_edkbbelh_pdf_fely3023,hForwardBackwardRatio_edkbbelh_pdf_fehy3023);
+  graph.at("EPS09").SetName("EPS09"); graph.at("EPS09").SetTitle("EPS09");
+  //
+  // EPS09+CT14
+  Double_t hForwardBackwardRatio_pzstpxwe_pdf_fx3029[10] = {
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hForwardBackwardRatio_pzstpxwe_pdf_fy3029[10] = {
+    0.9918966,
+    0.9540738,
+    0.9171107,
+    0.8916354,
+    0.8665023,
+    0.8356045,
+    0.8056865,
+    0.7801462,
+    0.7561284,
+    0.7291713
+  };
+  Double_t hForwardBackwardRatio_pzstpxwe_pdf_felx3029[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_pzstpxwe_pdf_fely3029[10] = {
+    0.02619931,
+    0.008564445,
+    0.01331265,
+    0.01942191,
+    0.03155084,
+    0.02928062,
+    0.03188445,
+    0.03622788,
+    0.0415365,
+    0.0332725
+  };
+  Double_t hForwardBackwardRatio_pzstpxwe_pdf_fehx3029[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_pzstpxwe_pdf_fehy3029[10] = {
+    0.00038125,
+    0.01747923,
+    0.02870738,
+    0.02558463,
+    0.02301984,
+    0.0343626,
+    0.03563939,
+    0.04467325,
+    0.03341935,
+    0.03927142
+  };
+  //
+  graph["EPS09_CT14"] = TGraphAsymmErrors(10,hForwardBackwardRatio_pzstpxwe_pdf_fx3029,hForwardBackwardRatio_pzstpxwe_pdf_fy3029,hForwardBackwardRatio_pzstpxwe_pdf_felx3029,hForwardBackwardRatio_pzstpxwe_pdf_fehx3029,hForwardBackwardRatio_pzstpxwe_pdf_fely3029,hForwardBackwardRatio_pzstpxwe_pdf_fehy3029);
+  graph.at("EPS09_CT14").SetName("EPS09_CT14"); graph.at("EPS09_CT14").SetTitle("EPS09_CT14");
+  //
+  // nCTEQ15
+  Double_t hForwardBackwardRatio_fpfdepzk_pdf_fx3029[10] = {
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hForwardBackwardRatio_fpfdepzk_pdf_fy3029[10] = {
+    0.977294,
+    0.9273855,
+    0.8796414,
+    0.8417896,
+    0.8046129,
+    0.7638041,
+    0.7321435,
+    0.701543,
+    0.6712132,
+    0.6514753
+  };
+  Double_t hForwardBackwardRatio_fpfdepzk_pdf_felx3029[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_fpfdepzk_pdf_fely3029[10] = {
+    0.006133503,
+    0.02114631,
+    0.02627601,
+    0.03617737,
+    0.05052946,
+    0.04904786,
+    0.0628552,
+    0.05925915,
+    0.06365228,
+    0.07249567
+  };
+  Double_t hForwardBackwardRatio_fpfdepzk_pdf_fehx3029[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_fpfdepzk_pdf_fehy3029[10] = {
+    0.01186996,
+    0.02395573,
+    0.02869467,
+    0.03931907,
+    0.04673181,
+    0.0560989,
+    0.0509045,
+    0.05898911,
+    0.05926756,
+    0.05796841
+  };
+  //
+  graph["nCTEQ15"] = TGraphAsymmErrors(10,hForwardBackwardRatio_fpfdepzk_pdf_fx3029,hForwardBackwardRatio_fpfdepzk_pdf_fy3029,hForwardBackwardRatio_fpfdepzk_pdf_felx3029,hForwardBackwardRatio_fpfdepzk_pdf_fehx3029,hForwardBackwardRatio_fpfdepzk_pdf_fely3029,hForwardBackwardRatio_fpfdepzk_pdf_fehy3029);
+  graph.at("nCTEQ15").SetName("nCTEQ15"); graph.at("nCTEQ15").SetTitle("nCTEQ15");
   //
 };
 
@@ -169,8 +477,8 @@ void A1m(GraphMap& graph)
 void A1p(GraphMap& graph)
 {
   //
-  // CT14
-  Double_t ha1p_hxfldkre_pdf_fx3010[10] = {
+  // CT10
+  Double_t hForwardBackwardRatio_aisqhmrq_pdf_fx3006[10] = {
     0.1,
     0.3,
     0.5,
@@ -180,9 +488,86 @@ void A1p(GraphMap& graph)
     1.3,
     1.5,
     1.7,
-    1.9
+    1.865
   };
-  Double_t ha1p_hxfldkre_pdf_fy3010[10] = {
+  Double_t hForwardBackwardRatio_aisqhmrq_pdf_fy3006[10] = {
+    1.010469,
+    1.021855,
+    1.038422,
+    1.059533,
+    1.084677,
+    1.103164,
+    1.12444,
+    1.155112,
+    1.178784,
+    1.204964
+  };
+  Double_t hForwardBackwardRatio_aisqhmrq_pdf_felx3006[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_aisqhmrq_pdf_fely3006[10] = {
+    0.006252135,
+    0.007565259,
+    0.003886278,
+    0.00594442,
+    0.006688132,
+    0.01162589,
+    0.008920767,
+    0.01530979,
+    0.01715712,
+    0.01064654
+  };
+  Double_t hForwardBackwardRatio_aisqhmrq_pdf_fehx3006[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_aisqhmrq_pdf_fehy3006[10] = {
+    0.005355547,
+    0.002420648,
+    0.007231001,
+    0.006522823,
+    0.00743943,
+    0.008206959,
+    0.01510528,
+    0.009511108,
+    0.01145872,
+    0.01921176
+  };
+   //
+  graph["CT10"] = TGraphAsymmErrors(10,hForwardBackwardRatio_aisqhmrq_pdf_fx3006,hForwardBackwardRatio_aisqhmrq_pdf_fy3006,hForwardBackwardRatio_aisqhmrq_pdf_felx3006,hForwardBackwardRatio_aisqhmrq_pdf_fehx3006,hForwardBackwardRatio_aisqhmrq_pdf_fely3006,hForwardBackwardRatio_aisqhmrq_pdf_fehy3006);
+  graph.at("CT10").SetName("CT10"); graph.at("CT10").SetTitle("CT10");
+  //
+  // CT14
+  Double_t hForwardBackwardRatio_wepymiwg_pdf_fx3012[10] = {
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hForwardBackwardRatio_wepymiwg_pdf_fy3012[10] = {
     1.015028,
     1.022036,
     1.041326,
@@ -192,9 +577,9 @@ void A1p(GraphMap& graph)
     1.131902,
     1.164073,
     1.185143,
-    1.227119
+    1.222182
   };
-  Double_t ha1p_hxfldkre_pdf_felx3010[10] = {
+  Double_t hForwardBackwardRatio_wepymiwg_pdf_felx3012[10] = {
     0.1,
     0.1,
     0.1,
@@ -204,21 +589,21 @@ void A1p(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1
+    0.065
   };
-  Double_t ha1p_hxfldkre_pdf_fely3010[10] = {
-    0.01783302,
-    0.004927939,
-    0.008716741,
-    0.009864879,
-    0.006230487,
-    0.01606347,
-    0.01611814,
-    0.02137311,
-    0.01184501,
-    0.02654846
+  Double_t hForwardBackwardRatio_wepymiwg_pdf_fely3012[10] = {
+    0.01782196,
+    0.004422112,
+    0.008649755,
+    0.009327171,
+    0.006877089,
+    0.01492304,
+    0.01640024,
+    0.02117836,
+    0.01144065,
+    0.03011314
   };
-  Double_t ha1p_hxfldkre_pdf_fehx3010[10] = {
+  Double_t hForwardBackwardRatio_wepymiwg_pdf_fehx3012[10] = {
     0.1,
     0.1,
     0.1,
@@ -228,26 +613,26 @@ void A1p(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1
+    0.065
   };
-  Double_t ha1p_hxfldkre_pdf_fehy3010[10] = {
+  Double_t hForwardBackwardRatio_wepymiwg_pdf_fehy3012[10] = {
     0,
-    0.008147355,
-    0.003905017,
-    0.01150946,
-    0.01709675,
-    0.01223532,
-    0.01608715,
-    0.01673277,
-    0.02849395,
-    0.01688499
+    0.007801223,
+    0.003944037,
+    0.01127936,
+    0.0173735,
+    0.01251444,
+    0.01611152,
+    0.01667588,
+    0.02880735,
+    0.01728268
   };
   //
-  graph["CT14"] = TGraphAsymmErrors(10,ha1p_hxfldkre_pdf_fx3010,ha1p_hxfldkre_pdf_fy3010,ha1p_hxfldkre_pdf_felx3010,ha1p_hxfldkre_pdf_fehx3010,ha1p_hxfldkre_pdf_fely3010,ha1p_hxfldkre_pdf_fehy3010);
+  graph["CT14"] = TGraphAsymmErrors(10,hForwardBackwardRatio_wepymiwg_pdf_fx3012,hForwardBackwardRatio_wepymiwg_pdf_fy3012,hForwardBackwardRatio_wepymiwg_pdf_felx3012,hForwardBackwardRatio_wepymiwg_pdf_fehx3012,hForwardBackwardRatio_wepymiwg_pdf_fely3012,hForwardBackwardRatio_wepymiwg_pdf_fehy3012);
   graph.at("CT14").SetName("CT14"); graph.at("CT14").SetTitle("CT14");
   //
-  // EPPS16   
-  Double_t ha1p_reigzujm_pdf_fx3011[10] = {
+  // EPPS16
+  Double_t hForwardBackwardRatio_iomfylvl_pdf_fx3018[10] = {
     0.1,
     0.3,
     0.5,
@@ -257,9 +642,9 @@ void A1p(GraphMap& graph)
     1.3,
     1.5,
     1.7,
-    1.9
+    1.865
   };
-  Double_t ha1p_reigzujm_pdf_fy3011[10] = {
+  Double_t hForwardBackwardRatio_iomfylvl_pdf_fy3018[10] = {
     0.9914179,
     0.9868066,
     0.9787798,
@@ -269,9 +654,9 @@ void A1p(GraphMap& graph)
     0.9839736,
     0.9915134,
     1.001143,
-    1.03228
+    1.02921
   };
-  Double_t ha1p_reigzujm_pdf_felx3011[10] = {
+  Double_t hForwardBackwardRatio_iomfylvl_pdf_felx3018[10] = {
     0.1,
     0.1,
     0.1,
@@ -281,21 +666,21 @@ void A1p(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1
+    0.065
   };
-  Double_t ha1p_reigzujm_pdf_fely3011[10] = {
-    0.0146121,
-    0.02515219,
-    0.03568471,
-    0.05660551,
-    0.08754949,
-    0.07866406,
-    0.1069766,
-    0.1003685,
-    0.1076573,
-    0.1325726
+  Double_t hForwardBackwardRatio_iomfylvl_pdf_fely3018[10] = {
+    0.007407233,
+    0.02732907,
+    0.03743752,
+    0.06283646,
+    0.0779527,
+    0.07546897,
+    0.100857,
+    0.1095102,
+    0.1043695,
+    0.1323223
   };
-  Double_t ha1p_reigzujm_pdf_fehx3011[10] = {
+  Double_t hForwardBackwardRatio_iomfylvl_pdf_fehx3018[10] = {
     0.1,
     0.1,
     0.1,
@@ -305,31 +690,26 @@ void A1p(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1
+    0.065
   };
-  Double_t ha1p_reigzujm_pdf_fehy3011[10] = {
-    0.01294693,
-    0.03277801,
-    0.04801202,
-    0.06270943,
-    0.07372918,
-    0.08262119,
-    0.09362076,
-    0.09812207,
-    0.1285975,
-    0.1119827
+  Double_t hForwardBackwardRatio_iomfylvl_pdf_fehy3018[10] = {
+    0.01066103,
+    0.03111952,
+    0.04812549,
+    0.05079643,
+    0.07427136,
+    0.08846538,
+    0.09356613,
+    0.09923948,
+    0.1213726,
+    0.1090706
   };
-  graph["EPPS16"] = TGraphAsymmErrors(10,ha1p_reigzujm_pdf_fx3011,ha1p_reigzujm_pdf_fy3011,ha1p_reigzujm_pdf_felx3011,ha1p_reigzujm_pdf_fehx3011,ha1p_reigzujm_pdf_fely3011,ha1p_reigzujm_pdf_fehy3011);
+  //
+  graph["EPPS16"] = TGraphAsymmErrors(10,hForwardBackwardRatio_iomfylvl_pdf_fx3018,hForwardBackwardRatio_iomfylvl_pdf_fy3018,hForwardBackwardRatio_iomfylvl_pdf_felx3018,hForwardBackwardRatio_iomfylvl_pdf_fehx3018,hForwardBackwardRatio_iomfylvl_pdf_fely3018,hForwardBackwardRatio_iomfylvl_pdf_fehy3018);
   graph.at("EPPS16").SetName("EPPS16"); graph.at("EPPS16").SetTitle("EPPS16");
   //
-};
-
-
-void A3(GraphMap& graph)
-{
-  //
-  // CT14
-  Double_t ha1p_pomsdbid_pdf_fx3016[10] = {
+  // EPS09
+  Double_t hForwardBackwardRatio_lmkvhzbe_pdf_fx3024[10] = {
     0.1,
     0.3,
     0.5,
@@ -339,9 +719,323 @@ void A3(GraphMap& graph)
     1.3,
     1.5,
     1.7,
-    1.9
+    1.865
   };
-  Double_t ha1p_pomsdbid_pdf_fy3016[10] = {
+  Double_t hForwardBackwardRatio_lmkvhzbe_pdf_fy3024[10] = {
+    0.992147,
+    0.9869962,
+    0.9806539,
+    0.975882,
+    0.976548,
+    0.9831443,
+    0.9895453,
+    0.9963073,
+    1.012973,
+    1.036189
+  };
+  Double_t hForwardBackwardRatio_lmkvhzbe_pdf_felx3024[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_lmkvhzbe_pdf_fely3024[10] = {
+    0.009440419,
+    0.01202409,
+    0.0199038,
+    0.02520132,
+    0.0342673,
+    0.03755428,
+    0.0467946,
+    0.04534121,
+    0.0506278,
+    0.05311413
+  };
+  Double_t hForwardBackwardRatio_lmkvhzbe_pdf_fehx3024[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_lmkvhzbe_pdf_fehy3024[10] = {
+    0.005126722,
+    0.0170737,
+    0.01849931,
+    0.02753288,
+    0.03461488,
+    0.03761363,
+    0.03786639,
+    0.04557599,
+    0.0450975,
+    0.0472572
+  };
+  //
+  graph["EPS09"] = TGraphAsymmErrors(10,hForwardBackwardRatio_lmkvhzbe_pdf_fx3024,hForwardBackwardRatio_lmkvhzbe_pdf_fy3024,hForwardBackwardRatio_lmkvhzbe_pdf_felx3024,hForwardBackwardRatio_lmkvhzbe_pdf_fehx3024,hForwardBackwardRatio_lmkvhzbe_pdf_fely3024,hForwardBackwardRatio_lmkvhzbe_pdf_fehy3024);
+  graph.at("EPS09").SetName("EPS09"); graph.at("EPS09").SetTitle("EPS09");
+  //
+  // EPS09+CT14
+  Double_t hForwardBackwardRatio_aszfemqo_pdf_fx3030[10] = {
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hForwardBackwardRatio_aszfemqo_pdf_fy3030[10] = {
+    0.9912542,
+    0.9919463,
+    0.9823563,
+    0.9804887,
+    0.9798509,
+    0.9889419,
+    0.9939959,
+    1.00211,
+    1.022002,
+    1.04671
+  };
+  Double_t hForwardBackwardRatio_aszfemqo_pdf_felx3030[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_aszfemqo_pdf_fely3030[10] = {
+    0.006079832,
+    0.02172382,
+    0.02158856,
+    0.02914376,
+    0.03281024,
+    0.04234206,
+    0.04584438,
+    0.04461716,
+    0.05290224,
+    0.05643688
+  };
+  Double_t hForwardBackwardRatio_aszfemqo_pdf_fehx3030[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_aszfemqo_pdf_fehy3030[10] = {
+    0.008107374,
+    0.007804418,
+    0.02193774,
+    0.02301271,
+    0.0387465,
+    0.03363148,
+    0.04237019,
+    0.04942561,
+    0.05007132,
+    0.04981931
+  };
+  //
+  graph["EPS09_CT14"] = TGraphAsymmErrors(10,hForwardBackwardRatio_aszfemqo_pdf_fx3030,hForwardBackwardRatio_aszfemqo_pdf_fy3030,hForwardBackwardRatio_aszfemqo_pdf_felx3030,hForwardBackwardRatio_aszfemqo_pdf_fehx3030,hForwardBackwardRatio_aszfemqo_pdf_fely3030,hForwardBackwardRatio_aszfemqo_pdf_fehy3030);
+  graph.at("EPS09_CT14").SetName("EPS09_CT14"); graph.at("EPS09_CT14").SetTitle("EPS09_CT14");
+  //
+  // nCTEQ15
+  Double_t hForwardBackwardRatio_yixpotdf_pdf_fx3030[10] = {
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hForwardBackwardRatio_yixpotdf_pdf_fy3030[10] = {
+    0.9907628,
+    0.9578304,
+    0.9405574,
+    0.9166374,
+    0.8995518,
+    0.8937631,
+    0.8827789,
+    0.8803835,
+    0.8832308,
+    0.8866808
+  };
+  Double_t hForwardBackwardRatio_yixpotdf_pdf_felx3030[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_yixpotdf_pdf_fely3030[10] = {
+    0.01549142,
+    0.01690008,
+    0.03103619,
+    0.04083446,
+    0.04661636,
+    0.06227018,
+    0.06487022,
+    0.08019096,
+    0.08445629,
+    0.09188672
+  };
+  Double_t hForwardBackwardRatio_yixpotdf_pdf_fehx3030[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_yixpotdf_pdf_fehy3030[10] = {
+    0.003567235,
+    0.02234386,
+    0.02789695,
+    0.04446537,
+    0.05250926,
+    0.06142352,
+    0.06723356,
+    0.06954773,
+    0.07526133,
+    0.08390271
+  }; TGraphAsymmErrors();
+  //
+  graph["nCTEQ15"] = TGraphAsymmErrors(10,hForwardBackwardRatio_yixpotdf_pdf_fx3030,hForwardBackwardRatio_yixpotdf_pdf_fy3030,hForwardBackwardRatio_yixpotdf_pdf_felx3030,hForwardBackwardRatio_yixpotdf_pdf_fehx3030,hForwardBackwardRatio_yixpotdf_pdf_fely3030,hForwardBackwardRatio_yixpotdf_pdf_fehy3030);
+  graph.at("nCTEQ15").SetName("nCTEQ15"); graph.at("nCTEQ15").SetTitle("nCTEQ15");
+  //
+};
+
+
+void A3(GraphMap& graph)
+{
+  //
+  // CT10
+  Double_t hForwardBackwardRatio_Inc_pqzqqgqe_pdf_fx3004[10] = {
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hForwardBackwardRatio_Inc_pqzqqgqe_pdf_fy3004[10] = {
+    1.003443,
+    1.003671,
+    1.006122,
+    1.009587,
+    1.017421,
+    1.020384,
+    1.020993,
+    1.02925,
+    1.03341,
+    1.03847
+  };
+  Double_t hForwardBackwardRatio_Inc_pqzqqgqe_pdf_felx3004[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_Inc_pqzqqgqe_pdf_fely3004[10] = {
+    0.003523965,
+    0.003247276,
+    0.002005988,
+    0.002894526,
+    0.003813249,
+    0.005022102,
+    0.001663841,
+    0.006181681,
+    0.007510675,
+    0.001006151
+  };
+  Double_t hForwardBackwardRatio_Inc_pqzqqgqe_pdf_fehx3004[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_Inc_pqzqqgqe_pdf_fehy3004[10] = {
+    0.004297403,
+    0.001987226,
+    0.004371281,
+    0.003515773,
+    0.002660478,
+    0.002486827,
+    0.007700758,
+    0.00259338,
+    0.003134803,
+    0.009879413
+  };
+  //
+  graph["CT10"] = TGraphAsymmErrors(10,hForwardBackwardRatio_Inc_pqzqqgqe_pdf_fx3004,hForwardBackwardRatio_Inc_pqzqqgqe_pdf_fy3004,hForwardBackwardRatio_Inc_pqzqqgqe_pdf_felx3004,hForwardBackwardRatio_Inc_pqzqqgqe_pdf_fehx3004,hForwardBackwardRatio_Inc_pqzqqgqe_pdf_fely3004,hForwardBackwardRatio_Inc_pqzqqgqe_pdf_fehy3004);
+  graph.at("CT10").SetName("CT10"); graph.at("CT10").SetTitle("CT10");
+  //
+  // CT14
+  Double_t hForwardBackwardRatio_Inc_qwmwpvqf_pdf_fx3010[10] = {
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hForwardBackwardRatio_Inc_qwmwpvqf_pdf_fy3010[10] = {
     1.007122,
     1.004488,
     1.00971,
@@ -351,9 +1045,9 @@ void A3(GraphMap& graph)
     1.026357,
     1.033182,
     1.035446,
-    1.045119
+    1.044762
   };
-  Double_t ha1p_pomsdbid_pdf_felx3016[10] = {
+  Double_t hForwardBackwardRatio_Inc_qwmwpvqf_pdf_felx3010[10] = {
     0.1,
     0.1,
     0.1,
@@ -363,21 +1057,21 @@ void A3(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1
+    0.065
   };
-  Double_t ha1p_pomsdbid_pdf_fely3016[10] = {
-    0.0121506,
-    0.002825037,
-    0.00841702,
-    0.002801617,
-    0.003531626,
-    0.006806855,
-    0.007219975,
-    0.006234271,
-    0.001928135,
-    0.008652858
+  Double_t hForwardBackwardRatio_Inc_qwmwpvqf_pdf_fely3010[10] = {
+    0.01254379,
+    0.001737757,
+    0.008338488,
+    0.002563678,
+    0.004222031,
+    0.006077461,
+    0.007092925,
+    0.006009441,
+    0.002233938,
+    0.008751382
   };
-  Double_t ha1p_pomsdbid_pdf_fehx3016[10] = {
+  Double_t hForwardBackwardRatio_Inc_qwmwpvqf_pdf_fehx3010[10] = {
     0.1,
     0.1,
     0.1,
@@ -387,26 +1081,26 @@ void A3(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1
+    0.065
   };
-  Double_t ha1p_pomsdbid_pdf_fehy3016[10] = {
-    0.001439843,
-    0.005944936,
-    0.001609753,
-    0.008931219,
-    0.007629101,
-    0.004315419,
-    0.004578535,
-    0.004656317,
-    0.008376574,
-    0.003227793
+  Double_t hForwardBackwardRatio_Inc_qwmwpvqf_pdf_fehy3010[10] = {
+    0,
+    0.006041244,
+    0.001557884,
+    0.008675031,
+    0.007765526,
+    0.004396419,
+    0.004549892,
+    0.004607572,
+    0.008266665,
+    0.003308993
   };
   //
-  graph["CT14"] = TGraphAsymmErrors(10,ha1p_pomsdbid_pdf_fx3016,ha1p_pomsdbid_pdf_fy3016,ha1p_pomsdbid_pdf_felx3016,ha1p_pomsdbid_pdf_fehx3016,ha1p_pomsdbid_pdf_fely3016,ha1p_pomsdbid_pdf_fehy3016);
+  graph["CT14"] = TGraphAsymmErrors(10,hForwardBackwardRatio_Inc_qwmwpvqf_pdf_fx3010,hForwardBackwardRatio_Inc_qwmwpvqf_pdf_fy3010,hForwardBackwardRatio_Inc_qwmwpvqf_pdf_felx3010,hForwardBackwardRatio_Inc_qwmwpvqf_pdf_fehx3010,hForwardBackwardRatio_Inc_qwmwpvqf_pdf_fely3010,hForwardBackwardRatio_Inc_qwmwpvqf_pdf_fehy3010);
   graph.at("CT14").SetName("CT14"); graph.at("CT14").SetTitle("CT14");
   //
   // EPPS16
-  Double_t ha1p_sfyrbzpk_pdf_fx3017[10] = {
+  Double_t hForwardBackwardRatio_Inc_tumwoztr_pdf_fx3016[10] = {
     0.1,
     0.3,
     0.5,
@@ -416,21 +1110,21 @@ void A3(GraphMap& graph)
     1.3,
     1.5,
     1.7,
-    1.9
+    1.865
   };
-  Double_t ha1p_sfyrbzpk_pdf_fy3017[10] = {
+  Double_t hForwardBackwardRatio_Inc_tumwoztr_pdf_fy3016[10] = {
     0.9895072,
     0.9731542,
     0.9517868,
     0.9371233,
     0.924061,
-    0.9102142,
+    0.9102143,
     0.8983585,
     0.888922,
     0.881615,
-    0.8810318
+    0.8823097
   };
-  Double_t ha1p_sfyrbzpk_pdf_felx3017[10] = {
+  Double_t hForwardBackwardRatio_Inc_tumwoztr_pdf_felx3016[10] = {
     0.1,
     0.1,
     0.1,
@@ -440,21 +1134,21 @@ void A3(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1
+    0.065
   };
-  Double_t ha1p_sfyrbzpk_pdf_fely3017[10] = {
-    0.01190879,
-    0.02653635,
-    0.03751298,
-    0.05070551,
-    0.07491405,
-    0.07343944,
-    0.0897199,
-    0.08711617,
-    0.09626995,
-    0.1043723
+  Double_t hForwardBackwardRatio_Inc_tumwoztr_pdf_fely3016[10] = {
+    0.0085249,
+    0.02804175,
+    0.03859414,
+    0.05390298,
+    0.07009402,
+    0.07190552,
+    0.08657513,
+    0.0919108,
+    0.09479006,
+    0.1033093
   };
-  Double_t ha1p_sfyrbzpk_pdf_fehx3017[10] = {
+  Double_t hForwardBackwardRatio_Inc_tumwoztr_pdf_fehx3016[10] = {
     0.1,
     0.1,
     0.1,
@@ -464,23 +1158,254 @@ void A3(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1
+    0.065
   };
-  Double_t ha1p_sfyrbzpk_pdf_fehy3017[10] = {
-    0.008272484,
-    0.02432328,
-    0.04243488,
-    0.05477887,
-    0.06250275,
-    0.0735815,
-    0.08120085,
-    0.0830651,
-    0.09917915,
-    0.09368992
+  Double_t hForwardBackwardRatio_Inc_tumwoztr_pdf_fehy3016[10] = {
+    0.007731235,
+    0.02467296,
+    0.04263093,
+    0.04903309,
+    0.0624812,
+    0.07655125,
+    0.08128097,
+    0.08408839,
+    0.0955562,
+    0.09006462
   };
   //
-  graph["EPPS16"] = TGraphAsymmErrors(10,ha1p_sfyrbzpk_pdf_fx3017,ha1p_sfyrbzpk_pdf_fy3017,ha1p_sfyrbzpk_pdf_felx3017,ha1p_sfyrbzpk_pdf_fehx3017,ha1p_sfyrbzpk_pdf_fely3017,ha1p_sfyrbzpk_pdf_fehy3017);
+  graph["EPPS16"] = TGraphAsymmErrors(10,hForwardBackwardRatio_Inc_tumwoztr_pdf_fx3016,hForwardBackwardRatio_Inc_tumwoztr_pdf_fy3016,hForwardBackwardRatio_Inc_tumwoztr_pdf_felx3016,hForwardBackwardRatio_Inc_tumwoztr_pdf_fehx3016,hForwardBackwardRatio_Inc_tumwoztr_pdf_fely3016,hForwardBackwardRatio_Inc_tumwoztr_pdf_fehy3016);
   graph.at("EPPS16").SetName("EPPS16"); graph.at("EPPS16").SetTitle("EPPS16");
+  //
+  // EPS09
+  Double_t hForwardBackwardRatio_Inc_jgberysm_pdf_fx3022[10] = {
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hForwardBackwardRatio_Inc_jgberysm_pdf_fy3022[10] = {
+    0.9883355,
+    0.9713978,
+    0.9526381,
+    0.9365803,
+    0.9239611,
+    0.9145011,
+    0.9047774,
+    0.8960387,
+    0.894389,
+    0.8945876
+  };
+  Double_t hForwardBackwardRatio_Inc_jgberysm_pdf_felx3022[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_Inc_jgberysm_pdf_fely3022[10] = {
+    0.004637817,
+    0.009679135,
+    0.01892279,
+    0.02363861,
+    0.02971647,
+    0.03357101,
+    0.03958737,
+    0.03857385,
+    0.04348525,
+    0.04396508
+  };
+  Double_t hForwardBackwardRatio_Inc_jgberysm_pdf_fehx3022[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_Inc_jgberysm_pdf_fehy3022[10] = {
+    0.006427302,
+    0.0162868,
+    0.01800076,
+    0.02401029,
+    0.03022497,
+    0.03462988,
+    0.03358292,
+    0.03848627,
+    0.03854744,
+    0.03906115
+  };
+  //
+  graph["EPS09"] = TGraphAsymmErrors(10,hForwardBackwardRatio_Inc_jgberysm_pdf_fx3022,hForwardBackwardRatio_Inc_jgberysm_pdf_fy3022,hForwardBackwardRatio_Inc_jgberysm_pdf_felx3022,hForwardBackwardRatio_Inc_jgberysm_pdf_fehx3022,hForwardBackwardRatio_Inc_jgberysm_pdf_fely3022,hForwardBackwardRatio_Inc_jgberysm_pdf_fehy3022);
+  graph.at("EPS09").SetName("EPS09"); graph.at("EPS09").SetTitle("EPS09");
+  //
+  // EPS09+CT14
+  Double_t hForwardBackwardRatio_Inc_uvutiivw_pdf_fx3028[10] = {
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hForwardBackwardRatio_Inc_uvutiivw_pdf_fy3028[10] = {
+    0.9915463,
+    0.9745867,
+    0.9523693,
+    0.9395897,
+    0.9275965,
+    0.917851,
+    0.906818,
+    0.8989404,
+    0.8975152,
+    0.8968738
+  };
+  Double_t hForwardBackwardRatio_Inc_uvutiivw_pdf_felx3028[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_Inc_uvutiivw_pdf_fely3028[10] = {
+    0.01331945,
+    0.0137121,
+    0.01609379,
+    0.02376349,
+    0.0309862,
+    0.03433627,
+    0.03792077,
+    0.03877762,
+    0.04339108,
+    0.04312554
+  };
+  Double_t hForwardBackwardRatio_Inc_uvutiivw_pdf_fehx3028[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_Inc_uvutiivw_pdf_fehy3028[10] = {
+    0.00259253,
+    0.01099324,
+    0.02360109,
+    0.02353227,
+    0.02964918,
+    0.03265796,
+    0.037134,
+    0.04258141,
+    0.03904847,
+    0.04026014
+  };
+  //
+  graph["EPS09_CT14"] = TGraphAsymmErrors(10,hForwardBackwardRatio_Inc_uvutiivw_pdf_fx3028,hForwardBackwardRatio_Inc_uvutiivw_pdf_fy3028,hForwardBackwardRatio_Inc_uvutiivw_pdf_felx3028,hForwardBackwardRatio_Inc_uvutiivw_pdf_fehx3028,hForwardBackwardRatio_Inc_uvutiivw_pdf_fely3028,hForwardBackwardRatio_Inc_uvutiivw_pdf_fehy3028);
+  graph.at("EPS09_CT14").SetName("EPS09_CT14"); graph.at("EPS09_CT14").SetTitle("EPS09_CT14");
+  //
+  // nCTEQ15
+  Double_t hForwardBackwardRatio_Inc_mhpryjdn_pdf_fx3028[10] = {
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hForwardBackwardRatio_Inc_mhpryjdn_pdf_fy3028[10] = {
+    0.9845684,
+    0.9438345,
+    0.9123552,
+    0.8820625,
+    0.8556178,
+    0.8334935,
+    0.8130121,
+    0.797371,
+    0.7845626,
+    0.7768694
+  };
+  Double_t hForwardBackwardRatio_Inc_mhpryjdn_pdf_felx3028[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_Inc_mhpryjdn_pdf_fely3028[10] = {
+    0.009844003,
+    0.01828313,
+    0.02832079,
+    0.03808075,
+    0.04779101,
+    0.05521187,
+    0.06331587,
+    0.06924665,
+    0.07303691,
+    0.08167949
+  };
+  Double_t hForwardBackwardRatio_Inc_mhpryjdn_pdf_fehx3028[10] = {
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hForwardBackwardRatio_Inc_mhpryjdn_pdf_fehy3028[10] = {
+    0.006368638,
+    0.02274531,
+    0.0280755,
+    0.04156621,
+    0.04933252,
+    0.05831828,
+    0.05870321,
+    0.06395784,
+    0.06685638,
+    0.07051238
+  };
+  //
+  graph["nCTEQ15"] = TGraphAsymmErrors(10,hForwardBackwardRatio_Inc_mhpryjdn_pdf_fx3028,hForwardBackwardRatio_Inc_mhpryjdn_pdf_fy3028,hForwardBackwardRatio_Inc_mhpryjdn_pdf_felx3028,hForwardBackwardRatio_Inc_mhpryjdn_pdf_fehx3028,hForwardBackwardRatio_Inc_mhpryjdn_pdf_fely3028,hForwardBackwardRatio_Inc_mhpryjdn_pdf_fehy3028);
+  graph.at("nCTEQ15").SetName("nCTEQ15"); graph.at("nCTEQ15").SetTitle("nCTEQ15");
   //
 };
 
@@ -488,13 +1413,13 @@ void A3(GraphMap& graph)
 void chasym(GraphMap& graph)
 {
   //
-  // CT14
-  Double_t hasym_bqsqscsc_pdf_fx3007[24] = {
-    -2.7,
+  // CT10
+  Double_t hChargeAsymmetry_ybwcoktj_pdf_fx3001[24] = {
+    -2.73,
     -2.5,
     -2.3,
-    -2.1,
-    -1.9,
+    -2.065,
+    -1.865,
     -1.7,
     -1.5,
     -1.3,
@@ -513,18 +1438,179 @@ void chasym(GraphMap& graph)
     1.3,
     1.5,
     1.7,
-    1.9
+    1.865
   };
-  Double_t hasym_bqsqscsc_pdf_fy3007[24] = {
-    -0.06318444,
+  Double_t hChargeAsymmetry_ybwcoktj_pdf_fy3001[24] = {
+    -0.05745162,
+    -0.003995012,
+    0.02767218,
+    0.04932503,
+    0.06349822,
+    0.06930099,
+    0.07197335,
+    0.0752468,
+    0.07621744,
+    0.07665898,
+    0.07986289,
+    0.0841915,
+    0.08619788,
+    0.09189167,
+    0.09953642,
+    0.1058764,
+    0.1189975,
+    0.1332857,
+    0.1478302,
+    0.1635274,
+    0.1841899,
+    0.2030599,
+    0.2197238,
+    0.2340056
+  };
+  Double_t hChargeAsymmetry_ybwcoktj_pdf_felx3001[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hChargeAsymmetry_ybwcoktj_pdf_fely3001[24] = {
+    0.008172894,
+    0.007034251,
+    0.007726056,
+    0.006534368,
+    0.006635511,
+    0.004463432,
+    0.003086797,
+    0.005103355,
+    0.003935874,
+    0.003938906,
+    0.004728745,
+    0.005601865,
+    0.003454078,
+    0.004059883,
+    0.004649706,
+    0.006688607,
+    0.007771088,
+    0.007035237,
+    0.005085161,
+    0.007760473,
+    0.008313895,
+    0.008741145,
+    0.008681871,
+    0.009975756
+  };
+  Double_t hChargeAsymmetry_ybwcoktj_pdf_fehx3001[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hChargeAsymmetry_ybwcoktj_pdf_fehy3001[24] = {
+    0.006321718,
+    0.006029203,
+    0.005640574,
+    0.00378139,
+    0.004210246,
+    0.004848858,
+    0.004505224,
+    0.003811625,
+    0.003703784,
+    0.00497975,
+    0.004154843,
+    0.003024599,
+    0.00610297,
+    0.006472902,
+    0.005513537,
+    0.004775409,
+    0.004920045,
+    0.00517754,
+    0.007945821,
+    0.006059219,
+    0.006048743,
+    0.007331128,
+    0.00767881,
+    0.00698055
+  };
+  //
+  graph["CT10"] = TGraphAsymmErrors(24,hChargeAsymmetry_ybwcoktj_pdf_fx3001,hChargeAsymmetry_ybwcoktj_pdf_fy3001,hChargeAsymmetry_ybwcoktj_pdf_felx3001,hChargeAsymmetry_ybwcoktj_pdf_fehx3001,hChargeAsymmetry_ybwcoktj_pdf_fely3001,hChargeAsymmetry_ybwcoktj_pdf_fehy3001);
+  graph.at("CT10").SetName("CT10"); graph.at("CT10").SetTitle("CT10");
+  //
+  // CT14
+  Double_t hChargeAsymmetry_ldqzhzoq_pdf_fx3007[24] = {
+    -2.73,
+    -2.5,
+    -2.3,
+    -2.065,
+    -1.865,
+    -1.7,
+    -1.5,
+    -1.3,
+    -1.1,
+    -0.9,
+    -0.7,
+    -0.5,
+    -0.3,
+    -0.1,
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hChargeAsymmetry_ldqzhzoq_pdf_fy3007[24] = {
+    -0.07155278,
     -0.01589522,
     0.01801727,
-    0.03760057,
-    0.0540266,
+    0.04134851,
+    0.05519535,
     0.06399921,
     0.06582614,
     0.0700032,
-    0.07114337,
+    0.07114343,
     0.07349624,
     0.07562229,
     0.08150449,
@@ -536,12 +1622,17 @@ void chasym(GraphMap& graph)
     0.1297958,
     0.1439889,
     0.1592921,
-    0.1800363,
+    0.1800364,
     0.2008518,
     0.2178251,
-    0.2375786
+    0.2343873
   };
-  Double_t hasym_bqsqscsc_pdf_felx3007[24] = {
+  Double_t hChargeAsymmetry_ldqzhzoq_pdf_felx3007[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
     0.1,
     0.1,
     0.1,
@@ -560,40 +1651,40 @@ void chasym(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1
+    0.065
   };
-  Double_t hasym_bqsqscsc_pdf_fely3007[24] = {
-    0.01680792,
-    0.01658499,
-    0.01543082,
-    0.01442566,
-    0.009589367,
-    0.01272259,
-    0.006582693,
-    0.006930171,
-    0.004457429,
-    0.006841331,
-    0.002607321,
-    0.004965829,
-    0.00156294,
-    0.001624078,
-    0.005968516,
-    0.002533848,
-    0.004694472,
-    0.006004452,
-    0.003363451,
-    0.005703923,
-    0.005508519,
-    0.007976167,
-    0.007577457,
-    0.009239419
+  Double_t hChargeAsymmetry_ldqzhzoq_pdf_fely3007[24] = {
+    0.01640992,
+    0.01656993,
+    0.01529579,
+    0.01329063,
+    0.008770278,
+    0.01271762,
+    0.006636861,
+    0.00693521,
+    0.004455452,
+    0.006719878,
+    0.002639615,
+    0.004892391,
+    0.001617881,
+    0.00152979,
+    0.005302792,
+    0.002757896,
+    0.004196383,
+    0.005665149,
+    0.003542824,
+    0.005745656,
+    0.005477926,
+    0.00789516,
+    0.007181367,
+    0.01120467
   };
-  Double_t hasym_bqsqscsc_pdf_fehx3007[24] = {
+  Double_t hChargeAsymmetry_ldqzhzoq_pdf_fehx3007[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
     0.1,
     0.1,
     0.1,
@@ -612,50 +1703,45 @@ void chasym(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1
+    0.065
   };
-  Double_t hasym_bqsqscsc_pdf_fehy3007[24] = {
-    0.01483065,
-    0.01386152,
-    0.01171673,
-    0.01118697,
-    0.01201898,
-    0.006355976,
-    0.009515319,
-    0.006857597,
-    0.007316453,
-    0.003131979,
-    0.005291729,
-    0.002133361,
-    0.006010987,
-    0.005527225,
-    0.00254681,
-    0.006326125,
-    0.00465452,
-    0.004094828,
-    0.006283891,
-    0.008817832,
-    0.008130568,
-    0.008118411,
-    0.008238215,
-    0.007873712
+  Double_t hChargeAsymmetry_ldqzhzoq_pdf_fehy3007[24] = {
+    0.01445314,
+    0.01400835,
+    0.01196969,
+    0.01098568,
+    0.01284233,
+    0.005985808,
+    0.009473188,
+    0.007059305,
+    0.006920545,
+    0.00284062,
+    0.005346269,
+    0.002201703,
+    0.005602796,
+    0.005546076,
+    0.002621101,
+    0.005295538,
+    0.004752364,
+    0.003909942,
+    0.006509513,
+    0.008335826,
+    0.008200746,
+    0.00807398,
+    0.008342326,
+    0.008659757
   };
   //
-  graph["CT14"] = TGraphAsymmErrors(24,hasym_bqsqscsc_pdf_fx3007,hasym_bqsqscsc_pdf_fy3007,hasym_bqsqscsc_pdf_felx3007,hasym_bqsqscsc_pdf_fehx3007,hasym_bqsqscsc_pdf_fely3007,hasym_bqsqscsc_pdf_fehy3007);
+  graph["CT14"] = TGraphAsymmErrors(24,hChargeAsymmetry_ldqzhzoq_pdf_fx3007,hChargeAsymmetry_ldqzhzoq_pdf_fy3007,hChargeAsymmetry_ldqzhzoq_pdf_felx3007,hChargeAsymmetry_ldqzhzoq_pdf_fehx3007,hChargeAsymmetry_ldqzhzoq_pdf_fely3007,hChargeAsymmetry_ldqzhzoq_pdf_fehy3007);
   graph.at("CT14").SetName("CT14"); graph.at("CT14").SetTitle("CT14");
   //
   // EPPS16
-  Double_t hasym_zjnghkjm_pdf_fx3008[24] = {
-    -2.7,
+  Double_t hChargeAsymmetry_cdsribeo_pdf_fx3013[24] = {
+    -2.73,
     -2.5,
     -2.3,
-    -2.1,
-    -1.9,
+    -2.065,
+    -1.865,
     -1.7,
     -1.5,
     -1.3,
@@ -674,18 +1760,18 @@ void chasym(GraphMap& graph)
     1.3,
     1.5,
     1.7,
-    1.9
+    1.865
   };
-  Double_t hasym_zjnghkjm_pdf_fy3008[24] = {
-    -0.07715488,
+  Double_t hChargeAsymmetry_cdsribeo_pdf_fy3013[24] = {
+    -0.08667751,
     -0.0274006,
     0.009630932,
-    0.03442881,
-    0.05189469,
+    0.03763478,
+    0.05471157,
     0.06475345,
     0.06939717,
     0.0740324,
-    0.07401791,
+    0.07401797,
     0.07812037,
     0.08038257,
     0.08285706,
@@ -700,9 +1786,14 @@ void chasym(GraphMap& graph)
     0.1763894,
     0.1928174,
     0.2091115,
-    0.2324755
+    0.2303163
   };
-  Double_t hasym_zjnghkjm_pdf_felx3008[24] = {
+  Double_t hChargeAsymmetry_cdsribeo_pdf_felx3013[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
     0.1,
     0.1,
     0.1,
@@ -721,40 +1812,40 @@ void chasym(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1
+    0.065
   };
-  Double_t hasym_zjnghkjm_pdf_fely3008[24] = {
-    0.0287873,
-    0.02307633,
-    0.02690066,
-    0.02286983,
-    0.01490786,
-    0.02003321,
-    0.01327702,
-    0.01197747,
-    0.009692388,
-    0.006975796,
-    0.005877983,
-    0.008416217,
-    0.003460386,
-    0.01025355,
-    0.009060446,
-    0.001385985,
-    0.00591794,
-    0.006955472,
-    0.01124878,
-    0.006777241,
-    0.01525298,
-    0.009718967,
-    0.007990946,
-    0.0138091
+  Double_t hChargeAsymmetry_cdsribeo_pdf_fely3013[24] = {
+    0.02505401,
+    0.02253089,
+    0.02346812,
+    0.01681451,
+    0.01629557,
+    0.01994561,
+    0.01070967,
+    0.01052686,
+    0.006861216,
+    0.009447283,
+    0.004382114,
+    0.008207733,
+    0.005209051,
+    0.006822191,
+    0.004256949,
+    0.002232166,
+    0.006060519,
+    0.01029267,
+    0.008461741,
+    0.00305836,
+    0.01243111,
+    0.01209599,
+    0.006958845,
+    0.01793699
   };
-  Double_t hasym_zjnghkjm_pdf_fehx3008[24] = {
+  Double_t hChargeAsymmetry_cdsribeo_pdf_fehx3013[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
     0.1,
     0.1,
     0.1,
@@ -773,56 +1864,45 @@ void chasym(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1
+    0.065
   };
-  Double_t hasym_zjnghkjm_pdf_fehy3008[24] = {
-    0.01953938,
-    0.02216871,
-    0.01755173,
-    0.01707928,
-    0.02023037,
-    0.01238888,
-    0.01473403,
-    0.01022396,
-    0.008334403,
-    0.008575086,
-    0.006205467,
-    0.003732557,
-    0.008513096,
-    0.00332226,
-    0.005309982,
-    0.01811566,
-    0.007196856,
-    0.01019247,
-    0.008370687,
-    0.01093576,
-    0.006046738,
-    0.01494573,
-    0.01505394,
-    0.01024053
+  Double_t hChargeAsymmetry_cdsribeo_pdf_fehy3013[24] = {
+    0.0225155,
+    0.02218969,
+    0.02017949,
+    0.02120396,
+    0.01687301,
+    0.01100045,
+    0.01392376,
+    0.01005466,
+    0.009319989,
+    0.005687736,
+    0.006251512,
+    0.004092012,
+    0.003793915,
+    0.005145879,
+    0.006937613,
+    0.01069,
+    0.006874573,
+    0.004172767,
+    0.00917829,
+    0.01365604,
+    0.009130937,
+    0.01035149,
+    0.01355551,
+    0.008266719
   };
   //
-  graph["EPPS16"] = TGraphAsymmErrors(24,hasym_zjnghkjm_pdf_fx3008,hasym_zjnghkjm_pdf_fy3008,hasym_zjnghkjm_pdf_felx3008,hasym_zjnghkjm_pdf_fehx3008,hasym_zjnghkjm_pdf_fely3008,hasym_zjnghkjm_pdf_fehy3008);
+  graph["EPPS16"] = TGraphAsymmErrors(24,hChargeAsymmetry_cdsribeo_pdf_fx3013,hChargeAsymmetry_cdsribeo_pdf_fy3013,hChargeAsymmetry_cdsribeo_pdf_felx3013,hChargeAsymmetry_cdsribeo_pdf_fehx3013,hChargeAsymmetry_cdsribeo_pdf_fely3013,hChargeAsymmetry_cdsribeo_pdf_fehy3013);
   graph.at("EPPS16").SetName("EPPS16"); graph.at("EPPS16").SetTitle("EPPS16");
   //
-};
-
-
-void Wm(GraphMap& graph)
-{
-  //
-  // CT14
-  Double_t hrebin_ottriune_pdf_fx3004[24] = {
-    -2.7,
+  // EPS09
+  Double_t hChargeAsymmetry_tnhochwg_pdf_fx3019[24] = {
+    -2.73,
     -2.5,
     -2.3,
-    -2.1,
-    -1.9,
+    -2.065,
+    -1.865,
     -1.7,
     -1.5,
     -1.3,
@@ -841,14 +1921,664 @@ void Wm(GraphMap& graph)
     1.3,
     1.5,
     1.7,
-    1.9
+    1.865
   };
-  Double_t hrebin_ottriune_pdf_fy3004[24] = {
-    106.6235,
+  Double_t hChargeAsymmetry_tnhochwg_pdf_fy3019[24] = {
+    -0.07267374,
+    -0.01545634,
+    0.02137616,
+    0.04696335,
+    0.06298075,
+    0.07005699,
+    0.07526799,
+    0.07891734,
+    0.07852183,
+    0.0814039,
+    0.08395101,
+    0.08464652,
+    0.08682069,
+    0.09162742,
+    0.09583712,
+    0.1042726,
+    0.1165445,
+    0.1294368,
+    0.1429516,
+    0.1594765,
+    0.1800003,
+    0.1955927,
+    0.2119318,
+    0.2312363
+  };
+  Double_t hChargeAsymmetry_tnhochwg_pdf_felx3019[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hChargeAsymmetry_tnhochwg_pdf_fely3019[24] = {
+    0.0177547,
+    0.005418745,
+    0.01092488,
+    0.004993188,
+    0.00680966,
+    0.004758178,
+    0.004372587,
+    0.003853377,
+    0.005821295,
+    0.003726355,
+    0.007356726,
+    0.004565965,
+    0.005321917,
+    0.00405479,
+    0.006957087,
+    0.006138517,
+    0.005460634,
+    0.006996384,
+    0.007116556,
+    0.009666016,
+    0.008557266,
+    0.006548771,
+    0.009024151,
+    0.008777784
+  };
+  Double_t hChargeAsymmetry_tnhochwg_pdf_fehx3019[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hChargeAsymmetry_tnhochwg_pdf_fehy3019[24] = {
+    0.006347949,
+    0.009050014,
+    0.004410186,
+    0.009665799,
+    0.00928624,
+    0.005786504,
+    0.005672104,
+    0.006243966,
+    0.003147399,
+    0.0056536,
+    0.003768523,
+    0.005176983,
+    0.006058768,
+    0.008255532,
+    0.004628761,
+    0.006885335,
+    0.006131568,
+    0.006494814,
+    0.007258941,
+    0.004690806,
+    0.007082197,
+    0.009200171,
+    0.008488748,
+    0.01069308
+  };
+  //
+  graph["EPS09"] = TGraphAsymmErrors(24,hChargeAsymmetry_tnhochwg_pdf_fx3019,hChargeAsymmetry_tnhochwg_pdf_fy3019,hChargeAsymmetry_tnhochwg_pdf_felx3019,hChargeAsymmetry_tnhochwg_pdf_fehx3019,hChargeAsymmetry_tnhochwg_pdf_fely3019,hChargeAsymmetry_tnhochwg_pdf_fehy3019);
+  graph.at("EPS09").SetName("EPS09"); graph.at("EPS09").SetTitle("EPS09");
+  //
+  // EPS09+CT14
+  Double_t hChargeAsymmetry_fatjmvxd_pdf_fx3025[24] = {
+    -2.73,
+    -2.5,
+    -2.3,
+    -2.065,
+    -1.865,
+    -1.7,
+    -1.5,
+    -1.3,
+    -1.1,
+    -0.9,
+    -0.7,
+    -0.5,
+    -0.3,
+    -0.1,
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hChargeAsymmetry_fatjmvxd_pdf_fy3025[24] = {
+    -0.08615667,
+    -0.02732624,
+    0.01067394,
+    0.0389911,
+    0.0562661,
+    0.06356526,
+    0.07039393,
+    0.07409987,
+    0.07275145,
+    0.07798667,
+    0.07940401,
+    0.08079844,
+    0.0832569,
+    0.09049083,
+    0.0901695,
+    0.1025523,
+    0.1148291,
+    0.126389,
+    0.1387131,
+    0.15584,
+    0.1773596,
+    0.1932405,
+    0.2110832,
+    0.2327307
+  };
+  Double_t hChargeAsymmetry_fatjmvxd_pdf_felx3025[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hChargeAsymmetry_fatjmvxd_pdf_fely3025[24] = {
+    0.01869096,
+    0.01615769,
+    0.0155714,
+    0.01543195,
+    0.01293693,
+    0.01051885,
+    0.01028756,
+    0.007857718,
+    0.004628518,
+    0.007593681,
+    0.003293168,
+    0.002308719,
+    0.001740532,
+    0.006562475,
+    0.0001106589,
+    0.008640683,
+    0.009116011,
+    0.007131598,
+    0.003129737,
+    0.007638051,
+    0.01113892,
+    0.01501216,
+    0.007171859,
+    0.01569121
+  };
+  Double_t hChargeAsymmetry_fatjmvxd_pdf_fehx3025[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hChargeAsymmetry_fatjmvxd_pdf_fehy3025[24] = {
+    0.01350551,
+    0.01597168,
+    0.01584876,
+    0.01227486,
+    0.009342497,
+    0.009944959,
+    0.007940251,
+    0.006820631,
+    0.008302026,
+    0.003756304,
+    0.005146086,
+    0.007548602,
+    0.006687139,
+    0.003137031,
+    0.0125639,
+    0.002535748,
+    0.003148383,
+    0.002319276,
+    0.009628568,
+    0.0060398,
+    0.005835277,
+    0.01105981,
+    0.01794647,
+    0.005544813
+  };
+  //
+  graph["EPS09_CT14"] = TGraphAsymmErrors(24,hChargeAsymmetry_fatjmvxd_pdf_fx3025,hChargeAsymmetry_fatjmvxd_pdf_fy3025,hChargeAsymmetry_fatjmvxd_pdf_felx3025,hChargeAsymmetry_fatjmvxd_pdf_fehx3025,hChargeAsymmetry_fatjmvxd_pdf_fely3025,hChargeAsymmetry_fatjmvxd_pdf_fehy3025);
+  graph.at("EPS09_CT14").SetName("EPS09_CT14"); graph.at("EPS09_CT14").SetTitle("EPS09_CT14");
+  //
+  // nCTEQ15
+  Double_t hChargeAsymmetry_gtatjwkf_pdf_fx3025[24] = {
+    -2.73,
+    -2.5,
+    -2.3,
+    -2.065,
+    -1.865,
+    -1.7,
+    -1.5,
+    -1.3,
+    -1.1,
+    -0.9,
+    -0.7,
+    -0.5,
+    -0.3,
+    -0.1,
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hChargeAsymmetry_gtatjwkf_pdf_fy3025[24] = {
+    -0.04749125,
+    0.004588801,
+    0.03153526,
+    0.05583118,
+    0.0662519,
+    0.06924608,
+    0.07165906,
+    0.07370086,
+    0.07248313,
+    0.07447848,
+    0.07612707,
+    0.07406124,
+    0.08057776,
+    0.08018577,
+    0.08698174,
+    0.09660135,
+    0.1072621,
+    0.1183089,
+    0.1296505,
+    0.150034,
+    0.1658379,
+    0.183227,
+    0.2037166,
+    0.2169677
+  };
+  Double_t hChargeAsymmetry_gtatjwkf_pdf_felx3025[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hChargeAsymmetry_gtatjwkf_pdf_fely3025[24] = {
+    0.01673612,
+    0.01942011,
+    0.01752585,
+    0.0121371,
+    0.01252511,
+    0.007961961,
+    0.005977791,
+    0.009491369,
+    0.004956749,
+    0.006325623,
+    0.005776098,
+    0.00290106,
+    0.005577068,
+    0.001351581,
+    0.004924873,
+    0.005332655,
+    0.002205543,
+    0.006303685,
+    0.002332043,
+    0.007343345,
+    0.003745465,
+    0.006770767,
+    0.01215915,
+    0.006293581
+  };
+  Double_t hChargeAsymmetry_gtatjwkf_pdf_fehx3025[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hChargeAsymmetry_gtatjwkf_pdf_fehy3025[24] = {
+    0.0168997,
+    0.01586613,
+    0.01443353,
+    0.01040023,
+    0.008212062,
+    0.009913771,
+    0.01016284,
+    0.003684327,
+    0.007865324,
+    0.006041593,
+    0.004631414,
+    0.006332337,
+    0.003141338,
+    0.007753707,
+    0.002642815,
+    0.002991107,
+    0.005098859,
+    0.003177023,
+    0.008265967,
+    0.00507178,
+    0.0103327,
+    0.007439271,
+    0.008808775,
+    0.01123329
+  };
+  //
+  graph["nCTEQ15"] = TGraphAsymmErrors(24,hChargeAsymmetry_gtatjwkf_pdf_fx3025,hChargeAsymmetry_gtatjwkf_pdf_fy3025,hChargeAsymmetry_gtatjwkf_pdf_felx3025,hChargeAsymmetry_gtatjwkf_pdf_fehx3025,hChargeAsymmetry_gtatjwkf_pdf_fely3025,hChargeAsymmetry_gtatjwkf_pdf_fehy3025);
+  graph.at("nCTEQ15").SetName("nCTEQ15"); graph.at("nCTEQ15").SetTitle("nCTEQ15");
+  //
+};
+
+
+void Wm(GraphMap& graph)
+{
+  //
+  // CT10
+  Double_t hCrossSection_zmoifagl_pdf_fx3002[24] = {
+    -2.73,
+    -2.5,
+    -2.3,
+    -2.065,
+    -1.865,
+    -1.7,
+    -1.5,
+    -1.3,
+    -1.1,
+    -0.9,
+    -0.7,
+    -0.5,
+    -0.3,
+    -0.1,
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hCrossSection_zmoifagl_pdf_fy3002[24] = {
+    105.5686,
+    109.2022,
+    111.5379,
+    113.8549,
+    115.4346,
+    116.9081,
+    118.3103,
+    119.702,
+    120.4224,
+    121.125,
+    121.7395,
+    121.9673,
+    121.9341,
+    121.3069,
+    120.6999,
+    119.7463,
+    118.0501,
+    115.7707,
+    113.7362,
+    111.2636,
+    107.8171,
+    104.5704,
+    101.2876,
+    98.04983
+  };
+  Double_t hCrossSection_zmoifagl_pdf_felx3002[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hCrossSection_zmoifagl_pdf_fely3002[24] = {
+    3.142459,
+    3.374598,
+    3.150546,
+    3.14069,
+    2.908631,
+    3.25217,
+    3.069802,
+    3.281371,
+    3.246677,
+    2.979498,
+    3.41447,
+    3.506985,
+    3.566936,
+    3.551703,
+    3.322252,
+    3.425298,
+    3.37985,
+    3.267958,
+    3.206075,
+    3.194047,
+    2.582831,
+    2.986248,
+    3.034347,
+    2.255049
+  };
+  Double_t hCrossSection_zmoifagl_pdf_fehx3002[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hCrossSection_zmoifagl_pdf_fehy3002[24] = {
+    2.795548,
+    2.484498,
+    2.854298,
+    2.598949,
+    2.526921,
+    2.495704,
+    2.666775,
+    2.642345,
+    2.997867,
+    3.423717,
+    3.333608,
+    3.600642,
+    3.593476,
+    3.837513,
+    3.827476,
+    3.813202,
+    3.470387,
+    3.439163,
+    3.009071,
+    2.621561,
+    2.7094,
+    2.309951,
+    2.034255,
+    2.619239
+  };
+  //
+  graph["CT10"] = TGraphAsymmErrors(24,hCrossSection_zmoifagl_pdf_fx3002,hCrossSection_zmoifagl_pdf_fy3002,hCrossSection_zmoifagl_pdf_felx3002,hCrossSection_zmoifagl_pdf_fehx3002,hCrossSection_zmoifagl_pdf_fely3002,hCrossSection_zmoifagl_pdf_fehy3002);
+  graph.at("CT10").SetName("CT10"); graph.at("CT10").SetTitle("CT10");
+  //
+  // CT14
+  Double_t hCrossSection_npvprqhg_pdf_fx3008[24] = {
+    -2.73,
+    -2.5,
+    -2.3,
+    -2.065,
+    -1.865,
+    -1.7,
+    -1.5,
+    -1.3,
+    -1.1,
+    -0.9,
+    -0.7,
+    -0.5,
+    -0.3,
+    -0.1,
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hCrossSection_npvprqhg_pdf_fy3008[24] = {
+    106.1923,
     109.2612,
     111.269,
-    113.0794,
-    114.3666,
+    113.2661,
+    114.672,
     116.1811,
     117.5182,
     118.9567,
@@ -867,9 +2597,14 @@ void Wm(GraphMap& graph)
     107.6466,
     103.868,
     100.5288,
-    96.33432
+    97.08274
   };
-  Double_t hrebin_ottriune_pdf_felx3004[24] = {
+  Double_t hCrossSection_npvprqhg_pdf_felx3008[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
     0.1,
     0.1,
     0.1,
@@ -888,40 +2623,40 @@ void Wm(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1
+    0.065
   };
-  Double_t hrebin_ottriune_pdf_fely3004[24] = {
-    2.840252,
-    2.660996,
-    2.451546,
-    2.76487,
-    2.793748,
-    3.136542,
-    3.208083,
-    3.460384,
-    3.593485,
-    3.702215,
-    4.267542,
-    3.677515,
-    4.575055,
-    4.131268,
-    4.606698,
-    4.323924,
-    4.300161,
-    3.544509,
-    3.855168,
-    3.783466,
-    3.682013,
-    3.129827,
-    3.158324,
-    2.828977
+  Double_t hCrossSection_npvprqhg_pdf_fely3008[24] = {
+    2.743332,
+    2.683467,
+    2.455439,
+    2.815967,
+    2.683067,
+    3.140758,
+    3.193818,
+    3.451603,
+    3.581651,
+    3.728902,
+    4.249625,
+    3.67883,
+    4.605241,
+    4.106284,
+    4.606298,
+    4.2795,
+    4.315743,
+    3.544907,
+    3.862386,
+    3.739023,
+    3.686988,
+    3.122724,
+    3.180743,
+    2.747004
   };
-  Double_t hrebin_ottriune_pdf_fehx3004[24] = {
+  Double_t hCrossSection_npvprqhg_pdf_fehx3008[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
     0.1,
     0.1,
     0.1,
@@ -940,50 +2675,45 @@ void Wm(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1
+    0.065
   };
-  Double_t hrebin_ottriune_pdf_fehy3004[24] = {
-    2.493692,
-    2.701526,
-    2.789888,
-    2.761362,
-    2.678701,
-    2.421637,
-    2.406398,
-    2.479156,
-    2.505315,
-    2.713139,
-    2.370838,
-    3.155673,
-    2.576394,
-    2.969251,
-    2.661452,
-    2.884452,
-    2.724481,
-    3.232626,
-    2.630046,
-    2.765409,
-    2.547226,
-    2.855971,
-    2.485752,
-    2.811997
+  Double_t hCrossSection_npvprqhg_pdf_fehy3008[24] = {
+    2.487671,
+    2.61565,
+    2.793352,
+    2.503339,
+    2.754433,
+    2.419683,
+    2.425846,
+    2.46715,
+    2.482757,
+    2.778238,
+    2.349076,
+    3.145315,
+    2.608249,
+    2.970173,
+    2.569412,
+    2.855654,
+    2.718821,
+    3.20423,
+    2.662361,
+    2.770398,
+    2.522408,
+    2.844174,
+    2.446744,
+    3.099375
   };
   //
-  graph["CT14"] = TGraphAsymmErrors(24,hrebin_ottriune_pdf_fx3004,hrebin_ottriune_pdf_fy3004,hrebin_ottriune_pdf_felx3004,hrebin_ottriune_pdf_fehx3004,hrebin_ottriune_pdf_fely3004,hrebin_ottriune_pdf_fehy3004);
+  graph["CT14"] = TGraphAsymmErrors(24,hCrossSection_npvprqhg_pdf_fx3008,hCrossSection_npvprqhg_pdf_fy3008,hCrossSection_npvprqhg_pdf_felx3008,hCrossSection_npvprqhg_pdf_fehx3008,hCrossSection_npvprqhg_pdf_fely3008,hCrossSection_npvprqhg_pdf_fehy3008);
   graph.at("CT14").SetName("CT14"); graph.at("CT14").SetTitle("CT14");
   //
   // EPPS16
-  Double_t hrebin_komixkgq_pdf_fx3005[24] = {
-    -2.7,
+  Double_t hCrossSection_bjaglabb_pdf_fx3014[24] = {
+    -2.73,
     -2.5,
     -2.3,
-    -2.1,
-    -1.9,
+    -2.065,
+    -1.865,
     -1.7,
     -1.5,
     -1.3,
@@ -1002,14 +2732,14 @@ void Wm(GraphMap& graph)
     1.3,
     1.5,
     1.7,
-    1.9
+    1.865
   };
-  Double_t hrebin_komixkgq_pdf_fy3005[24] = {
-    110.8993,
+  Double_t hCrossSection_bjaglabb_pdf_fy3014[24] = {
+    110.4337,
     114.162,
     116.3075,
-    117.5622,
-    118.9834,
+    117.8456,
+    119.1601,
     119.4978,
     120.193,
     120.2718,
@@ -1028,9 +2758,14 @@ void Wm(GraphMap& graph)
     96.10363,
     92.67233,
     89.08978,
-    84.8621
+    85.60516
   };
-  Double_t hrebin_komixkgq_pdf_felx3005[24] = {
+  Double_t hCrossSection_bjaglabb_pdf_felx3014[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
     0.1,
     0.1,
     0.1,
@@ -1049,40 +2784,40 @@ void Wm(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1
+    0.065
   };
-  Double_t hrebin_komixkgq_pdf_fely3005[24] = {
-    3.949441,
-    4.02382,
-    3.811979,
-    3.697904,
-    3.997685,
-    3.283902,
-    4.29595,
-    3.946309,
-    4.432483,
-    3.713622,
-    4.237409,
-    4.433664,
-    4.29576,
-    4.359118,
-    5.146361,
-    6.021116,
-    5.956779,
-    5.790454,
-    6.927466,
-    7.989778,
-    7.601526,
-    7.920756,
-    8.597108,
-    8.275235
+  Double_t hCrossSection_bjaglabb_pdf_fely3014[24] = {
+    3.947335,
+    4.013794,
+    3.811035,
+    3.883252,
+    3.794598,
+    3.287636,
+    4.297704,
+    3.95138,
+    4.435338,
+    3.710859,
+    4.226774,
+    4.434425,
+    4.311683,
+    4.350871,
+    5.10673,
+    6.053109,
+    5.960967,
+    5.797005,
+    6.933669,
+    7.973524,
+    7.585964,
+    7.931172,
+    8.594581,
+    8.058616
   };
-  Double_t hrebin_komixkgq_pdf_fehx3005[24] = {
+  Double_t hCrossSection_bjaglabb_pdf_fehx3014[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
     0.1,
     0.1,
     0.1,
@@ -1101,56 +2836,45 @@ void Wm(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1
+    0.065
   };
-  Double_t hrebin_komixkgq_pdf_fehy3005[24] = {
-    4.468165,
-    4.003603,
-    4.136337,
-    4.102,
-    3.522242,
-    4.525729,
-    3.342223,
-    3.643817,
-    3.227115,
-    3.957297,
-    3.813184,
-    3.840866,
-    4.438422,
-    4.81109,
-    4.884134,
-    5.29314,
-    6.102294,
-    6.873145,
-    6.654175,
-    7.198213,
-    7.794038,
-    7.284683,
-    8.078488,
-    8.228171
+  Double_t hCrossSection_bjaglabb_pdf_fehy3014[24] = {
+    4.34022,
+    4.006952,
+    4.167271,
+    3.91298,
+    3.861195,
+    4.487789,
+    3.325002,
+    3.60876,
+    3.14887,
+    3.944057,
+    3.815982,
+    3.840733,
+    4.436207,
+    4.810897,
+    4.884736,
+    5.30371,
+    6.098854,
+    6.88146,
+    6.655506,
+    7.19386,
+    7.793773,
+    7.275551,
+    8.08046,
+    7.88116
   };
   //
-  graph["EPPS16"] = TGraphAsymmErrors(24,hrebin_komixkgq_pdf_fx3005,hrebin_komixkgq_pdf_fy3005,hrebin_komixkgq_pdf_felx3005,hrebin_komixkgq_pdf_fehx3005,hrebin_komixkgq_pdf_fely3005,hrebin_komixkgq_pdf_fehy3005);
+  graph["EPPS16"] = TGraphAsymmErrors(24,hCrossSection_bjaglabb_pdf_fx3014,hCrossSection_bjaglabb_pdf_fy3014,hCrossSection_bjaglabb_pdf_felx3014,hCrossSection_bjaglabb_pdf_fehx3014,hCrossSection_bjaglabb_pdf_fely3014,hCrossSection_bjaglabb_pdf_fehy3014);
   graph.at("EPPS16").SetName("EPPS16"); graph.at("EPPS16").SetTitle("EPPS16");
   //
-};
-
-
-void Wp(GraphMap& graph)
-{
-  //
-  // CT14
-  Double_t hrebin_zehygmyt_pdf_fx3001[24] = {
-    -2.7,
+  // EPS09
+  Double_t hCrossSection_oevrnynn_pdf_fx3020[24] = {
+    -2.73,
     -2.5,
     -2.3,
-    -2.1,
-    -1.9,
+    -2.065,
+    -1.865,
     -1.7,
     -1.5,
     -1.3,
@@ -1169,14 +2893,664 @@ void Wp(GraphMap& graph)
     1.3,
     1.5,
     1.7,
-    1.9
+    1.865
   };
-  Double_t hrebin_zehygmyt_pdf_fy3001[24] = {
-    93.95037,
+  Double_t hCrossSection_oevrnynn_pdf_fy3020[24] = {
+    108.8897,
+    113.1569,
+    115.6539,
+    117.8719,
+    119.4978,
+    120.5304,
+    121.3744,
+    121.7736,
+    121.856,
+    121.48,
+    120.928,
+    119.8508,
+    118.5499,
+    116.9519,
+    115.0521,
+    112.9582,
+    110.1957,
+    107.635,
+    104.7223,
+    101.6473,
+    98.08665,
+    94.60501,
+    91.35459,
+    87.70553
+  };
+  Double_t hCrossSection_oevrnynn_pdf_felx3020[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hCrossSection_oevrnynn_pdf_fely3020[24] = {
+    3.409916,
+    3.868354,
+    3.154699,
+    3.601285,
+    3.553036,
+    3.539447,
+    3.599847,
+    3.564487,
+    3.341037,
+    3.576766,
+    3.596358,
+    3.574719,
+    3.928312,
+    3.950273,
+    3.393617,
+    3.615608,
+    4.130755,
+    4.002529,
+    3.82152,
+    3.910299,
+    4.324309,
+    4.090312,
+    4.575758,
+    4.029794
+  };
+  Double_t hCrossSection_oevrnynn_pdf_fehx3020[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hCrossSection_oevrnynn_pdf_fehy3020[24] = {
+    2.980274,
+    2.751558,
+    3.285115,
+    2.812004,
+    3.337021,
+    2.890186,
+    2.887406,
+    3.041649,
+    3.409038,
+    3.507629,
+    3.751285,
+    3.768583,
+    3.737125,
+    3.689679,
+    4.319731,
+    4.575228,
+    3.849301,
+    3.854644,
+    4.013949,
+    4.209898,
+    3.616435,
+    3.575888,
+    3.531257,
+    3.945939
+  };
+  //
+  graph["EPS09"] = TGraphAsymmErrors(24,hCrossSection_oevrnynn_pdf_fx3020,hCrossSection_oevrnynn_pdf_fy3020,hCrossSection_oevrnynn_pdf_felx3020,hCrossSection_oevrnynn_pdf_fehx3020,hCrossSection_oevrnynn_pdf_fely3020,hCrossSection_oevrnynn_pdf_fehy3020);
+  graph.at("EPS09").SetName("EPS09"); graph.at("EPS09").SetTitle("EPS09");
+  //
+  // EPS09+CT14
+  Double_t hCrossSection_lhddkgtt_pdf_fx3026[24] = {
+    -2.73,
+    -2.5,
+    -2.3,
+    -2.065,
+    -1.865,
+    -1.7,
+    -1.5,
+    -1.3,
+    -1.1,
+    -0.9,
+    -0.7,
+    -0.5,
+    -0.3,
+    -0.1,
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hCrossSection_lhddkgtt_pdf_fy3026[24] = {
+    109.3512,
+    113.2127,
+    115.391,
+    117.1634,
+    118.768,
+    119.5726,
+    120.463,
+    120.8748,
+    121.1789,
+    120.801,
+    120.3098,
+    119.5751,
+    118.0941,
+    116.5533,
+    115.6088,
+    112.6704,
+    109.6636,
+    107.2725,
+    104.6744,
+    101.2576,
+    97.38716,
+    93.97879,
+    90.41227,
+    86.60219
+  };
+  Double_t hCrossSection_lhddkgtt_pdf_felx3026[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hCrossSection_lhddkgtt_pdf_fely3026[24] = {
+    2.79609,
+    3.258941,
+    3.367789,
+    3.046605,
+    3.218478,
+    3.045571,
+    3.987658,
+    3.513361,
+    4.113248,
+    3.89955,
+    3.863848,
+    4.583197,
+    4.236184,
+    4.134798,
+    6.202505,
+    3.812545,
+    3.577894,
+    3.850655,
+    4.857002,
+    4.335656,
+    4.087597,
+    4.528709,
+    4.786223,
+    3.743264
+  };
+  Double_t hCrossSection_lhddkgtt_pdf_fehx3026[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hCrossSection_lhddkgtt_pdf_fehy3026[24] = {
+    3.030855,
+    2.97848,
+    3.079751,
+    3.636891,
+    3.082729,
+    3.090894,
+    2.749773,
+    3.009918,
+    2.822733,
+    2.960735,
+    3.167353,
+    2.649804,
+    3.210936,
+    3.263778,
+    1.87854,
+    4.287434,
+    4.433728,
+    4.253911,
+    3.284796,
+    4.193486,
+    4.42504,
+    5.0826,
+    3.93867,
+    4.677408
+  };
+  //
+  graph["EPS09_CT14"] = TGraphAsymmErrors(24,hCrossSection_lhddkgtt_pdf_fx3026,hCrossSection_lhddkgtt_pdf_fy3026,hCrossSection_lhddkgtt_pdf_felx3026,hCrossSection_lhddkgtt_pdf_fehx3026,hCrossSection_lhddkgtt_pdf_fely3026,hCrossSection_lhddkgtt_pdf_fehy3026);
+  graph.at("EPS09_CT14").SetName("EPS09_CT14"); graph.at("EPS09_CT14").SetTitle("EPS09_CT14");
+  //
+  // nCTEQ15
+  Double_t hCrossSection_cddegwek_pdf_fx3026[24] = {
+    -2.73,
+    -2.5,
+    -2.3,
+    -2.065,
+    -1.865,
+    -1.7,
+    -1.5,
+    -1.3,
+    -1.1,
+    -0.9,
+    -0.7,
+    -0.5,
+    -0.3,
+    -0.1,
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hCrossSection_cddegwek_pdf_fy3026[24] = {
+    108.8755,
+    113.2587,
+    115.9851,
+    118.1488,
+    119.6237,
+    120.9316,
+    121.5356,
+    121.5387,
+    121.4287,
+    120.4911,
+    119.2498,
+    117.8252,
+    115.3809,
+    113.1418,
+    110.5728,
+    107.0026,
+    103.644,
+    100.3832,
+    96.94868,
+    92.74773,
+    88.98379,
+    85.26247,
+    81.17089,
+    77.93192
+  };
+  Double_t hCrossSection_cddegwek_pdf_felx3026[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hCrossSection_cddegwek_pdf_fely3026[24] = {
+    3.587656,
+    4.510206,
+    3.655401,
+    3.600867,
+    2.822898,
+    3.80028,
+    3.710973,
+    3.473714,
+    4.971663,
+    5.031442,
+    6.150775,
+    6.873864,
+    7.107819,
+    7.832084,
+    7.98454,
+    8.416297,
+    8.373824,
+    8.281893,
+    8.462882,
+    7.949538,
+    8.325821,
+    7.389855,
+    7.37931,
+    7.096425
+  };
+  Double_t hCrossSection_cddegwek_pdf_fehx3026[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hCrossSection_cddegwek_pdf_fehy3026[24] = {
+    4.234571,
+    3.930408,
+    4.583869,
+    3.313927,
+    4.117335,
+    1.998124,
+    2.107168,
+    2.416704,
+    2.15679,
+    3.131576,
+    3.108886,
+    3.766473,
+    4.319901,
+    4.410402,
+    5.091961,
+    5.788723,
+    5.260598,
+    5.795774,
+    5.635366,
+    6.078609,
+    5.484399,
+    5.750447,
+    5.473441,
+    5.687575
+  };
+  //
+  graph["nCTEQ15"] = TGraphAsymmErrors(24,hCrossSection_cddegwek_pdf_fx3026,hCrossSection_cddegwek_pdf_fy3026,hCrossSection_cddegwek_pdf_felx3026,hCrossSection_cddegwek_pdf_fehx3026,hCrossSection_cddegwek_pdf_fely3026,hCrossSection_cddegwek_pdf_fehy3026);
+  graph.at("nCTEQ15").SetName("nCTEQ15"); graph.at("nCTEQ15").SetTitle("nCTEQ15");
+  //
+};
+
+
+void Wp(GraphMap& graph)
+{
+  //
+  // CT10
+  Double_t hCrossSection_lfsoptam_pdf_fx3003[24] = {
+    -2.73,
+    -2.5,
+    -2.3,
+    -2.065,
+    -1.865,
+    -1.7,
+    -1.5,
+    -1.3,
+    -1.1,
+    -0.9,
+    -0.7,
+    -0.5,
+    -0.3,
+    -0.1,
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hCrossSection_lfsoptam_pdf_fy3003[24] = {
+    94.09746,
+    108.3332,
+    117.8866,
+    125.6694,
+    131.0884,
+    134.3183,
+    136.6615,
+    139.1823,
+    140.2935,
+    141.2375,
+    142.8721,
+    144.3926,
+    144.9379,
+    145.857,
+    147.384,
+    148.1054,
+    149.9403,
+    151.3777,
+    153.197,
+    154.7668,
+    156.5021,
+    157.8594,
+    158.3322,
+    157.9568
+  };
+  Double_t hCrossSection_lfsoptam_pdf_felx3003[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hCrossSection_lfsoptam_pdf_fely3003[24] = {
+    2.926236,
+    3.38713,
+    3.377906,
+    3.522558,
+    3.605293,
+    3.565943,
+    3.139194,
+    3.886125,
+    3.543541,
+    3.177089,
+    3.626924,
+    4.428754,
+    3.631118,
+    3.619588,
+    3.554303,
+    4.028711,
+    4.321158,
+    3.977866,
+    3.400802,
+    4.365875,
+    3.854538,
+    4.368141,
+    4.957148,
+    3.966726
+  };
+  Double_t hCrossSection_lfsoptam_pdf_fehx3003[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hCrossSection_lfsoptam_pdf_fehy3003[24] = {
+    2.321592,
+    2.357145,
+    2.583419,
+    2.640331,
+    2.481535,
+    2.72917,
+    2.919446,
+    2.875544,
+    3.219282,
+    3.721253,
+    3.582269,
+    3.696673,
+    4.20906,
+    4.760091,
+    4.435069,
+    4.141606,
+    3.86728,
+    4.03591,
+    4.479613,
+    3.491204,
+    3.854093,
+    3.832565,
+    3.06997,
+    4.088739
+  };
+  //
+  graph["CT10"] = TGraphAsymmErrors(24,hCrossSection_lfsoptam_pdf_fx3003,hCrossSection_lfsoptam_pdf_fy3003,hCrossSection_lfsoptam_pdf_felx3003,hCrossSection_lfsoptam_pdf_fehx3003,hCrossSection_lfsoptam_pdf_fely3003,hCrossSection_lfsoptam_pdf_fehy3003);
+  graph.at("CT10").SetName("CT10"); graph.at("CT10").SetTitle("CT10");
+  //
+  // CT14
+  Double_t hCrossSection_kqucrfrg_pdf_fx3009[24] = {
+    -2.73,
+    -2.5,
+    -2.3,
+    -2.065,
+    -1.865,
+    -1.7,
+    -1.5,
+    -1.3,
+    -1.1,
+    -0.9,
+    -0.7,
+    -0.5,
+    -0.3,
+    -0.1,
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hCrossSection_kqucrfrg_pdf_fy3009[24] = {
+    92.01037,
     105.8421,
     115.352,
-    121.9154,
-    127.4301,
+    123.0369,
+    128.0703,
     132.0689,
     134.08,
     136.8651,
@@ -1195,9 +3569,14 @@ void Wp(GraphMap& graph)
     154.9178,
     156.0788,
     156.5206,
-    156.3719
+    156.5252
   };
-  Double_t hrebin_zehygmyt_pdf_felx3001[24] = {
+  Double_t hCrossSection_kqucrfrg_pdf_felx3009[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
     0.1,
     0.1,
     0.1,
@@ -1216,40 +3595,40 @@ void Wp(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1
+    0.065
   };
-  Double_t hrebin_zehygmyt_pdf_fely3001[24] = {
-    3.33991,
-    3.607972,
-    3.642282,
-    4.017155,
-    3.514128,
-    4.913676,
-    3.744096,
-    4.323688,
-    3.918787,
-    4.979105,
-    4.763194,
-    4.652795,
-    4.843312,
-    4.294866,
-    6.054947,
-    4.572709,
-    5.088477,
-    4.711209,
-    4.463597,
-    4.316869,
-    4.467268,
-    3.910858,
-    4.016873,
-    3.845221
+  Double_t hCrossSection_kqucrfrg_pdf_fely3009[24] = {
+    3.186113,
+    3.63055,
+    3.620051,
+    4.041633,
+    3.219129,
+    4.902348,
+    3.771391,
+    4.271818,
+    3.976564,
+    4.979656,
+    4.700051,
+    4.671418,
+    4.863127,
+    4.259113,
+    6.099741,
+    4.555659,
+    5.118281,
+    4.668178,
+    4.512683,
+    4.292895,
+    4.459509,
+    3.901455,
+    4.00455,
+    3.841644
   };
-  Double_t hrebin_zehygmyt_pdf_fehx3001[24] = {
+  Double_t hCrossSection_kqucrfrg_pdf_fehx3009[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
     0.1,
     0.1,
     0.1,
@@ -1268,50 +3647,45 @@ void Wp(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1
+    0.065
   };
-  Double_t hrebin_zehygmyt_pdf_fehy3001[24] = {
-    2.771411,
-    3.155527,
-    3.244552,
-    3.317042,
-    3.799553,
-    2.766068,
-    3.876892,
-    3.328636,
-    3.913008,
-    2.914584,
-    3.553115,
-    3.440155,
-    3.643017,
-    4.181464,
-    2.621384,
-    3.801571,
-    3.001837,
-    3.622283,
-    3.481063,
-    3.617159,
-    3.304815,
-    3.356876,
-    3.157698,
-    3.30962
+  Double_t hCrossSection_kqucrfrg_pdf_fehy3009[24] = {
+    2.744233,
+    3.187349,
+    3.30758,
+    3.22213,
+    4.161235,
+    2.743994,
+    3.875071,
+    3.389816,
+    3.851261,
+    2.954023,
+    3.540088,
+    3.451575,
+    3.576486,
+    4.187149,
+    2.644628,
+    3.71896,
+    3.010514,
+    3.635726,
+    3.496277,
+    3.623978,
+    3.269356,
+    3.35199,
+    3.240258,
+    3.359637
   };
   //
-  graph["CT14"] = TGraphAsymmErrors(24,hrebin_zehygmyt_pdf_fx3001,hrebin_zehygmyt_pdf_fy3001,hrebin_zehygmyt_pdf_felx3001,hrebin_zehygmyt_pdf_fehx3001,hrebin_zehygmyt_pdf_fely3001,hrebin_zehygmyt_pdf_fehy3001);
+  graph["CT14"] = TGraphAsymmErrors(24,hCrossSection_kqucrfrg_pdf_fx3009,hCrossSection_kqucrfrg_pdf_fy3009,hCrossSection_kqucrfrg_pdf_felx3009,hCrossSection_kqucrfrg_pdf_fehx3009,hCrossSection_kqucrfrg_pdf_fely3009,hCrossSection_kqucrfrg_pdf_fehy3009);
   graph.at("CT14").SetName("CT14"); graph.at("CT14").SetTitle("CT14");
   //
   // EPPS16
-  Double_t hrebin_rpvwkpgu_pdf_fx3002[24] = {
-    -2.7,
+  Double_t hCrossSection_utlipgfp_pdf_fx3015[24] = {
+    -2.73,
     -2.5,
     -2.3,
-    -2.1,
-    -1.9,
+    -2.065,
+    -1.865,
     -1.7,
     -1.5,
     -1.3,
@@ -1330,14 +3704,14 @@ void Wp(GraphMap& graph)
     1.3,
     1.5,
     1.7,
-    1.9
+    1.865
   };
-  Double_t hrebin_rpvwkpgu_pdf_fy3002[24] = {
-    95.01221,
+  Double_t hCrossSection_utlipgfp_pdf_fy3015[24] = {
+    92.81647,
     108.0727,
     118.5696,
-    125.9459,
-    132.0086,
+    127.0627,
+    132.9537,
     136.045,
     138.1191,
     139.5036,
@@ -1356,9 +3730,14 @@ void Wp(GraphMap& graph)
     137.2679,
     136.9469,
     136.2006,
-    136.2699
+    136.8373
   };
-  Double_t hrebin_rpvwkpgu_pdf_felx3002[24] = {
+  Double_t hCrossSection_utlipgfp_pdf_felx3015[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
     0.1,
     0.1,
     0.1,
@@ -1377,40 +3756,40 @@ void Wp(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1
+    0.065
   };
-  Double_t hrebin_rpvwkpgu_pdf_fely3002[24] = {
-    4.576611,
-    4.38709,
-    5.75366,
-    5.499253,
-    4.471643,
-    5.710054,
-    4.811932,
-    5.008954,
-    5.382758,
-    4.359257,
-    4.719931,
-    5.89878,
-    4.462026,
-    6.638569,
-    6.617134,
-    5.423205,
-    7.473279,
-    7.901904,
-    10.93361,
-    10.4918,
-    13.48618,
-    12.42827,
-    12.7508,
-    15.18715
+  Double_t hCrossSection_utlipgfp_pdf_fely3015[24] = {
+    3.792657,
+    4.347841,
+    4.757679,
+    4.218901,
+    4.691882,
+    5.437101,
+    4.851392,
+    4.875481,
+    4.981075,
+    4.746831,
+    4.542919,
+    5.774074,
+    5.191015,
+    5.696722,
+    5.833169,
+    6.34799,
+    7.736012,
+    8.912867,
+    10.1541,
+    9.664233,
+    12.70577,
+    13.42633,
+    12.71886,
+    15.78899
   };
-  Double_t hrebin_rpvwkpgu_pdf_fehx3002[24] = {
+  Double_t hCrossSection_utlipgfp_pdf_fehx3015[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
     0.1,
     0.1,
     0.1,
@@ -1429,41 +3808,519 @@ void Wp(GraphMap& graph)
     0.1,
     0.1,
     0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1,
-    0.1
+    0.065
   };
-  Double_t hrebin_rpvwkpgu_pdf_fehy3002[24] = {
-    2.842142,
-    4.020667,
-    3.232178,
-    3.594596,
-    5.507964,
-    4.422884,
-    4.471923,
-    4.740908,
-    4.032156,
-    5.403257,
-    4.711712,
-    4.169829,
-    6.089,
-    5.349639,
-    5.728987,
-    8.877576,
-    8.077416,
-    9.794812,
-    9.803089,
-    10.65652,
-    10.99091,
-    12.59899,
-    14.27562,
-    13.2683
+  Double_t hCrossSection_utlipgfp_pdf_fehy3015[24] = {
+    3.505688,
+    4.019862,
+    4.268928,
+    4.990056,
+    4.813366,
+    4.123264,
+    4.617879,
+    4.469713,
+    4.386974,
+    4.755234,
+    4.898741,
+    4.192462,
+    4.978614,
+    5.848304,
+    6.354048,
+    7.497824,
+    8.173372,
+    8.410832,
+    9.921308,
+    11.39081,
+    11.65371,
+    11.93705,
+    13.94332,
+    12.43858
   };
   //
-  graph["EPPS16"] = TGraphAsymmErrors(24,hrebin_rpvwkpgu_pdf_fx3002,hrebin_rpvwkpgu_pdf_fy3002,hrebin_rpvwkpgu_pdf_felx3002,hrebin_rpvwkpgu_pdf_fehx3002,hrebin_rpvwkpgu_pdf_fely3002,hrebin_rpvwkpgu_pdf_fehy3002);
+  graph["EPPS16"] = TGraphAsymmErrors(24,hCrossSection_utlipgfp_pdf_fx3015,hCrossSection_utlipgfp_pdf_fy3015,hCrossSection_utlipgfp_pdf_felx3015,hCrossSection_utlipgfp_pdf_fehx3015,hCrossSection_utlipgfp_pdf_fely3015,hCrossSection_utlipgfp_pdf_fehy3015);
   graph.at("EPPS16").SetName("EPPS16"); graph.at("EPPS16").SetTitle("EPPS16");
+  //
+  // EPS09
+  Double_t hCrossSection_xosruwmi_pdf_fx3021[24] = {
+    -2.73,
+    -2.5,
+    -2.3,
+    -2.065,
+    -1.865,
+    -1.7,
+    -1.5,
+    -1.3,
+    -1.1,
+    -0.9,
+    -0.7,
+    -0.5,
+    -0.3,
+    -0.1,
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hCrossSection_xosruwmi_pdf_fy3021[24] = {
+    94.13515,
+    109.7122,
+    120.7064,
+    129.4888,
+    135.5616,
+    138.6906,
+    141.1328,
+    142.6404,
+    142.6234,
+    143.0106,
+    143.0928,
+    142.017,
+    141.0921,
+    140.5458,
+    139.4421,
+    139.2574,
+    139.2695,
+    139.6417,
+    139.6567,
+    140.2194,
+    141.1492,
+    140.6117,
+    140.4898,
+    140.4674
+  };
+  Double_t hCrossSection_xosruwmi_pdf_felx3021[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hCrossSection_xosruwmi_pdf_fely3021[24] = {
+    4.331497,
+    3.375896,
+    3.935475,
+    3.42936,
+    3.583005,
+    3.745267,
+    3.79127,
+    3.614945,
+    4.152958,
+    3.621459,
+    4.460186,
+    3.960028,
+    4.09876,
+    3.874162,
+    4.447995,
+    3.98751,
+    4.968368,
+    5.097135,
+    5.128518,
+    5.850642,
+    6.548224,
+    6.152487,
+    6.884344,
+    6.810532
+  };
+  Double_t hCrossSection_xosruwmi_pdf_fehx3021[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hCrossSection_xosruwmi_pdf_fehy3021[24] = {
+    2.183987,
+    2.793221,
+    2.797311,
+    3.401962,
+    3.385743,
+    3.209306,
+    3.315254,
+    3.716238,
+    3.579409,
+    4.081665,
+    3.581483,
+    4.242363,
+    4.296691,
+    4.780528,
+    4.653399,
+    5.296901,
+    4.849544,
+    5.112102,
+    5.710774,
+    5.247637,
+    5.736815,
+    6.436485,
+    6.099571,
+    6.271084
+  };
+  //
+  graph["EPS09"] = TGraphAsymmErrors(24,hCrossSection_xosruwmi_pdf_fx3021,hCrossSection_xosruwmi_pdf_fy3021,hCrossSection_xosruwmi_pdf_felx3021,hCrossSection_xosruwmi_pdf_fehx3021,hCrossSection_xosruwmi_pdf_fely3021,hCrossSection_xosruwmi_pdf_fehy3021);
+  graph.at("EPS09").SetName("EPS09"); graph.at("EPS09").SetTitle("EPS09");
+  //
+  // EPS09+CT14
+  Double_t hCrossSection_omzbvnfn_pdf_fx3027[24] = {
+    -2.73,
+    -2.5,
+    -2.3,
+    -2.065,
+    -1.865,
+    -1.7,
+    -1.5,
+    -1.3,
+    -1.1,
+    -0.9,
+    -0.7,
+    -0.5,
+    -0.3,
+    -0.1,
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hCrossSection_omzbvnfn_pdf_fy3027[24] = {
+    92.00321,
+    107.1899,
+    117.8809,
+    126.6708,
+    132.93,
+    135.8058,
+    138.707,
+    140.222,
+    140.1942,
+    141.2365,
+    141.0639,
+    140.5965,
+    139.5442,
+    139.746,
+    138.5238,
+    138.4204,
+    138.1159,
+    138.3116,
+    138.3907,
+    138.6439,
+    139.3801,
+    138.9997,
+    138.7938,
+    139.1391
+  };
+  Double_t hCrossSection_omzbvnfn_pdf_felx3027[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hCrossSection_omzbvnfn_pdf_fely3027[24] = {
+    3.210821,
+    3.670204,
+    3.765902,
+    4.154048,
+    4.681032,
+    4.209417,
+    5.111104,
+    4.48955,
+    4.437352,
+    5.147828,
+    4.331086,
+    4.64153,
+    4.431787,
+    5.320336,
+    5.531833,
+    5.720541,
+    5.170595,
+    5.575625,
+    5.682618,
+    6.047601,
+    6.430415,
+    6.251223,
+    6.437518,
+    7.19755
+  };
+  Double_t hCrossSection_omzbvnfn_pdf_fehx3027[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hCrossSection_omzbvnfn_pdf_fehy3027[24] = {
+    2.780295,
+    3.485311,
+    3.579281,
+    3.706779,
+    3.802949,
+    4.042195,
+    3.331601,
+    3.900102,
+    4.252507,
+    3.434723,
+    4.280733,
+    4.017307,
+    4.740935,
+    3.453858,
+    3.933702,
+    4.134253,
+    4.538164,
+    4.714659,
+    5.08449,
+    5.091054,
+    5.600517,
+    5.866365,
+    6.103996,
+    5.595522
+  };
+  //
+  graph["EPS09_CT14"] = TGraphAsymmErrors(24,hCrossSection_omzbvnfn_pdf_fx3027,hCrossSection_omzbvnfn_pdf_fy3027,hCrossSection_omzbvnfn_pdf_felx3027,hCrossSection_omzbvnfn_pdf_fehx3027,hCrossSection_omzbvnfn_pdf_fely3027,hCrossSection_omzbvnfn_pdf_fehy3027);
+  graph.at("EPS09_CT14").SetName("EPS09_CT14"); graph.at("EPS09_CT14").SetTitle("EPS09_CT14");
+  //
+  // nCTEQ15
+  Double_t hCrossSection_gxvmjsmj_pdf_fx3027[24] = {
+    -2.73,
+    -2.5,
+    -2.3,
+    -2.065,
+    -1.865,
+    -1.7,
+    -1.5,
+    -1.3,
+    -1.1,
+    -0.9,
+    -0.7,
+    -0.5,
+    -0.3,
+    -0.1,
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9,
+    1.1,
+    1.3,
+    1.5,
+    1.7,
+    1.865
+  };
+  Double_t hCrossSection_gxvmjsmj_pdf_fy3027[24] = {
+    99.00308,
+    114.303,
+    123.5385,
+    132.1217,
+    136.599,
+    138.9257,
+    140.2984,
+    140.8792,
+    140.4074,
+    139.8834,
+    138.9021,
+    136.6738,
+    135.6048,
+    132.8683,
+    131.641,
+    129.8864,
+    128.5495,
+    127.3229,
+    125.8323,
+    125.491,
+    124.3651,
+    123.5164,
+    122.7035,
+    121.1197
+  };
+  Double_t hCrossSection_gxvmjsmj_pdf_felx3027[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hCrossSection_gxvmjsmj_pdf_fely3027[24] = {
+    4.19174,
+    4.990744,
+    4.040428,
+    4.373666,
+    3.721414,
+    4.204306,
+    3.854472,
+    5.107215,
+    5.178365,
+    5.578842,
+    7.307864,
+    7.044543,
+    8.832949,
+    8.511341,
+    9.766141,
+    10.06414,
+    9.933278,
+    10.81983,
+    9.982153,
+    10.83269,
+    10.96394,
+    10.83715,
+    11.26632,
+    10.37221
+  };
+  Double_t hCrossSection_gxvmjsmj_pdf_fehx3027[24] = {
+    0.13,
+    0.1,
+    0.1,
+    0.135,
+    0.065,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.065
+  };
+  Double_t hCrossSection_gxvmjsmj_pdf_fehy3027[24] = {
+    4.464122,
+    3.803822,
+    4.830144,
+    3.712882,
+    4.32986,
+    3.202246,
+    3.700698,
+    2.490593,
+    3.210671,
+    3.640149,
+    3.668897,
+    4.791938,
+    4.649711,
+    6.084484,
+    5.852263,
+    6.337668,
+    6.542999,
+    7.288305,
+    7.841435,
+    7.970194,
+    8.17557,
+    8.295078,
+    8.421766,
+    9.369351
+  };
+  //
+  graph["nCTEQ15"] = TGraphAsymmErrors(24,hCrossSection_gxvmjsmj_pdf_fx3027,hCrossSection_gxvmjsmj_pdf_fy3027,hCrossSection_gxvmjsmj_pdf_felx3027,hCrossSection_gxvmjsmj_pdf_fehx3027,hCrossSection_gxvmjsmj_pdf_fely3027,hCrossSection_gxvmjsmj_pdf_fehy3027);
+  graph.at("nCTEQ15").SetName("nCTEQ15"); graph.at("nCTEQ15").SetTitle("nCTEQ15");
   //
 };

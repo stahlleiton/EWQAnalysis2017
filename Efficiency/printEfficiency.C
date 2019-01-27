@@ -60,11 +60,11 @@ void         makeMCEff1DTable    ( std::ofstream& file    , const EffMap_t& iEff
 void         makeTnPUnc1DTable   ( std::ofstream& file    , const EffMap_t& iEffMap  , const Unc1DMap_t& iUncMap , const std::string& col , const std::string& chg );
 bool         printEff1DTables    ( const EffMap_t& effMap , const Unc1DMap_t& uncMap , const std::string& outDir , const bool isHFReweight );
 
-void         formatLegendEntry   ( TLegendEntry& e );
+void         formatLegendEntry   ( TLegendEntry& e , double size=0.032 );
 void         formatDecayLabel    ( std::string& label , const std::string& inLabel, const std::string c="#" );
 void         setStyle            ( );
 KeyPVec_t    getK                ( TList* list );
-const char*  sgn                 ( const double n ) { if (n >= 0.) { return "+"; } else { return ""; } }
+const char*  sgn                 ( const double n ) { if (n >= 0.) { return "+"; } else { return "-"; } }
 
 void         drawCompEff1D       ( const std::string& outDir , EffMap_t& effMap , const bool isCutAndCount );
 
@@ -73,7 +73,7 @@ void         drawCompEff1D       ( const std::string& outDir , EffMap_t& effMap 
 //
 
 
-void printEfficiency(const std::string workDirName = "NominalCM", const uint applyHFCorr = 1, const bool applyBosonPTCorr = false, const bool applyMuonPTCorr = false)
+void printEfficiency(const std::string workDirName = "NominalCM", const uint applyHFCorr = 1, const bool applyBosonPTCorr = true, const bool applyMuonPTCorr = false)
 {
   // Change the working directory
   const std::string CWD = getcwd(NULL, 0);
@@ -220,8 +220,8 @@ void formatEff1D(TEfficiency& eff, const std::string& var, const std::string& ch
   // Y-axis
   std::string yLabel = type;
   if (type=="Total"         ) { yLabel = "Efficiency";             }
-  if (type=="Total_Unc"     ) { yLabel = "Efficiency Uncertainty"; }
-  if (type=="Acceptance_Unc") { yLabel = "Acceptance Uncertainty"; }
+  if (type=="Total_Unc"     ) { yLabel = "Efficiency uncertainty"; }
+  if (type=="Acceptance_Unc") { yLabel = "Acceptance uncertainty"; }
   // Set Axis Titles
   eff.SetTitle(Form(";%s;%s", xLabel.c_str(), yLabel.c_str()));
   if (graph) { formatEff1D(*graph, var, charge, type); }
@@ -242,9 +242,13 @@ void formatEff1D(TGraphAsymmErrors& graph, const std::string& var, const std::st
   if (var=="Eta"  ) { xLabel += " #eta_{LAB}";    }
   if (var=="EtaCM") { xLabel += " #eta_{CM}";     }
   if (var=="Pt"   ) { xLabel += " p_{T} (GeV/c)"; }
-  graph.GetXaxis()->CenterTitle(kFALSE);
-  graph.GetXaxis()->SetTitleOffset(0.9);
-  graph.GetXaxis()->SetTitleSize(0.050);
+  //graph.GetXaxis()->CenterTitle(kFALSE);
+  //graph.GetXaxis()->SetTitleOffset(0.9);
+  //graph.GetXaxis()->SetTitleSize(0.050);
+  //graph.GetXaxis()->SetLabelSize(0.035);
+  graph.GetXaxis()->CenterTitle(kTRUE);
+  graph.GetXaxis()->SetTitleOffset(0.70);
+  graph.GetXaxis()->SetTitleSize(0.065);
   graph.GetXaxis()->SetLabelSize(0.035);
   double xMin, xMax, yDummy;
   graph.GetPoint(0, xMin, yDummy); xMin -= graph.GetErrorXlow(0);
@@ -256,11 +260,15 @@ void formatEff1D(TGraphAsymmErrors& graph, const std::string& var, const std::st
   // Y-axis
   std::string yLabel = type;
   if (type=="Total"         ) { yLabel = "Efficiency";             }
-  if (type=="Total_Unc"     ) { yLabel = "Efficiency Uncertainty"; }
-  if (type=="Acceptance_Unc") { yLabel = "Acceptance Uncertainty"; }
-  graph.GetYaxis()->CenterTitle(kFALSE);
-  graph.GetYaxis()->SetTitleOffset(1.4);
-  graph.GetYaxis()->SetTitleSize(0.04);
+  if (type=="Total_Unc"     ) { yLabel = "Efficiency uncertainty"; }
+  if (type=="Acceptance_Unc") { yLabel = "Acceptance uncertainty"; }
+  //graph.GetYaxis()->CenterTitle(kFALSE);
+  //graph.GetYaxis()->SetTitleOffset(1.4);
+  //graph.GetYaxis()->SetTitleSize(0.04);
+  //graph.GetYaxis()->SetLabelSize(0.035);
+  graph.GetYaxis()->CenterTitle(kTRUE);
+  graph.GetYaxis()->SetTitleOffset(1.05);
+  graph.GetYaxis()->SetTitleSize(0.065);
   graph.GetYaxis()->SetLabelSize(0.035);
   if (type!="Acceptance") { graph.GetYaxis()->SetRangeUser(0.79, 1.13); }
   else { graph.GetYaxis()->SetRangeUser(0.60, 0.90); }
@@ -317,7 +325,7 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
               //
               // Declare the graph vector (for drawing with markers)
               std::vector< TGraphAsymmErrors > grVec;
-              TLegend leg(0.2, 0.66, 0.4, 0.79);
+              TLegend leg(0.2, 0.62, 0.4, 0.75);
               double xMin=0. , xMax=0. , yLine=0.;
               // Draw graph
               if ( (corr=="NoCorrOnly") || (corr=="HFCorrOnly") )  {
@@ -328,12 +336,12 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                 for (auto& g : grVec) { formatEff1D(g, var, charge, type); }
                 // Create Legend
                 if (type=="Acceptance") {
-                  if (corr=="NoCorrOnly") { formatLegendEntry(*leg.AddEntry(&grVec[0], "MC Acceptance", "pe")); }
-                  if (corr=="HFCorrOnly") { formatLegendEntry(*leg.AddEntry(&grVec[0], "MC Acceptance HF Reweighted", "pe")); }
+                  if (corr=="NoCorrOnly") { formatLegendEntry(*leg.AddEntry(&grVec[0], "MC acceptance", "pe")); }
+                  if (corr=="HFCorrOnly") { formatLegendEntry(*leg.AddEntry(&grVec[0], "MC acceptance weighed", "pe")); }
                 }
                 else {
-                  if (corr=="NoCorrOnly") { formatLegendEntry(*leg.AddEntry(&grVec[0], "MC Truth Efficiency", "pe")); }
-                  if (corr=="HFCorrOnly") { formatLegendEntry(*leg.AddEntry(&grVec[0], "MC Truth Efficiency HF Reweighted", "pe")); }
+                  if (corr=="NoCorrOnly") { formatLegendEntry(*leg.AddEntry(&grVec[0], "MC efficiency", "pe")); }
+                  if (corr=="HFCorrOnly") { formatLegendEntry(*leg.AddEntry(&grVec[0], "MC efficiency weighed", "pe")); }
                 }
                 // Draw the graph
                 grVec[0].Draw("ap");
@@ -351,7 +359,7 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                 grVec[0].SetMarkerColor(kRed);
                 // Create Legend
                 formatLegendEntry(*leg.AddEntry(&grVec[0], "MC Acceptance", "pe"));
-                formatLegendEntry(*leg.AddEntry(&grVec[1], "MC Acceptance HF Reweighted", "pe"));
+                formatLegendEntry(*leg.AddEntry(&grVec[1], "MC Acceptance Reweighed", "pe"));
                 // Draw the graph
                 grVec[0].Draw("ap");
                 grVec[1].Draw("samep");
@@ -379,9 +387,9 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                 grVec[0].SetMarkerColor(kRed);
                 grVec[1].SetMarkerColor(kGreen+2);
                 // Create Legend
-                formatLegendEntry(*leg.AddEntry(&grVec[0], "MC Truth Efficiency", "pe"));
-                formatLegendEntry(*leg.AddEntry(&grVec[1], "MC Truth Efficiency HF Reweighted", "pe"));
-                formatLegendEntry(*leg.AddEntry(&grVec[2], "Corrected Efficiency", "pe"));
+                formatLegendEntry(*leg.AddEntry(&grVec[0], "MC efficiency", "pe"));
+                formatLegendEntry(*leg.AddEntry(&grVec[1], "MC efficiency weighed", "pe"));
+                formatLegendEntry(*leg.AddEntry(&grVec[2], "Corrected efficiency", "pe"));
                 // Draw the graph
                 grVec[0].Draw("ap");
                 grVec[1].Draw("samep");
@@ -406,8 +414,8 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                 for (auto& g : grVec) { formatEff1D(g, var, charge, type); }
                 grVec[0].SetMarkerColor(kRed);
                 // Create Legend
-                formatLegendEntry(*leg.AddEntry(&grVec[0], "MC Truth Efficiency", "pe"));
-                formatLegendEntry(*leg.AddEntry(&grVec[1], "Corrected Efficiency", "pe"));
+                formatLegendEntry(*leg.AddEntry(&grVec[0], "MC efficiency", "pe"));
+                formatLegendEntry(*leg.AddEntry(&grVec[1], "Corrected efficiency", "pe"));
                 // Draw the graph
                 grVec[0].Draw("ap");
                 grVec[1].Draw("samep");
@@ -453,7 +461,7 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                 }
                 // Create Legend
                 formatLegendEntry(*leg.AddEntry(&grVec[0], "Corrected Efficiency", "pe"));
-                formatLegendEntry(*leg.AddEntry(&grVec[3], "MC Statistical Uncertainty", "f"));
+                //formatLegendEntry(*leg.AddEntry(&grVec[3], "MC Statistical Uncertainty", "f"));
                 if (useMCSyst) { formatLegendEntry(*leg.AddEntry(&grVec[4], "MC Systematic Uncertainty", "f")); }
                 formatLegendEntry(*leg.AddEntry(&grVec[1], "TnP Statistical Uncertainty", "f"));
                 formatLegendEntry(*leg.AddEntry(&grVec[2], "TnP Systematic Uncertainty", "f"));
@@ -468,7 +476,7 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
                 grVec[0].Draw("ap");
                 grVec[2].Draw("same2");
                 grVec[1].Draw("same2");
-                grVec[3].Draw("same2");
+                //grVec[3].Draw("same2");
                 if (useMCSyst) { grVec[4].Draw("same2");; }
                 grVec[0].Draw("samep");
                 xMin = grVec[0].GetXaxis()->GetXmin(); xMax = grVec[0].GetXaxis()->GetXmax(); yLine = 1.0;
@@ -530,13 +538,16 @@ void drawEff1D(const std::string& outDir, EffMap_t& effMap, Unc1DMap_t& uncMap, 
               c.Modified(); c.Update();
               //
               // Draw the text
-              for (const auto& s: textToPrint) { tex.DrawLatex(0.22, 0.86-dy, s.c_str()); dy+=0.04; }
+              tex.SetTextSize(0.055); tex.DrawLatex(0.22, 0.84, textToPrint[0].c_str());
+              tex.SetTextSize(0.058); tex.SetTextFont(61); tex.DrawLatex(0.78, 0.84, "CMS"); tex.SetTextFont(62);
+              tex.SetTextSize(0.044); tex.SetTextFont(52); tex.DrawLatex(0.69, 0.79, "Preliminary"); tex.SetTextFont(62);
+              tex.SetTextSize(0.035); tex.DrawLatex(0.22, 0.79, textToPrint[1].c_str());
               c.Modified(); c.Update();
               // set the CMS style
-              int option = 114;
+              int option = 1143;
               if (col.find("pPb")!=std::string::npos) option = 112;
               if (col.find("Pbp")!=std::string::npos) option = 113;
-              CMS_lumi(&c, option, 33, "");
+              CMS_lumi(&c, option, 33, "", false, 0.6, false);
               c.Modified(); c.Update();
               // Create Output Directory
               const std::string plotDir = outDir + "TnPEfficiencyLATEX/" + var+"/" + sample+"/" + col+"/" + type;
@@ -614,7 +625,7 @@ void invGraph(TGraphAsymmErrors& gr)
 
 
 void drawCompEff1D(const std::string& outDir, std::vector< std::pair<std::string , TEfficiency> >& effMap, const std::string& var, const std::string& type, const std::string& sample,
-                   const std::string charge="", const std::string col="", const std::string corr="", const bool isCutAndCount=false)
+                   const std::string charge="", const std::string col="", const std::string corr="", const bool isCutAndCount=false, double min=0.95, double max=1.05)
 {
   //
   // Draw the comparison plots
@@ -629,7 +640,7 @@ void drawCompEff1D(const std::string& outDir, std::vector< std::pair<std::string
   TCanvas c("c", "c", 1000, 1000); c.cd();
   //
   // Create the Text Info
-  TLatex tex; tex.SetNDC(); tex.SetTextSize(0.028); float dy = 0;
+  TLatex tex; tex.SetNDC(); tex.SetTextSize(0.045); float dy = 0;
   std::vector< std::string > textToPrint;
   std::string sampleLabel; formatDecayLabel(sampleLabel, (sample+"_"+charge));
   textToPrint.push_back(sampleLabel);
@@ -668,8 +679,12 @@ void drawCompEff1D(const std::string& outDir, std::vector< std::pair<std::string
     graph.SetFillStyle(1001);
   }
   const std::vector<int> COLOR = { kBlue , kRed , kGreen+2 };
+  const std::vector<int> STYLE = {  kFullSquare , kFullCircle , kFullTriangleUp };
+  const std::vector<double> SIZE  = {  1.3 , 0.9 , 0.5 };
   for (uint i = 0; i < graphVec.size();   i++) { graphVec[i].SetMarkerColor(COLOR[i]);     }
   for (uint i = 0; i < grRatioVec.size(); i++) { grRatioVec[i].SetMarkerColor(COLOR[i+1]); }
+  for (uint i = 0; i < graphVec.size();   i++) { graphVec[i].SetMarkerStyle(STYLE[i]);     }
+  for (uint i = 0; i < graphVec.size();   i++) { graphVec[i].SetMarkerSize(SIZE[i]);       }
   // X-axis
   std::string xLabel = "Gen #mu"; if (charge=="Plus") xLabel += "^{+}"; if (charge=="Minus") xLabel += "^{-}";
   if (var=="Eta"  ) { xLabel += " #eta_{LAB}";    }
@@ -677,17 +692,17 @@ void drawCompEff1D(const std::string& outDir, std::vector< std::pair<std::string
   if (var=="Pt"   ) { xLabel += " p_{T} (GeV/c)"; }
   for (auto& graph : graphVec) {
     graph.GetYaxis()->SetTitleFont(42);
-    graph.GetXaxis()->CenterTitle(kFALSE);
+    graph.GetXaxis()->CenterTitle(kTRUE);
     graph.GetXaxis()->SetTitleOffset(3);
-    graph.GetXaxis()->SetLabelOffset(3);
-    graph.GetXaxis()->SetTitleSize(0.045);
+    graph.GetXaxis()->SetLabelOffset(3.0);
+    graph.GetXaxis()->SetTitleSize(0.065);
     graph.GetXaxis()->SetLabelSize(0.035);
   }
   for (auto& graph : grRatioVec) {
     graph.GetYaxis()->SetTitleFont(42);
-    graph.GetXaxis()->CenterTitle(kFALSE);
-    graph.GetXaxis()->SetTitleOffset(1);
-    graph.GetXaxis()->SetTitleSize(0.16);
+    graph.GetXaxis()->CenterTitle(kTRUE);
+    graph.GetXaxis()->SetTitleOffset(0.7);
+    graph.GetXaxis()->SetTitleSize(0.22);
     graph.GetXaxis()->SetLabelSize(0.14);
   }
   double xMin = 0.0, xMax = 0.0;
@@ -704,11 +719,11 @@ void drawCompEff1D(const std::string& outDir, std::vector< std::pair<std::string
     if (type=="Total"     ) { yLabel = "Efficiency"; }
     if (type=="Acceptance") { yLabel = "Acceptance"; }
     graph.GetYaxis()->SetTitleFont(42);
-    graph.GetYaxis()->CenterTitle(kFALSE);
-    graph.GetYaxis()->SetLabelSize(0.044);
-    graph.GetYaxis()->SetTitleSize(0.044);
-    graph.GetYaxis()->SetTitleOffset(1.4);
-    if (type!="Acceptance") { graph.GetYaxis()->SetRangeUser(0.79, 1.07); }
+    graph.GetYaxis()->CenterTitle(kTRUE);
+    graph.GetYaxis()->SetLabelSize(0.035);
+    graph.GetYaxis()->SetTitleSize(0.065);
+    graph.GetYaxis()->SetTitleOffset(1.05);
+    if (type!="Acceptance") { graph.GetYaxis()->SetRangeUser(0.79, 1.13); }
     else { graph.GetYaxis()->SetRangeUser(0.60, 0.90); }
     graph.SetTitle(Form(";%s;%s", "", yLabel.c_str()));
   }
@@ -717,17 +732,18 @@ void drawCompEff1D(const std::string& outDir, std::vector< std::pair<std::string
     else if (col=="") { yLabel = Form("#frac{Run}{%s}", lblVec[0].c_str()); }
     graph.GetYaxis()->SetTitleFont(42);
     graph.GetYaxis()->CenterTitle(kTRUE);
-    graph.GetYaxis()->SetTitleOffset(0.3);
+    graph.GetYaxis()->SetTitleOffset(0.40);
     graph.GetYaxis()->SetTitleSize(0.16);
     graph.GetYaxis()->SetLabelSize(0.11);
     graph.GetYaxis()->SetNdivisions(503);
-    graph.GetYaxis()->SetRangeUser(0.95, 1.05);
+    graph.GetYaxis()->SetRangeUser(min, max);
     graph.SetTitle(Form(";%s;%s", xLabel.c_str(), yLabel.c_str()));
   }
   //
   // Create the legend
-  TLegend leg(0.57, 0.69, 0.67, 0.89);
-  for (uint i = 0; i < graphVec.size(); i++) { auto lbl = lblVec[i]; if (lbl=="Pbp_Inv") { lbl = "Pbp (Inverted)"; }; formatLegendEntry(*leg.AddEntry(&graphVec[i], lbl.c_str(), "pe")); }
+  TLegend leg(0.2, 0.58, 0.4, 0.71);
+  //TLegend leg(0.57, 0.69, 0.67, 0.89);
+  for (uint i = 0; i < graphVec.size(); i++) { auto lbl = lblVec[i]; if (lbl=="Pbp_Inv") { lbl = "Pbp (Inverted)"; }; formatLegendEntry(*leg.AddEntry(&graphVec[i], lbl.c_str(), "pe"), 0.038); }
   //
   // Draw the Graphs
   //
@@ -748,14 +764,17 @@ void drawCompEff1D(const std::string& outDir, std::vector< std::pair<std::string
   pad1->Modified(); pad1->Update();
   //
   // Draw the text
-  for (const auto& s: textToPrint) { tex.DrawLatex(0.22, 0.86-dy, s.c_str()); dy+=0.04; }
+  tex.SetTextSize(0.055*1.33); tex.DrawLatex(0.22, 0.82, textToPrint[0].c_str());
+  tex.SetTextSize(0.058*1.33); tex.SetTextFont(61); tex.DrawLatex(0.78, 0.82, "CMS"); tex.SetTextFont(62);
+  tex.SetTextSize(0.044*1.33); tex.SetTextFont(52); tex.DrawLatex(0.69, 0.75, "Preliminary"); tex.SetTextFont(62);
+  tex.SetTextSize(0.035*1.33); tex.DrawLatex(0.22, 0.75, textToPrint[1].c_str());
   pad1->Modified(); pad1->Update();
   //
   // set the CMS style
-  int option = 114;
+  int option = 1143;
   if (col.find("pPb")!=std::string::npos) option = 112;
   if (col.find("Pbp")!=std::string::npos) option = 113;
-  CMS_lumi(pad1, option, 33, "");
+  CMS_lumi(pad1, option, 33, "", false, 0.8, false);
   pad1->Modified(); pad1->Update();
   //
   // Ratio Frame
@@ -907,9 +926,9 @@ void setStyle()
 };
 
 
-void formatLegendEntry(TLegendEntry& e)
+void formatLegendEntry(TLegendEntry& e, double size)
 {
-  e.SetTextSize(0.028);
+  e.SetTextSize(size);
 };
 
 
@@ -1035,17 +1054,17 @@ void makeCorrEff1DTable(std::ofstream& file, const EffMap_t& iEffMap, const Unc1
   const std::vector< std::string > colChg = { "" , "Minus" , "Plus" };
   const std::vector< std::string > colCor = { "" , "TnP_Nominal" , "TnP_Nominal" };
   const std::vector< std::string > colTyp = { "VAR" , "Total" , "Total" };
-  std::vector< std::string >    colTitle1 = { "$\\eta_{LAB}$ Range" , "$\\mu^{-}$ Corrected Eff." , "$\\mu^{+}$ Corrected Eff." };
-  if (useEtaCM) { colTitle1[0] = "$\\eta_{CM}$ Range"; }
+  std::vector< std::string >    colTitle1 = { "\\etaLAB Range" , "$\\mu^{-}$ Corrected Eff." , "$\\mu^{+}$ Corrected Eff." };
+  if (useEtaCM) { colTitle1[0] = "\\etaCM Range"; }
   //
-  texTable.push_back("\\begin{table}[h!]");
+  texTable.push_back("\\begin{table}[htb!]");
   texTable.push_back("  \\centering");
   //texTable.push_back("  \\resizebox{\\textwidth}{!}{");
   createEff1DTable(texTable, colTyp, colCor, colTitle1, colChg, effMap, uncMap, col);
   //texTable.push_back("  }");
   texTable.push_back(Form("  \\caption{%s}",
                           Form("Muon corrected efficiency as a function of the generated %s, derived from the $\\WToMuNu$ %s \\POWHEG samples separated in negative and positive charged muons. %sGenerated muons are required to be matched to reconstructed muons passing all analysis cuts. The muon efficiency has been corrected by applying the Tag and Probe scale factors event by event. The label \"tnp\" represent the TnP total uncertainty.",
-                               (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
+                               (useEtaCM ? "muon \\etaCM" : "\\etaLAB"),
                                col.c_str(),
                                ( (col=="PA") ? " The \\pPb and \\Pbp MC samples are combined as described in \\sect{sec:CombiningBeamDirection}. " : "")
                                )
@@ -1079,20 +1098,20 @@ void makeMCEff1DTable(std::ofstream& file, const EffMap_t& iEffMap, const Unc1DM
   const std::vector< std::string > colChg = (isHFReweight ? std::vector< std::string >({ "" , "Minus" , "Minus" , "Plus" , "Plus" }) : std::vector< std::string >({ "" , "Minus" , "Plus" }));
   const std::vector< std::string > colCor = (isHFReweight ? std::vector< std::string >({ "" , "NoCorr" , "HFCorr" , "NoCorr" , "HFCorr" }) : std::vector< std::string >({ "" , "NoCorr" , "NoCorr" }));
   const std::vector< std::string > colTyp = (isHFReweight ? std::vector< std::string >({ "VAR" , "Total" , "Total" , "Total" , "Total" }) : std::vector< std::string >({ "VAR" , "Total" , "Total" }));
-  std::vector< std::string >    colTitle1 = (isHFReweight ? std::vector< std::string >({ "$\\eta_{LAB}$ Range" , "$\\mu^{-}$ Truth Eff." , "$\\mu^{-}$ Reweighted Eff." , "$\\mu^{+}$ Truth Eff." , "$\\mu^{+}$ Reweighted Eff." }) : std::vector< std::string >({ "$\\eta_{LAB}$ Range" , "$\\mu^{-}$ Truth Eff." , "$\\mu^{+}$ Truth Eff." }));
-if (useEtaCM) { colTitle1[0] = "$\\eta_{CM}$ Range"; }
+  std::vector< std::string >    colTitle1 = (isHFReweight ? std::vector< std::string >({ "$\\eta_{LAB}$ Range" , "$\\mu^{-}$ MC Eff." , "$\\mu^{-}$ Reweighed MC Eff." , "$\\mu^{+}$ MC Eff." , "$\\mu^{+}$ Reweighed MC Eff." }) : std::vector< std::string >({ "$\\eta_{LAB}$ Range" , "$\\mu^{-}$ MC Eff." , "$\\mu^{+}$ MC Eff." }));
+if (useEtaCM) { colTitle1[0] = "\\etaCM Range"; }
   //
-  texTable.push_back("\\begin{table}[h!]");
+  texTable.push_back("\\begin{table}[htb!]");
   texTable.push_back("  \\centering");
   if (colChg.size()>3) { texTable.push_back("  \\resizebox{\\textwidth}{!}{"); }
   createEff1DTable(texTable, colTyp, colCor, colTitle1, colChg, effMap, uncMap, col);
   if (colChg.size()>3) { texTable.push_back("  }"); }
   texTable.push_back(Form("  \\caption{%s}",
                           Form("Muon truth efficiency as a function of the generated %s, derived from the $\\WToMuNu$ %s \\POWHEG samples separated in negative and positive charged muons. %sGenerated muons are required to be matched to reconstructed muons passing all analysis cuts.%s Results corresponds to \\eq{eq:MCTruthEfficiency}",
-                               (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
+                               (useEtaCM ? "muon \\etaCM" : "\\etaLAB"),
                                col.c_str(),
                                ( (col=="PA") ? "The \\pPb and \\Pbp MC samples are combined as described in \\sect{sec:CombiningBeamDirection}. " : ""),
-                               (isHFReweight ? " The event activity of the MC samples has been re-weighted." : "")
+                               (isHFReweight ? " The \\W boson \\pt and the HF energy distributions of the MC samples have been reweighed." : "")
                                )
                           )
                      );
@@ -1206,16 +1225,16 @@ void makeTnPUnc1DTable(std::ofstream& file, const EffMap_t& iEffMap, const Unc1D
   std::vector< std::string > colCor = { "" , "TnP_Syst_MuID" , "TnP_Syst_Iso" , "TnP_Syst_Trig" , "TnP_Syst_BinIso" , "TnP_Syst_BinMuID" , "TnP_Syst_STA" , "TnP_Syst_PU" , "TnP_Syst" };
   std::vector< std::string > colTyp = { "VAR" , "Total" , "Total" , "Total" , "Total" , "Total" , "Total" , "Total" , "Total" };
   std::vector< std::string > colTitle1 = { "$\\eta_{LAB}$ Range" , "MuID" , "Iso" , "Trig" , "Iso Binned" , "MuID Binned" , "STA" , "PU" , "Total" };
-  if (useEtaCM) { colTitle1[0] = "$\\eta_{CM}$ Range"; }
+  if (useEtaCM) { colTitle1[0] = "\\etaCM Range"; }
   //
-  texTable.push_back("\\begin{table}[h!]");
+  texTable.push_back("\\begin{table}[htb!]");
   texTable.push_back("  \\centering");
   texTable.push_back("  \\resizebox{\\textwidth}{!}{");
   createUnc1DTable(texTable, colTyp, colCor, colTitle1, colChg, effMap, uncMap, col);
   texTable.push_back("  }");
   texTable.push_back(Form("  \\caption{%s}",
                           Form("Relative systematic uncertainties corresponding to the muon efficiency corrections derived by applying the Tag and Probe scale factors event by event. The errors are shown as a function of the generated %s, derived from the %s %s \\POWHEG samples. %sGenerated muons are require to match reconstructed muons passing all analysis cuts.",
-                               (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
+                               (useEtaCM ? "muon \\etaCM" : "\\etaLAB"),
                                (chg=="Plus" ? "$\\WToMuNuPl$" : "$\\WToMuNuMi$"),
                                col.c_str(),
                                ( (col=="PA") ? "The \\pPb and \\Pbp MC samples are combined as described in \\sect{sec:CombiningBeamDirection}. " : "")
@@ -1237,16 +1256,16 @@ void makeTnPUnc1DTable(std::ofstream& file, const EffMap_t& iEffMap, const Unc1D
   colCor = std::vector< std::string >({ "" , "TnP_Stat_MuID" , "TnP_Stat_Iso" , "TnP_Stat_Trig" , "TnP_Stat" });
   colTyp = std::vector< std::string >({ "VAR" , "Total" , "Total" , "Total" , "Total" });
   colTitle1 = std::vector< std::string >({ "$\\eta_{LAB}$ Range" , "MuID" , "Iso" , "Trig" , "Total" });
-  if (useEtaCM) { colTitle1[0] = "$\\eta_{CM}$ Range"; }
+  if (useEtaCM) { colTitle1[0] = "\\etaCM Range"; }
   //
-  texTable.push_back("\\begin{table}[h!]");
+  texTable.push_back("\\begin{table}[htb!]");
   texTable.push_back("  \\centering");
   //texTable.push_back("  \\resizebox{\\textwidth}{!}{");
   createUnc1DTable(texTable, colTyp, colCor, colTitle1, colChg, effMap, uncMap, col);
   //texTable.push_back("  }");
   texTable.push_back(Form("  \\caption{%s}",
                           Form("Relative statistical uncertainties corresponding to the muon efficiency corrections derived by applying the Tag and Probe scale factors event by event. The errors are shown as a function of the generated %s, derived from the %s %s \\POWHEG samples. %sGenerated muons are require to match reconstructed muons passing all analysis cuts.",
-                               (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
+                               (useEtaCM ? "muon \\etaCM" : "\\etaLAB"),
                                (chg=="Plus" ? "$\\WToMuNuPl$" : "$\\WToMuNuMi$"),
                                col.c_str(),
                                ( (col=="PA") ? "The \\pPb and \\Pbp MC samples are combined as described in \\sect{sec:CombiningBeamDirection}. " : "")
@@ -1282,16 +1301,16 @@ void makeMCUnc1DTable(std::ofstream& file, const EffMap_t& iEffMap, const Unc1DM
   std::vector< std::string > colCor = { "" , "MC_Syst_PDF" , "MC_Syst_Alpha" , "MC_Syst_Scale" };
   std::vector< std::string > colTyp = { "VAR" , "Total" , "Total" , "Total" };
   std::vector< std::string > colTitle1 = { "$\\eta_{LAB}$ Range" , "EPPS16+CT14 PDF" , "$\\alpha_{s}$" , "$\\mu_{R},\\mu_{F}$ Scale" };
-  if (useEtaCM) { colTitle1[0] = "$\\eta_{CM}$ Range"; }
+  if (useEtaCM) { colTitle1[0] = "\\etaCM Range"; }
   //
-  texTable.push_back("\\begin{table}[h!]");
+  texTable.push_back("\\begin{table}[htb!]");
   texTable.push_back("  \\centering");
   texTable.push_back("  \\resizebox{\\textwidth}{!}{");
   createUnc1DTable(texTable, colTyp, colCor, colTitle1, colChg, effMap, uncMap, col);
   texTable.push_back("  }");
   texTable.push_back(Form("  \\caption{%s}",
                           Form("Relative systematic uncertainties corresponding to the variation of the EPPS16+CT14 PDF, $\\alpha_{s}$ and ($\\mu_{R},\\mu_{F}$) scale variations. The errors are shown as a function of the generated %s, derived from the %s %s \\POWHEG samples. %sGenerated muons are require to match reconstructed muons passing all analysis cuts.",
-                               (useEtaCM ? "muon $\\eta_{CM}$" : "$\\eta_{LAB}$"),
+                               (useEtaCM ? "muon \\etaCM" : "\\etaLAB"),
                                (chg=="Plus" ? "$\\WToMuNuPl$" : "$\\WToMuNuMi$"),
                                col.c_str(),
                                ( (col=="PA") ? "The \\pPb and \\Pbp MC samples are combined as described in \\sect{sec:CombiningBeamDirection}. " : "")

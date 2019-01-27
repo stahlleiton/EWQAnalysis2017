@@ -29,7 +29,7 @@ bool fileList ( std::vector< std::string >& fileNames , const std::string& dirPa
 
 
 void makeFitPlots(
-                  const bool paperStyle = true,
+                  const int plotSTYLE = 3, // 4: Thesis (LIN) , 3: Thesis (LOG) , 2: Paper , 1: PAS , 0: AN
                   const std::string workDirName="NominalCM",
                   const std::vector< std::string > collVec = { "PA" /*, "pPb" , "Pbp"  */}
                   )
@@ -39,13 +39,14 @@ void makeFitPlots(
   const std::string metTag = "METPF_RAW";
   const std::string dsTag  = "DATA";
   const std::string CWD = getcwd(NULL, 0);
+  const std::string par = "W";
   std::string preCWD = CWD; preCWD.erase(preCWD.find_last_of("/"), 10);
   //
   // Loop over each collision system
   for (const auto& colTag : collVec) {
     //
     // Find the fit directory
-    const std::string wsDirPath = Form("%s/Fitter/Output/%s/%s/%s/W/%s/result", preCWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), colTag.c_str());
+    const std::string wsDirPath = Form("%s/Fitter/Output/%s/%s/%s/%s/%s/result", preCWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), par.c_str(), colTag.c_str());
     if (existDir(wsDirPath)==false) { std::cout << "[WARNING] Workspace directory " << wsDirPath << " was not found, will skip it!" << std::endl; return; }
     //
     // --------------------------------------------------------------------------------- //
@@ -84,15 +85,22 @@ void makeFitPlots(
       fileName = "PLOT_" + fileName;
       // Output Directory Name
       std::string outputDir = "";
-      if (paperStyle) { outputDir =  Form("%s/Output/%s/%s/%s/FitPlots/ForPaper/%s/", CWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), colTag.c_str()); }
-      else            { outputDir =  Form("%s/Output/%s/%s/%s/FitPlots/ForAN/%s/", CWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), colTag.c_str());    }
+      int plotStyle = plotSTYLE;
+      if      (plotStyle==4) { outputDir =  Form("%s/Output/%s/%s/%s/FitPlots/ForThesis_LIN/%s/%s/",CWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), par.c_str(), colTag.c_str()); }
+      else if (plotStyle==3) { outputDir =  Form("%s/Output/%s/%s/%s/FitPlots/ForThesis_LOG/%s/%s/",CWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), par.c_str(), colTag.c_str()); }
+      else if (plotStyle==2) { outputDir =  Form("%s/Output/%s/%s/%s/FitPlots/ForPaper/%s/%s/", CWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), par.c_str(), colTag.c_str()); }
+      else if (plotStyle==1) { outputDir =  Form("%s/Output/%s/%s/%s/FitPlots/ForPAS/%s/%s/", CWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), par.c_str(), colTag.c_str());   }
+      else                   { outputDir =  Form("%s/Output/%s/%s/%s/FitPlots/ForAN/%s/%s/", CWD.c_str(), workDirName.c_str(), metTag.c_str(), dsTag.c_str(), par.c_str(), colTag.c_str());    }
       // Fit plotting settings
-      const bool yLogScale = !paperStyle;
-      const double maxRng = 150.;
-      const bool doGoF = !paperStyle;
+      const bool yLogScale = (plotStyle==0 || plotStyle==3); //
+      double maxRng = ((plotStyle==1 || plotStyle==2 || plotStyle==4) ? 80. : 150.);
+      const bool doGoF = true;
+      const bool redoFrame = (plotStyle==1 || plotStyle==2 || plotStyle==4);
+      const bool doQCDHist = (plotStyle==1 || plotStyle==2);
+      if (plotSTYLE==4) { plotStyle = 3; }
       //
       // Draw the output plot
-      if (!drawElectroWeakMETPlot(*ws, fileName, outputDir, yLogScale, maxRng, doGoF, paperStyle)) { return; }
+      if (!drawElectroWeakMETPlot(*ws, fileName, outputDir, yLogScale, maxRng, doGoF, plotStyle, redoFrame, doQCDHist)) { return; }
       //
     }
   }

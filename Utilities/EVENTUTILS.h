@@ -65,34 +65,45 @@ bool isEqual( const double inVal1 , const double inVal2 , const uint nDecimals )
   return false;
 };
 
-TH1D graphToHist( const TGraphAsymmErrors& gr )
+TH1D graphToHist( const TGraphAsymmErrors& gr , const int addOnly=0 )
 {
-  const uint nBin = gr.GetN();
+  auto tmp = gr;
+  // Remove all unwanted points
+  if (addOnly!=0) {
+    for (int i = 0; i < tmp.GetN(); ){
+      double eta, xSec;
+      tmp.GetPoint(i, eta, xSec);
+      if      (addOnly<0 && eta>=0) { tmp.RemovePoint(i); }
+      else if (addOnly>0 && eta<=0) { tmp.RemovePoint(i); }
+      else { i++; }
+    }
+  }
+  const uint nBin = tmp.GetN();
   double bins[nBin+1];
   for (uint iBin = 0; iBin <= nBin; iBin++) {
     double edge;
     if (iBin < nBin) {
-      double x, y; gr.GetPoint(iBin, x, y);
-      double ex = gr.GetErrorXlow(iBin);
+      double x, y; tmp.GetPoint(iBin, x, y);
+      double ex = tmp.GetErrorXlow(iBin);
       edge = x - ex;
     }
     else {
-      double x, y; gr.GetPoint((nBin-1), x, y);
-      double ex = gr.GetErrorXhigh(nBin-1);
+      double x, y; tmp.GetPoint((nBin-1), x, y);
+      double ex = tmp.GetErrorXhigh(nBin-1);
       edge = x + ex;
     }
     bins[iBin] = edge;
   }
-  TH1D h(gr.GetName(), gr.GetTitle(), nBin, bins);
+  TH1D h(tmp.GetName(), tmp.GetTitle(), nBin, bins);
   for (uint iBin = 0; iBin < nBin; iBin++) {
-    double x, y; gr.GetPoint(iBin, x, y);
-    double ey = gr.GetErrorY(iBin);
+    double x, y; tmp.GetPoint(iBin, x, y);
+    double ey = tmp.GetErrorY(iBin);
     h.SetBinContent(iBin+1, y);
     h.SetBinError(iBin+1, ey);
   }
-  gr.TAttLine::Copy(h);
-  gr.TAttFill::Copy(h);
-  gr.TAttMarker::Copy(h);
+  tmp.TAttLine::Copy(h);
+  tmp.TAttFill::Copy(h);
+  tmp.TAttMarker::Copy(h);
   return h;
 };
 

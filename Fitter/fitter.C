@@ -17,7 +17,7 @@ bool createDataSets    ( std::map< std::string, RooWorkspace >& Workspace , Stri
 
 void fitter(
             const std::string workDirName = "NominalCM",// Working directory
-            const std::bitset<1> useExt   = 0,          // Use external: (bit 0 (1)) Input DataSets
+            const std::bitset<1> useExt   = 1,          // Use external: (bit 0 (1)) Input DataSets
             // Select the type of datasets to fit
             const std::bitset<2> fitData  = 1,          // Fit Sample: (bit 0 (1)) Data , (bit 1 (2)) MC
                   std::bitset<3> fitColl  = 7,          // Fit System: (bit 0 (1)) pPb  , (bit 1 (2)) Pbp   , (bit 2 (4)) PA
@@ -27,7 +27,7 @@ void fitter(
             // Select the systematic options
             const std::pair<int,int> varRng = {-1,-1},  // Range of vairiation: min, max
             // Select the fitting options
-            const unsigned int   numCores = 32,         // Number of cores used for fitting
+            const unsigned int   numCores = 16,         // Number of cores used for fitting
             const std::bitset<1> fitVar   = 1,          // Fit Variable: 1: MET
             const uint           varType  = 0,          // Type of MET to Fit: (0) PF Raw, (1) PF Type1, (2) NoHF Raw, (3) NoHF Type 1
             const std::string    Analysis = "WToMuNu",  // Type of Analysis
@@ -98,6 +98,7 @@ void fitter(
     else { saveAll = true; }
   }
   else if (workDirName.find("NominalCM")!=std::string::npos) {
+    userInput.Flag["applyBosonPTCorr"] = true;
     userInput.Flag["applyHFCorr"]     = true;
     userInput.Flag["applyTnPCorr"]    = true;
     userInput.Flag["applyRecoilCorr"] = true;
@@ -105,18 +106,21 @@ void fitter(
     userInput.Par["HFCorrMethod"]     = "HFBoth";
     //fitObj = 1;
     if (workDirName=="NominalCM") { saveAll = true; } else { fitColl = 4; }
+    if (fitObj==4) { saveAll = true; }
     //
     if (workDirName=="NominalCM_BinnedFit") { userInput.Flag["doBinnedFit"] = true; }
     //
-    if (workDirName=="NominalCM_NoCorr"         ) { userInput.Flag.at("applyTnPCorr") = false; userInput.Flag.at("applyHFCorr")     = false; userInput.Flag.at("applyRecoilCorr") = false; }
+    if (workDirName=="NominalCM_NoCorr"         ) { userInput.Flag.at("applyBosonPTCorr") = false; userInput.Flag.at("applyTnPCorr") = false; userInput.Flag.at("applyHFCorr") = false; userInput.Flag.at("applyRecoilCorr") = false; }
     //
-    if (workDirName=="NominalCM_RecoilCorrOnly" ) { userInput.Flag.at("applyTnPCorr") = false; userInput.Flag.at("applyHFCorr")     = false; }
-    if (workDirName=="NominalCM_HFCorrOnly"     ) { userInput.Flag.at("applyTnPCorr") = false; userInput.Flag.at("applyRecoilCorr") = false; }
-    if (workDirName=="NominalCM_TnPCorrOnly"    ) { userInput.Flag.at("applyHFCorr")  = false; userInput.Flag.at("applyRecoilCorr") = false; }
+    if (workDirName=="NominalCM_RecoilCorrOnly" ) { userInput.Flag.at("applyBosonPTCorr") = false; userInput.Flag.at("applyTnPCorr") = false; userInput.Flag.at("applyHFCorr")     = false; }
+    if (workDirName=="NominalCM_HFCorrOnly"     ) { userInput.Flag.at("applyBosonPTCorr") = false; userInput.Flag.at("applyTnPCorr") = false; userInput.Flag.at("applyRecoilCorr") = false; }
+    if (workDirName=="NominalCM_TnPCorrOnly"    ) { userInput.Flag.at("applyBosonPTCorr") = false; userInput.Flag.at("applyHFCorr")  = false; userInput.Flag.at("applyRecoilCorr") = false; }
+    if (workDirName=="NominalCM_BosonPTCorrOnly") { userInput.Flag.at("applyTnPCorr")     = false; userInput.Flag.at("applyHFCorr")  = false; userInput.Flag.at("applyRecoilCorr") = false; }
     //
     if (workDirName=="NominalCM_NoRecoilCorr"   ) { userInput.Flag.at("applyRecoilCorr") = false; }
     if (workDirName=="NominalCM_NoHFCorr"       ) { userInput.Flag.at("applyHFCorr")     = false; }
     if (workDirName=="NominalCM_NoTnPCorr"      ) { userInput.Flag.at("applyTnPCorr")    = false; }
+    if (workDirName=="NominalCM_NoBosonPTCorr"  ) { userInput.Flag.at("applyBosonPTCorr")= false; }
     if (workDirName=="NominalCM_NTrackCorr"     ) { userInput.Par.at("HFCorrMethod") = "NTracks"; }
     if (workDirName=="NominalCM_BosonPTCorr"    ) { userInput.Flag["applyBosonPTCorr"] = true;    }
     if (workDirName=="NominalCM_MuonPTCorr"     ) { userInput.Flag["applyMuonPTCorr"] = true;     }
@@ -139,6 +143,7 @@ void fitter(
     }
   }
   else if (workDirName.find("SystematicCM_")!=std::string::npos) {
+    userInput.Flag["applyBosonPTCorr"] = true;
     userInput.Flag["applyHFCorr"]     = true;
     userInput.Flag["applyTnPCorr"]    = true;
     userInput.Flag["applyRecoilCorr"] = true;
@@ -196,9 +201,9 @@ void fitter(
   //userInput.Par["RecoilPath"]      = "/grid_mnt/vol__vol_U__u/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_nom_sysStat/";
   userInput.Par["RochesterPath"]   = "/grid_mnt/vol__vol_U__u/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Utilities/rcdata.2016.v3/";
   if (workDirName=="NominalCM_RecoilSystPtFunc" ) { userInput.Par.at("RecoilPath") = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_sysPtFunc/";  }
-  if (workDirName=="NominalCM_RecoilSystBWGauss") { userInput.Par.at("RecoilPath") = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil_sysBWGauss/"; }
-  if (workDirName=="NominalCM_RecoilSystJetEnUp"  ) { userInput.Par.at("RecoilPath") = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil/"; }
-  if (workDirName=="NominalCM_RecoilSystJetEnDown") { userInput.Par.at("RecoilPath") = "/home/llr/cms/blanco/Analysis/WAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil/"; }
+  if (workDirName=="NominalCM_RecoilSystBWGauss") { userInput.Par.at("RecoilPath") = "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil/"; }
+  if (workDirName=="NominalCM_RecoilSystJetEnUp"  ) { userInput.Par.at("RecoilPath") = "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil/"; }
+  if (workDirName=="NominalCM_RecoilSystJetEnDown") { userInput.Par.at("RecoilPath") = "/home/llr/cms/stahl/ElectroWeakAnalysis/EWQAnalysis2017/Corrections/MET_Recoil/FitRecoil/"; }
   if (workDirName=="NominalCM_RecoilSystUnclusEnUp"  ) { userInput.Par.at("RecoilPath") = "/home/llr/cms/stahl/ElectroWeakAnalysis/JAVIER/MET_Recoil/FitRecoil/"; }
   if (workDirName=="NominalCM_RecoilSystUnclusEnDown") { userInput.Par.at("RecoilPath") = "/home/llr/cms/stahl/ElectroWeakAnalysis/JAVIER/MET_Recoil/FitRecoil/"; }
   //
@@ -220,6 +225,7 @@ void fitter(
     else if (workDirName.find("METMax")!=std::string::npos) { userInput.Par["extInitFileDir_MET_QCD"] = ""; }
     else if (workDirName.find("MTCut" )!=std::string::npos) { userInput.Par["extInitFileDir_MET_QCD"] = ""; }
     else if (workDirName.find("TESTP" )!=std::string::npos) { userInput.Par["extInitFileDir_MET_QCD"] = ""; }
+    else if (workDirName.find("METNoHF" )!=std::string::npos) { userInput.Par["extInitFileDir_MET_QCD"] = ""; }
     else if (workDirName.find("CM")!=std::string::npos    ) { userInput.Par["extInitFileDir_MET_QCD"] = Form("%s/Input/NominalCM/", CWD.c_str()); }
     else                                                    { userInput.Par["extInitFileDir_MET_QCD"] = Form("%s/Input/Nominal/", CWD.c_str());   }
   }
@@ -233,10 +239,10 @@ void fitter(
     else if (workDirName=="NominalCM_RecoilSystJetEnDown") { userInput.Par.at("RecoilMET") = "PF_RAW_JetEnDown"; userInput.Flag.at("ignoreCorrDS") = true; }
     else if (workDirName=="NominalCM_RecoilSystUnclusEnUp"  ) { userInput.Par.at("RecoilMET") = "PF_RAW_UnclusEnUp";   userInput.Flag.at("ignoreCorrDS") = true; }
     else if (workDirName=="NominalCM_RecoilSystUnclusEnDown") { userInput.Par.at("RecoilMET") = "PF_RAW_UnclusEnDown"; userInput.Flag.at("ignoreCorrDS") = true; }
-    else if (workDirName=="NominalCM_RecoilSystBWGauss") { userInput.Flag.at("ignoreCorrDS") = true; }
+    else if (workDirName=="NominalCM_RecoilSystBWGauss") { userInput.Flag.at("ignoreCorrDS") = true; userInput.Flag["RecoilCorr_useBWGauss"] = true; }
     else if (workDirName=="NominalCM_RecoilSystPtFunc" ) { userInput.Flag.at("ignoreCorrDS") = true; }
-    else if (workDirName=="NominalCM_RecoilSplitRuns" ) { userInput.Flag.at("ignoreCorrDS") = true; }
-    else if (workDirName=="NominalCM_NTrackCorr"     ) { userInput.Flag.at("ignoreCorrDS") = true; }
+    else if (workDirName=="NominalCM_RecoilSplitRuns"  ) { userInput.Flag.at("ignoreCorrDS") = true; }
+    else if (workDirName=="NominalCM_NTrackCorr"       ) { userInput.Flag.at("ignoreCorrDS") = true; }
   }
   // Set all the Boolean Flags from the input settings
   //

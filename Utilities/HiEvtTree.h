@@ -262,6 +262,7 @@ void HiEvtTree::SetBranch(const std::string& n)
     fChain_->SetBranchStatus(Form("*%s*", n.c_str()), 1);
     LoadEntry();
   }
+  if (n=="pdfX" || n=="pdfID" || n=="pdfXpdf") { SetBranch("first"); SetBranch("second"); }
 }
 
 void HiEvtTree::InitTree(void)

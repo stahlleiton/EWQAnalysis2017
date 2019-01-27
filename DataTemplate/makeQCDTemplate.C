@@ -376,19 +376,20 @@ void formatGraph(GraphMap_t& graphMap)
           graph.second->SetTitle("");
           graph.second->SetMarkerColor(kBlue);
           graph.second->SetMarkerStyle(20);
+          graph.second->SetMarkerSize(1.5);
           // X-axis
-          graph.second->GetXaxis()->SetTitle("Relative PF r=0.3 #beta=0 Isolation");
-          graph.second->GetXaxis()->CenterTitle(kFALSE);
-          graph.second->GetXaxis()->SetTitleOffset(1.2);
-          graph.second->GetXaxis()->SetTitleSize(0.04);
+          graph.second->GetXaxis()->SetTitle("I^{#mu}");
+          graph.second->GetXaxis()->CenterTitle(kTRUE);
+          graph.second->GetXaxis()->SetTitleOffset(0.7);
+          graph.second->GetXaxis()->SetTitleSize(0.065);
           graph.second->GetXaxis()->SetLabelSize(0.035);
           //graph.second->GetXaxis()->SetNdivisions(204);
           graph.second->GetXaxis()->SetLimits(-0.1, roundVal(graph.second->GetXaxis()->GetXmax(),1));
           // Y-axis
           graph.second->GetYaxis()->SetTitle(std::get<0>(yAxis.at(var.first)).c_str());
-          graph.second->GetYaxis()->CenterTitle(kFALSE);
-          graph.second->GetYaxis()->SetTitleOffset(1.0);
-          graph.second->GetYaxis()->SetTitleSize(0.04);
+          graph.second->GetYaxis()->CenterTitle(kTRUE);
+          graph.second->GetYaxis()->SetTitleOffset(1.05);
+          graph.second->GetYaxis()->SetTitleSize(0.065);
           graph.second->GetYaxis()->SetLabelSize(0.035);
           //graph.second->GetYaxis()->SetNdivisions(204);
           graph.second->GetYaxis()->SetRangeUser(-50., 50.);
@@ -398,14 +399,13 @@ void formatGraph(GraphMap_t& graphMap)
   }
 };
 
-
 void drawGraph(const std::string& outDir, GraphMap_t& graphMap, const FitMap_t& fitMap, const bool& useEtaCM)
 {
   // Make output directories
   makeDir(outDir+"Plot/Initial/png/");
   makeDir(outDir+"Plot/Initial/pdf/");
   makeDir(outDir+"Plot/Initial/root/");
-  Double_t xl1=.52, yl1=0.74, xl2=xl1+.2, yl2=yl1+.150;
+  Double_t xl1=.65, yl1=0.60, xl2=xl1+.2, yl2=yl1+.150;
   // Set the format of all graphs
   for (auto& var : graphMap) {
     for (auto& lbl : var.second) {
@@ -416,8 +416,7 @@ void drawGraph(const std::string& outDir, GraphMap_t& graphMap, const FitMap_t& 
           std::unique_ptr<TCanvas> c(new TCanvas("c", "c", 1000, 1000)); c->cd();
           // Create Legend
           std::unique_ptr<TLegend> leg(new TLegend(xl1,yl1,xl2,yl2));
-          formatLegendEntry(*leg->AddEntry(graph.second.get(), "Data", "p"));
-          if (f) formatLegendEntry(*leg->AddEntry(f.get(), "Fit", "l"));
+          formatLegendEntry(*leg->AddEntry(graph.second.get(), "Data", "pe"));
           // Create the Text Info
           std::unique_ptr<TLatex> tex(new TLatex()); tex->SetNDC(); tex->SetTextSize(0.025); float dy = 0;
           std::vector< std::string > cutSelection;
@@ -430,23 +429,33 @@ void drawGraph(const std::string& outDir, GraphMap_t& graphMap, const FitMap_t& 
           // Draw the fit
           std::unique_ptr<TGraphErrors> tmp;
           if (f) {
+            f->Draw("same");
             double x[]  = { f->GetParameter(2) } , y[]  = { f->GetParameter(0) };
             double ex[] = { f->GetParError(2)  } , ey[] = { f->GetParError(0)  };
             tmp = std::unique_ptr<TGraphErrors>(new TGraphErrors(1, x, y, ex, ey));
             tmp->Draw("samep"); tmp->SetMarkerColor(kRed); tmp->SetMarkerStyle(20); tmp->SetMarkerSize(1.5);
-            f->Draw("same");
+            formatLegendEntry(*leg->AddEntry(tmp.get(), "Extrapolation", "pe"));
           }
+          graph.second->Draw("samep");
+          if (f) formatLegendEntry(*leg->AddEntry(f.get(), "Fit", "l"));
           // Draw the text
-          for (const auto& s: cutSelection) { tex->DrawLatex(0.20, 0.85-dy, s.c_str()); dy+=0.04; }
-          if (f) for (const auto& s: fitInfo) { tex->DrawLatex(0.70, 0.84-dy, s.c_str()); dy+=0.04; }
+          tex->SetTextSize(0.055); tex->DrawLatex(0.22, 0.84, Form("%s", cutSelection[0].c_str()));
+          tex->SetTextSize(0.058); tex->SetTextFont(61); tex->DrawLatex(0.78, 0.84, "CMS"); tex->SetTextFont(62);
+          tex->SetTextSize(0.044); tex->SetTextFont(52); tex->DrawLatex(0.69, 0.79, "Preliminary"); tex->SetTextFont(62);
+          tex->SetTextSize(0.040); tex->DrawLatex(0.22, 0.79, Form("%s", cutSelection[2].c_str()));
+          tex->SetTextSize(0.040); tex->DrawLatex(0.22, 0.73, Form("%s", cutSelection[1].c_str()));
+          tex->SetTextSize(0.035); tex->DrawLatex(0.69, 0.17, fitInfo[0].c_str());
+          //for (const auto& s: cutSelection) { tex->DrawLatex(0.20, 0.85-dy, s.c_str()); dy+=0.04; }
+          //if (f) for (const auto& s: fitInfo) { tex->SetTextSize(0.035); tex->DrawLatex(0.62, 0.72-dy, s.c_str()); dy+=0.04; }
           // Draw the legend
           leg->Draw("same");
           c->Modified(); c->Update();
+          //
           // set the CMS style
-          int option = 111;
-          if (lbl.first.find("pPb")!=std::string::npos) option = 109;
-          if (lbl.first.find("Pbp")!=std::string::npos) option = 110;
-          CMS_lumi(c.get(), option, 33, "");
+          int option = 118;
+          if (lbl.first.find("pPb")!=std::string::npos) option = 115;
+          if (lbl.first.find("Pbp")!=std::string::npos) option = 116;
+          CMS_lumi(c.get(), option, 33, "", false, 0.6, false);
           c->Modified(); c->Update();
           // Save Canvas
           c->SaveAs(( outDir + "Plot/Initial/png/" + graph.second->GetName() + ".png" ).c_str());
@@ -482,9 +491,11 @@ void updateYAxisRange(std::unique_ptr<TGraphErrors>& graph, const std::unique_pt
     if (fitMin < yMin) yMin = fitMin;
   }
   // Set the up and down of y axis
-  double fMax = 0.5 , fMin = 0.1;
-  double yDown = (fMax*yMin - fMin*yMax)/(fMax - fMin);
-  double yUp   = yDown + (yMax-yMin)/(fMax-fMin);
+  double fMax = 0.6 , fMin = 0.1;
+  //double yDown = (fMax*yMin - fMin*yMax)/(fMax - fMin);
+  //double yUp   = yDown + (yMax-yMin)/(fMax-fMin);
+  double yDown = yMin - fMin*(yMax-yMin)/(1-(fMax+fMin));
+  double yUp   = yMax + fMax*(yMax-yMin)/(1-(fMax+fMin));
   // Update the y range
   graph->GetYaxis()->SetRangeUser(floor(yDown), ceil(yUp));
 };
@@ -495,18 +506,19 @@ void getBinText(const Bin_t& bin, std::vector<std::string>& text, const int& chg
   // Clean the text
   text.clear();
   std::string sgn = (chg>0 ? "+" : "-");
+  text.push_back(Form("QCD #rightarrow #mu^{%s} + x", sgn.c_str()));
   // Set Eta Bin Text
   if (std::get<0>(bin).first!=std::get<0>(bin).second) {
     if (useEtaCM) {
-      text.push_back(Form("%.2f < #eta^{#mu%s}_{CM} < %.2f", std::get<0>(bin).first, sgn.c_str(), std::get<0>(bin).second));
+      text.push_back(Form("%.2f < #eta^{#mu}_{CM} < %.2f", std::get<0>(bin).first, std::get<0>(bin).second));
     }
     else {
-      text.push_back(Form("%.2f < #eta^{#mu%s}_{LAB} < %.2f", std::get<0>(bin).first, sgn.c_str(), std::get<0>(bin).second));
+      text.push_back(Form("%.2f < #eta^{#mu}_{LAB} < %.2f", std::get<0>(bin).first, std::get<0>(bin).second));
     }
   }
   // Set Pt Bin Text
   if (std::get<1>(bin).first!=std::get<1>(bin).second) {
-    text.push_back(Form("p^{#mu%s}_{T} > %.1f GeV/c", sgn.c_str(), std::get<1>(bin).first));
+    text.push_back(Form("p^{#mu}_{T} > %.1f GeV/c", std::get<1>(bin).first));
   }
   // Set Quality Cuts Text
   text.push_back(Form("#mu%s Tight ID , Drell-Yan Veto", sgn.c_str()));
@@ -515,7 +527,7 @@ void getBinText(const Bin_t& bin, std::vector<std::string>& text, const int& chg
 
 void formatLegendEntry(TLegendEntry& e)
 {
-  e.SetTextSize(0.035);
+  e.SetTextSize(0.040);
 };
 
 
@@ -622,7 +634,7 @@ void getFitText(const TF1& fit, std::vector<std::string>& text)
   // Clean the text
   text.clear();
   // Set the Chi2 / NDF text
-  text.push_back(Form("#chi^{2} / ndf     %.3f / %d", fit.GetChisquare(), fit.GetNDF()));
+  text.push_back(Form("#chi^{2} / ndof = %.0f / %d", fit.GetChisquare(), fit.GetNDF()));
   // Set the parameters text
   for (int i = 0; i < fit.GetNpar(); i++) {
     //
@@ -632,7 +644,7 @@ void getFitText(const TF1& fit, std::vector<std::string>& text)
         (std::abs(fit.GetParameter(i) - parMax) < 3.0*fit.GetParError(i))) { warningLbl = " (!)"; }
     //
     if (fit.GetParError(i)>0.0) {
-      text.push_back(Form("%s     %.3f #pm %.3f%s", fit.GetParName(i), fit.GetParameter(i), fit.GetParError(i), warningLbl.c_str()));
+      text.push_back(Form("%s %.1f #pm %.1f%s", fit.GetParName(i), fit.GetParameter(i), fit.GetParError(i), warningLbl.c_str()));
     }
   }
 };
@@ -691,8 +703,8 @@ void formatExGraph(GraphMap_t& exGraphMap, const std::string& col, const bool& u
           const double etaMin = binMap.at(col).at(useEtaCM ? "EtaCM" : "Eta")[0];
           const double etaMax = binMap.at(col).at(useEtaCM ? "EtaCM" : "Eta")[1];
           graph.second->GetXaxis()->SetLimits(etaMin, etaMax);
-          if (useEtaCM) { graph.second->GetXaxis()->SetTitle("Leading Muon #eta_{CM}");  }
-          else          { graph.second->GetXaxis()->SetTitle("Leading Muon #eta_{LAB}"); }
+          if (useEtaCM) { graph.second->GetXaxis()->SetTitle("#eta^{#mu}_{CM}");  }
+          else          { graph.second->GetXaxis()->SetTitle("#eta^{#mu}_{LAB}"); }
           // Y-axis
         }
       }
@@ -742,7 +754,7 @@ void drawExGraph(const std::string& outDir, GraphMap_t& exGraphMap, const FitExM
   makeDir(outDir+"Plot/Final/png/");
   makeDir(outDir+"Plot/Final/pdf/");
   makeDir(outDir+"Plot/Final/root/");
-  Double_t xl1=.52, yl1=0.74, xl2=xl1+.2, yl2=yl1+.150;
+  Double_t xl1=.69, yl1=0.60, xl2=xl1+.2, yl2=yl1+.150;
   // Set the format of all graphs
   for (auto& var : exGraphMap) {
     for (auto& lbl : var.second) {
@@ -753,24 +765,29 @@ void drawExGraph(const std::string& outDir, GraphMap_t& exGraphMap, const FitExM
           std::unique_ptr<TCanvas> c(new TCanvas("c", "c", 1000, 1000)); c->cd();
           // Create Legend
           std::unique_ptr<TLegend> leg(new TLegend(xl1,yl1,xl2,yl2));
-          formatLegendEntry(*leg->AddEntry(graph.second.get(), "Data", "p"));
+          formatLegendEntry(*leg->AddEntry(graph.second.get(), "Data", "pe"));
           // Create the Text Info
           std::unique_ptr<TLatex> tex(new TLatex()); tex->SetNDC(); tex->SetTextSize(0.025); float dy = 0;
           std::vector< std::string > cutSelection;
           getBinText(graph.first, cutSelection, ((lbl.first.find("Pl")!=std::string::npos)*2-1), useEtaCM);
           // Draw graph
           updateYAxisRange(graph.second, NULL);
-          graph.second->Draw("ap");
           std::unique_ptr<TGraphErrors> tmp(new TGraphErrors(*graph.second)); tmp->Set(1);
           tmp->SetFillColor(kGreen+3); tmp->SetMarkerColor(kOrange);
-          tmp->Draw("samep2");
+          graph.second->RemovePoint(0);
+          graph.second->Draw("ap");
+          //tmp->Draw("samep2");
           //
           //if (f) {
           //  f->SetLineColor(kGreen+2); f->SetLineWidth(2);
           //  f->Draw("same");
-          //}
+          //
           // Draw the text
-          for (const auto& s: cutSelection) { tex->DrawLatex(0.20, 0.85-dy, s.c_str()); dy+=0.04; }; dy = 0.0;
+          tex->SetTextSize(0.055); tex->DrawLatex(0.22, 0.84, Form("%s", cutSelection[0].c_str()));
+          tex->SetTextSize(0.058); tex->SetTextFont(61); tex->DrawLatex(0.78, 0.84, "CMS"); tex->SetTextFont(62);
+          tex->SetTextSize(0.044); tex->SetTextFont(52); tex->DrawLatex(0.69, 0.79, "Preliminary"); tex->SetTextFont(62);
+          tex->SetTextSize(0.040); tex->DrawLatex(0.22, 0.79, Form("%s", cutSelection[1].c_str()));
+          //tex->SetTextSize(0.035); tex->DrawLatex(0.69, 0.17, fitInfo[0].c_str());
           // Draw the text results
           std::vector< std::string > resultText;
           // Set each variable Label
@@ -784,6 +801,8 @@ void drawExGraph(const std::string& outDir, GraphMap_t& exGraphMap, const FitExM
           double xInc[] = { xDummy } , yInc[] = { val } , xErrInc[] = { graph.second->GetErrorX(iInc) } , yErrInc[] = { err };
           TGraphErrors gInc(1, xInc, yInc, xErrInc, yErrInc);
           gInc.SetMarkerColor(kRed); gInc.SetMarkerSize(1.0); gInc.SetLineColor(kRed);
+          //formatLegendEntry(*leg->AddEntry(&gInc, "#eta-inclusive", "p"));
+          //formatLegendEntry(*leg->AddEntry(tmp.get(), "Mean", "p"));
           gInc.Draw("same p");
           //
           tmp->GetPoint(0, xDummy, val); err = tmp->GetErrorY(0);
@@ -794,15 +813,15 @@ void drawExGraph(const std::string& outDir, GraphMap_t& exGraphMap, const FitExM
           //  resultText.push_back(Form("Fit : %.5f + %.5f #times #eta_{CM}", f->GetParameter(0),  f->GetParameter(1)));
 	  //}
           //
-          for (const auto& s: resultText  ) { tex->DrawLatex(0.20, 0.70-dy, s.c_str()); dy+=0.04; }; dy = 0.0;
+          //for (const auto& s: resultText  ) { tex->DrawLatex(0.20, 0.70-dy, s.c_str()); dy+=0.04; }; dy = 0.0;
           // Draw the legend
           leg->Draw("same");
           c->Modified(); c->Update();
           // set the CMS style
-          int option = 111;
+          int option = 118;
           if (lbl.first.find("pPb")!=std::string::npos) option = 109;
           if (lbl.first.find("Pbp")!=std::string::npos) option = 110;
-          CMS_lumi(c.get(), option, 33, "");
+          CMS_lumi(c.get(), option, 33, "", false, 0.6, false);
           c->Modified(); c->Update();
           // Save Canvas
           c->SaveAs(( outDir + "Plot/Final/png/" + graph.second->GetName() + ".png" ).c_str());

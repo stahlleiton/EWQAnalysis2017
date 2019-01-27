@@ -8,8 +8,11 @@
 using namespace std;
 
 void 
-CMS_lumi( TPad* pad, int iPeriod, int iPosX, TString label )
-{            
+CMS_lumi( TPad* pad, int iPeriod, int iPosX, TString label, bool isPreliminary, float lumiSize, bool printCMS )
+{
+  if (printCMS==false) { cmsText = ""; }
+  if (lumiSize>0) { lumiTextSize = lumiSize; }
+  writeExtraText = isPreliminary;
   bool outOfFrame    = false;
   if( iPosX/10==0 ) 
     {
@@ -164,6 +167,18 @@ CMS_lumi( TPad* pad, int iPeriod, int iPosX, TString label )
     {
       lumiText2 += lumi_PAMC2016 + " (8.16 TeV)";
     }
+  else if (iPeriod==1141)
+    {
+      lumiText2 += "pPb                       #sqrt{s_{NN}} = 8.16 TeV";
+    }
+  else if (iPeriod==1142)
+    {
+      lumiText2 += "pPb Simulation        #sqrt{s_{NN}} = 8.16 TeV";
+    }
+  else if (iPeriod==1143)
+    {
+      lumiText2 += "pPb Simulation            #sqrt{s_{NN}} = 8.16 TeV";
+    }
   else if (iPeriod==115)
     {
       lumiText2 += lumi_pPb2016_alt + " (8.16 TeV)";
@@ -176,33 +191,45 @@ CMS_lumi( TPad* pad, int iPeriod, int iPosX, TString label )
     {
       lumiText2 += lumi_PA2016_alt + " (8.16 TeV)";
     }
+  else if (iPeriod==1118)
+    {
+      lumiText2 += lumi_PA2016_alt2 + "         #sqrt{s_{NN}} = 8.16 TeV";
+    }
   else if (iPeriod==118)
     {
-      lumiText2 += lumi_PA2016_alt2 + "                          #sqrt{s_{NN}} = 8.16 TeV";
+      lumiText2 += lumi_PA2016_alt2 + "             #sqrt{s_{NN}} = 8.16 TeV";
     }
-  else if (iPeriod==11820)
+  else if (iPeriod==11888)
     {
-      lumiText2 += lumi_pPb2016_alt + "                                       #sqrt{s_{NN}} = 8.16 TeV";
-    }
-  else if (iPeriod==11821)
-    {
-      lumiText2 += lumi_Pbp2016_alt + "                                       #sqrt{s_{NN}} = 8.16 TeV";
-    }
-  else if (iPeriod==11822)
-    {
-      lumiText2 += lumi_PA2016_alt2 + "                                        #sqrt{s_{NN}} = 8.16 TeV";
+      lumiText2 += lumi_PA2016_alt2 + "       #sqrt{s_{NN}} = 8.16 TeV";
     }
   else if (iPeriod==11830)
     {
-      lumiText2 += lumi_pPb2016_alt + "                                                #sqrt{s_{NN}} = 8.16 TeV";
+      lumiText2 += lumi_PA2016_alt2 + "         #sqrt{s_{NN}} = 8.16 TeV";
+    }
+  else if (iPeriod==11820)
+    {
+      lumiText2 += lumi_pPb2016_alt + "          #sqrt{s_{NN}} = 8.16 TeV";
+    }
+  else if (iPeriod==11821)
+    {
+      lumiText2 += lumi_Pbp2016_alt + "          #sqrt{s_{NN}} = 8.16 TeV";
+    }
+  else if (iPeriod==11822)
+    {
+      lumiText2 += lumi_PA2016_alt2 + "          #sqrt{s_{NN}} = 8.16 TeV";
+    }
+  else if (iPeriod==11830)
+    {
+      lumiText2 += lumi_pPb2016_alt + "                #sqrt{s_{NN}} = 8.16 TeV";
     }
   else if (iPeriod==11831)
     {
-      lumiText2 += lumi_Pbp2016_alt + "                                                #sqrt{s_{NN}} = 8.16 TeV";
+      lumiText2 += lumi_Pbp2016_alt + "                #sqrt{s_{NN}} = 8.16 TeV";
     }
   else if (iPeriod==11832)
     {
-      lumiText2 += lumi_PA2016_alt2 + "                                                #sqrt{s_{NN}} = 8.16 TeV";
+      lumiText2 += lumi_PA2016_alt2 + "                #sqrt{s_{NN}} = 8.16 TeV";
     }
   else if (iPeriod==120)
     {
@@ -285,7 +312,7 @@ CMS_lumi( TPad* pad, int iPeriod, int iPosX, TString label )
 	  latex.SetTextSize(cmsTextSize*t);
 	  latex.SetTextAlign(align_);
 	  latex.DrawLatex(posX_, posY_, cmsText);
-	  if( writeExtraText ) 
+	  if( writeExtraText )
 	    {
 	      latex.SetTextFont(extraTextFont);
 	      latex.SetTextAlign(align_);

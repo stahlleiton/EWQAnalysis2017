@@ -44,8 +44,13 @@ void plotWAsym(
       }
     },
     // TEMPLATE
-    { "Binning" , {
-	{ "BinWidth" , { { "NominalCM_BinWidth1" } , 3 } }, // , "NominalCM_BinWidth3"
+    { "EWK_Correction" , {
+	{ "POWHEG_NoEWK" , { { "NominalCM_NoEWK" } , 3 } },
+      }
+    },
+    // TEMPLATE
+    { "MET_Template_Binning" , {
+    	{ "BinWidth" , { { "NominalCM_BinWidth1" } , 3 } }, //  , "NominalCM_BinWidth3"
       }
     },
     // BACKGROUND: QCD
@@ -69,22 +74,24 @@ void plotWAsym(
 	{ "Recoil_SystPtFunc"  , { { "NominalCM_RecoilSystPtFunc"  } , 0 } },
 	{ "Recoil_SystBWGauss" , { { "NominalCM_RecoilSystBWGauss" } , 0 } },
 	{ "Recoil_SystJetEn"   , { { "NominalCM_RecoilSystJetEnDown" , "NominalCM_RecoilSystJetEnUp" } , 0 } },
+	//{ "Recoil_Smearing2"    , { { "NominalCM_RecoilSmearing2"    } , 0 } },
 	//{ "Recoil_SystUnclusEn"   , { { "NominalCM_RecoilSystUnclusEnDown" , "NominalCM_RecoilSystUnclusEnUp" } , 0 } },
 	//{ "Recoil_Scaling"     , { { "NominalCM_RecoilScaling"     } , 0 } },
       }
     },
     // EVENT ACTIVITY CORRECTION
     { "Event_Activity" , {
-	{ "HF_NTrackCorr"  , { { "NominalCM_NTrackCorr" } , 0 } },
+	{ "HF_NTrackCorr"  , { { "NominalCM_NTrackCorr" } , 3 } },
       }
     },
     // BOSON PT CORRECTION
     { "Boson_pT" , {
-	{ "BosonPT"  , { { "NominalCM_BosonPTCorr" } , 0 } },
+	{ "BosonPT"  , { { "NominalCM_NoBosonPTCorr" } , 3 } },
       }
     }
     // OTHER STUFF
     //{ "Other" , {
+	//{ "MuonPT"  , { { "NominalCM_MuonPTCorr" } , 0 } },
 	//{ "Recoil_NoCorr" , { { "NominalCM_NoRecoilCorr" } , 3 } },
 	//{ "NoCorr"        , { { "NominalCM_NoCorr"       } , 3 } },
 	//{ "HF_Only"       , { { "NominalCM_HFCorrOnly"   } , 3 } },
@@ -95,10 +102,10 @@ void plotWAsym(
     //}
     //}
   };
-  //workDirNames.at("Recoil_Correction")["Recoil_StatVar_MC"] = std::make_pair(std::vector<std::string>(), 0);
-  //for (uint i = 0; i < 100; i++) { workDirNames.at("Recoil_Correction").at("Recoil_StatVar_MC").first.push_back(Form("NominalCM_RecoilStatVar_MC/Variation_%d", i)); }
-  //workDirNames.at("Recoil_Correction")["Recoil_StatVar_DATA"] = std::make_pair(std::vector<std::string>(), 0);
-  //for (uint i = 0; i < 100; i++) { workDirNames.at("Recoil_Correction").at("Recoil_StatVar_DATA").first.push_back(Form("NominalCM_RecoilStatVar_DATA/Variation_%d", i)); }
+  workDirNames.at("Recoil_Correction")["Recoil_StatVar_MC"] = std::make_pair(std::vector<std::string>(), 0);
+  for (uint i = 0; i < 100; i++) { workDirNames.at("Recoil_Correction").at("Recoil_StatVar_MC").first.push_back(Form("NominalCM_RecoilStatVar_MC/Variation_%d", i)); }
+  workDirNames.at("Recoil_Correction")["Recoil_StatVar_DATA"] = std::make_pair(std::vector<std::string>(), 0);
+  for (uint i = 0; i < 100; i++) { workDirNames.at("Recoil_Correction").at("Recoil_StatVar_DATA").first.push_back(Form("NominalCM_RecoilStatVar_DATA/Variation_%d", i)); }
   //
   const std::string metTag      = "METPF_RAW";
   const std::string dsTag       = "DATA";
@@ -154,43 +161,73 @@ void plotWAsym(
     //
     // --------------------------------------------------------------------------------- //
     // Print Covariance Matrix
-    //if (!printCovarianceMatrix(systVar, workDirNames, outDir, useEtaCM)) { return; }
+    /*
+    if (!printCovarianceMatrix(systVar, var.at("Nominal"), workDirNames, outDir, useEtaCM)) { return; }
     //
     // --------------------------------------------------------------------------------- //
     // Print systematic Tables
     //
     // Nominal Systematics
-    //if (!printSystematicTables(var.at("Nominal"), outDir , useEtaCM)) { return; }
+    if (!printSystematicTables(var.at("Nominal"), outDir , useEtaCM)) { return; }
     // Efficiency Systematics
-    //if (!printEffSystematicTables(systVar.at("Efficiency"), outDir , useEtaCM)) { return; }
+    if (!printEffSystematicTables(systVar.at("Efficiency"), outDir , useEtaCM)) { return; }
     // Full Systematics
-    //if (!printFullSystematicTable(var, outDir, useEtaCM)) { return; }
+    if (!printFullSystematicTable(var, outDir, useEtaCM)) { return; }
+    // Print Table for Paper
+    //if (!printCrossSectionTableForPaper(var.at("Nominal"), outDir)) { return; }
+    */
   }
   //
   // Create the main plots
   GraphPentaMap graph;
   iniResultsGraph(graph, var);
   if (!fillResultsGraph(graph, var)) { return; }
-  //drawGraph(graph, outDir, useEtaCM, accType, effType);
+  /*
+  drawGraph(graph, outDir, useEtaCM, accType, effType);
+  */
   //
   // Create the systematic plots
+  /*
   if (doSyst) {
     GraphPentaMap systGraph;
     for (const auto& sVar : systVar) { iniResultsGraph(systGraph, sVar.second); }
     for (const auto& sVar : systVar) { if (!fillResultsGraph(systGraph, sVar.second)) { return; } }
-    //drawGraph(systGraph, outDir, useEtaCM, accType, effType);
+    drawGraph(systGraph, outDir, useEtaCM, accType, effType);
     //drawSystematicGraph(graph, outDir, useEtaCM, accType, effType);
-    //drawCombineSystematicGraph(graph, outDir, useEtaCM, accType, effType);
-    //drawCombineSystematicGraph(systGraph, outDir, useEtaCM, accType, effType, "TnP_Stat");
-    //drawCombineSystematicGraph(systGraph, outDir, useEtaCM, accType, effType, "TnP_Syst");
+    drawCombineSystematicGraph(graph, outDir, useEtaCM, accType, effType);
+    drawCombineSystematicGraph(systGraph, outDir, useEtaCM, accType, effType, "TnP_Stat");
+    drawCombineSystematicGraph(systGraph, outDir, useEtaCM, accType, effType, "TnP_Syst");
   }
   //
   // Create the plots with predictions
-  drawGraphWithTheoryAndRatio(graph, outDir, useEtaCM, accType, effType);
-  drawGraphWithTheory(graph, outDir, useEtaCM, accType, effType);
+  /*
+  drawGraphWithTheoryAndRatio(graph, outDir, useEtaCM, accType, effType, true);
+  drawGraphWithTheory(graph, outDir, "EPPS16", useEtaCM, accType, effType, true);
+  drawGraphWithTheoryAndRatio(graph, outDir, useEtaCM, accType, effType, false);
+  drawGraphWithTheory(graph, outDir, "EPS09" , useEtaCM, accType, effType, false);
+  //drawGraphWithTheory(graph, outDir, "EPS09_CT14" , useEtaCM, accType, effType, false);
+  drawGraphWithTheory(graph, outDir, "EPPS16", useEtaCM, accType, effType, false);
+  //drawGraphWithTheoryREW(graph, outDir, useEtaCM, accType, effType, false);
+  */
+  drawGraphWithTheorySEP(graph, outDir, "EPPS16", useEtaCM, accType, effType, true);
+  return;
+  /*
   //
   // Create the plots with 5 TeV results
-  drawGraphWithpPb5TeV(graph, outDir, useEtaCM, accType, effType);
+  //drawGraphWithpPb5TeV(graph, outDir, useEtaCM, accType, effType, false);
+  //drawGraphWithpPb5TeV(graph, outDir, useEtaCM, accType, effType, true );
+  drawGraphWithpPb5TeV(graph, outDir, useEtaCM, accType, effType, false,  0, "",  0);
+  drawGraphWithpPb5TeV(graph, outDir, useEtaCM, accType, effType, false, -1, "",  0);
+  drawGraphWithpPb5TeV(graph, outDir, useEtaCM, accType, effType, false, +1, "",  0);
+  //drawGraphWithpPb5TeV(graph, outDir, useEtaCM, accType, effType, true , -1, "EPS09",  1);
+  //drawGraphWithpPb5TeV(graph, outDir, useEtaCM, accType, effType, true , +1, "EPS09",  1);
+  //drawGraphWithpPb5TeV(graph, outDir, useEtaCM, accType, effType, true ,  0, "EPPS16", 1);
+  //drawGraphWithpPb5TeV(graph, outDir, useEtaCM, accType, effType, true , -1, "EPPS16", 1);
+  //drawGraphWithpPb5TeV(graph, outDir, useEtaCM, accType, effType, true , +1, "EPPS16", 1);
+  drawGraphWithpPb5TeV(graph, outDir, useEtaCM, accType, effType, true ,  0, "EPPS16", 0);
+  drawGraphWithpPb5TeV(graph, outDir, useEtaCM, accType, effType, true , -1, "EPPS16", 0);
+  drawGraphWithpPb5TeV(graph, outDir, useEtaCM, accType, effType, true , +1, "EPPS16", 0);
+  */
   //
 };
 
@@ -345,15 +382,18 @@ bool getResult(
     else { effWorkDirName = "Nominal"; }
     if (useCM) { effWorkDirName += "CM"; }
     if (workDirName.find("_MTCut")!=std::string::npos) { effWorkDirName += "_MTCut";  }
-    bool useBosonPTCorr = false;
-    if (workDirName.find("BosonPTCorr")!=std::string::npos) { useBosonPTCorr = true; }
+    bool useBosonPTCorr = true;
+    if (workDirName.find("NoBosonPTCorr")!=std::string::npos) { useBosonPTCorr = false; }
     uint useHFCorr = 1;
     if ( (workDirName.find("TnPCorrOnly")!=std::string::npos) || (workDirName.find("RecoilCorrOnly")!=std::string::npos) || (workDirName.find("NoHFCorr")!=std::string::npos) ) { useHFCorr = 0; }
     if (workDirName.find("NTrackCorr")!=std::string::npos) { useHFCorr = 2; }
     if      (useBosonPTCorr) { effWorkDirName += "_WithBosonPT"; }
     if      (useHFCorr==1  ) { effWorkDirName += "_WithHF";      }
     else if (useHFCorr==2  ) { effWorkDirName += "_WithNTrack";  }
-    const std::string effDirPath  = Form("%s/Efficiency/Output/%s", preCWD.c_str(), effWorkDirName.c_str());
+    bool useEWKCorr = true;
+    if (workDirName.find("NoEWK")!=std::string::npos) { useEWKCorr = false; }
+    //if (useEWKCorr==false) { effWorkDirName += "_NoEWK";  }
+    const std::string effDirPath  = Form("%s/Efficiency/Approval/%s", preCWD.c_str(), effWorkDirName.c_str());
     const std::string effFileName = "efficiencyTnP.root";
     const std::string effFilePath = Form("%s/%s", effDirPath.c_str(), effFileName.c_str());
     //

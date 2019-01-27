@@ -23,6 +23,7 @@
 #include "RooArgSet.h"
 #include "RooArgList.h"
 #include "RooRealVar.h"
+#include "RooConstVar.h"
 #include "RooAbsPdf.h"
 #include "RooAddPdf.h"
 #include "RooStringVar.h"
@@ -466,6 +467,52 @@ bool rooPlotToTH1(TH1D& hData, TH1D& hFit, const RooPlot& frame, const bool useA
 };
 
 
+void divideBand(RooCurve& band, const RooCurve& cDen)
+{
+  double x, y;
+  const RooCurve cNum = band;
+  for (int i = 0; i < band.GetN(); i++) {
+    band.GetPoint(i, x, y);
+    if (cDen.interpolate(x) > 0.) {
+      band.SetPoint(i, x, (y/cDen.interpolate(x)) );
+      std::cout << i << "  " << x << "  " << y << "  " << cDen.interpolate(x) << std::endl;
+    }
+  }
+};
+
+
+bool addRatioBand(RooPlot& outFrame, RooPlot& frame, const RooWorkspace& ws, const std::string& pdfName, const std::string dsName, const std::string curvename = "", const double Z = 1.0)
+{
+  // Get normalization
+  const double norm = ws.data(dsName.c_str())->sumEntries();
+  // Find central curve
+  ws.pdf(pdfName.c_str())->plotOn(&frame, RooFit::Name("cenCurve"), RooFit::Range("METWindowPlot"), RooFit::NormRange("METWindowPlot"),
+                                  RooFit::Normalization(norm, RooAbsReal::NumEvent)
+                                  );
+  auto rFit = (RooCurve*) frame.findObject("cenCurve");
+  if (!rFit) { std::cout << "[ERROR] addRatioBand(cenCurve) cannot find curve" << std::endl; return false; }
+  RooCurve cenCurve = *rFit;
+  frame.remove(0, kFALSE);
+  // Get the fit results
+  RooFitResult* fitResult = (RooFitResult*) ws.obj(Form("fitResult_%s", pdfName.c_str()));
+  // Create the Error Band
+  ws.pdf(pdfName.c_str())->plotOn(&frame, RooFit::Name("band"), RooFit::Range("METWindowPlot"), RooFit::NormRange("METWindowPlot"),
+                                  RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::VisualizeError(*fitResult, 1, true)
+                                  );
+  // Find band
+  auto band = (RooCurve*) frame.getCurve("band");
+  if (!band) { std::cout << "[ERROR] addRatioBand(band) cannot find curve" << std::endl; return false; }
+  frame.remove(0, kFALSE);
+  // Normalize the cenCurve
+  divideBand(*band, cenCurve);
+  // Add to frame
+  outFrame.addPlotable(band, "CF2");
+  outFrame.getAttFill()->SetFillColor(kOrange);
+  // Return
+  return true;
+};
+
+
 bool makePullHist(RooHist& pHist, const RooPlot& frame, const std::string histname, const std::string curvename, const bool useAverage)
 {
   // Find curve object
@@ -512,10 +559,10 @@ bool makeRatioHist(RooHist& rHist, const RooPlot& frame, const std::string histn
 {
   // Find curve object
   auto rFit = (RooCurve*) frame.findObject(((curvename=="") ? 0 : curvename.c_str()), RooCurve::Class());
-  if (!rFit) { std::cout << "[ERROR] makePullHist(" << curvename << ") cannot find curve" << std::endl; return false; }
+  if (!rFit) { std::cout << "[ERROR] makeRatioHist(" << curvename << ") cannot find curve" << std::endl; return false; }
   // Find histogram object
   auto rData = (RooHist*) frame.findObject(((histname=="") ? 0 : histname.c_str()), RooHist::Class());
-  if (!rData) { std::cout << "[ERROR] makePullHist(" << histname  << ") cannot find histogram" << std::endl; return false; }
+  if (!rData) { std::cout << "[ERROR] makeRatioHist(" << histname  << ") cannot find histogram" << std::endl; return false; }
   // Determine range of curve
   double xstart, xstop, yDummy;
   rFit->GetPoint(0, xstart, yDummy);
