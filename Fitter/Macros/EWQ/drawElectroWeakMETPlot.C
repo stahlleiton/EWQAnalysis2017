@@ -99,11 +99,11 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
     if (ws.data(("CutAndCount_"+dsName).c_str())) {
       ws.data(("CutAndCount_"+dsName).c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::Binning("METWindowPlot"),
                                                        RooFit::DataError(RooAbsData::SumW2), RooFit::XErrorSize(0),
-                                                       RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
+                                                       RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.55));
     }
     else {
       ws.data(dsName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::Binning("METWindowPlot"),
-                                      RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
+                                      RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.55));
     }
     //
     if (ws.pdf(pdfName.c_str())) {
@@ -174,7 +174,7 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
         }
         //
         ws.data(dsName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::Binning("METWindowPlot"),
-                                        RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
+                                        RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.55));
         //
         norm = ws.data(dsNameFit.c_str())->sumEntries();
         //
@@ -229,7 +229,7 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
     //TGaxis::SetMaxDigits(4);
     // Main Frame
     frame.at("MAIN")->SetTitle("");
-    frame.at("MAIN")->SetMarkerSize(1.5);
+    frame.at("MAIN")->SetMarkerSize(2.05);
     frame.at("MAIN")->GetYaxis()->CenterTitle(kTRUE);
     frame.at("MAIN")->GetXaxis()->CenterTitle(kTRUE);
     frame.at("MAIN")->GetYaxis()->SetTitleOffset(1.5);
@@ -247,7 +247,7 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
     //TGaxis::SetMaxDigits(4);
     // Main Frame
     frame.at("MAIN")->SetTitle("");
-    frame.at("MAIN")->SetMarkerSize(1.5);
+    frame.at("MAIN")->SetMarkerSize(2.05);
     frame.at("MAIN")->GetYaxis()->CenterTitle(kTRUE);
     frame.at("MAIN")->GetXaxis()->CenterTitle(kTRUE);
     frame.at("MAIN")->GetYaxis()->SetTitleOffset(0.9);
@@ -262,12 +262,14 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
     pad["MAIN"] = new TPad( Form("padMAIN_Tot%s", tag.c_str()), "", 0, 0.2, 1, 1 );
     pad.at("MAIN")->SetFixedAspectRatio(kTRUE);
     pad.at("MAIN")->SetBottomMargin(0.015);
-    if (drawPull==false && (plotStyle==1 || plotStyle==2 || plotStyle==3)) { pad.at("MAIN")->SetBottomMargin(0.0); }
+    if (drawPull==false && (plotStyle==1 || plotStyle==2 || plotStyle==3)) { pad.at("MAIN")->SetBottomMargin(0.016); }
+    pad.at("MAIN")->SetFillStyle(0);
+    pad.at("MAIN")->SetFrameFillStyle(0);
   }
   if (drawMode==1) {
     // Pull Frame
     frame.at("EXTRA")->SetTitle("");
-    frame.at("EXTRA")->SetMarkerSize(1.5);
+    frame.at("EXTRA")->SetMarkerSize(2.25);
     frame.at("EXTRA")->GetYaxis()->CenterTitle(kTRUE);
     frame.at("EXTRA")->GetXaxis()->CenterTitle(kTRUE);
     frame.at("EXTRA")->GetYaxis()->SetTitleOffset(0.25);
@@ -283,9 +285,9 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
     if (plotStyle==1 || plotStyle==2 || plotStyle==3) { frame.at("EXTRA")->GetXaxis()->SetTitle("p^{miss}_{T} (GeV/c)"); }
     //if (plotStyle==3) { frame.at("EXTRA")->GetXaxis()->SetTitle("#slash{E}_{T} (GeV/c)"); }
     if (drawPull) { frame.at("EXTRA")->GetYaxis()->SetRangeUser(-6.0, 6.0); }
-    else if (plotStyle==1 || plotStyle==2 || plotStyle==3) { frame.at("EXTRA")->GetYaxis()->SetRangeUser(0., 2.5); }
+    else if (plotStyle==1 || plotStyle==2 || plotStyle==3) { frame.at("EXTRA")->GetYaxis()->SetRangeUser(0., 2.6); }
     else { frame.at("EXTRA")->GetYaxis()->SetRangeUser(-0.01, 2.1); }
-    pad["EXTRA"] = new TPad( Form("padEXTRA_Tot%s", tag.c_str()), "", 0, 0, 1, 0.2 );
+    pad["EXTRA"] = new TPad( Form("padEXTRA_Tot%s", tag.c_str()), "", 0, 0, 1, 0.212 );
     pad.at("EXTRA")->SetFixedAspectRatio(kTRUE);
     pad.at("EXTRA")->SetTopMargin(0.02);
     if (drawPull==false && (plotStyle==1 || plotStyle==2 || plotStyle==3)) { pad.at("EXTRA")->SetTopMargin(0.0); }
@@ -347,6 +349,8 @@ bool drawElectroWeakMETPlot( RooWorkspace& ws,  // Local Workspace
   cFig->SaveAs(Form("%splot/pdf/%s.pdf", outputDir.c_str(), fileName.c_str()));
   gSystem->mkdir(Form("%splot/png/", outputDir.c_str()), kTRUE);
   cFig->SaveAs(Form("%splot/png/%s.png", outputDir.c_str(), fileName.c_str()));
+  gSystem->mkdir(Form("%splot/C/", outputDir.c_str()), kTRUE);
+  cFig->SaveAs(Form("%splot/C/%s.C", outputDir.c_str(), fileName.c_str()));
   //
   cFig->Clear();
   cFig->Close();
@@ -541,7 +545,7 @@ void setRange(RooPlot& frame, const RooWorkspace& ws, const std::string& varName
     hData = *((TH1D*)h.get());
   }
   else {
-    if (!rooPlotToTH1(hData, hFit, frame)) { std::cout << "[ERROR] Could not find the RooHist from the frame!" << std::endl; false; }
+    if (!rooPlotToTH1(hData, hFit, frame)) { std::cout << "[ERROR] Could not find the RooHist from the frame!" << std::endl; return; }
   }
   Double_t YMax = hData.GetBinContent(hData.GetMaximumBin());
   Double_t YMin = 1e99;
@@ -557,7 +561,7 @@ void setRange(RooPlot& frame, const RooWorkspace& ws, const std::string& varName
     Yup = YMax+(YMax-0.0)*0.55;
     Ydown = 0.0;
   }
-  Yup = 1000000.;
+  //Yup = 1000000.;
   frame.GetYaxis()->SetRangeUser(Ydown,Yup);
   //
   // Draw Lines for the MET range if cut

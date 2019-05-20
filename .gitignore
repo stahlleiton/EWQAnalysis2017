@@ -8,3 +8,4 @@ nit__.py
 *.d
 *.cxx
 *.pcm
+*.root

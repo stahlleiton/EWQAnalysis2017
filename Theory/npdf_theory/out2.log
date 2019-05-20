@@ -1,0 +1,92 @@
+
+Processing makeCovarianceMatrix.C+...
+Info in <TUnixSystem::ACLiC>: creating shared library /grid_mnt/vol__vol_U__u/llr/cms/stahl/ElectroWeakAnalysis/NOMINAL/BOSONPTCORR/EWQAnalysis2017/Theory/npdf_theory/./makeCovarianceMatrix_C.so
+[INFO] Starting the covariance test
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+[ERROR] Nominal value: -0.0159902 , -0.0158952  0.597587 are different for CT14  Charge_Asymmetry  Inc
+[ERROR] Nominal value: 0.0179389 , 0.0180173  0.435235 are different for CT14  Charge_Asymmetry  Inc
+[ERROR] Covariance value (4 , 4) : 0.000139268 , 0.000116776  19.2606 are different for CT14  Charge_Asymmetry  Inc
+[ERROR] Covariance value (5 , 5) : 0.000103528 , 8.74546e-05  18.3797 are different for CT14  Charge_Asymmetry  Inc
+[ERROR] Covariance value (7 , 7) : 5.80003e-05 , 4.89616e-05  18.4608 are different for CT14  Charge_Asymmetry  Inc
+[ERROR] Covariance value (16 , 16) : 2.40949e-05 , 2.002e-05  20.3539 are different for CT14  Charge_Asymmetry  Inc
+[ERROR] Covariance value (17 , 17) : 2.64578e-05 , 2.29206e-05  15.4325 are different for CT14  Charge_Asymmetry  Inc
+[ERROR] Covariance value (19 , 19) : 5.7561e-05 , 4.9572e-05  16.116 are different for CT14  Charge_Asymmetry  Inc
+[ERROR] Covariance value (20 , 20) : 5.69405e-05 , 4.67765e-05  21.7289 are different for CT14  Charge_Asymmetry  Inc
+[ERROR] Covariance value (0 , 0) : 6.23789e-06 , 3.93366e-05  84.1423 are different for CT14  ForwardBackward_Ratio  Inc
+[ERROR] Covariance value (2 , 2) : 2.05786e-05 , 2.44845e-05  15.9527 are different for CT14  ForwardBackward_Ratio  Inc
+[ERROR] Covariance value (4 , 4) : 4.40757e-05 , 3.59254e-05  22.6868 are different for CT14  ForwardBackward_Ratio  Inc
+[ERROR] Covariance value (8 , 8) : 2.20495e-05 , 2.75657e-05  20.0111 are different for CT14  ForwardBackward_Ratio  Inc
+[ERROR] Covariance value (9 , 9) : 3.04106e-05 , 3.63632e-05  16.3699 are different for CT14  ForwardBackward_Ratio  Inc
+[ERROR] Covariance value (0 , 0) : 1.41715e-05 , 2.63277e-05  46.1728 are different for CT14  ForwardBackward_Ratio  Pl
+[ERROR] Covariance value (2 , 2) : 4.27524e-05 , 5.05543e-05  15.4328 are different for CT14  ForwardBackward_Ratio  Pl
+[ERROR] Covariance value (5 , 5) : 0.000144745 , 0.000113828  27.1617 are different for CT14  ForwardBackward_Ratio  Pl
+[ERROR] Covariance value (6 , 6) : 0.000189629 , 0.000148745  27.4858 are different for CT14  ForwardBackward_Ratio  Pl
+[ERROR] Covariance value (7 , 7) : 0.000209035 , 0.000166172  25.7947 are different for CT14  ForwardBackward_Ratio  Pl
+[ERROR] Covariance value (8 , 8) : 0.000253846 , 0.000200227  26.7788 are different for CT14  ForwardBackward_Ratio  Pl
+[ERROR] Covariance value (9 , 9) : 0.000424 , 0.000343105  23.5772 are different for CT14  ForwardBackward_Ratio  Pl
+[ERROR] Covariance value (10 , 10) : 1.21345e-05 , 7.94056e-05  84.7184 are different for CT14  ForwardBackward_Ratio  Pl
+[ERROR] Covariance value (10 , 19) : 4.28472e-05 , 0.000107453  30.5941 are different for CT14  ForwardBackward_Ratio  Pl
+[ERROR] Covariance value (13 , 13) : 0.000123712 , 0.000106157  16.5361 are different for CT14  ForwardBackward_Ratio  Pl
+[ERROR] Covariance value (14 , 14) : 0.000172705 , 0.000147023  17.468 are different for CT14  ForwardBackward_Ratio  Pl
+[ERROR] Covariance value (16 , 16) : 0.000312182 , 0.000264254  18.1374 are different for CT14  ForwardBackward_Ratio  Pl
+[ERROR] Covariance value (17 , 17) : 0.000423364 , 0.000358236  18.1803 are different for CT14  ForwardBackward_Ratio  Pl
+[ERROR] Covariance value (19 , 10) : 4.28472e-05 , 0.000107453  30.5941 are different for CT14  ForwardBackward_Ratio  Pl
+[ERROR] Nominal value: -0.0274851 , -0.0274006  0.308383 are different for EPPS16  Charge_Asymmetry  Inc
+[ERROR] Nominal value: 0.00952676 , 0.00963093  1.08162 are different for EPPS16  Charge_Asymmetry  Inc
+[ERROR] Covariance value (6 , 6) : 0.000175267 , 0.000151701  15.5339 are different for EPPS16  Charge_Asymmetry  Inc
+[ERROR] Covariance value (7 , 7) : 0.000124201 , 0.0001059  17.2818 are different for EPPS16  Charge_Asymmetry  Inc
+[ERROR] Covariance value (8 , 8) : 7.56358e-05 , 6.54578e-05  15.5489 are different for EPPS16  Charge_Asymmetry  Inc
+[ERROR] Covariance value (14 , 14) : 3.75818e-05 , 3.13296e-05  19.9565 are different for EPPS16  Charge_Asymmetry  Inc
+[ERROR] Covariance value (10 , 10) : 6.89272e-05 , 8.16155e-05  15.5464 are different for EPPS16  ForwardBackward_Ratio  Pl
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+Error in <TDecompChol::Decompose()>: matrix not positive definite
+[ERROR] Cholesky decomposition failed for nCTEQ15 !

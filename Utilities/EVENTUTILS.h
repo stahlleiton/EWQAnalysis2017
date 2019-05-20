@@ -94,7 +94,8 @@ TH1D graphToHist( const TGraphAsymmErrors& gr , const int addOnly=0 )
     }
     bins[iBin] = edge;
   }
-  TH1D h(tmp.GetName(), tmp.GetTitle(), nBin, bins);
+  std::string name = Form("h%s", tmp.GetName());
+  TH1D h(name.c_str(), tmp.GetTitle(), nBin, bins);
   for (uint iBin = 0; iBin < nBin; iBin++) {
     double x, y; tmp.GetPoint(iBin, x, y);
     double ey = tmp.GetErrorY(iBin);

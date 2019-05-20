@@ -1,3 +1,6 @@
+#ifndef MCFM_h
+#define MCFM_h
+
 // ROOT headers
 #include "TGraphAsymmErrors.h"
 // c++ headers
@@ -4324,3 +4327,4 @@ void Wp(GraphMap& graph)
   graph.at("nCTEQ15").SetName("nCTEQ15"); graph.at("nCTEQ15").SetTitle("nCTEQ15");
   //
 };
+#endif

@@ -29,7 +29,7 @@ bool fileList ( std::vector< std::string >& fileNames , const std::string& dirPa
 
 
 void makeFitPlots(
-                  const int plotSTYLE = 3, // 4: Thesis (LIN) , 3: Thesis (LOG) , 2: Paper , 1: PAS , 0: AN
+                  const int plotSTYLE = 2, // 4: Thesis (LIN) , 3: Thesis (LOG) , 2: Paper , 1: PAS , 0: AN
                   const std::string workDirName="NominalCM",
                   const std::vector< std::string > collVec = { "PA" /*, "pPb" , "Pbp"  */}
                   )
